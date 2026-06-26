@@ -1,0 +1,50 @@
+## Interface: 50504
+## Title: |cff9B6BFFWeint|r|cff33D65ECodex|r
+## Notes: Raid Guide & Intelligence System
+## Author: Fabian
+## Version: 0.9.1
+## SavedVariables: WeintCodex_SavedData
+
+libs/LibStub/LibStub.lua
+libs/CallbackHandler-1.0/CallbackHandler-1.0.xml
+libs/LibDataBroker-1.1/LibDataBroker-1.1.lua
+libs/LibDBIcon-1.0/lib.xml
+
+core/main.lua
+core/ui.lua
+core/navigation.lua
+core/minimap.lua
+
+data/BossData.lua
+data/enchants.lua
+data/spec_profiles.lua
+data/gems.lua
+data/gem_stats.lua
+data/weakauras/init.lua
+data/weakauras/deathknight.lua
+data/weakauras/druid.lua
+data/weakauras/hunter.lua
+data/weakauras/mage.lua
+data/weakauras/monk.lua
+data/weakauras/paladin.lua
+data/weakauras/priest.lua
+data/weakauras/rogue.lua
+data/weakauras/shaman.lua
+data/weakauras/warlock.lua
+data/weakauras/warrior.lua
+data/weakauras/raid_pack_anchors.lua
+data/weakauras/raidframes_soo.lua
+data/weakauras/suo_bosse_0108.lua
+data/weakauras/suo_bosse_0914.lua
+data/weakauras/gearchecker.lua
+data/weakauras/dungeonpack.lua
+data/weakauras/dungeonpack_glows.lua
+data/weakauras/class_pack_anchors.lua
+
+modules/charakter.lua
+modules/bossguides.lua
+modules/raids.lua
+modules/materials.lua
+modules/calendar.lua
+modules/weakauras.lua
+modules/sync.lua
