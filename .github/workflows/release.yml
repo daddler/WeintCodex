@@ -15,24 +15,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create Addon ZIP
+      - name: Set version
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      - name: Create Addon Structure
         run: |
           mkdir WeintCodex
 
           rsync -a \
             --exclude=".git" \
             --exclude=".github" \
-            --exclude="WeintCodex" \
             --exclude=".gitignore" \
             --exclude="README.md" \
             --exclude="LICENSE" \
+            --exclude="WeintCodex" \
             ./ WeintCodex/
 
-          zip -r WeintCodex.zip WeintCodex
+      - name: Create ZIP
+        run: |
+          zip -r "WeintCodex-${VERSION}.zip" WeintCodex
 
       - name: Upload ZIP to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: WeintCodex.zip
+          files: WeintCodex-${{ env.VERSION }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
