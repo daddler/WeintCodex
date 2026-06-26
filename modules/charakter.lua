@@ -414,12 +414,6 @@ if not link then
                         local gemStats =
                         WeintCodex_GemStats and WeintCodex_GemStats[gemId]
 
-                        print(
-                            "GemID:",
-                            gemId,
-                            "GemStats:",
-                            gemStats
-                        )
                         if not gemStats then
                             return 0
                             end
@@ -444,7 +438,6 @@ if not link then
                                         )
                                         end
 
-                                        print("FINAL SCORE", score)
                                     return score
                                     end
 
