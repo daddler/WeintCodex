@@ -110,9 +110,14 @@ local function CreateMatFrame()
     f.UpdateStr = updateStr
 
     -- Export Buttons
+    --------------------------------------------------
+
+    -- Export für Bot
+
     local exportBtn = CreateFrame("Button", nil, header)
     exportBtn:SetSize(130, 26)
     exportBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -20, -14)
+
     SetSolidBg(exportBtn, C.purple[1], C.purple[2], C.purple[3], 0.80)
     DrawBorder(exportBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
 
@@ -123,23 +128,45 @@ local function CreateMatFrame()
     exportLbl:SetTextColor(1, 1, 1)
 
     exportBtn:SetScript("OnEnter", function(self)
-        SetSolidBg(self, C.purple[1] * 1.25, C.purple[2] * 1.25, C.purple[3] * 1.15, 0.90)
+    SetSolidBg(self, C.purple[1] * 1.25, C.purple[2] * 1.25, C.purple[3] * 1.15, 0.90)
     end)
+
     exportBtn:SetScript("OnLeave", function(self)
-        SetSolidBg(self, C.purple[1], C.purple[2], C.purple[3], 0.80)
+    SetSolidBg(self, C.purple[1], C.purple[2], C.purple[3], 0.80)
     end)
+
     exportBtn:SetScript("OnClick", function()
-        local exportStr = WeintCodex.Materials.GetExportString()
-        if exportStr == "" or not WeintCodex.SavedData or not WeintCodex.SavedData.materialData then
-            WeintCodex.ShowExportDialog("Export für Discord-Bot", "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen.")
+
+    local exportStr = WeintCodex.Materials.GetExportString()
+
+    if exportStr == "" or
+        not WeintCodex.SavedData or
+        not WeintCodex.SavedData.materialData then
+
+        WeintCodex.ShowExportDialog(
+            "Export für Discord-Bot",
+            "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen."
+        )
+
         else
-            WeintCodex.ShowExportDialog("Export für Discord-Bot", exportStr)
-        end
-    end)
+
+            WeintCodex.ShowExportDialog(
+                "Export für Discord-Bot",
+                exportStr
+            )
+
+            end
+
+            end)
+
+    --------------------------------------------------
+    -- Komplett-Export
+    --------------------------------------------------
 
     local fullExportBtn = CreateFrame("Button", nil, header)
     fullExportBtn:SetSize(130, 26)
     fullExportBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -160, -14)
+
     SetSolidBg(fullExportBtn, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
     DrawBorder(fullExportBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
 
@@ -150,20 +177,95 @@ local function CreateMatFrame()
     fullExportLbl:SetTextColor(1, 1, 1)
 
     fullExportBtn:SetScript("OnEnter", function(self)
-        SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
-    end)
-    fullExportBtn:SetScript("OnLeave", function(self)
-        SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-    end)
-    fullExportBtn:SetScript("OnClick", function()
-        local exportStr = WeintCodex.Materials.GetFullBankExportString()
-        if exportStr == "" or not WeintCodex.SavedData or not WeintCodex.SavedData.guildBankCache then
-            WeintCodex.ShowExportDialog("Komplett-Export der Gildenbank", "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen.")
-        else
-            WeintCodex.ShowExportDialog("Komplett-Export der Gildenbank", exportStr)
-        end
+    SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
     end)
 
+    fullExportBtn:SetScript("OnLeave", function(self)
+    SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
+    end)
+
+    fullExportBtn:SetScript("OnClick", function()
+
+    local exportStr = WeintCodex.Materials.GetFullBankExportString()
+
+    if exportStr == "" or
+        not WeintCodex.SavedData or
+        not WeintCodex.SavedData.guildBankCache then
+
+        WeintCodex.ShowExportDialog(
+            "Komplett-Export der Gildenbank",
+            "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen."
+        )
+
+        else
+
+            WeintCodex.ShowExportDialog(
+                "Komplett-Export der Gildenbank",
+                exportStr
+            )
+
+            end
+
+            end)
+
+    --------------------------------------------------
+    -- Companion
+    --------------------------------------------------
+
+    local companionBtn = CreateFrame("Button", nil, header)
+    companionBtn:SetSize(130, 26)
+    companionBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -300, -14)
+
+    SetSolidBg(companionBtn, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
+    DrawBorder(companionBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
+
+    local companionLbl = companionBtn:CreateFontString(nil, "OVERLAY")
+    companionLbl:SetAllPoints(companionBtn)
+    companionLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    companionLbl:SetText("Companion")
+    companionLbl:SetTextColor(1, 1, 1)
+
+    companionBtn:SetScript("OnEnter", function(self)
+    SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
+    end)
+
+    companionBtn:SetScript("OnLeave", function(self)
+    SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
+    end)
+
+    companionBtn:SetScript("OnClick", function()
+
+    local exportStr = WeintCodex.Materials.GetExportString()
+
+    if exportStr == "" then
+
+        print("|cffff4444[WeintCodex]|r Keine Materialdaten vorhanden.")
+
+        return
+
+        end
+
+        local id = WeintCodex.Companion.Send(
+            "materials",
+            exportStr
+        )
+
+        WeintCodex.Dialog.Show([[
+            Die Daten wurden erfolgreich vorbereitet.
+
+            Damit Weint Companion die Materialien
+            automatisch synchronisieren kann,
+            muss die Benutzeroberfläche einmal
+            neu geladen werden.
+        ]])
+
+        print(
+            "|cff00ff00[WeintCompanion]|r Nachricht #" ..
+            id ..
+            " zur Warteschlange hinzugefügt."
+        )
+
+        end)
     -- Legend bar (status colors)
     local legendBar = CreateFrame("Frame", nil, header)
     legendBar:SetHeight(22)

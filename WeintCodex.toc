@@ -2,8 +2,8 @@
 ## Title: |cff9B6BFFWeint|r|cff33D65ECodex|r
 ## Notes: Raid Guide & Intelligence System
 ## Author: Fabian
-## Version: 0.9.6.3
-## SavedVariables: WeintCodex_SavedData
+## Version: 0.9.6.5
+## SavedVariables: WeintCodex_SavedData, WeintCompanionDB
 
 libs/LibStub/LibStub.lua
 libs/CallbackHandler-1.0/CallbackHandler-1.0.xml
@@ -44,7 +44,10 @@ data/weakauras/class_pack_anchors.lua
 modules/charakter.lua
 modules/bossguides.lua
 modules/raids.lua
+modules/dialog.lua
+modules/companion.lua
 modules/materials.lua
 modules/calendar.lua
 modules/weakauras.lua
 modules/sync.lua
+
