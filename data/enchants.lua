@@ -5,15 +5,18 @@
 --
 -- Struktur:
 --   [enchantId] = {
---       name  = "Anzeigename",
+--       name  = "Deutscher Anzeigename",
 --       slot  = "Waffe|Schultern|Brust|Umhang|Handgelenke|Hände|Beine|Füße",
 --       stats = { hit = 180, ... },  -- numerisch, für Cap-Check & Bewertung
---       verify = true,               -- ID noch in-game gegenprüfen (**)
+--       verify = true,               -- Name/ID noch in-game gegenprüfen (**)
 --   }
 --
--- HINWEIS: IDs mit verify=true bitte in-game per
---   /dump select(2, GetItemInfo(GetInventoryItemLink("player", SLOT)))
---   bzw. Wowhead MoP-Classic verifizieren.
+-- HINWEIS ZU NAMEN: Für ANGELEGTE Verzauberungen liest das
+-- Charakter-Modul den Namen direkt aus dem Item-Tooltip
+-- ("Verzaubert: ...") — das ist immer die offizielle deutsche
+-- Lokalisierung. Die Namen hier werden für EMPFEHLUNGEN genutzt.
+-- Einträge mit verify=true bitte in-game gegenprüfen und ggf.
+-- den Namen hier in einer Zeile korrigieren.
 --------------------------------------------------
 
 WeintCodex_Enchants = {
@@ -22,21 +25,20 @@ WeintCodex_Enchants = {
     -- WAFFE (MoP-Verzauberungen)
     --------------------------------------------------
 
-    [4441] = { name = "Lied des Windes",     slot = "Waffe" },                    -- Windsong (Proc: 1500 Krit/Tempo/Meisterschaft)
-    [4442] = { name = "Jadegeist",           slot = "Waffe" },                    -- Jade Spirit (Proc: 1650 Int)
-    [4443] = { name = "Elementarkraft",      slot = "Waffe" },                    -- Elemental Force (Elementarschaden-Proc)
-    [4444] = { name = "Tanzender Stahl",     slot = "Waffe" },                    -- Dancing Steel (Proc: 1650 Stärke/Beweglichkeit)
-    [4445] = { name = "Koloss",              slot = "Waffe" },                    -- Colossus (Absorb-Proc, Tank)
-    [4446] = { name = "Lied des Flusses",    slot = "Waffe" },                    -- River's Song (Ausweichen-Proc, Tank)
+    [4441] = { name = "Lied des Windes",  slot = "Waffe" },   -- Windsong (Proc: 1500 Krit/Tempo/Meisterschaft)
+    [4442] = { name = "Jadegeist",        slot = "Waffe" },   -- Jade Spirit (Proc: 1650 Intelligenz)
+    [4443] = { name = "Elementarkraft",   slot = "Waffe" },   -- Elemental Force (Elementarschaden-Proc)
+    [4444] = { name = "Tanzender Stahl",  slot = "Waffe" },   -- Dancing Steel (Proc: 1650 Stärke ODER Beweglichkeit)
+    [4445] = { name = "Koloss",           slot = "Waffe" },   -- Colossus (Absorbschild-Proc, Tank)
+    [4446] = { name = "Lied des Flusses", slot = "Waffe" },   -- River's Song (Ausweich-Proc, Tank)
 
     --------------------------------------------------
     -- WAFFE: Todesritter-Runenverzierungen
     --------------------------------------------------
 
-    [3368] = { name = "Rune des gefallenen Kreuzfahrers", slot = "Waffe", isDkRune = true },
-    [3370] = { name = "Rune der Rasierklinge",            slot = "Waffe", isDkRune = true },  -- Razorice
-    [3847] = { name = "Rune des Steinhautgargoyles",      slot = "Waffe", isDkRune = true },
-    [3369] = { name = "Rune des Aschenbringers (alt)",    slot = "Waffe", isDkRune = true, verify = true },
+    [3368] = { name = "Rune des gefallenen Kreuzfahrers",     slot = "Waffe", isDkRune = true },
+    [3370] = { name = "Rune des Klingeneises (Razorice)",     slot = "Waffe", isDkRune = true, verify = true },
+    [3847] = { name = "Rune des Steinhautgargoyles",          slot = "Waffe", isDkRune = true },
 
     --------------------------------------------------
     -- WAFFE: Zielfernrohre (Ingenieurskunst, für Jäger)
@@ -44,19 +46,19 @@ WeintCodex_Enchants = {
     -- Zielfernrohr sitzt auf der Waffe (Slot 16).
     --------------------------------------------------
 
-    [4699] = { name = "Lord Blastingtons Optik des Schreckens", slot = "Waffe", verify = true },
-    [4700] = { name = "Spiegeloptik",                            slot = "Waffe", verify = true },
-    [4099] = { name = "Mörder-Optik (alt)",                      slot = "Waffe", verify = true },
-    [4166] = { name = "Scharfes Zielfernrohr (alt)",             slot = "Waffe", verify = true },
+    [4699] = { name = "Lord Blastingtons Zielfernrohr des Schreckens", slot = "Waffe", verify = true },
+    [4700] = { name = "Spiegelzielfernrohr",                            slot = "Waffe", verify = true },
+    [4099] = { name = "Zielfernrohr (älteres Modell)",                  slot = "Waffe", verify = true },
+    [4166] = { name = "Scharfes Zielfernrohr (älteres Modell)",         slot = "Waffe", verify = true },
 
     --------------------------------------------------
     -- SCHULTERN (Inschriftenkunde, Große Inschriften)
     --------------------------------------------------
 
-    [4803] = { name = "Große Tigerzahninschrift",       slot = "Schultern", stats = { strength = 200, crit = 100 } },
-    [4804] = { name = "Große Kranichschwingeninschrift", slot = "Schultern", stats = { intellect = 200, crit = 100 } },
-    [4805] = { name = "Große Ochsenhorninschrift",       slot = "Schultern", stats = { stamina = 300, dodge = 100 } },
-    [4806] = { name = "Große Tigerklaueninschrift",      slot = "Schultern", stats = { agility = 200, crit = 100 } },
+    [4803] = { name = "Große Inschrift des Tigerzahns",      slot = "Schultern", stats = { strength = 200, crit = 100 } },
+    [4804] = { name = "Große Inschrift der Kranichschwinge", slot = "Schultern", stats = { intellect = 200, crit = 100 } },
+    [4805] = { name = "Große Inschrift des Ochsenhorns",     slot = "Schultern", stats = { stamina = 300, dodge = 100 } },
+    [4806] = { name = "Große Inschrift der Tigerklaue",      slot = "Schultern", stats = { agility = 200, crit = 100 } },
 
     --------------------------------------------------
     -- BRUST
@@ -69,38 +71,38 @@ WeintCodex_Enchants = {
     -- UMHANG
     --------------------------------------------------
 
-    [4421] = { name = "Große Präzision",                      slot = "Umhang", stats = { hit = 180 } },
-    [4422] = { name = "Überragende Kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },
-    [4424] = { name = "Überlegene Kritische Trefferwertung",  slot = "Umhang", stats = { crit = 180 }, verify = true },
-    [4892] = { name = "Überlegene Intelligenz",               slot = "Umhang", stats = { intellect = 180 } },
+    [4421] = { name = "Genauigkeit",                          slot = "Umhang", stats = { hit = 180 }, verify = true },
+    [4422] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },
+    [4424] = { name = "Überlegene kritische Trefferwertung",  slot = "Umhang", stats = { crit = 180 }, verify = true },
+    [4892] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 } },
 
     --------------------------------------------------
     -- HANDGELENKE
     --------------------------------------------------
 
-    [4411] = { name = "Meisterschaft",             slot = "Handgelenke", stats = { mastery = 170 } },
-    [4412] = { name = "Außergewöhnliche Stärke",   slot = "Handgelenke", stats = { strength = 170 } },
-    [4414] = { name = "Überragende Intelligenz",   slot = "Handgelenke", stats = { intellect = 180 } },
-    [4416] = { name = "Große Beweglichkeit",       slot = "Handgelenke", stats = { agility = 170 } },
+    [4411] = { name = "Meisterschaft",           slot = "Handgelenke", stats = { mastery = 170 } },
+    [4412] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 170 } },
+    [4414] = { name = "Superintelligenz",        slot = "Handgelenke", stats = { intellect = 180 }, verify = true },
+    [4416] = { name = "Große Beweglichkeit",     slot = "Handgelenke", stats = { agility = 170 } },
 
     --------------------------------------------------
     -- HÄNDE
     --------------------------------------------------
 
-    [4431] = { name = "Überlegene Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
-    [4432] = { name = "Überlegene Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
-    [4433] = { name = "Große Tempowertung",       slot = "Hände", stats = { haste = 170 } },
-    [4434] = { name = "Überragende Stärke",       slot = "Hände", stats = { strength = 170 } },
+    [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
+    [4432] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
+    [4433] = { name = "Große Tempowertung",        slot = "Hände", stats = { haste = 170 }, verify = true },
+    [4434] = { name = "Superstärke",               slot = "Hände", stats = { strength = 170 }, verify = true },
 
     --------------------------------------------------
     -- BEINE (Lederverarbeitung / Schneiderei)
     --------------------------------------------------
 
-    [4822] = { name = "Schattenlederbeinrüstung",              slot = "Beine", stats = { agility = 285, crit = 165 } },
-    [4823] = { name = "Zornbalgbeinrüstung",                   slot = "Beine", stats = { strength = 285, crit = 165 } },
-    [4824] = { name = "Eisenschuppenbeinrüstung",              slot = "Beine", stats = { stamina = 430, dodge = 165 } },
-    [4825] = { name = "Großer perlmuttfarbener Zauberfaden",   slot = "Beine", stats = { intellect = 285, spirit = 165 }, verify = true },
-    [4826] = { name = "Großer zerulanischer Zauberfaden",      slot = "Beine", stats = { intellect = 285, crit = 165 }, verify = true },
+    [4822] = { name = "Schattenlederbeinrüstung",            slot = "Beine", stats = { agility = 285, crit = 165 } },
+    [4823] = { name = "Zornbalgbeinrüstung",                 slot = "Beine", stats = { strength = 285, crit = 165 } },
+    [4824] = { name = "Eisenschuppenbeinrüstung",            slot = "Beine", stats = { stamina = 430, dodge = 165 } },
+    [4825] = { name = "Großer perlmuttfarbener Zauberfaden", slot = "Beine", stats = { intellect = 285, spirit = 165 }, verify = true },
+    [4826] = { name = "Großer zerulanblauer Zauberfaden",    slot = "Beine", stats = { intellect = 285, crit = 165 }, verify = true },
 
     --------------------------------------------------
     -- FÜSSE
@@ -109,7 +111,7 @@ WeintCodex_Enchants = {
     [4425] = { name = "Verschwommene Geschwindigkeit", slot = "Füße", stats = { agility = 140 }, verify = true },
     [4426] = { name = "Pandarenschritt",               slot = "Füße", stats = { mastery = 140 } },
     [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 } },
-    [4429] = { name = "Große Tempowertung",            slot = "Füße", stats = { haste = 175 } },
+    [4429] = { name = "Große Tempowertung",            slot = "Füße", stats = { haste = 175 }, verify = true },
     [4430] = { name = "Große Beweglichkeit",           slot = "Füße", stats = { agility = 140 }, verify = true },
 
 }

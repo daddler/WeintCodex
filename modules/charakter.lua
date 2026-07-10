@@ -154,6 +154,44 @@ local function GetGemDisplayName(gemId)
     return "Unbekannter Stein (ID: " .. gemId .. ")"
 end
 
+--------------------------------------------------
+-- Verzauberungsname direkt vom Item-Tooltip lesen.
+-- Der Client liefert die offizielle deutsche
+-- Lokalisierung ("Verzaubert: <Name>") — damit sind
+-- die Namen angelegter Verzauberungen immer korrekt,
+-- unabhängig von unserer Datenbank.
+--------------------------------------------------
+
+local ENCHANT_LINE_PATTERN
+do
+    -- ENCHANTED_TOOLTIP_LINE = "Verzaubert: %s" (dt. Client)
+    local raw = _G.ENCHANTED_TOOLTIP_LINE or "Verzaubert: %s"
+    ENCHANT_LINE_PATTERN = "^" .. raw:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+                                    :gsub("%%%%s", "(.+)")
+end
+
+local function GetEquippedEnchantText(slotId, enchantId)
+    if not enchantId then return nil end
+    if WeintCodex._enchantNameCache[enchantId] then
+        return WeintCodex._enchantNameCache[enchantId]
+    end
+    scanTip:ClearLines()
+    scanTip:SetInventoryItem("player", slotId)
+    local n = scanTip:NumLines() or 0
+    for i = 2, n do
+        local line = _G["WeintCodexScanTipTextLeft" .. i]
+        local txt = line and line:GetText()
+        if txt then
+            local name = txt:match(ENCHANT_LINE_PATTERN)
+            if name and name ~= "" then
+                WeintCodex._enchantNameCache[enchantId] = name
+                return name
+            end
+        end
+    end
+    return nil
+end
+
 local function ClearCharakterCache()
     WeintCodex._enchantNameCache = {}
 end
@@ -537,12 +575,39 @@ local function PickGemRecommendation(socketColor, profile, overStats)
     return list[1]
 end
 
+--------------------------------------------------
+-- LEGENDÄRE URDIAMANTEN (Wrathion-Questreihe, 5.2)
+-- Diese Steine sind IMMER optimal, wenn sie zur
+-- Rolle passen — sie sind besser als jeder
+-- kaufbare Meta-Stein und dürfen nie als
+-- "falsch" markiert werden.
+--------------------------------------------------
+
+local LEGENDARY_META = {
+    [95346] = { MELEE = true, RANGED = true, TANK = true },  -- Kapazitiver Urdiamant
+    [95347] = { CASTER = true },                             -- Finsterer Urdiamant
+    [95345] = { HEALER = true },                             -- Mutiger Urdiamant
+    [95344] = { TANK = true },                               -- Unbezähmbarer Urdiamant
+}
+
 -- Gibt zurück: status, qualityPct (oder nil), unbekannt (bool)
 local function EvaluateGem(gemId, socketColor, profile)
     if not gemId then return "missing", nil, false end
 
     local gemData  = WeintCodex_Gems and WeintCodex_Gems[gemId]
     local colorKey = (gemData and gemData.color) or socketColor
+    local isMeta   = (colorKey == "meta") or (socketColor == "meta")
+
+    -- Legendärer Meta-Stein: rollengerecht => optimal,
+    -- andere Rolle => nur Hinweis (nie "falsch")
+    local leg = LEGENDARY_META[gemId]
+    if leg then
+        if not profile or not profile.role or leg[profile.role] then
+            return "optimal", 100, false
+        end
+        return "ok", nil, false
+    end
+
     local bestList = profile and profile.bestGems and colorKey
                      and profile.bestGems[colorKey]
 
@@ -563,6 +628,10 @@ local function EvaluateGem(gemId, socketColor, profile)
             local pct = math.floor((myScore / best) * 100 + 0.5)
             if pct >= 90 then return "optimal", pct, false end
             if pct >= 65 then return "ok", pct, false end
+            -- Meta-Steine nie als "falsch" werten: ihre Proc-Effekte
+            -- (z.B. Mana-Ersparnis, Schadensreduktion) stecken nicht
+            -- in den reinen Statwerten.
+            if isMeta then return "ok", pct, false end
             return "wrong", pct, false
         end
     end
@@ -615,6 +684,9 @@ local function ScanCharacter()
             if slotDef.enchSlot then
                 local skip = slotDef.nurWaffe and not IsWeaponLink(link)
                 if not skip then
+                    -- Offiziellen deutschen Namen vom Tooltip in den
+                    -- Cache legen (überschreibt DB-Namen)
+                    GetEquippedEnchantText(slotDef.id, enchId)
                     local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile)
                     scan.enchants.rows[#scan.enchants.rows + 1] = {
                         slotId    = slotDef.id,
