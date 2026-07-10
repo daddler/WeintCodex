@@ -12,24 +12,26 @@
 WeintCodex_GemStats = {
 
     --------------------------------------------------
-    -- META (legendäre Bergkristalle, SoO)
-    -- Prozent-Procs werden nicht bewertet, nur der Grundwert.
+    -- META: Legendäre Urdiamanten (Wrathion-Questreihe)
+    -- Proc-Effekte werden nicht bewertet, nur der Grundwert.
+    -- Diese Steine werden in der Engine (LEGENDARY_META)
+    -- rollengerecht immer als optimal gewertet.
     --------------------------------------------------
 
-    [95347] = { crit = 324 },        -- Finsterer Bergkristall (Caster-DPS)
-    [95345] = { intellect = 324 },   -- Mutiger Bergkristall (Heiler)
-    [95346] = { crit = 324 },        -- Geladener Bergkristall (Nahkampf/Fernkampf)
-    [95344] = { stamina = 324 },     -- Unbeugsamer Bergkristall (Tank)
+    [95347] = { crit = 324 },        -- Finsterer Urdiamant (Caster-DPS)
+    [95345] = { spirit = 324 },      -- Mutiger Urdiamant (Heiler)
+    [95346] = { crit = 324 },        -- Kapazitiver Urdiamant (Nahkampf/Fernkampf)
+    [95344] = { stamina = 324 },     -- Unbezähmbarer Urdiamant (Tank)
 
     --------------------------------------------------
-    -- META (Bergkristalle)
+    -- META (Urdiamanten)
     --------------------------------------------------
 
-    [76884] = { agility = 216 },     -- Agiler Bergkristall
-    [76885] = { intellect = 216 },   -- Brennender Bergkristall
-    [76886] = { strength = 216 },    -- Widerscheinender Bergkristall
-    [76895] = { stamina = 432 },     -- Strenger Bergkristall (Tank)
-    [76888] = { spirit = 432 },      -- Belebender Bergkristall (Heiler)
+    [76884] = { agility = 216 },     -- Agiler Urdiamant
+    [76885] = { intellect = 216 },   -- Brennender Urdiamant
+    [76886] = { strength = 216 },    -- Widerhallender Urdiamant
+    [76895] = { stamina = 432 },     -- Asketischer Urdiamant (Tank)
+    [76888] = { spirit = 432 },      -- Revitalisierender Urdiamant (Heiler)
 
     --------------------------------------------------
     -- ROT (Rubellit): 160 Primärstat / 320 Sekundärstat

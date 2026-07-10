@@ -1,0 +1,57 @@
+name: Manual Release
+
+# Erstellt ein GitHub-Release (Tag + Notes + Addon-ZIP) per Knopfdruck
+# bzw. API-Dispatch. Das ZIP wird hier direkt mitgebaut, weil ein vom
+# GITHUB_TOKEN erstelltes Release den "Pack and Attach"-Workflow aus
+# Sicherheitsgründen nicht triggert.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release-Tag (z.B. v0.9.7.1)"
+        required: true
+      notes:
+        description: "Release-Notes (Markdown)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Addon Structure
+        run: |
+          mkdir WeintCodex
+
+          rsync -a \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude=".gitignore" \
+            --exclude="README.md" \
+            --exclude="LICENSE" \
+            --exclude="WeintCodex" \
+            ./ WeintCodex/
+
+      - name: Create ZIP
+        run: |
+          zip -r "WeintCodex-${{ inputs.tag }}.zip" WeintCodex
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "${{ inputs.notes }}" > release-notes.md
+          gh release create "${{ inputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ inputs.tag }}" \
+            --notes-file release-notes.md \
+            "WeintCodex-${{ inputs.tag }}.zip"
