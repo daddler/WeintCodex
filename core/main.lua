@@ -60,6 +60,12 @@ local function OnAddonLoaded(self, event, addonName)
 
     WeintCodex.SavedData = WeintCodex_SavedData
 
+    -- Companion-Inbox verarbeiten (z. B. automatisch abgerufener
+    -- Raid-Roster-Export von einem per Discord-Login verknüpften Raidlead)
+    if WeintCodex.Companion and WeintCodex.Companion.ProcessInbox then
+        WeintCodex.Companion.ProcessInbox()
+    end
+
     -- Restore saved window size
     if WeintCodex.ApplySavedWindow then
         WeintCodex.ApplySavedWindow()

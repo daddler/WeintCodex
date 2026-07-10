@@ -175,3 +175,48 @@ if STATE_MESSAGES[messageType] then
             )
 
             end
+
+----------------------------------------------------------
+-- Inbox (Bot -> Companion -> Addon)
+----------------------------------------------------------
+-- Gegenrichtung zur obigen Warteschlange: Hier schreibt die
+-- Companion-App Nachrichten hinein (z. B. den Raid-Roster-Export,
+-- den ein per Discord-Login verknüpfter Raidlead automatisch vom Bot
+-- abgerufen hat). ProcessInbox() wird beim Addon-Login aufgerufen
+-- (siehe core/main.lua) und reicht jede Nachricht an den bereits
+-- bestehenden Import-Parser weiter - identisch zum manuellen
+-- Copy-Paste über /wc import, nur automatisch ausgelöst.
+----------------------------------------------------------
+
+local function InitializeInbox()
+
+WeintCompanionInboxDB = WeintCompanionInboxDB or {}
+
+WeintCompanionInboxDB.queue =
+WeintCompanionInboxDB.queue or {}
+
+end
+
+function WeintCodex.Companion.ProcessInbox()
+
+InitializeInbox()
+
+if #WeintCompanionInboxDB.queue == 0 then
+    return
+end
+
+for _, message in ipairs(WeintCompanionInboxDB.queue) do
+
+    if message.type == "raid_import" and message.payload then
+
+        if WeintCodex.Sync and WeintCodex.Sync.QuickImport then
+            WeintCodex.Sync.QuickImport(message.payload)
+        end
+
+    end
+
+end
+
+wipe(WeintCompanionInboxDB.queue)
+
+end

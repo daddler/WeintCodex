@@ -3,7 +3,7 @@
 ## Notes: Raid Guide & Intelligence System
 ## Author: Fabian
 ## Version: 0.9.6.6
-## SavedVariables: WeintCodex_SavedData, WeintCompanionDB
+## SavedVariables: WeintCodex_SavedData, WeintCompanionDB, WeintCompanionInboxDB
 
 libs/LibStub/LibStub.lua
 libs/CallbackHandler-1.0/CallbackHandler-1.0.xml
