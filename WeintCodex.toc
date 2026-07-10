@@ -2,7 +2,7 @@
 ## Title: |cff9B6BFFWeint|r|cff33D65ECodex|r
 ## Notes: Raid Guide & Intelligence System
 ## Author: Fabian
-## Version: 0.9.6.7
+## Version: 0.9.7.0
 ## SavedVariables: WeintCodex_SavedData, WeintCompanionDB, WeintCompanionInboxDB
 
 libs/LibStub/LibStub.lua
