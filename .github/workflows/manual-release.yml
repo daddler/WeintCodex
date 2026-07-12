@@ -40,18 +40,25 @@ jobs:
             --exclude="WeintCodex" \
             ./ WeintCodex/
 
+      # WICHTIG: tag/notes NUR über env übergeben — eine direkte
+      # ${{ inputs.notes }}-Interpolation im Skript bricht bei
+      # Anführungszeichen/Klammern in den Notes (Shell-Injection).
       - name: Create ZIP
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          zip -r "WeintCodex-${{ inputs.tag }}.zip" WeintCodex
+          zip -r "WeintCodex-${TAG}.zip" WeintCodex
 
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          NOTES: ${{ inputs.notes }}
         run: |
-          printf '%s' "${{ inputs.notes }}" > release-notes.md
-          gh release create "${{ inputs.tag }}" \
+          printf '%s' "$NOTES" > release-notes.md
+          gh release create "$TAG" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "${{ inputs.tag }}" \
+            --title "$TAG" \
             --notes-file release-notes.md \
-            "WeintCodex-${{ inputs.tag }}.zip"
+            "WeintCodex-${TAG}.zip"
