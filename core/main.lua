@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "0.9.7.5"
+WeintCodex.Version = "0.9.7.6"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -33,6 +33,14 @@ local function OnEvent(self, event, addonName)
         -- fürs Kalender-Invite kennt - siehe modules/companion.lua.
         if WeintCodex.Companion and WeintCodex.Companion.ReportCharacter then
             WeintCodex.Companion.ReportCharacter()
+        end
+
+        -- Bereits importierte Rosterdaten erneut auflösen - UnitClass/
+        -- UnitName sind bei ADDON_LOADED (Zeitpunkt des ursprünglichen
+        -- Imports über ProcessInbox) noch nicht zuverlässig verfügbar.
+        if WeintCodex.Raids and WeintCodex.Raids.ResolveNames and WeintCodex.SavedData then
+            WeintCodex.Raids.ResolveNames(WeintCodex.SavedData.raidWednesday)
+            WeintCodex.Raids.ResolveNames(WeintCodex.SavedData.raidThursday)
         end
 
         return

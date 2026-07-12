@@ -48,6 +48,124 @@ local classIcons = {
 }
 
 --------------------------------------------------
+-- Namensauflösung (Discord-Name -> WoW-Charaktername)
+--------------------------------------------------
+-- Der Bot versucht bereits serverseitig (companion_characters), den
+-- Discord-Anzeigenamen einer Anmeldung durch den passenden Charakter
+-- zu ersetzen. Das klappt nur, wenn der Spieler Discord verknüpft UND
+-- gemeldet hat. Als Ergänzung dazu:
+--   1. Manuelle Korrektur (Stift-Symbol je Zeile) - überschreibt jeden
+--      Eintrag dauerhaft, überlebt auch erneute Syncs.
+--   2. Automatische Selbst-Erkennung beim Login: passt die Klasse des
+--      eingeloggten Charakters zu GENAU EINEM noch unaufgelösten
+--      Eintrag im Roster, wird automatisch der eigene Name eingesetzt.
+--      Bei mehreren möglichen Kandidaten (z. B. zwei Krieger angemeldet)
+--      bleibt der Eintrag unangetastet - dann hilft nur die manuelle
+--      Korrektur.
+--------------------------------------------------
+
+local function IsKnownOtherCharacter(name, myName)
+    if not IsInGuild() then return false end
+
+    local num = GetNumGuildMembers() or 0
+
+    for i = 1, num do
+        local gname = GetGuildRosterInfo(i)
+        if gname then
+            local shortName = gname:match("([^%-]+)") or gname
+            if shortName:lower() == name:lower()
+               and shortName:lower() ~= (myName or ""):lower()
+            then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+function WeintCodex.Raids.ResolveNames(data)
+    if not data or not data.players then return end
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    WeintCodex.SavedData.rosterNameOverrides =
+        WeintCodex.SavedData.rosterNameOverrides or {}
+
+    local overrides = WeintCodex.SavedData.rosterNameOverrides
+
+    -- Original-Namen sichern (einmalig) + gespeicherte manuelle
+    -- Korrekturen anwenden
+    for _, p in ipairs(data.players) do
+        p.originalName = p.originalName or p.name
+        if overrides[p.originalName] then
+            p.name = overrides[p.originalName]
+        end
+    end
+
+    -- Automatische Selbst-Erkennung
+    local myName = UnitName("player")
+    local _, myClass = UnitClass("player")
+
+    if not myName or not myClass then return end
+
+    local candidates = {}
+
+    for _, p in ipairs(data.players) do
+        if p.class == myClass
+           and p.name == p.originalName
+           and p.name ~= myName
+           and not IsKnownOtherCharacter(p.name, myName)
+        then
+            table.insert(candidates, p)
+        end
+    end
+
+    if #candidates == 1 then
+        local p = candidates[1]
+        overrides[p.originalName] = myName
+        p.name = myName
+    end
+end
+
+--------------------------------------------------
+-- Manuelle Namenskorrektur (Stift-Symbol je Zeile)
+--------------------------------------------------
+
+StaticPopupDialogs["WEINTCODEX_EDIT_ROSTER_NAME"] = {
+    text = "Charaktername für '%s' eingeben:",
+    button1 = "Speichern",
+    button2 = "Abbrechen",
+    hasEditBox = true,
+    maxLetters = 48,
+    OnShow = function(self, data)
+        if data and data.originalName then
+            self.editBox:SetText(data.currentName or data.originalName)
+            self.editBox:HighlightText()
+        end
+    end,
+    OnAccept = function(self, data)
+        local newName = self.editBox:GetText():match("^%s*(.-)%s*$")
+        if newName ~= "" and data and data.originalName then
+            WeintCodex.SavedData = WeintCodex.SavedData or {}
+            WeintCodex.SavedData.rosterNameOverrides =
+                WeintCodex.SavedData.rosterNameOverrides or {}
+            WeintCodex.SavedData.rosterNameOverrides[data.originalName] = newName
+            if data.refresh then data.refresh() end
+        end
+    end,
+    EditBoxOnEnterPressed = function(self)
+        self:GetParent().button1:Click()
+    end,
+    EditBoxOnEscapePressed = function(self)
+        self:GetParent():Hide()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+--------------------------------------------------
 -- Helpers
 --------------------------------------------------
 
@@ -387,8 +505,36 @@ local function RefreshRaidDisplay(raidData)
                 noteLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
                 noteLbl:SetPoint("LEFT", row, "LEFT", 500, 0)
                 noteLbl:SetText("|cff4B4060" .. p.note .. "|r")
-                noteLbl:SetWidth(340)
+                noteLbl:SetWidth(320)
             end
+
+            -- Namen manuell korrigieren (falls Bot/Auto-Erkennung den
+            -- Discord-Namen nicht auflösen konnten)
+            local editBtn = CreateFrame("Button", nil, row)
+            editBtn:SetSize(20, 20)
+            editBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+
+            local editIcon = editBtn:CreateFontString(nil, "OVERLAY")
+            editIcon:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            editIcon:SetAllPoints(editBtn)
+            editIcon:SetText("|cff8B5CF6✎|r")
+
+            editBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+                GameTooltip:SetText("Charaktername korrigieren")
+                GameTooltip:Show()
+            end)
+            editBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+            editBtn:SetScript("OnClick", function()
+                StaticPopup_Show("WEINTCODEX_EDIT_ROSTER_NAME", p.originalName, nil, {
+                    originalName = p.originalName,
+                    currentName  = p.name,
+                    refresh = function()
+                        RefreshRaidDisplay(raidData)
+                    end,
+                })
+            end)
 
             table.insert(activePlayerRows, row)
             offsetY = offsetY - 28

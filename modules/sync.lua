@@ -242,6 +242,9 @@ local function ProcessImport(rawStr)
         local count = data.players and #data.players or 0
         if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
         WeintCodex.SavedData.raidWednesday = data
+        if WeintCodex.Raids and WeintCodex.Raids.ResolveNames then
+            WeintCodex.Raids.ResolveNames(data)
+        end
         if WeintCodex.Raids and WeintCodex.Raids.RefreshDay then
             WeintCodex.Raids.RefreshDay("wednesday", data)
         end
@@ -253,6 +256,9 @@ local function ProcessImport(rawStr)
         local count = data.players and #data.players or 0
         if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
         WeintCodex.SavedData.raidThursday = data
+        if WeintCodex.Raids and WeintCodex.Raids.ResolveNames then
+            WeintCodex.Raids.ResolveNames(data)
+        end
         if WeintCodex.Raids and WeintCodex.Raids.RefreshDay then
             WeintCodex.Raids.RefreshDay("thursday", data)
         end
