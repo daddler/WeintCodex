@@ -252,7 +252,7 @@ local function ProcessImport(rawStr)
         for bossName, bossData in pairs(data) do
             WeintCodex.SavedData.bossData[bossName] = bossData
         end
-        return true, "✓ " .. count .. " Boss-Guide(s) erfolgreich importiert."
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " " .. count .. " Boss-Guide(s) erfolgreich importiert."
 
     -- RAID MITTWOCH
     elseif typeTag == "RAIDWED" or typeTag == "RAID" then
@@ -266,7 +266,7 @@ local function ProcessImport(rawStr)
         if WeintCodex.Raids and WeintCodex.Raids.RefreshDay then
             WeintCodex.Raids.RefreshDay("wednesday", data)
         end
-        return true, "✓ Mittwoch-Raid vom " .. data.date .. " mit " .. count .. " Spielern importiert."
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Mittwoch-Raid vom " .. data.date .. " mit " .. count .. " Spielern importiert."
 
     -- RAID DONNERSTAG
     elseif typeTag == "RAIDTHU" then
@@ -280,7 +280,7 @@ local function ProcessImport(rawStr)
         if WeintCodex.Raids and WeintCodex.Raids.RefreshDay then
             WeintCodex.Raids.RefreshDay("thursday", data)
         end
-        return true, "✓ Donnerstag-Raid vom " .. data.date .. " mit " .. count .. " Spielern importiert."
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Donnerstag-Raid vom " .. data.date .. " mit " .. count .. " Spielern importiert."
 
     -- MATERIALIEN
     elseif typeTag == "MAT" then
@@ -291,7 +291,7 @@ local function ProcessImport(rawStr)
         if WeintCodex.Materials and WeintCodex.Materials.Refresh then
             WeintCodex.Materials.Refresh(data)
         end
-        return true, "✓ " .. count .. " Material(ien) importiert (Stand: " .. data.date .. ")."
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " " .. count .. " Material(ien) importiert (Stand: " .. data.date .. ")."
 
     -- WEAKAURAS
     elseif typeTag == "WA" then
@@ -303,7 +303,7 @@ local function ProcessImport(rawStr)
         if WeintCodex.WeakAuras and WeintCodex.WeakAuras.Refresh then
             WeintCodex.WeakAuras.Refresh(WeintCodex.SavedData.weakAuras)
         end
-        return true, "✓ " .. count .. " WeakAura(s) für Kategorie \"" .. data.category .. "\" importiert."
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " " .. count .. " WeakAura(s) für Kategorie \"" .. data.category .. "\" importiert."
 
     else
         return false, "Unbekannter Typ: " .. typeTag .. ". Erlaubt: BOSS, RAIDWED, RAIDTHU, MAT, WA"
@@ -356,11 +356,11 @@ function WeintCodex.Sync.ShowImportDialog()
     helpText:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
     helpText:SetText(
         "Führe im Discord-Bot einen Exportbefehl aus und füge den generierten String unten ein.\n\n" ..
-        "|cff9B6BFFBossguides:|r   /export boss        →  WCIMPORT:BOSS:...\n" ..
-        "|cff66ccffRaid Mi:|r       /export raidwed     →  WCIMPORT:RAIDWED:...\n" ..
-        "|cff66ccffRaid Do:|r       /export raidthu     →  WCIMPORT:RAIDTHU:...\n" ..
-        "|cffF59E0BMaterialien:|r  /export mat          →  WCIMPORT:MAT:...\n" ..
-        "|cff33D65EWeakAuras:|r    /export wa           →  WCIMPORT:WA:..."
+        "|cff9B6BFFBossguides:|r   /export boss        ->  WCIMPORT:BOSS:...\n" ..
+        "|cff66ccffRaid Mi:|r       /export raidwed     ->  WCIMPORT:RAIDWED:...\n" ..
+        "|cff66ccffRaid Do:|r       /export raidthu     ->  WCIMPORT:RAIDTHU:...\n" ..
+        "|cffF59E0BMaterialien:|r  /export mat          ->  WCIMPORT:MAT:...\n" ..
+        "|cff33D65EWeakAuras:|r    /export wa           ->  WCIMPORT:WA:..."
     )
 
     -- Format reference box
@@ -432,7 +432,7 @@ function WeintCodex.Sync.ShowImportDialog()
     local importBtnLbl = importBtn:CreateFontString(nil, "OVERLAY")
     importBtnLbl:SetAllPoints(importBtn)
     importBtnLbl:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-    importBtnLbl:SetText("|cffffffff↓  Importieren|r")
+    importBtnLbl:SetText("|cffffffff" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_Note_01", 14) .. "  Importieren|r")
 
     importBtn:SetScript("OnEnter", function(self)
         SetSolidBg(self, math.min(1, C.purple[1] * 1.3), math.min(1, C.purple[2] * 1.3), math.min(1, C.purple[3] * 1.2), 0.95)
@@ -486,13 +486,13 @@ function WeintCodex.Sync.ShowImportDialog()
         local lines = {}
         if sd then
             if sd.raidWednesday and sd.raidWednesday.date and sd.raidWednesday.date ~= "" then
-                lines[#lines+1] = "|cff66ccff⚔|r  Mittwoch-Raid:   " .. sd.raidWednesday.date .. "   (" .. (sd.raidWednesday.players and #sd.raidWednesday.players or 0) .. " Spieler)"
+                lines[#lines+1] = "|cff66ccff" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "|r  Mittwoch-Raid:   " .. sd.raidWednesday.date .. "   (" .. (sd.raidWednesday.players and #sd.raidWednesday.players or 0) .. " Spieler)"
             end
             if sd.raidThursday and sd.raidThursday.date and sd.raidThursday.date ~= "" then
-                lines[#lines+1] = "|cff66ccff⚔|r  Donnerstag-Raid: " .. sd.raidThursday.date .. "   (" .. (sd.raidThursday.players and #sd.raidThursday.players or 0) .. " Spieler)"
+                lines[#lines+1] = "|cff66ccff" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "|r  Donnerstag-Raid: " .. sd.raidThursday.date .. "   (" .. (sd.raidThursday.players and #sd.raidThursday.players or 0) .. " Spieler)"
             end
             if sd.materialData and sd.materialData.date and sd.materialData.date ~= "" then
-                lines[#lines+1] = "|cffF59E0B📦|r  Materialien:     " .. sd.materialData.date .. "   (" .. (sd.materialData.items and #sd.materialData.items or 0) .. " Einträge)"
+                lines[#lines+1] = "|cffF59E0B" .. WeintCodex.Icon("Interface\\Icons\\INV_Crate_01", 14) .. "|r  Materialien:     " .. sd.materialData.date .. "   (" .. (sd.materialData.items and #sd.materialData.items or 0) .. " Einträge)"
             end
         end
         if #lines == 0 then
@@ -509,7 +509,7 @@ function WeintCodex.Sync.ShowImportDialog()
         local raw = editBox:GetText()
         raw = raw:match("^%s*(.-)%s*$")
         if raw == "" then
-            f.StatusText:SetText("|cffff6666✗ Bitte einen Import-String einfügen.|r")
+            f.StatusText:SetText("|cffff6666" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " Bitte einen Import-String einfügen.|r")
             return
         end
 
@@ -522,7 +522,7 @@ function WeintCodex.Sync.ShowImportDialog()
                 print("|cff8B5CF6[WeintCodex]|r |cff33D65E" .. msg .. "|r")
             end)
         else
-            f.StatusText:SetText("|cffff6666✗ Fehler: " .. msg .. "|r")
+            f.StatusText:SetText("|cffff6666" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " Fehler: " .. msg .. "|r")
         end
     end)
 end

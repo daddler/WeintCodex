@@ -29,6 +29,37 @@ local C = {
 WeintCodex.Colors = C
 
 --------------------------------------------------
+-- Icon-Helper
+--------------------------------------------------
+-- Das UI-Font (FRIZQT__.TTF) unterstuetzt keine Unicode-Emoji - vorher
+-- verwendete Zeichen wie ⚔ ✦ 📦 wurden deshalb als leere Kaestchen
+-- dargestellt. Ab hier werden ausschliesslich echte, im Client
+-- vorhandene Icon-Texturen ueber die |T...|t-Escape-Syntax verwendet.
+--------------------------------------------------
+
+-- Beliebiges Icon aus Interface\Icons als Inline-Text-Icon
+function WeintCodex.Icon(iconPath, size)
+    size = size or 14
+    return "|T" .. iconPath .. ":" .. size .. "|t"
+end
+
+-- Klassen-Icon (echtes Blizzard-Klassensymbol, kein Emoji)
+local CLASS_ICON_ATLAS = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes"
+
+function WeintCodex.ClassIcon(classToken, size)
+    size = size or 14
+    local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classToken]
+    if not coords then
+        return ""
+    end
+    return string.format(
+        "|T%s:%d:%d:0:0:256:256:%d:%d:%d:%d|t",
+        CLASS_ICON_ATLAS, size, size,
+        coords[1] * 256, coords[2] * 256, coords[3] * 256, coords[4] * 256
+    )
+end
+
+--------------------------------------------------
 -- Helpers
 --------------------------------------------------
 

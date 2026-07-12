@@ -14,9 +14,9 @@ local activeDay = "wednesday"
 --------------------------------------------------
 
 local roleColors = {
-    TANK   = { r = 0.40, g = 0.80, b = 1.00, label = "⚔  Tank"   },
-    HEALER = { r = 0.13, g = 0.77, b = 0.37, label = "✦  Heiler" },
-    DPS    = { r = 1.00, g = 0.49, b = 0.27, label = "⚡  DPS"   },
+    TANK   = { r = 0.40, g = 0.80, b = 1.00, label = WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tank"   },
+    HEALER = { r = 0.13, g = 0.77, b = 0.37, label = WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler" },
+    DPS    = { r = 1.00, g = 0.49, b = 0.27, label = WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS"   },
 }
 
 local classColors = {
@@ -31,20 +31,6 @@ local classColors = {
     WARLOCK    = "|cff9482c9",
     MONK       = "|cff00ff96",
     DRUID      = "|cffff7d0a",
-}
-
-local classIcons = {
-    WARRIOR     = "⚔",
-    PALADIN     = "✦",
-    HUNTER      = "🏹",
-    ROGUE       = "🗡",
-    PRIEST      = "✙",
-    DEATHKNIGHT = "☠",
-    SHAMAN      = "⚡",
-    MAGE        = "✨",
-    WARLOCK     = "🔮",
-    MONK        = "☯",
-    DRUID       = "🌿",
 }
 
 --------------------------------------------------
@@ -233,9 +219,9 @@ local function CreateRaidFrame()
 
     -- 4 stat cards
     local statDefs = {
-        { key = "tank",  label = "⚔  Tanks",  col = {0.40, 0.80, 1.00} },
-        { key = "heal",  label = "✦  Heiler", col = {0.13, 0.77, 0.37} },
-        { key = "dps",   label = "⚡  DPS",   col = {1.00, 0.49, 0.27} },
+        { key = "tank",  label = WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks",  col = {0.40, 0.80, 1.00} },
+        { key = "heal",  label = WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler", col = {0.13, 0.77, 0.37} },
+        { key = "dps",   label = WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS",   col = {1.00, 0.49, 0.27} },
         { key = "total", label = "Gesamt",     col = {0.65, 0.60, 0.80} },
     }
 
@@ -293,7 +279,7 @@ local function CreateRaidFrame()
     local reloadLabel = reloadButton:CreateFontString(nil, "OVERLAY")
     reloadLabel:SetAllPoints(reloadButton)
     reloadLabel:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    reloadLabel:SetText("🔄  Discord-Anmeldungen abrufen")
+    reloadLabel:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Discord-Anmeldungen abrufen")
     reloadLabel:SetTextColor(1, 1, 1)
 
     reloadButton:SetScript("OnEnter", function(self)
@@ -473,9 +459,9 @@ local function RefreshRaidDisplay(raidData)
 
         -- Reset stat cards
         local sl = f.StatLabels
-        sl.tank:SetText("⚔  Tanks: —")
-        sl.heal:SetText("✦  Heiler: —")
-        sl.dps:SetText("⚡  DPS: —")
+        sl.tank:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks: —")
+        sl.heal:SetText(WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler: —")
+        sl.dps:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS: —")
         sl.total:SetText("Gesamt: —")
         f.DateStr:SetText("")
         table.insert(activePlayerRows, noData)
@@ -493,9 +479,9 @@ local function RefreshRaidDisplay(raidData)
 
     local total = #raidData.players
     local sl    = f.StatLabels
-    sl.tank:SetText("⚔  Tanks: "  .. #tanks)
-    sl.heal:SetText("✦  Heiler: " .. #healers)
-    sl.dps:SetText("⚡  DPS: "    .. #dps)
+    sl.tank:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks: "  .. #tanks)
+    sl.heal:SetText(WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler: " .. #healers)
+    sl.dps:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS: "    .. #dps)
     sl.total:SetText("Gesamt: " .. total .. "/25")
 
     local offsetY = -4
@@ -543,7 +529,7 @@ local function RefreshRaidDisplay(raidData)
             nameLbl:SetWidth(200)
 
             -- Class
-            local cIcon = classIcons[p.class] or ""
+            local cIcon = WeintCodex.ClassIcon(p.class, 14)
             local classLbl = row:CreateFontString(nil, "OVERLAY")
             classLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
             classLbl:SetPoint("LEFT", row, "LEFT", 220, 0)
@@ -575,7 +561,7 @@ local function RefreshRaidDisplay(raidData)
             local editIcon = editBtn:CreateFontString(nil, "OVERLAY")
             editIcon:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
             editIcon:SetAllPoints(editBtn)
-            editIcon:SetText("|cff8B5CF6✎|r")
+            editIcon:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_Note_01", 14))
 
             editBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_LEFT")

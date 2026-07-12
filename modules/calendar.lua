@@ -154,7 +154,7 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
         return
     end
 
-    local msg = "✓ Kalender-Eintrag erstellt.\n" ..
+    local msg = WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Kalender-Eintrag erstellt.\n" ..
         "Titel: " .. title .. "\n" ..
         "Datum: " .. (dateStr or "heute") ..
         "   Uhrzeit: " .. string.format("%02d:%02d", hour or 20, minute or 0) .. "\n" ..
@@ -321,7 +321,7 @@ local function CreateCalendarFrame()
     local autoFillLbl = autoFillBtn:CreateFontString(nil, "OVERLAY")
     autoFillLbl:SetAllPoints(autoFillBtn)
     autoFillLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    autoFillLbl:SetText("|cff8B8BC0↺  Felder aus Raidanmeldung befüllen|r")
+    autoFillLbl:SetText("|cff8B8BC0" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Felder aus Raidanmeldung befüllen|r")
 
     autoFillBtn:SetScript("OnEnter", function(self)
         SetSolidBg(self, C.purple[1] * 0.15, C.purple[2] * 0.15, C.purple[3] * 0.15, 0.90)
@@ -336,7 +336,7 @@ local function CreateCalendarFrame()
         if data and data.date and data.date ~= "" then
             AutoFillFromData(f, data)
         else
-            f.StatusText:SetText("|cffff8855⚠ Keine Raidanmeldung für " ..
+            f.StatusText:SetText("|cffff8855" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 14) .. " Keine Raidanmeldung für " ..
                 ((activeDay == "thursday") and "Donnerstag" or "Mittwoch") ..
                 " vorhanden. Bitte zuerst importieren.|r")
         end
@@ -371,10 +371,10 @@ local function CreateCalendarFrame()
         return cb
     end
 
-    local cbTank   = MakeCheckbox(leftPanel, "|cff66ccff⚔  Tanks einladen|r",   16, -284, true)
-    local cbHealer = MakeCheckbox(leftPanel, "|cff66ff88✦  Heiler einladen|r",  16, -308, true)
-    local cbDps    = MakeCheckbox(leftPanel, "|cffff8855⚡  DPS einladen|r",     16, -332, true)
-    local cbMerge  = MakeCheckbox(leftPanel, "|cffD4A850👥  Raidtage zusammenführen|r", 16, -356, false)
+    local cbTank   = MakeCheckbox(leftPanel, "|cff66ccff" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks einladen|r",   16, -284, true)
+    local cbHealer = MakeCheckbox(leftPanel, "|cff66ff88" .. WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler einladen|r",  16, -308, true)
+    local cbDps    = MakeCheckbox(leftPanel, "|cffff8855" .. WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS einladen|r",     16, -332, true)
+    local cbMerge  = MakeCheckbox(leftPanel, "|cffD4A850" .. WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Raidtage zusammenführen|r", 16, -356, false)
     f.CbMerge  = cbMerge
     f.CbTank   = cbTank
     f.CbHealer = cbHealer
@@ -407,7 +407,7 @@ local function CreateCalendarFrame()
     local createBtnLbl = createBtn:CreateFontString(nil, "OVERLAY")
     createBtnLbl:SetAllPoints(createBtn)
     createBtnLbl:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
-    createBtnLbl:SetText("|cffffffff📅  Kalender-Eintrag erstellen|r")
+    createBtnLbl:SetText("|cffffffff" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16) .. "  Kalender-Eintrag erstellen|r")
 
     createBtn:SetScript("OnEnter", function(self)
         SetSolidBg(self, math.min(1, C.purple[1] * 1.25), math.min(1, C.purple[2] * 1.25), math.min(1, C.purple[3] * 1.15), 0.95)
@@ -437,9 +437,9 @@ local function CreateCalendarFrame()
     -- API-Verfügbarkeit prüfen
     C_Timer.After(0.2, function()
         if HasCalendarAPI() then
-            apiInfo:SetText("|cff33D65E✓ Kalender-API (C_Calendar) verfügbar|r")
+            apiInfo:SetText("|cff33D65E" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Kalender-API (C_Calendar) verfügbar|r")
         else
-            apiInfo:SetText("|cffff8855⚠ Kalender-API nicht erkannt – manuelles Erstellen nötig|r")
+            apiInfo:SetText("|cffff8855" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 14) .. " Kalender-API nicht erkannt – manuelles Erstellen nötig|r")
         end
     end)
 
@@ -502,7 +502,7 @@ local function CreateCalendarFrame()
         local descText = f.DescBox:GetText()
 
         if title == "" then
-            f.StatusText:SetText("|cffff6666✗ Bitte einen Titel eingeben.|r")
+            f.StatusText:SetText("|cffff6666" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " Bitte einen Titel eingeben.|r")
             return
         end
 
@@ -536,7 +536,7 @@ local function CreateCalendarFrame()
             AddInvitees(data)
         end
 
-        f.StatusText:SetText("|cff8B5CF6⏳ Kalender wird vorbereitet...|r")
+        f.StatusText:SetText("|cff8B5CF6" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Kalender wird vorbereitet...|r")
 
         CreateIngameCalendarEvent(
             title, descText, dateStr, hour, minute, invitePlayers,

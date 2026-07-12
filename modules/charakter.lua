@@ -870,7 +870,7 @@ local function ScanCharacter()
             issues[#issues + 1] = { prio = 3, status = "wrong",
                 text = row.slotName .. ": Falscher Stein — "
                     .. (GetGemDisplayName(row.gemId) or "?")
-                    .. (rec and (" → " .. rec) or "") }
+                    .. (rec and (" -> " .. rec) or "") }
         end
     end
 
@@ -879,7 +879,7 @@ local function ScanCharacter()
             local rec = row.recId and GetEnchantDisplayName(row.recId)
             issues[#issues + 1] = { prio = 4, status = "ok",
                 text = row.slotName .. ": Verzauberung nicht ideal"
-                    .. (rec and (" → " .. rec) or "") }
+                    .. (rec and (" -> " .. rec) or "") }
         end
     end
     for _, row in ipairs(scan.gems.rows) do
@@ -888,7 +888,7 @@ local function ScanCharacter()
             issues[#issues + 1] = { prio = 4, status = "ok",
                 text = row.slotName .. ": Stein nicht ideal — "
                     .. (GetGemDisplayName(row.gemId) or "?")
-                    .. (rec and (" → " .. rec) or "") }
+                    .. (rec and (" -> " .. rec) or "") }
         end
     end
 
@@ -1175,7 +1175,7 @@ function ShowEnchants()
             recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
             recLbl:SetWidth(220)
             recLbl:SetJustifyH("LEFT")
-            recLbl:SetText("|cff8B5CF6► " .. (GetEnchantDisplayName(row.recId) or "?") .. "|r")
+            recLbl:SetText("|cff8B5CF6> " .. (GetEnchantDisplayName(row.recId) or "?") .. "|r")
         end
 
         yOff = yOff - (rowH + 2)
@@ -1339,7 +1339,7 @@ function ShowGems()
             recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
             recLbl:SetWidth(220)
             recLbl:SetJustifyH("LEFT")
-            recLbl:SetText("|cff8B5CF6► " .. (GetGemDisplayName(row.recId) or "?") .. "|r")
+            recLbl:SetText("|cff8B5CF6> " .. (GetGemDisplayName(row.recId) or "?") .. "|r")
         end
 
         yOff = yOff - (rowH + 2)
@@ -1564,7 +1564,7 @@ function ShowUebersicht()
         local hint = card:CreateFontString(nil, "OVERLAY")
         hint:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
         hint:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-        hint:SetText("|cff3B2D60→ Details|r")
+        hint:SetText("|cff3B2D60> Details|r")
 
         card:SetScript("OnEnter", function(self) SetSolidBg(self, 0.12, 0.08, 0.24, 0.98) end)
         card:SetScript("OnLeave", function(self) SetSolidBg(self, 0.08, 0.05, 0.17, 0.95) end)
@@ -1781,7 +1781,7 @@ function ShowWerteverteilung()
                     else
                         nm = GetEnchantDisplayName(w.row.enchId)
                     end
-                    src:SetText(string.format("|cffcc88ff→ %s: %s (%s, +%d) austauschen|r",
+                    src:SetText(string.format("|cffcc88ff> %s: %s (%s, +%d) austauschen|r",
                         w.row.slotName or "?", nm or "?", w.art, w.value))
                     yOff = yOff - 13
                 end

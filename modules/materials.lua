@@ -298,8 +298,8 @@ local function CreateMatFrame()
         lbl:SetPoint("LEFT", legendBar, "LEFT", x + 14, 0)
         lbl:SetText("|cff888888" .. text .. "|r")
     end
-    LegendDot("≥ 100: gut", 0, 0.13, 0.77, 0.37)
-    LegendDot("≥ 20: ok",  130, 0.96, 0.76, 0.20)
+    LegendDot(">= 100: gut", 0, 0.13, 0.77, 0.37)
+    LegendDot(">= 20: ok",  130, 0.96, 0.76, 0.20)
     LegendDot("< 20: niedrig", 256, 0.95, 0.35, 0.25)
 
     local headerDiv = header:CreateTexture(nil, "OVERLAY")

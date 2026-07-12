@@ -2127,9 +2127,9 @@ WeintCodex_BossData = {
             },
 
             dps = {
-                "Killorder: Rik'kal → Skeer → Korven",
-                "Hisek → Xaril → Kaz'tik",
-                "Ka'roz → Iyyokuk → Kil'ruk",
+                "Killorder: Rik'kal -> Skeer -> Korven",
+                "Hisek -> Xaril -> Kaz'tik",
+                "Ka'roz -> Iyyokuk -> Kil'ruk",
                 "Parasiten sofort töten.",
                 "Kunchongs kontrollieren.",
                 "Hypnotisieren schnell brechen.",

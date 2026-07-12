@@ -356,12 +356,12 @@ function WeintCodex.ShowHome()
         desc:SetPoint("TOP", sub, "BOTTOM", 0, -30)
         desc:SetText(
             "|cff4B3860Wähle einen Bereich in der Tab-Leiste oben aus.\n\n" ..
-            "👤  Charakter — Enchants, Stats & Twink-Verwaltung\n" ..
-            "⚔  Bossguides — Rollen-Tipps für alle Bosse\n" ..
-            "🛡  Raids — Anmeldungen Mittwoch & Donnerstag\n" ..
-            "📦  Materialien — Gildenbank-Übersicht\n" ..
-            "✨  WeakAuras — 1-Klick-Import nach Kategorie\n" ..
-            "↓  Import — Daten vom Discord-Bot importieren|r"
+            WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Charakter — Enchants, Stats & Twink-Verwaltung\n" ..
+            WeintCodex.Icon("Interface\\Icons\\Achievement_Boss_LichKing", 14) .. "  Bossguides — Rollen-Tipps für alle Bosse\n" ..
+            WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "  Raids — Anmeldungen Mittwoch & Donnerstag\n" ..
+            WeintCodex.Icon("Interface\\Icons\\INV_Crate_01", 14) .. "  Materialien — Gildenbank-Übersicht\n" ..
+            WeintCodex.Icon("Interface\\Icons\\Spell_Holy_MagicalSentry", 14) .. "  WeakAuras — 1-Klick-Import nach Kategorie\n" ..
+            WeintCodex.Icon("Interface\\Icons\\INV_Misc_Note_01", 14) .. "  Import — Daten vom Discord-Bot importieren|r"
         )
         desc:SetWidth(600)
         desc:SetJustifyH("CENTER")

@@ -75,7 +75,7 @@ local function Create()
     title:SetPoint("TOP",0,-18)
     title:SetFont("Fonts\\FRIZQT__.TTF",18,"OUTLINE")
     title:SetTextColor(1,0.82,0)
-    title:SetText("🔄 Synchronisation")
+    title:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 18) .. " Synchronisation")
 
     local divider = window:CreateTexture(nil,"ARTWORK")
     divider:SetColorTexture(
