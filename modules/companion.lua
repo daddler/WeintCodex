@@ -220,3 +220,58 @@ end
 wipe(WeintCompanionInboxDB.queue)
 
 end
+
+----------------------------------------------------------
+-- Charakter-Meldung (Companion -> Bot, für Kalender-Invites)
+----------------------------------------------------------
+-- Meldet den aktuell eingeloggten Charakter automatisch in
+-- WeintCodex.SavedData.twinks (dieselbe kontoweite Twink-Liste wie in
+-- der Twinkverwaltung) und schickt anschließend alle als "eigen"
+-- markierten Charaktere über die Companion-Warteschlange an den Bot.
+-- Der Bot gleicht sie beim Raid-Export gegen die bei der Anmeldung
+-- gewählte Klasse ab, um den echten WoW-Namen statt des Discord-
+-- Anzeigenamens für den Kalendereintrag zu finden.
+----------------------------------------------------------
+
+function WeintCodex.Companion.ReportCharacter()
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    WeintCodex.SavedData.twinks = WeintCodex.SavedData.twinks or {}
+
+    local twinks = WeintCodex.SavedData.twinks
+
+    local playerName = UnitName("player")
+    local _, classFileName = UnitClass("player")
+    local level = UnitLevel("player")
+
+    if playerName then
+
+        twinks[playerName] = twinks[playerName] or {}
+        twinks[playerName].class = classFileName or twinks[playerName].class
+        twinks[playerName].level = tostring(level or twinks[playerName].level or 0)
+        twinks[playerName].selected = true
+
+    end
+
+    local parts = {}
+
+    for name, data in pairs(twinks) do
+
+        if data.selected and data.class then
+            table.insert(parts, name .. "|" .. data.class)
+        end
+
+    end
+
+    if #parts == 0 then
+        return
+    end
+
+    table.sort(parts)
+
+    WeintCodex.Companion.Send(
+        "character",
+        table.concat(parts, ",")
+    )
+
+end

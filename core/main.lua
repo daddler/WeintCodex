@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "0.9.7.4"
+WeintCodex.Version = "0.9.7.5"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -24,7 +24,20 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     end
 end
 
-local function OnAddonLoaded(self, event, addonName)
+local function OnEvent(self, event, addonName)
+
+    if event == "PLAYER_LOGIN" then
+
+        -- Meldet den eingeloggten Charakter automatisch ans Companion,
+        -- damit der Bot den echten WoW-Namen (statt Discord-Namen)
+        -- fürs Kalender-Invite kennt - siehe modules/companion.lua.
+        if WeintCodex.Companion and WeintCodex.Companion.ReportCharacter then
+            WeintCodex.Companion.ReportCharacter()
+        end
+
+        return
+    end
+
     if addonName ~= "WeintCodex" then return end
 
         if not WeintCodex_SavedData then
@@ -80,4 +93,5 @@ end
 
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
-loader:SetScript("OnEvent", OnAddonLoaded)
+loader:RegisterEvent("PLAYER_LOGIN")
+loader:SetScript("OnEvent", OnEvent)
