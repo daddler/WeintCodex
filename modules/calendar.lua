@@ -89,6 +89,15 @@ local function InviteNameFor(p, myRealm)
 end
 
 -- Kalender-Eintrag erstellen
+--
+-- WICHTIG: CreatePlayerEvent/EventInvite/AddEvent sind vom Client
+-- geschuetzte Funktionen ("protected"). Sie duerfen NUR synchron
+-- innerhalb desselben Aufruf-Stapels laufen, der durch den Klick des
+-- Spielers ausgeloest wurde - jeder Umweg ueber C_Timer.After (auch
+-- nur fuer eine der Aktionen) reisst diese Kette ab und der Client
+-- blockt den Aufruf mit ADDON_ACTION_BLOCKED. Deshalb laeuft hier
+-- alles - Event anlegen, Felder setzen, ALLE Einladungen, Speichern -
+-- in einem einzigen, ungestoerten Durchlauf.
 local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, players, statusCallback)
     if not HasCalendarAPI() then
         statusCallback(false,
@@ -108,6 +117,12 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
 
     title = (title and title ~= "") and title or "Raid"
 
+    players = players or {}
+    local total    = #players
+    local invited  = 0
+    local failed   = {}
+    local myRealm  = GetRealmName() or ""
+
     local ok, err = pcall(function()
         C_Calendar.CreatePlayerEvent()
         C_Calendar.EventSetTitle(title)
@@ -119,71 +134,37 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
         if C_Calendar.EventSetType then
             C_Calendar.EventSetType(CALENDAR_EVENTTYPE_RAID or 1)
         end
-    end)
 
-    if not ok then
-        statusCallback(false,
-            "Fehler beim Anlegen des Kalender-Eintrags:\n" .. tostring(err))
-        return
-    end
-
-    players = players or {}
-    local total    = #players
-    local invited  = 0
-    local failed   = {}
-    local myRealm  = GetRealmName() or ""
-
-    local function Finish()
-        local addOk, addErr = pcall(function()
-            C_Calendar.AddEvent()
-        end)
-
-        if not addOk then
-            statusCallback(false,
-                "Eintrag konnte nicht gespeichert werden:\n" .. tostring(addErr))
-            return
-        end
-
-        local msg = "✓ Kalender-Eintrag erstellt.\n" ..
-            "Titel: " .. title .. "\n" ..
-            "Datum: " .. (dateStr or "heute") ..
-            "   Uhrzeit: " .. string.format("%02d:%02d", hour or 20, minute or 0) .. "\n" ..
-            "Eingeladen: " .. invited .. "/" .. total
-
-        if #failed > 0 then
-            msg = msg .. "\n|cffff8855Fehlgeschlagen:|r " .. table.concat(failed, ", ")
-        end
-
-        statusCallback(true, msg)
-    end
-
-    if total == 0 then
-        Finish()
-        return
-    end
-
-    -- Einladungen leicht versetzt nacheinander verschicken - laut
-    -- Blizzard-API duerfen waehrend einer laufenden Kalender-Aktion
-    -- keine weiteren gestartet werden ("CALENDAR_ACTION_PENDING").
-    for i, p in ipairs(players) do
-        C_Timer.After(i * 0.3, function()
+        for _, p in ipairs(players) do
             local inviteName = InviteNameFor(p, myRealm)
-
-            local pok = pcall(function()
-                C_Calendar.EventInvite(inviteName)
-            end)
-
-            if pok then
+            local invOk = pcall(C_Calendar.EventInvite, inviteName)
+            if invOk then
                 invited = invited + 1
             else
                 table.insert(failed, inviteName)
             end
+        end
 
-            if i == total then
-                C_Timer.After(0.3, Finish)
-            end
-        end)
+        C_Calendar.AddEvent()
+    end)
+
+    if not ok then
+        statusCallback(false,
+            "Fehler beim Erstellen des Kalender-Eintrags:\n" .. tostring(err))
+        return
     end
+
+    local msg = "✓ Kalender-Eintrag erstellt.\n" ..
+        "Titel: " .. title .. "\n" ..
+        "Datum: " .. (dateStr or "heute") ..
+        "   Uhrzeit: " .. string.format("%02d:%02d", hour or 20, minute or 0) .. "\n" ..
+        "Eingeladen: " .. invited .. "/" .. total
+
+    if #failed > 0 then
+        msg = msg .. "\n|cffff8855Fehlgeschlagen:|r " .. table.concat(failed, ", ")
+    end
+
+    statusCallback(true, msg)
 end
 
 --------------------------------------------------

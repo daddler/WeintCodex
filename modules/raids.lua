@@ -257,6 +257,64 @@ local function CreateRaidFrame()
     end
     f.StatLabels = statLabels
 
+    -- Neue Discord-Anmeldungen mid-Session abholen: SavedVariables
+    -- werden vom Client nur bei Login/Reload von der Festplatte
+    -- gelesen - schreibt Companion waehrend der laufenden Session neue
+    -- Daten in die Datei, sieht das laufende Spiel das erst nach einem
+    -- /reload. Ein direktes "Abrufen" ohne Reload ist daher technisch
+    -- nicht moeglich.
+    local reloadButton = CreateFrame("Button", nil, header)
+    reloadButton:SetSize(230, 26)
+    reloadButton:SetPoint(
+        "TOPRIGHT",
+        header,
+        "TOPRIGHT",
+        -170,
+        -14
+    )
+
+    SetSolidBg(
+        reloadButton,
+        C.purpleDim[1],
+        C.purpleDim[2],
+        C.purpleDim[3],
+        0.80
+    )
+
+    DrawBorder(
+        reloadButton,
+        C.purple[1],
+        C.purple[2],
+        C.purple[3],
+        1.0,
+        1
+    )
+
+    local reloadLabel = reloadButton:CreateFontString(nil, "OVERLAY")
+    reloadLabel:SetAllPoints(reloadButton)
+    reloadLabel:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    reloadLabel:SetText("🔄  Discord-Anmeldungen abrufen")
+    reloadLabel:SetTextColor(1, 1, 1)
+
+    reloadButton:SetScript("OnEnter", function(self)
+        SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(
+            "Läd die von Companion zuletzt geschriebenen Daten neu " ..
+            "(macht einen /reload). Companion muss zuvor gelaufen und " ..
+            "mit Discord verbunden gewesen sein.",
+            nil, nil, nil, nil, true
+        )
+        GameTooltip:Show()
+    end)
+    reloadButton:SetScript("OnLeave", function(self)
+        SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
+        GameTooltip:Hide()
+    end)
+    reloadButton:SetScript("OnClick", function()
+        ReloadUI()
+    end)
+
     local clearButton = CreateFrame("Button", nil, header)
     clearButton:SetSize(140, 26)
     clearButton:SetPoint(
