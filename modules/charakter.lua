@@ -221,15 +221,18 @@ local EQUIP_SLOTS = {
     { id = 17, name = "Nebenhand",   enchSlot = "Waffe", nurWaffe = true },
 }
 
+-- WICHTIG: Diese Farben bezeichnen den SOCKELPLATZ im Item,
+-- nicht die Farbe des eingesetzten Steins! Ein andersfarbiger
+-- Stein (z.B. Lila in Blau) kann trotzdem optimal sein.
 local SOCKET_COLOR_LABEL = {
-    meta      = "Meta",
-    rot       = "Rot",
-    gelb      = "Gelb",
-    blau      = "Blau",
-    orange    = "Orange",
-    lila      = "Lila",
-    ["grün"]  = "Grün",
-    prismatic = "Prismatisch",
+    meta      = "Meta-Sockel",
+    rot       = "Roter Sockel",
+    gelb      = "Gelber Sockel",
+    blau      = "Blauer Sockel",
+    orange    = "Oranger Sockel",
+    lila      = "Lila Sockel",
+    ["grün"]  = "Grüner Sockel",
+    prismatic = "Prisma-Sockel",
 }
 
 local SOCKET_DOT_COLOR = {
@@ -640,7 +643,16 @@ local function EvaluateGem(gemId, socketColor, profile)
     return "ok", nil, true
 end
 
-local function EvaluateEnchant(enchId, slotKey, profile)
+-- Schulter-Inschriften: Inschriftler tragen die selbst erstellbare
+-- "Geheime Inschrift ..." (stärker als die kaufbare "Große Inschrift ...").
+-- Deren Enchant-IDs sind nicht hinterlegt — wir erkennen sie über das
+-- Schlüsselwort im Tooltip-Namen: gleiche Tierart wie die Empfehlung
+-- (z.B. "Ochsenhorn") => optimal.
+local INSCRIPTION_KEYWORDS = {
+    "tigerzahn", "tigerfang", "kranichschwinge", "ochsenhorn", "tigerklaue",
+}
+
+local function EvaluateEnchant(enchId, slotKey, profile, tooltipName)
     local bestList = profile and profile.bestEnchants
                      and profile.bestEnchants[slotKey]
     if not bestList then
@@ -648,6 +660,34 @@ local function EvaluateEnchant(enchId, slotKey, profile)
     end
     if not enchId then return "missing", bestList end
     if IsInList(enchId, bestList) then return "optimal", bestList end
+
+    if tooltipName then
+        local tn = tooltipName:lower()
+
+        -- Namensgleichheit mit einer Empfehlung: die ID in unserer
+        -- Datenbank kann falsch sein, der Client-Name lügt nicht.
+        for _, bid in ipairs(bestList) do
+            local db = WeintCodex_Enchants and WeintCodex_Enchants[bid]
+            if db and db.name and tn == db.name:lower() then
+                return "optimal", bestList
+            end
+        end
+
+        -- Inschriftler-Schultern: Schlüsselwort-Abgleich
+        if slotKey == "Schultern" then
+            for _, kw in ipairs(INSCRIPTION_KEYWORDS) do
+                if tn:find(kw, 1, true) then
+                    for _, bid in ipairs(bestList) do
+                        local db = WeintCodex_Enchants and WeintCodex_Enchants[bid]
+                        if db and db.name and db.name:lower():find(kw, 1, true) then
+                            return "optimal", bestList
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     return "ok", bestList
 end
 
@@ -684,10 +724,10 @@ local function ScanCharacter()
             if slotDef.enchSlot then
                 local skip = slotDef.nurWaffe and not IsWeaponLink(link)
                 if not skip then
-                    -- Offiziellen deutschen Namen vom Tooltip in den
-                    -- Cache legen (überschreibt DB-Namen)
-                    GetEquippedEnchantText(slotDef.id, enchId)
-                    local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile)
+                    -- Offizieller deutscher Name vom Tooltip (landet im
+                    -- Cache und dient dem Namensabgleich bei der Bewertung)
+                    local tooltipName = GetEquippedEnchantText(slotDef.id, enchId)
+                    local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile, tooltipName)
                     scan.enchants.rows[#scan.enchants.rows + 1] = {
                         slotId    = slotDef.id,
                         slotName  = slotDef.name,
@@ -839,8 +879,8 @@ local function ScanCharacter()
         if row.status == "missing" then
             local rec = row.recId and GetGemDisplayName(row.recId)
             local was = row.socket.buckle and "Gürtelschnalle fehlt oder Sockel leer"
-                        or ("Leerer Sockel (" ..
-                            (SOCKET_COLOR_LABEL[row.socket.color] or "?") .. ")")
+                        or ((SOCKET_COLOR_LABEL[row.socket.color] or "Sockelplatz")
+                            .. " ist leer")
             issues[#issues + 1] = { prio = 1, status = "missing",
                 text = row.slotName .. ": " .. was
                     .. (rec and (" — Empfehlung: " .. rec) or "") }
@@ -899,6 +939,48 @@ end
 
 -- Für andere Module (z.B. Companion-Export) verfügbar machen
 WeintCodex.Charakter.Scan = ScanCharacter
+
+--------------------------------------------------
+-- /wc vz — DATEN-DUMP FÜR DIE PFLEGE DER DATENBANK
+-- Gibt für jedes angelegte Item Verzauberungs-ID +
+-- offiziellen Client-Namen sowie alle Stein-IDs aus.
+-- Damit lassen sich falsche IDs/Namen in
+-- data/enchants.lua zeilengenau korrigieren.
+--------------------------------------------------
+
+function WeintCodex.Charakter.DumpEnchants()
+    print("|cff8B5CF6[WeintCodex]|r Ausrüstungs-Dump (Zeilen bitte kopieren und melden):")
+    local any = false
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local enchId, gems = ParseItemLink(link)
+            if enchId then
+                any = true
+                local tt = GetEquippedEnchantText(slotDef.id, enchId)
+                local db = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
+                local marker = ""
+                if not db then
+                    marker = "  |cffff9900(fehlt in enchants.lua!)|r"
+                elseif tt and db.name and tt:lower() ~= db.name:lower() then
+                    marker = "  |cffFFBB22(DB-Name: " .. db.name .. ")|r"
+                end
+                print(string.format("  %s: VZ-ID %d = %s%s",
+                    slotDef.name, enchId, tt or (db and db.name) or "?", marker))
+            end
+            for g = 1, 4 do
+                if gems[g] then
+                    any = true
+                    print(string.format("  %s: Stein-ID %d = %s",
+                        slotDef.name, gems[g], GetGemDisplayName(gems[g]) or "?"))
+                end
+            end
+        end
+    end
+    if not any then
+        print("  |cffaaaaaaKeine Verzauberungen/Steine gefunden.|r")
+    end
+end
 
 --------------------------------------------------
 -- CONTENT-PANEL & SEITENVERWALTUNG
@@ -1234,7 +1316,7 @@ function ShowGems()
         h:SetText("|cff4B3880" .. text .. "|r")
     end
     MakeHeader("STATUS",             24, 80)
-    MakeHeader("SOCKEL",            108, 120)
+    MakeHeader("SOCKELPLATZ (FARBE)", 108, 122)
     MakeHeader("EINGESETZTER STEIN", 234, 230)
     MakeHeader("EMPFEHLUNG",         478, 220)
 
@@ -1355,6 +1437,12 @@ function ShowGems()
     inner:SetHeight(math.max(20, -yOff + 10))
     DrawLegend(gemFrame, scan.gems.counts)
     DrawScoreFooter(gemFrame, scan.gems.counts)
+
+    -- Klarstellung: Farbangaben beziehen sich auf den Sockelplatz
+    local colorHint = gemFrame:CreateFontString(nil, "OVERLAY")
+    colorHint:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    colorHint:SetPoint("BOTTOMLEFT", gemFrame, "BOTTOMLEFT", 16, 20)
+    colorHint:SetText("|cff5B4880Farbpunkt & Name = Farbe des SOCKELPLATZES im Item, nicht des Steins. Andersfarbige Steine (z.B. Lila in Blau) können optimal sein.|r")
 end
 
 --------------------------------------------------
