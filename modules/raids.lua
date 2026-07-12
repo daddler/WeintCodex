@@ -132,7 +132,7 @@ end
 --------------------------------------------------
 
 StaticPopupDialogs["WEINTCODEX_EDIT_ROSTER_NAME"] = {
-    text = "Charaktername für '%s' eingeben:",
+    text = "Charaktername für '%s' eingeben:\n|cff888888(Crossrealm: Name-Realm, z. B. Njiah-OokOok)|r",
     button1 = "Speichern",
     button2 = "Abbrechen",
     hasEditBox = true,

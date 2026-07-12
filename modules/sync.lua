@@ -7,13 +7,16 @@
 --   WCIMPORT:BOSS:BossName:tank:Tip1,Tip2:healer:Tip1:dps:Tip1::NächsterBoss:...
 --
 -- RAID (Mittwoch):
---   WCIMPORT:RAIDWED:2026-06-14:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|Notiz,...
+--   WCIMPORT:RAIDWED:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|,Name2|HEALER|PALADIN|OokOok|Notiz,...
 --
 -- RAID (Donnerstag):
---   WCIMPORT:RAIDTHU:2026-06-14:Name1|TANK|WARRIOR|,...
+--   WCIMPORT:RAIDTHU:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|,...
 --
 -- RAID (Legacy – geht zu Mittwoch):
---   WCIMPORT:RAID:2026-06-14:Name1|TANK|WARRIOR|,...
+--   WCIMPORT:RAID:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|,...
+--
+-- (Uhrzeit als "HHMM" ohne Doppelpunkt; Realm-Feld leer = Realm des
+-- einladenden Spielers wird beim Kalender-Invite angenommen)
 --
 -- MATERIALIEN:
 --   WCIMPORT:MAT:2026-06-14:Webstoff|100|Notiz|Rohstoffe,Pilze|50||Rohstoffe,Stein|25|Engis|Metalle
@@ -97,20 +100,25 @@ end
 
 --------------------------------------------------
 -- Parser: Raid-Anmeldungen
--- Format: DATUM:Name1|ROLLE|KLASSE|Notiz,Name2|...
+-- Format: DATUM:HHMM:TITEL:Name1|ROLLE|KLASSE|REALM|Notiz,Name2|...
+-- (Uhrzeit als "HHMM" ohne Doppelpunkt, der wuerde sonst mit dem
+-- Feldtrenner kollidieren)
 --------------------------------------------------
 
 local function ParseRaidImport(payload)
-    local parts = {}
-    for p in (payload .. ":"):gmatch("([^:]*):") do
-        parts[#parts + 1] = p
+    local dateStr, timeStr, title, remainder =
+        payload:match("^([^:]*):([^:]*):([^:]*):(.*)$")
+
+    if not dateStr then
+        -- Altes Format ohne Uhrzeit/Titel (Abwaertskompatibilitaet)
+        dateStr   = payload:match("^([^:]*):") or ""
+        timeStr   = ""
+        title     = ""
+        remainder = payload:match("^[^:]*:(.*)$") or ""
     end
 
-    local date    = parts[1] or ""
     local players = {}
 
-    -- Everything after first colon is a comma-separated list of player entries
-    local remainder = payload:match("^[^:]*:(.*)$") or ""
     for playerEntry in (remainder .. ","):gmatch("([^,]*),") do
         local trimmed = playerEntry:match("^%s*(.-)%s*$")
         if trimmed ~= "" then
@@ -123,13 +131,23 @@ local function ParseRaidImport(payload)
                     name  = pparts[1] or "",
                     role  = (pparts[2] or "DPS"):upper(),
                     class = (pparts[3] or ""):upper(),
-                    note  = pparts[4] or "",
+                    realm = pparts[4] or "",
+                    note  = pparts[5] or "",
                 }
             end
         end
     end
 
-    return { date = date, players = players }
+    local hour   = tonumber(timeStr and timeStr:sub(1, 2))
+    local minute = tonumber(timeStr and timeStr:sub(3, 4))
+
+    return {
+        date    = dateStr,
+        hour    = hour,
+        minute  = minute,
+        title   = (title and title ~= "") and title or nil,
+        players = players,
+    }
 end
 
 --------------------------------------------------
@@ -367,7 +385,7 @@ function WeintCodex.Sync.ShowImportDialog()
     fmtText:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     fmtText:SetText(
         "BOSS: WCIMPORT:BOSS:BossName:tank:Tip1,Tip2:healer:Tip1:dps:Tip1::NächsterBoss:...\n" ..
-        "RAID: WCIMPORT:RAIDWED:DATUM:Name|TANK|WARRIOR|Notiz,Name2|HEALER|PALADIN|,..." ..
+        "RAID: WCIMPORT:RAIDWED:DATUM:HHMM:TITEL:Name|TANK|WARRIOR|REALM|,Name2|HEALER|PALADIN|REALM|,..." ..
         "    WA: WCIMPORT:WA:Kategorie:AuraName|KLASSE|Autor|v|Beschreibung,..."
     )
 

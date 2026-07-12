@@ -243,22 +243,28 @@ function WeintCodex.Companion.ReportCharacter()
     local playerName = UnitName("player")
     local _, classFileName = UnitClass("player")
     local level = UnitLevel("player")
+    local realm = (GetRealmName() or ""):gsub("%s+", "")
 
     if playerName then
 
         twinks[playerName] = twinks[playerName] or {}
         twinks[playerName].class = classFileName or twinks[playerName].class
         twinks[playerName].level = tostring(level or twinks[playerName].level or 0)
+        twinks[playerName].realm = realm ~= "" and realm or twinks[playerName].realm
         twinks[playerName].selected = true
 
     end
 
     local parts = {}
 
+    -- Crossrealm-Raids (z. B. Everlook/Ook Ook): der Bot braucht den
+    -- Realm jedes gemeldeten Charakters, damit der Kalender-Invite den
+    -- richtigen Realm statt immer nur den des einladenden Spielers
+    -- verwendet.
     for name, data in pairs(twinks) do
 
         if data.selected and data.class then
-            table.insert(parts, name .. "|" .. data.class)
+            table.insert(parts, name .. "|" .. data.class .. "|" .. (data.realm or ""))
         end
 
     end

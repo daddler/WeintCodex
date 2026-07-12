@@ -45,17 +45,17 @@ local function DrawBorder(f, r, g, b, a, thick)
 end
 
 --------------------------------------------------
--- In-Game Kalender API Wrapper
--- Unterstützt Retail (C_Calendar) und MoP Classic
+-- In-Game Kalender API Wrapper (C_Calendar)
+-- Gilt fuer Retail und MoP Classic gleichermassen - die alten
+-- Legacy-Globals (CalendarEventCreate, CalendarEventInvite, ...) aus
+-- Vanilla/BC/WotLK existieren in diesem Client nicht mehr und wurden
+-- hier bewusst entfernt (sie liefen zuvor als stille No-Ops, ohne
+-- jemals tatsaechlich einen Eintrag zu erzeugen).
 --------------------------------------------------
 
-local function GetCalendarAPI()
-if C_Calendar and C_Calendar.CreateGuildSignUpEvent then
-    return "mopclassic"
-    end
-
-    return nil
-    end
+local function HasCalendarAPI()
+    return C_Calendar ~= nil and C_Calendar.CreatePlayerEvent ~= nil
+end
 
 -- Datum-String "YYYY-MM-DD" in Teile zerlegen
 local function ParseDate(dateStr)
@@ -74,8 +74,30 @@ local function ParseDate(dateStr)
     return nil
 end
 
+-- Einladungsname fuer einen Spieler bestimmen. Crossrealm (z. B.
+-- Everlook/Ook Ook): braucht "Name-Realm", sonst reicht der reine
+-- Charaktername (Realm des einladenden Spielers wird angenommen).
+local function InviteNameFor(p, myRealm)
+    if p.name:find("%-") then
+        -- Manuelle Korrektur wurde bereits als "Name-Realm" eingegeben
+        return p.name
+    end
+    if p.realm and p.realm ~= "" and p.realm:lower() ~= (myRealm or ""):lower() then
+        return p.name .. "-" .. p.realm
+    end
+    return p.name
+end
+
 -- Kalender-Eintrag erstellen
 local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, players, statusCallback)
+    if not HasCalendarAPI() then
+        statusCallback(false,
+            "Kalender-API nicht verfügbar.\n" ..
+            "Öffne den Ingame-Kalender manuell (Minimap-Uhr) " ..
+            "und erstelle den Eintrag dort.")
+        return
+    end
+
     local month, day, year = ParseDate(dateStr)
 
     if not month then
@@ -84,142 +106,83 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
         month, day, year = lt.month, lt.day, lt.year
     end
 
-    local api = GetCalendarAPI()
+    title = (title and title ~= "") and title or "Raid"
 
-    if not api then
-        statusCallback(false,
-            "Kalender-API nicht verfügbar.\n" ..
-            "Öffne den Ingame-Kalender manuell (Minimap-Uhr) " ..
-            "und erstelle den Eintrag dort.")
-        return
-    end
-
-    -- ---- Retail API (C_Calendar) ----
-    if api == "retail" then
-        -- Kalender navigieren und neues Event öffnen
-        local ok, err = pcall(function()
-            -- Kalender öffnen falls nötig
-            if CalendarFrame and not CalendarFrame:IsShown() then
-                ShowUIPanel(CalendarFrame)
-            end
-
-            -- Zum richtigen Monat navigieren
-            if C_Calendar.SetAbsMonth then
-                C_Calendar.SetAbsMonth(month, year)
-            end
-
-            -- In Retail: CreateEvent öffnet den Create-Dialog
-            if C_Calendar.CreateEvent then
-                C_Calendar.CreateEvent()
-            end
-
-            -- Felder befüllen (soweit verfügbar)
-            if CalendarCreateEventFrame then
-                if CalendarCreateEventFrameTitle and
-                   CalendarCreateEventFrameTitle.EditBox then
-                    CalendarCreateEventFrameTitle.EditBox:SetText(title)
-                end
-                if CalendarCreateEventFrameDescriptionFrame and
-                   CalendarCreateEventFrameDescriptionFrame.EditBox then
-                    CalendarCreateEventFrameDescriptionFrame.EditBox:SetText(desc)
-                end
-            end
-        end)
-
-        if ok then
-            -- Spieler einladen
-            local invited = 0
-            local realm   = GetRealmName() or ""
-            local invErr  = false
-
-            C_Timer.After(0.5, function()
-                for _, p in ipairs(players or {}) do
-                    local pok, perr = pcall(function()
-                        if C_Calendar.EventInvite then
-                            C_Calendar.EventInvite(p.name, realm)
-                        end
-                    end)
-                    if pok then
-                        invited = invited + 1
-                    end
-                end
-
-                local msg = "✓ Kalender-Dialog geöffnet.\n" ..
-                    "Titel: " .. title .. "\n" ..
-                    "Datum: " .. (dateStr or "heute") .. "\n" ..
-                    "Spieler eingeladen: " .. invited .. "/" .. #(players or {}) .. "\n\n" ..
-                    "|cff5B4880Bitte auf 'Erstellen' klicken um den Eintrag zu speichern.|r"
-                statusCallback(true, msg)
-            end)
-        else
-            statusCallback(false,
-                "Fehler beim Öffnen des Kalenders.\n" ..
-                "Öffne den Kalender manuell und erstelle den Eintrag.")
+    local ok, err = pcall(function()
+        C_Calendar.CreatePlayerEvent()
+        C_Calendar.EventSetTitle(title)
+        if C_Calendar.EventSetDescription then
+            C_Calendar.EventSetDescription(desc or "")
         end
+        C_Calendar.EventSetDate(month, day, year)
+        C_Calendar.EventSetTime(hour or 20, minute or 0)
+        if C_Calendar.EventSetType then
+            C_Calendar.EventSetType(CALENDAR_EVENTTYPE_RAID or 1)
+        end
+    end)
+
+    if not ok then
+        statusCallback(false,
+            "Fehler beim Anlegen des Kalender-Eintrags:\n" .. tostring(err))
         return
     end
 
-    -- ---- MoP Classic / Legacy API ----
-    if api == "mopclassic" then
-        local ok, err = pcall(function()
-            -- Kalender öffnen
-            if ToggleCalendar then
-                ToggleCalendar()
-            elseif CalendarFrame then
-                ShowUIPanel(CalendarFrame)
-            end
+    players = players or {}
+    local total    = #players
+    local invited  = 0
+    local failed   = {}
+    local myRealm  = GetRealmName() or ""
 
-            -- Neues Event initialisieren
-            if CalendarEventCreate then
-                CalendarEventCreate(month, day, year, "RAID")
-            end
-
-            -- Titel und Beschreibung setzen
-            if CalendarEventSetTitle then
-                CalendarEventSetTitle(title)
-            end
-            if CalendarEventSetDescription then
-                CalendarEventSetDescription(desc)
-            end
-            if CalendarEventSetType then
-                CalendarEventSetType("RAID")
-            end
-            if CalendarEventSetTime then
-                CalendarEventSetTime(hour or 20, minute or 0)
-            end
+    local function Finish()
+        local addOk, addErr = pcall(function()
+            C_Calendar.AddEvent()
         end)
 
-        -- Spieler einladen
-        local invited = 0
-        local realm   = GetRealmName() or ""
+        if not addOk then
+            statusCallback(false,
+                "Eintrag konnte nicht gespeichert werden:\n" .. tostring(addErr))
+            return
+        end
 
-        C_Timer.After(0.8, function()
-            for _, p in ipairs(players or {}) do
-                local pok, _ = pcall(function()
-                    if CalendarEventInvite then
-                        CalendarEventInvite(p.name, realm)
-                    end
-                end)
-                if pok then invited = invited + 1 end
-            end
+        local msg = "✓ Kalender-Eintrag erstellt.\n" ..
+            "Titel: " .. title .. "\n" ..
+            "Datum: " .. (dateStr or "heute") ..
+            "   Uhrzeit: " .. string.format("%02d:%02d", hour or 20, minute or 0) .. "\n" ..
+            "Eingeladen: " .. invited .. "/" .. total
 
-            local msg
-            if ok then
-                msg = "✓ Kalender geöffnet & Eintrag vorbereitet.\n" ..
-                    "Titel: " .. title .. "\n" ..
-                    "Datum: " .. (dateStr or "heute") ..
-                    "   Uhrzeit: " .. string.format("%02d:%02d", hour or 20, minute or 0) .. "\n" ..
-                    "Spieler eingeladen: " .. invited .. "/" .. #(players or {}) .. "\n\n" ..
-                    "|cff5B4880Bitte den Kalender-Dialog bestätigen.|r"
-            else
-                msg = "⚠ Kalender geöffnet, aber einige Felder konnten\n" ..
-                    "nicht automatisch gefüllt werden.\n" ..
-                    "Bitte Titel und Datum manuell eintragen.\n\n" ..
-                    "Spieler würden eingeladen: " .. #(players or {})
-            end
-            statusCallback(ok, msg)
-        end)
+        if #failed > 0 then
+            msg = msg .. "\n|cffff8855Fehlgeschlagen:|r " .. table.concat(failed, ", ")
+        end
+
+        statusCallback(true, msg)
+    end
+
+    if total == 0 then
+        Finish()
         return
+    end
+
+    -- Einladungen leicht versetzt nacheinander verschicken - laut
+    -- Blizzard-API duerfen waehrend einer laufenden Kalender-Aktion
+    -- keine weiteren gestartet werden ("CALENDAR_ACTION_PENDING").
+    for i, p in ipairs(players) do
+        C_Timer.After(i * 0.3, function()
+            local inviteName = InviteNameFor(p, myRealm)
+
+            local pok = pcall(function()
+                C_Calendar.EventInvite(inviteName)
+            end)
+
+            if pok then
+                invited = invited + 1
+            else
+                table.insert(failed, inviteName)
+            end
+
+            if i == total then
+                C_Timer.After(0.3, Finish)
+            end
+        end)
     end
 end
 
@@ -390,15 +353,7 @@ local function CreateCalendarFrame()
         local key = (activeDay == "thursday") and "raidThursday" or "raidWednesday"
         local data = sd and sd[key]
         if data and data.date and data.date ~= "" then
-            f.DateInput:SetText(data.date)
-            local dayName = (activeDay == "thursday") and "Donnerstag" or "Mittwoch"
-            f.TitleInput:SetText("Raid " .. dayName .. " – " .. data.date)
-            local cnt = data.players and #data.players or 0
-            f.DescBox:SetText(
-                "Raidabend – " .. dayName .. "\n" ..
-                "Angemeldet: " .. cnt .. " Spieler\n" ..
-                "Erstellt von WeintCodex."
-            )
+            AutoFillFromData(f, data)
         else
             f.StatusText:SetText("|cffff8855⚠ Keine Raidanmeldung für " ..
                 ((activeDay == "thursday") and "Donnerstag" or "Mittwoch") ..
@@ -500,11 +455,8 @@ local function CreateCalendarFrame()
 
     -- API-Verfügbarkeit prüfen
     C_Timer.After(0.2, function()
-        local api = GetCalendarAPI()
-        if api == "mopclassic" then
-            apiInfo:SetText("|cff33D65E✓ Retail Kalender-API (C_Calendar) verfügbar|r")
-        elseif api == "mop" or api == "legacy" then
-            apiInfo:SetText("|cff33D65E✓ Classic Kalender-API verfügbar|r")
+        if HasCalendarAPI() then
+            apiInfo:SetText("|cff33D65E✓ Kalender-API (C_Calendar) verfügbar|r")
         else
             apiInfo:SetText("|cffff8855⚠ Kalender-API nicht erkannt – manuelles Erstellen nötig|r")
         end
@@ -771,16 +723,21 @@ end
 AutoFillFromData = function(f, raidData)
     local sd  = WeintCodex.SavedData
     local dayName = (activeDay == "thursday") and "Donnerstag" or "Mittwoch"
-    
+
     if f.CbMerge:GetChecked() then
         local wData = sd and sd.raidWednesday
         local tData = sd and sd.raidThursday
         local wDate = wData and wData.date or ""
         local tDate = tData and tData.date or ""
-        
+
         f.DateInput:SetText(wDate ~= "" and wDate or tDate)
-        f.TitleInput:SetText("Raid Mi & Do – " .. (wDate ~= "" and wDate or tDate))
-        
+        f.TitleInput:SetText(
+            (wData and wData.title) or (tData and tData.title) or
+            ("Raid Mi & Do – " .. (wDate ~= "" and wDate or tDate))
+        )
+        f.HourInput:SetText(string.format("%02d", (wData and wData.hour) or (tData and tData.hour) or 20))
+        f.MinuteInput:SetText(string.format("%02d", (wData and wData.minute) or (tData and tData.minute) or 0))
+
         local cntW = wData and wData.players and #wData.players or 0
         local cntT = tData and tData.players and #tData.players or 0
         f.DescBox:SetText(
@@ -792,7 +749,9 @@ AutoFillFromData = function(f, raidData)
         raidData = raidData or (sd and ((activeDay == "thursday") and sd.raidThursday or sd.raidWednesday))
         if raidData and raidData.date and raidData.date ~= "" then
             f.DateInput:SetText(raidData.date)
-            f.TitleInput:SetText("Raid " .. dayName .. " – " .. raidData.date)
+            f.TitleInput:SetText(raidData.title or ("Raid " .. dayName .. " – " .. raidData.date))
+            f.HourInput:SetText(string.format("%02d", raidData.hour or 20))
+            f.MinuteInput:SetText(string.format("%02d", raidData.minute or 0))
             local cnt = raidData.players and #raidData.players or 0
             f.DescBox:SetText(
                 "Raidabend – " .. dayName .. "\n" ..
