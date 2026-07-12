@@ -49,6 +49,21 @@ local sampleData = {
         { name = "Schneelilie", count = 0, category = "Kräuter", target = 280 },
         { name = "Narrenkappe", count = 0, category = "Kräuter", target = 280 },
         { name = "Goldlotus", count = 0, category = "Kräuter", target = 140 },
+
+        -- Fläschchen (Item-IDs: 76084-76088) und Tränke (76089-76095)
+        -- WICHTIG: target ist hier ein Platzhalter (100) - bitte an
+        -- den tatsächlichen Gildenbank-Sollbestand anpassen.
+        { name = "Fläschchen der Frühlingsblüten", count = 0, category = "Fläschchen", target = 100 },
+        { name = "Fläschchen der Sommersonne",     count = 0, category = "Fläschchen", target = 100 },
+        { name = "Fläschchen der Herbstblätter",   count = 0, category = "Fläschchen", target = 100 },
+        { name = "Fläschchen der Erde",            count = 0, category = "Fläschchen", target = 100 },
+        { name = "Fläschchen der Winterkälte",     count = 0, category = "Fläschchen", target = 100 },
+
+        { name = "Biss des Shed-Ling",   count = 0, category = "Tränke", target = 100 },
+        { name = "Trank der Berge",      count = 0, category = "Tränke", target = 100 },
+        { name = "Trank des Fokus",      count = 0, category = "Tränke", target = 100 },
+        { name = "Trank der Jadeschlange", count = 0, category = "Tränke", target = 100 },
+        { name = "Trank der Mogukraft",  count = 0, category = "Tränke", target = 100 },
     }
 }
 
