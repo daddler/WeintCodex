@@ -15,8 +15,17 @@
 -- Charakter-Modul den Namen direkt aus dem Item-Tooltip
 -- ("Verzaubert: ...") — das ist immer die offizielle deutsche
 -- Lokalisierung. Die Namen hier werden für EMPFEHLUNGEN genutzt.
--- Einträge mit verify=true bitte in-game gegenprüfen und ggf.
--- den Namen hier in einer Zeile korrigieren.
+--
+-- DATENPFLEGE: In-game "/wc vz" eingeben — das druckt für jedes
+-- angelegte Teil die Verzauberungs-ID + den offiziellen Namen und
+-- markiert Abweichungen zur Datenbank. Damit lassen sich Einträge
+-- mit verify=true zeilengenau korrigieren.
+--
+-- BEWERTUNG BEI FALSCHER/FEHLENDER ID: Die Engine gleicht
+-- zusätzlich den Tooltip-Namen mit den Empfehlungen ab — stimmt
+-- der Name (oder bei Schultern das Inschrift-Tier, z.B.
+-- "Geheime Inschrift des Ochsenhorns" der Inschriftler), zählt
+-- die Verzauberung trotzdem als optimal.
 --------------------------------------------------
 
 WeintCodex_Enchants = {
@@ -53,6 +62,13 @@ WeintCodex_Enchants = {
 
     --------------------------------------------------
     -- SCHULTERN (Inschriftenkunde, Große Inschriften)
+    --
+    -- Inschriftler-exklusiv gibt es zusätzlich die stärkeren
+    -- "Geheimen Inschriften" (selbst erstellbar, gebunden).
+    -- Deren IDs sind hier nicht hinterlegt — die Engine erkennt
+    -- sie am Tooltip-Namen (gleiches Tier wie die Empfehlung)
+    -- und wertet sie als optimal. Wer die IDs per /wc vz
+    -- ermittelt, kann sie hier als eigene Einträge ergänzen.
     --------------------------------------------------
 
     [4803] = { name = "Große Inschrift des Tigerzahns",      slot = "Schultern", stats = { strength = 200, crit = 100 } },
@@ -71,7 +87,7 @@ WeintCodex_Enchants = {
     -- UMHANG
     --------------------------------------------------
 
-    [4421] = { name = "Genauigkeit",                          slot = "Umhang", stats = { hit = 180 }, verify = true },
+    [4421] = { name = "Große Präzision",                      slot = "Umhang", stats = { hit = 180 }, verify = true },  -- exakten Namen per /wc vz prüfen
     [4422] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },
     [4424] = { name = "Überlegene kritische Trefferwertung",  slot = "Umhang", stats = { crit = 180 }, verify = true },
     [4892] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 } },
@@ -89,6 +105,9 @@ WeintCodex_Enchants = {
     -- HÄNDE
     --------------------------------------------------
 
+    -- ACHTUNG: Bei 4433 gab es Feedback, dass Name/ID kollidieren
+    -- ("Große Beweglichkeit" vs. Tempo). Bitte per /wc vz die echte
+    -- ID der Handschuh-Tempoverzauberung ermitteln und hier fixen.
     [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
     [4432] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
     [4433] = { name = "Große Tempowertung",        slot = "Hände", stats = { haste = 170 }, verify = true },
@@ -110,7 +129,7 @@ WeintCodex_Enchants = {
 
     [4425] = { name = "Verschwommene Geschwindigkeit", slot = "Füße", stats = { agility = 140 }, verify = true },
     [4426] = { name = "Pandarenschritt",               slot = "Füße", stats = { mastery = 140 } },
-    [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 } },
+    [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
     [4429] = { name = "Große Tempowertung",            slot = "Füße", stats = { haste = 175 }, verify = true },
     [4430] = { name = "Große Beweglichkeit",           slot = "Füße", stats = { agility = 140 }, verify = true },
 

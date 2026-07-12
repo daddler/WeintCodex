@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "0.9.7.9"
+WeintCodex.Version = "0.9.8.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -10,6 +10,14 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if cmd == "import" then
         if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
             WeintCodex.Sync.ShowImportDialog()
+        end
+        return
+    end
+
+    -- Verzauberungs-/Sockel-Dump zur Datenpflege (IDs + Client-Namen)
+    if cmd == "vz" or cmd == "dump" then
+        if WeintCodex.Charakter and WeintCodex.Charakter.DumpEnchants then
+            WeintCodex.Charakter.DumpEnchants()
         end
         return
     end
