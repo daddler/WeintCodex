@@ -73,6 +73,7 @@ WeintCodex_GemStats = {
     [76669] = { strength = 80, haste = 160 },
     [76666] = { agility = 80,  haste = 160 },
     [76674] = { strength = 80, mastery = 160 },
+    [76659] = { expertise = 160, crit = 160 },  -- Listiger Aragonit (fehlte bisher komplett)
 
     --------------------------------------------------
     -- LILA (Kunzit): 80 Primär + 160 Sekundär
