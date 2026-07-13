@@ -293,6 +293,35 @@ local function SetTankStyle(profileKey, style)
 end
 
 --------------------------------------------------
+-- EIGENE GEWICHTUNG (Priorisierung)
+-- Spieler können die Stat-Gewichte pro Spec selbst
+-- einstellen (Seite "Priorisierung"). Gespeichert in
+-- SavedData.customWeights[effektiverProfilKey].
+-- Überschreibt NUR statWeights — Empfehlungslisten
+-- und Caps bleiben unverändert.
+--------------------------------------------------
+
+local function GetEffectiveProfileKey(profileKey, tankStyle)
+    if not profileKey then return nil end
+    if tankStyle == "OFF" then return profileKey .. "_OFFENSIVE" end
+    return profileKey
+end
+
+local function ApplyCustomWeights(profile, profileKey, tankStyle)
+    if not profile then return profile end
+    local effKey = GetEffectiveProfileKey(profileKey, tankStyle)
+    local sd = WeintCodex.SavedData
+    local cw = sd and sd.customWeights and effKey and sd.customWeights[effKey]
+    if not (cw and cw.enabled and cw.weights) then return profile end
+
+    local p = {}
+    for k, v in pairs(profile) do p[k] = v end
+    p.statWeights = cw.weights
+    p.customWeights = true
+    return p
+end
+
+--------------------------------------------------
 -- AKTIVES SPEC-PROFIL ERMITTELN
 -- Gibt zurück: profile, profileKey, tankStyle
 --------------------------------------------------
@@ -324,15 +353,15 @@ local function GetCurrentSpecProfile()
             local offProfile = WeintCodex_SpecProfiles
                 and WeintCodex_SpecProfiles[profileKey .. "_OFFENSIVE"]
             if offProfile then
-                return offProfile, profileKey, "OFF"
+                return ApplyCustomWeights(offProfile, profileKey, "OFF"), profileKey, "OFF"
             end
         end
         local defProfile = WeintCodex_SpecProfiles and WeintCodex_SpecProfiles[profileKey]
-        return defProfile, profileKey, "DEF"
+        return ApplyCustomWeights(defProfile, profileKey, "DEF"), profileKey, "DEF"
     end
 
     local profile = WeintCodex_SpecProfiles and WeintCodex_SpecProfiles[profileKey]
-    return profile, profileKey, nil
+    return ApplyCustomWeights(profile, profileKey, nil), profileKey, nil
 end
 
 --------------------------------------------------
@@ -661,11 +690,20 @@ local function EvaluateEnchant(enchId, slotKey, profile, tooltipName)
     if not enchId then return "missing", bestList end
     if IsInList(enchId, bestList) then return "optimal", bestList end
 
-    if tooltipName then
-        local tn = tooltipName:lower()
+    -- Anzeigename der aktuellen Verzauberung: bevorzugt der
+    -- offizielle Tooltip-Name, sonst unser DB-Name. Damit wird
+    -- nie etwas empfohlen, das (dem Namen nach) schon drauf ist —
+    -- auch wenn die ID in unserer Datenbank falsch zugeordnet ist.
+    local currentName = tooltipName
+    if not currentName then
+        local cdb = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
+        currentName = cdb and cdb.name
+    end
 
-        -- Namensgleichheit mit einer Empfehlung: die ID in unserer
-        -- Datenbank kann falsch sein, der Client-Name lügt nicht.
+    if currentName then
+        local tn = currentName:lower()
+
+        -- Namensgleichheit mit einer Empfehlung => optimal
         for _, bid in ipairs(bestList) do
             local db = WeintCodex_Enchants and WeintCodex_Enchants[bid]
             if db and db.name and tn == db.name:lower() then
@@ -995,7 +1033,8 @@ end
 local activeCharakterView = nil
 
 -- Vorwärtsdeklaration der Seiten (werden unten definiert)
-local ShowUebersicht, ShowEnchants, ShowGems, ShowWerteverteilung, ShowTwinkverwaltung
+local ShowUebersicht, ShowEnchants, ShowGems, ShowWerteverteilung,
+      ShowPriorisierung, ShowTwinkverwaltung
 
 local function RefreshActiveCharakterView()
     ClearCharakterCache()
@@ -1056,8 +1095,10 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
         local styleHint = scan.tankStyle
             and (" |cff8B5CF6[" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]|r")
             or ""
+        local customHint = (scan.profile and scan.profile.customWeights)
+            and "  |cffFFBB22[eigene Gewichtung aktiv]|r" or ""
         local profWarn = (not scan.profile) and "  |cffff9900(kein Profil hinterlegt!)|r" or ""
-        specInfo:SetText("|cff5B4880Spec: " .. scan.profileKey .. styleHint .. "|r" .. profWarn)
+        specInfo:SetText("|cff5B4880Spec: " .. scan.profileKey .. styleHint .. "|r" .. customHint .. profWarn)
     else
         specInfo:SetText("|cffff9900Spec konnte nicht ermittelt werden — einloggen bzw. Spec wählen!|r")
     end
@@ -1252,12 +1293,17 @@ function ShowEnchants()
         end
 
         if row.recId and row.status ~= "optimal" and row.status ~= "neutral" then
-            local recLbl = rf:CreateFontString(nil, "OVERLAY")
-            recLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-            recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
-            recLbl:SetWidth(220)
-            recLbl:SetJustifyH("LEFT")
-            recLbl:SetText("|cff8B5CF6> " .. (GetEnchantDisplayName(row.recId) or "?") .. "|r")
+            -- Nie etwas empfehlen, das namensgleich schon drauf ist
+            local recName = GetEnchantDisplayName(row.recId)
+            local curName = row.enchId and GetEnchantDisplayName(row.enchId)
+            if recName and not (curName and recName:lower() == curName:lower()) then
+                local recLbl = rf:CreateFontString(nil, "OVERLAY")
+                recLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
+                recLbl:SetWidth(220)
+                recLbl:SetJustifyH("LEFT")
+                recLbl:SetText("|cff8B5CF6> " .. recName .. "|r")
+            end
         end
 
         yOff = yOff - (rowH + 2)
@@ -1931,6 +1977,157 @@ function ShowWerteverteilung()
 end
 
 --------------------------------------------------
+-- SEITE: PRIORISIERUNG (eigene Stat-Gewichtung)
+-- Spieler stellen hier ihre eigenen Gewichte ein;
+-- die Stein-Bewertung rechnet dann mit diesen
+-- Prioritäten statt mit den Profil-Standards.
+--------------------------------------------------
+
+local WEIGHT_STATS = {
+    { key = "strength",  label = "Stärke" },
+    { key = "agility",   label = "Beweglichkeit" },
+    { key = "intellect", label = "Intelligenz" },
+    { key = "stamina",   label = "Ausdauer" },
+    { key = "spirit",    label = "Willenskraft" },
+    { key = "hit",       label = "Trefferwertung" },
+    { key = "expertise", label = "Waffenkunde" },
+    { key = "crit",      label = "Kritische Trefferwertung" },
+    { key = "haste",     label = "Tempowertung" },
+    { key = "mastery",   label = "Meisterschaftswertung" },
+    { key = "dodge",     label = "Ausweichwertung" },
+    { key = "parry",     label = "Parierwertung" },
+}
+
+local prioFrame = nil
+
+function ShowPriorisierung()
+    activeCharakterView = "prio"
+    local cp = GetContentPanel()
+    if not cp then return end
+    for _, child in pairs({ cp:GetChildren() }) do child:Hide() end
+
+    if prioFrame then prioFrame:Hide(); prioFrame = nil end
+    prioFrame = CreateFrame("Frame", nil, cp)
+    prioFrame:SetAllPoints(cp)
+    prioFrame:Show()
+
+    local profile, profileKey, tankStyle = GetCurrentSpecProfile()
+    DrawPageHeader(prioFrame, "Priorisierung (eigene Gewichtung)",
+        { profile = profile, profileKey = profileKey, tankStyle = tankStyle },
+        ShowPriorisierung)
+
+    local effKey = GetEffectiveProfileKey(profileKey, tankStyle)
+    local baseProfile = effKey and WeintCodex_SpecProfiles
+                        and WeintCodex_SpecProfiles[effKey]
+
+    if not baseProfile then
+        local warn = prioFrame:CreateFontString(nil, "OVERLAY")
+        warn:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        warn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -70)
+        warn:SetText("|cffff9900Kein Spec-Profil gefunden — bitte einloggen bzw. Spec wählen.|r")
+        return
+    end
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    local sd = WeintCodex.SavedData
+    sd.customWeights = sd.customWeights or {}
+    local entry    = sd.customWeights[effKey]
+    local defaults = baseProfile.statWeights or {}
+    local current  = (entry and entry.weights) or {}
+
+    local desc = prioFrame:CreateFontString(nil, "OVERLAY")
+    desc:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    desc:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -52)
+    desc:SetWidth(math.max((cp:GetWidth() or 660) - 32, 400))
+    desc:SetJustifyH("LEFT")
+    desc:SetText("|cff5B4880Gewichte 0-999: je höher, desto wichtiger ist der Wert für DICH (0 = egal). "
+        .. "Wirkt auf die Stein-Bewertung (Qualitäts-%, OK/Falsch) und die Empfehlungsauswahl bei Cap-Überschuss. "
+        .. "Empfehlungslisten der Spec und Treffer-/Waffenkunde-Caps bleiben unverändert.|r")
+
+    -- Aktiv-Schalter
+    local cb = CreateFrame("CheckButton", nil, prioFrame, "UICheckButtonTemplate")
+    cb:SetSize(24, 24)
+    cb:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 12, -84)
+    cb:SetChecked(entry and entry.enabled and true or false)
+
+    local cbLbl = prioFrame:CreateFontString(nil, "OVERLAY")
+    cbLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    cbLbl:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+    cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff5B4880(für " .. effKey .. ")|r")
+
+    -- Eingabefelder
+    local boxes = {}
+    local yOff = -116
+
+    for _, st in ipairs(WEIGHT_STATS) do
+        local row = CreateFrame("Frame", nil, prioFrame)
+        row:SetSize(430, 22)
+        row:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff)
+        SetSolidBg(row, 0.07, 0.05, 0.14, 0.55)
+
+        local lbl = row:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        lbl:SetPoint("LEFT", row, "LEFT", 10, 0)
+        lbl:SetText(st.label)
+        lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+
+        local def = row:CreateFontString(nil, "OVERLAY")
+        def:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        def:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+        def:SetText("|cff5B4880Standard: " .. (defaults[st.key] or 0) .. "|r")
+
+        local eb = CreateFrame("EditBox", nil, row)
+        eb:SetSize(48, 18)
+        eb:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        eb:SetAutoFocus(false)
+        eb:SetNumeric(true)
+        eb:SetMaxLetters(3)
+        eb:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        eb:SetJustifyH("CENTER")
+        eb:SetTextInsets(4, 4, 0, 0)
+        SetSolidBg(eb, 0.12, 0.08, 0.22, 0.95)
+        DrawBorder(eb, 0.42, 0.25, 0.72, 0.60, 1)
+        eb:SetText(tostring(current[st.key] or defaults[st.key] or 0))
+        eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        eb:SetScript("OnEnterPressed",  function(self) self:ClearFocus() end)
+
+        boxes[st.key] = eb
+        yOff = yOff - 24
+    end
+
+    -- Speichern / Zurücksetzen
+    local saveBtn = MakeBtn(prioFrame, "Speichern & Anwenden", 160, 24, function()
+        local w = {}
+        for key, box in pairs(boxes) do
+            local v = tonumber(box:GetText()) or 0
+            if v < 0 then v = 0 end
+            if v > 999 then v = 999 end
+            if v > 0 then w[key] = v end
+        end
+        sd.customWeights[effKey] = {
+            enabled = cb:GetChecked() and true or false,
+            weights = w,
+        }
+        print("|cff8B5CF6[WeintCodex]|r Gewichtung für " .. effKey .. " gespeichert"
+            .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert)."))
+        ShowPriorisierung()
+    end)
+    saveBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff - 8)
+
+    local resetBtn = MakeBtn(prioFrame, "Auf Standard zurücksetzen", 180, 24, function()
+        sd.customWeights[effKey] = nil
+        print("|cff8B5CF6[WeintCodex]|r Gewichtung für " .. effKey .. " auf Standard zurückgesetzt.")
+        ShowPriorisierung()
+    end)
+    resetBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 186, yOff - 8)
+
+    local hint = prioFrame:CreateFontString(nil, "OVERLAY")
+    hint:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    hint:SetPoint("BOTTOMLEFT", prioFrame, "BOTTOMLEFT", 16, 6)
+    hint:SetText("|cff3B2D60Gilt pro Spec (Tanks: getrennt für Offensiv/Defensiv). Wird pro Account gespeichert.|r")
+end
+
+--------------------------------------------------
 -- TWINKVERWALTUNG – Gilden-Scan & Export
 --------------------------------------------------
 
@@ -2128,6 +2325,7 @@ function WeintCodex.Charakter.Show()
         { label = "Sockel",          onClick = ShowGems,      indent = true },
         { isGroup = true, label = "— ANALYSE —" },
         { label = "Werteverteilung", onClick = ShowWerteverteilung },
+        { label = "Priorisierung",   onClick = ShowPriorisierung },
         { isGroup = true, label = "— VERWALTUNG —" },
         { label = "Twinkverwaltung", onClick = ShowTwinkverwaltung },
     })
