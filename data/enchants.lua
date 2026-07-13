@@ -87,8 +87,13 @@ WeintCodex_Enchants = {
     -- UMHANG
     --------------------------------------------------
 
-    [4421] = { name = "Große Präzision",                      slot = "Umhang", stats = { hit = 180 }, verify = true },  -- exakten Namen per /wc vz prüfen
-    [4422] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },
+    [4421] = { name = "Präzision",                            slot = "Umhang", stats = { hit = 180 } },  -- WoWHead: "Formel: Umhang - Präzision" (item 84568)
+    [4422] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },  -- WoWHead: "Enchant Cloak - Superior Critical Strike" (spell 104404)
+    -- ACHTUNG: 4424 hat denselben Stat-Wert (crit 180) wie 4422 unter
+    -- anderem Namen - laut WoWHead ist "Greater Critical Strike"
+    -- (spell 74247) ein älteres/niedrigeres Cata-Enchant, kein MoP-
+    -- Gegenstück. Vermutlich veraltet/Duplikat - per /wc vz prüfen
+    -- und ggf. entfernen.
     [4424] = { name = "Überlegene kritische Trefferwertung",  slot = "Umhang", stats = { crit = 180 }, verify = true },
     [4892] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 } },
 
@@ -98,20 +103,17 @@ WeintCodex_Enchants = {
 
     [4411] = { name = "Meisterschaft",           slot = "Handgelenke", stats = { mastery = 170 } },
     [4412] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 170 } },
-    [4414] = { name = "Superintelligenz",        slot = "Handgelenke", stats = { intellect = 180 }, verify = true },
+    [4414] = { name = "Erstklassige Intelligenz", slot = "Handgelenke", stats = { intellect = 180 } },  -- WoWHead: "Armschiene - Erstklassige Intelligenz" (item 74703)
     [4416] = { name = "Große Beweglichkeit",     slot = "Handgelenke", stats = { agility = 170 } },
 
     --------------------------------------------------
     -- HÄNDE
     --------------------------------------------------
 
-    -- ACHTUNG: Bei 4433 gab es Feedback, dass Name/ID kollidieren
-    -- ("Große Beweglichkeit" vs. Tempo). Bitte per /wc vz die echte
-    -- ID der Handschuh-Tempoverzauberung ermitteln und hier fixen.
     [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
     [4432] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
-    [4433] = { name = "Große Tempowertung",        slot = "Hände", stats = { haste = 170 }, verify = true },
-    [4434] = { name = "Superstärke",               slot = "Hände", stats = { strength = 170 }, verify = true },
+    [4433] = { name = "Großes Tempo",              slot = "Hände", stats = { haste = 170 } },  -- WoWHead: "Handschuhe - Großes Tempo" (item 74719)
+    [4434] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },  -- WoWHead: "Handschuhe - Erstklassige Stärke" (item 74721)
 
     --------------------------------------------------
     -- BEINE (Lederverarbeitung / Schneiderei)
@@ -127,10 +129,15 @@ WeintCodex_Enchants = {
     -- FÜSSE
     --------------------------------------------------
 
-    [4425] = { name = "Verschwommene Geschwindigkeit", slot = "Füße", stats = { agility = 140 }, verify = true },
+    [4425] = { name = "Verschwimmen",                  slot = "Füße", stats = { agility = 140 } },  -- WoWHead: "Stiefel - Verschwimmen" (item 74717, Blurred Speed)
     [4426] = { name = "Pandarenschritt",               slot = "Füße", stats = { mastery = 140 } },
     [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
-    [4429] = { name = "Große Tempowertung",            slot = "Füße", stats = { haste = 175 }, verify = true },
+    [4429] = { name = "Großes Tempo",                  slot = "Füße", stats = { haste = 175 } },  -- WoWHead: "Stiefel - Großes Tempo" (item 74715, Greater Haste)
+    -- ACHTUNG: Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
+    -- (Präzision/Treffer, Großes Tempo, Verschwimmen, Pandarenschritt) -
+    -- kein separates reines "Beweglichkeit"-Enchant. Dieser Eintrag
+    -- dupliziert vermutlich 4425 (Verschwimmen) mit falschem Namen und
+    -- sollte per /wc vz geprüft und ggf. entfernt werden.
     [4430] = { name = "Große Beweglichkeit",           slot = "Füße", stats = { agility = 140 }, verify = true },
 
 }
