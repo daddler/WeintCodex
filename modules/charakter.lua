@@ -1091,6 +1091,9 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
     local specInfo = frame:CreateFontString(nil, "OVERLAY")
     specInfo:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     specInfo:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
+    specInfo:SetWidth(math.max((frame:GetWidth() or 660) - 170, 300))
+    specInfo:SetJustifyH("LEFT")
+    specInfo:SetWordWrap(false)
     if scan.profileKey then
         local styleHint = scan.tankStyle
             and (" |cff8B5CF6[" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]|r")
@@ -1112,9 +1115,11 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
 
     local W = parent:GetWidth() - 32
 
+    -- y -52: sitzt UNTER der Spec-Zeile des Seitenkopfs (vorher
+    -- überlappten sich Toggle und Spec-Text)
     local bg = CreateFrame("Frame", nil, parent)
     bg:SetSize(math.max(W, 200), 28)
-    bg:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -44)
+    bg:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -52)
     SetSolidBg(bg, 0.05, 0.03, 0.12, 0.80)
     DrawBorder(bg, 0.42, 0.25, 0.72, 0.40, 1)
 
@@ -1341,18 +1346,22 @@ function ShowGems()
     local scan = ScanCharacter()
     DrawPageHeader(gemFrame, "Sockel & Edelsteine", scan, ShowGems)
 
-    if scan.profile and scan.profile.gemNote then
-        local noteBox = gemFrame:CreateFontString(nil, "OVERLAY")
-        noteBox:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-        noteBox:SetPoint("TOPRIGHT", gemFrame, "TOPRIGHT", -140, -14)
-        noteBox:SetWidth(300)
-        noteBox:SetJustifyH("RIGHT")
-        noteBox:SetText("|cff5B4880" .. scan.profile.gemNote .. "|r")
-    end
-
     local toggleOffset = DrawTankStyleToggle(gemFrame, scan.profileKey, scan.tankStyle, ShowGems)
 
     local headerY = -52 + toggleOffset
+
+    -- Spec-Hinweis als eigene Zeile ÜBER der Tabelle (die frühere
+    -- Box rechts oben konnte Button und Spaltenköpfe überdecken)
+    if scan.profile and scan.profile.gemNote then
+        local noteBox = gemFrame:CreateFontString(nil, "OVERLAY")
+        noteBox:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        noteBox:SetPoint("TOPLEFT", gemFrame, "TOPLEFT", 16, headerY)
+        noteBox:SetWidth(math.max((gemFrame:GetWidth() or 660) - 32, 400))
+        noteBox:SetJustifyH("LEFT")
+        noteBox:SetWordWrap(false)
+        noteBox:SetText("|cff5B4880Hinweis: " .. scan.profile.gemNote .. "|r")
+        headerY = headerY - 16
+    end
     local function MakeHeader(text, x, w)
         local h = gemFrame:CreateFontString(nil, "OVERLAY")
         h:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
@@ -1488,6 +1497,9 @@ function ShowGems()
     local colorHint = gemFrame:CreateFontString(nil, "OVERLAY")
     colorHint:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
     colorHint:SetPoint("BOTTOMLEFT", gemFrame, "BOTTOMLEFT", 16, 20)
+    colorHint:SetWidth(math.max((gemFrame:GetWidth() or 660) - 32, 400))
+    colorHint:SetJustifyH("LEFT")
+    colorHint:SetWordWrap(false)
     colorHint:SetText("|cff5B4880Farbpunkt & Name = Farbe des SOCKELPLATZES im Item, nicht des Steins. Andersfarbige Steine (z.B. Lila in Blau) können optimal sein.|r")
 end
 
@@ -1604,8 +1616,12 @@ function ShowUebersicht()
     else gradeCol = C.red end
     if score.checks == 0 then gradeCol = C.textDim end
 
+    -- Banner endet VOR dem Aktualisieren-Button (sonst verdeckt
+    -- der Banner-Rahmen den Button rechts oben)
+    local isTank = scan.profileKey and TANK_SPECS[scan.profileKey] or false
+
     local banner = CreateFrame("Frame", nil, uebersichtFrame)
-    banner:SetSize(panelW - 192, 64)
+    banner:SetSize(panelW - 192 - 130, 64)
     banner:SetPoint("TOPLEFT", uebersichtFrame, "TOPLEFT", 176, -16)
     SetSolidBg(banner, gradeCol[1] * 0.10, gradeCol[2] * 0.10, gradeCol[3] * 0.10, 0.95)
     DrawBorder(banner, gradeCol[1], gradeCol[2], gradeCol[3], 0.80, 2)
@@ -1630,7 +1646,7 @@ function ShowUebersicht()
     local bannerSub = banner:CreateFontString(nil, "OVERLAY")
     bannerSub:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     bannerSub:SetPoint("TOPLEFT", banner, "TOPLEFT", 58, -32)
-    bannerSub:SetWidth(banner:GetWidth() - 70)
+    bannerSub:SetWidth(banner:GetWidth() - 70 - (isTank and 190 or 0))
     bannerSub:SetJustifyH("LEFT")
     if score.checks == 0 then
         bannerSub:SetText("|cffff9900Keine Prüfdaten — Charakter einloggen / Spec-Profil prüfen.|r")
@@ -1640,6 +1656,42 @@ function ShowUebersicht()
         bannerSub:SetText(string.format(
             "|cffFFBB22%d Problem%s gefunden — Details unter Handlungsbedarf.|r",
             nIssues, nIssues == 1 and "" or "e"))
+    end
+
+    -- =============================================
+    -- TANK-SPIELSTIL direkt im Banner umschaltbar
+    -- (statt erst auf den Unterseiten)
+    -- =============================================
+    if isTank then
+        local styleLbl = banner:CreateFontString(nil, "OVERLAY")
+        styleLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        styleLbl:SetPoint("TOPRIGHT", banner, "TOPRIGHT", -12, -10)
+        styleLbl:SetText("|cff8B5CF6Tank-Spielstil|r")
+
+        local function BannerStyleBtn(label, style, xOff)
+            local isActive = (scan.tankStyle == style)
+            local btn = CreateFrame("Button", nil, banner)
+            btn:SetSize(82, 20)
+            btn:SetPoint("BOTTOMRIGHT", banner, "BOTTOMRIGHT", xOff, 8)
+            SetSolidBg(btn, isActive and 0.25 or 0.08, isActive and 0.10 or 0.05,
+                       isActive and 0.50 or 0.18, 0.95)
+            DrawBorder(btn, isActive and 0.60 or 0.28, isActive and 0.28 or 0.14,
+                       isActive and 1.00 or 0.45, 0.85, 1)
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            lbl:SetAllPoints(btn)
+            lbl:SetJustifyH("CENTER")
+            lbl:SetJustifyV("MIDDLE")
+            lbl:SetText(isActive and ("|cffcc88ff" .. label .. "|r")
+                                  or ("|cff664488" .. label .. "|r"))
+            btn:SetScript("OnClick", function()
+                SetTankStyle(scan.profileKey, style)
+                ShowUebersicht()
+            end)
+        end
+
+        BannerStyleBtn("Offensiv", "OFF", -12)
+        BannerStyleBtn("Defensiv", "DEF", -100)
     end
 
     -- =============================================
