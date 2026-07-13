@@ -102,7 +102,11 @@ WeintCodex_Enchants = {
     --------------------------------------------------
 
     [4411] = { name = "Meisterschaft",           slot = "Handgelenke", stats = { mastery = 170 } },
-    [4412] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 170 } },
+    -- ID korrigiert (User-Bericht per In-Game-Tooltip): "Außergewöhnliche
+    -- Stärke" zeigte sich unter ID 4412 als "Unbekannte Verzauberung",
+    -- während der Nutzer die Verzauberung tatsächlich unter ID 4415
+    -- trägt. 4412 war also die falsche ID und wurde ersetzt.
+    [4415] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 170 } },
     [4414] = { name = "Erstklassige Intelligenz", slot = "Handgelenke", stats = { intellect = 180 } },  -- WoWHead: "Armschiene - Erstklassige Intelligenz" (item 74703)
     [4416] = { name = "Große Beweglichkeit",     slot = "Handgelenke", stats = { agility = 170 } },
 
@@ -132,13 +136,22 @@ WeintCodex_Enchants = {
     [4425] = { name = "Verschwimmen",                  slot = "Füße", stats = { agility = 140 } },  -- WoWHead: "Stiefel - Verschwimmen" (item 74717, Blurred Speed)
     [4426] = { name = "Pandarenschritt",               slot = "Füße", stats = { mastery = 140 } },
     [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
-    [4429] = { name = "Großes Tempo",                  slot = "Füße", stats = { haste = 175 } },  -- WoWHead: "Stiefel - Großes Tempo" (item 74715, Greater Haste)
+    -- Korrigiert (User-Bericht per In-Game-Tooltip): 4429 wurde bisher
+    -- als "Großes Tempo" (Haste) geführt, ist laut Tooltip tatsächlich
+    -- "Pandarenpfoten" (Meisterschaft + geringe Bewegungsgeschwindigkeit)
+    -- - vermutlich eine zweite, spätere Enchant-ID für denselben Effekt
+    -- wie 4426 (Pandarenschritt). Meisterschaftswert vom bisherigen
+    -- (falschen) Haste-Tier übernommen und noch nicht exakt bestätigt.
+    [4429] = { name = "Pandarenpfoten",                slot = "Füße", stats = { mastery = 175 }, verify = true },
     -- ACHTUNG: Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
-    -- (Präzision/Treffer, Großes Tempo, Verschwimmen, Pandarenschritt) -
-    -- kein separates reines "Beweglichkeit"-Enchant. Dieser Eintrag
-    -- dupliziert vermutlich 4425 (Verschwimmen) mit falschem Namen und
-    -- sollte per /wc vz geprüft und ggf. entfernt werden.
-    [4430] = { name = "Große Beweglichkeit",           slot = "Füße", stats = { agility = 140 }, verify = true },
+    -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenschritt) - kein
+    -- separates reines "Beweglichkeit"-Enchant für Füße. User-Bericht
+    -- legt nahe, dass diese ID tatsächlich die Hände-Tempo-Verzauberung
+    -- ist (zeigt sich bei Handschuhen mit +170 Tempo fälschlich als
+    -- "Große Beweglichkeit") - vermutlich eine zweite Enchant-ID für
+    -- denselben Effekt wie 4433 (Hände - Großes Tempo). Slot/Name/Stat
+    -- entsprechend umgestellt, noch per /wc vz final zu bestätigen.
+    [4430] = { name = "Großes Tempo",                  slot = "Hände", stats = { haste = 170 }, verify = true },
 
 }
 
