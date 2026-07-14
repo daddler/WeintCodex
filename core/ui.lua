@@ -25,6 +25,29 @@ local C = {
     border      = {0.42, 0.26, 0.76, 0.80},
     borderGlow  = {0.54, 0.36, 0.96, 0.30},
     headerBg    = {0.05, 0.03, 0.13, 1.0},
+
+    -- Exakte Wordmark-Farben aus dem .toc-Titelstring (#9B6BFF / #33D65E),
+    -- leicht abweichend von C.purple/C.green - eigener Name statt Rename,
+    -- damit bestehende Verwendung von C.purple/C.green unberuehrt bleibt.
+    logoPurple  = {0.608, 0.420, 1.00, 1.0},
+    logoGreen   = {0.200, 0.839, 0.369, 1.0},
+
+    -- Flache Elevation-Stufen fuer das reduzierte, ruhigere Panel-Design.
+    surface0    = {0.04,  0.03,  0.09,  1.0},
+    surface1    = {0.06,  0.045, 0.125, 1.0},
+    surface2    = {0.075, 0.055, 0.145, 1.0},
+    surface3    = {0.095, 0.07,  0.175, 1.0},
+
+    -- Semantische Aliase auf bestehende Tontoene.
+    success     = {0.13, 0.77, 0.37, 1.0},
+    warning     = {0.96, 0.76, 0.20, 1.0},
+    danger      = {0.95, 0.35, 0.25, 1.0},
+    info        = {0.40, 0.80, 1.00, 1.0},
+
+    -- Schlanke, blasse Rahmen-/Trenner-Toene fuer die reduzierte Ornamentik.
+    hairline     = {0.30, 0.20, 0.50, 0.35},
+    hairlineSoft = {0.30, 0.20, 0.50, 0.18},
+    accentDot    = {0.96, 0.76, 0.20, 1.0},
 }
 WeintCodex.Colors = C
 
@@ -96,6 +119,103 @@ local function DrawHLine(parent, r, g, b, a, offsetY, layer)
     return t
 end
 
+--------------------------------------------------
+-- Hex-Helper (ersetzt handgetippte |cffRRGGBB-Escapes)
+--------------------------------------------------
+
+-- Erzeugt "|cffRRGGBBtext|r" aus einem Eintrag der Farbtabelle C.
+function WeintCodex.ColorText(colorName, text)
+    local col = C[colorName]
+    if not col then return text end
+    return string.format("|cff%02x%02x%02x%s|r",
+        (col[1] or 0) * 255, (col[2] or 0) * 255, (col[3] or 0) * 255, text)
+end
+
+--------------------------------------------------
+-- Schlanker Einzel-Rahmen (Alternative zum zweilagigen Glow-DrawBorder)
+--------------------------------------------------
+
+function WeintCodex.DrawSlimBorder(frame, colorName, alpha, thick)
+    thick = thick or 1
+    local col = C[colorName] or C.hairline
+    alpha = alpha or col[4] or 1.0
+    DrawBorder(frame, col[1], col[2], col[3], alpha, thick)
+end
+
+--------------------------------------------------
+-- Dezente Eck-Akzente statt Vollrahmen
+--------------------------------------------------
+
+function WeintCodex.DrawCornerAccents(frame, colorName, size, thick)
+    size  = size  or 12
+    thick = thick or 2
+    local col = C[colorName] or C.purple
+
+    local function Corner(hPoint, vPoint, hx, hy, vx, vy)
+        local h = frame:CreateTexture(nil, "OVERLAY")
+        h:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
+        h:SetPoint(hPoint, frame, hPoint, hx, hy)
+        h:SetSize(size, thick)
+
+        local v = frame:CreateTexture(nil, "OVERLAY")
+        v:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
+        v:SetPoint(vPoint, frame, vPoint, vx, vy)
+        v:SetSize(thick, size)
+    end
+
+    Corner("TOPLEFT",     "TOPLEFT",     0, 0,  0, 0)
+    Corner("TOPRIGHT",    "TOPRIGHT",    0, 0,  0, 0)
+    Corner("BOTTOMLEFT",  "BOTTOMLEFT",  0, 0,  0, 0)
+    Corner("BOTTOMRIGHT", "BOTTOMRIGHT", 0, 0,  0, 0)
+end
+
+--------------------------------------------------
+-- Karten-Factory (flach, fuer Shell/Dashboard)
+--------------------------------------------------
+
+-- opts: { width, height, surface = "surface2", style = "flat"|"border"|"corners",
+--         borderColor = "hairline", title, titleColor = "textBright" }
+function WeintCodex.CreateCard(parent, opts)
+    opts = opts or {}
+    local card = CreateFrame(opts.buttonStyle and "Button" or "Frame", nil, parent)
+    if opts.width  then card:SetWidth(opts.width)   end
+    if opts.height then card:SetHeight(opts.height) end
+
+    local surfaceCol = C[opts.surface or "surface2"]
+    card._bg = SetSolidBg(card, surfaceCol[1], surfaceCol[2], surfaceCol[3], surfaceCol[4] or 1.0)
+    card._surface = opts.surface or "surface2"
+
+    -- Erlaubt Hover-Umfaerbung (z.B. surface2 -> surface3) ohne die
+    -- Rahmen-/Titel-Texturen neu zu erzeugen.
+    card.SetSurface = function(self, surfaceName)
+        local col = C[surfaceName]
+        if not col then return end
+        self._bg:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
+    end
+
+    local style = opts.style or "border"
+    if style == "border" then
+        WeintCodex.DrawSlimBorder(card, opts.borderColor or "hairline", nil, 1)
+    elseif style == "corners" then
+        WeintCodex.DrawCornerAccents(card, opts.borderColor or "purple", 10, 2)
+    end
+
+    local titleStr = nil
+    if opts.title then
+        titleStr = card:CreateFontString(nil, "OVERLAY")
+        titleStr:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+        titleStr:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
+        titleStr:SetTextColor(unpack(C[opts.titleColor or "textBright"]))
+        titleStr:SetText(opts.title)
+    end
+
+    card.SetTitle = function(self, text)
+        if titleStr then titleStr:SetText(text) end
+    end
+
+    return card
+end
+
 WeintCodex.SetSolidBg = SetSolidBg
 WeintCodex.DrawBorder  = DrawBorder
 WeintCodex.SetBorder   = DrawBorder
@@ -138,8 +258,7 @@ frame:SetResizeBounds(FRAME_MIN_W, FRAME_MIN_H, FRAME_MAX_W, FRAME_MAX_H)
 frame:Hide()
 
 SetSolidBg(frame, C.bgDark[1], C.bgDark[2], C.bgDark[3], C.bgDark[4])
-DrawBorder(frame, C.purple[1], C.purple[2], C.purple[3], 0.90, 2)
-DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.25, 6)
+DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.55, 1)
 
 --------------------------------------------------
 -- Header (banner design)
@@ -152,31 +271,24 @@ header:SetPoint("TOPLEFT",  frame, "TOPLEFT",  0, 0)
 header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
 header:SetHeight(HEADER_H)
 
--- Background horizontal gradient
+-- Background horizontal gradient (calmer, lower-contrast surface)
 local bgTex = header:CreateTexture(nil, "BACKGROUND")
 bgTex:SetAllPoints(header)
 bgTex:SetTexture("Interface\\Buttons\\WHITE8X8")
 bgTex:SetGradient("HORIZONTAL",
                   CreateColor(0.03, 0.02, 0.08, 1),
-                  CreateColor(0.12, 0.07, 0.22, 1)
+                  CreateColor(C.surface1[1], C.surface1[2], C.surface1[3], 1)
 )
 
--- Accent strip top (relative width)
+-- Accent strip top (relative width) - dezenter Hairline-Akzent
 local topAccent = header:CreateTexture(nil, "OVERLAY")
-topAccent:SetHeight(3)
+topAccent:SetHeight(2)
 topAccent:SetPoint("TOPLEFT",  header, "TOPLEFT",  0, 0)
 topAccent:SetPoint("TOPRIGHT", header, "TOPRIGHT", 0, 0)
-topAccent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.60)
+topAccent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.35)
 
--- Bottom divider glow (relative width)
-local headerGlow = header:CreateTexture(nil, "OVERLAY")
-headerGlow:SetHeight(24)
-headerGlow:SetPoint("BOTTOMLEFT",  header, "BOTTOMLEFT",  0, 0)
-headerGlow:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", 0, 0)
-headerGlow:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.08)
-
--- Bottom divider line (relative width)
-DrawHLine(header, C.purple[1], C.purple[2], C.purple[3], 0.75, 0, "OVERLAY")
+-- Bottom divider line (relative width) - schlanke Trennlinie statt Glow-Band
+DrawHLine(header, C.purple[1], C.purple[2], C.purple[3], 0.40, 0, "OVERLAY")
 
 -- Logo
 local logoFrame = CreateFrame("Frame", nil, header)
@@ -223,12 +335,12 @@ DrawHLine(footer, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.40, 0, "OVER
 local footerLeft = footer:CreateFontString(nil, "OVERLAY")
 footerLeft:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
 footerLeft:SetPoint("LEFT", footer, "LEFT", 12, 0)
-footerLeft:SetText("|cff4B3880WeintCodex v" .. (WeintCodex.Version or "0.7") .. "|r")
+footerLeft:SetText(WeintCodex.ColorText("textDim", "WeintCodex v" .. (WeintCodex.Version or "0.7")))
 
 local footerRight = footer:CreateFontString(nil, "OVERLAY")
 footerRight:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
 footerRight:SetPoint("RIGHT", footer, "RIGHT", -12, 0)
-footerRight:SetText("|cff4B3880Für die Gilde. Für den Erfolg. Bis einer weint. |r")
+footerRight:SetText(WeintCodex.ColorText("textDim", "Für die Gilde. Für den Erfolg. Bis einer weint. "))
 
 --------------------------------------------------
 -- Tab Bar
@@ -240,8 +352,8 @@ tabBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, 0)
 tabBar:SetHeight(40)
 SetSolidBg(tabBar, C.bgMid[1], C.bgMid[2], C.bgMid[3], C.bgMid[4])
 
--- Bottom divider (relative width)
-DrawHLine(tabBar, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50, 0, "OVERLAY")
+-- Bottom divider (relative width) - schlanke Hairline
+DrawHLine(tabBar, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.30, 0, "OVERLAY")
 
 WeintCodex.TabBar = tabBar
 
@@ -268,7 +380,7 @@ local sidebarDiv = sidebar:CreateTexture(nil, "OVERLAY")
 sidebarDiv:SetPoint("TOPRIGHT",    sidebar, "TOPRIGHT",    0,  0)
 sidebarDiv:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", 0,  0)
 sidebarDiv:SetWidth(1)
-sidebarDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.45)
+sidebarDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.30)
 
 local sidebarHeader = sidebar:CreateFontString(nil, "OVERLAY")
 sidebarHeader:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 10, -12)
@@ -374,8 +486,7 @@ function WeintCodex.ShowExportDialog(titleText, exportStr)
         f:EnableMouse(true)
 
         SetSolidBg(f, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 0.98)
-        DrawBorder(f, C.purple[1], C.purple[2], C.purple[3], 0.90, 2)
-        DrawBorder(f, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.25, 6)
+        DrawBorder(f, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.55, 1)
 
         -- Title
         local t = f:CreateFontString(nil, "OVERLAY")

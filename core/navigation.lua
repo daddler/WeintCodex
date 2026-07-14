@@ -57,6 +57,14 @@ for _, tabDef in ipairs(tabs) do
     lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     btn._label = lbl
 
+    -- Benachrichtigungspunkt (standardmaessig versteckt, siehe SetTabBadge)
+    local dot = btn:CreateTexture(nil, "OVERLAY")
+    dot:SetSize(6, 6)
+    dot:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -8, -6)
+    dot:SetColorTexture(C.accentDot[1], C.accentDot[2], C.accentDot[3], 1.0)
+    dot:Hide()
+    btn._dot = dot
+
     btn:SetScript("OnEnter", function(self)
         if activeTab ~= tabDef.id then
             self._bg:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.10)
@@ -79,6 +87,14 @@ for _, tabDef in ipairs(tabs) do
 
     tabButtons[tabDef.id] = btn
     table.insert(tabButtons, btn)
+end
+
+-- Zeigt/versteckt den Benachrichtigungspunkt eines Tabs anhand echten Zustands
+-- (z.B. Materialengpass, offene Sync-Warteschlange) - siehe ShowHome().
+function WeintCodex.Navigation.SetTabBadge(tabId, on)
+    local btn = tabButtons[tabId]
+    if not btn or not btn._dot then return end
+    if on then btn._dot:Show() else btn._dot:Hide() end
 end
 
 local function UpdateTabLayout()
@@ -324,10 +340,108 @@ function WeintCodex.Navigation.ShowPlaceholder(title, msg)
 end
 
 --------------------------------------------------
--- Home screen
+-- Home Dashboard
 --------------------------------------------------
 
 local homeFrame = nil
+
+-- Datums-Hilfe (gleiches Format wie modules/calendar.lua ParseDate())
+local function ParseYMD(dateStr)
+    if not dateStr or dateStr == "" then return nil end
+    local y, m, d = dateStr:match("(%d%d%d%d)-(%d%d)-(%d%d)")
+    if y then return tonumber(y), tonumber(m), tonumber(d) end
+    d, m, y = dateStr:match("(%d%d?)%.(%d%d?)%.(%d%d%d%d)")
+    if d then return tonumber(y), tonumber(m), tonumber(d) end
+    return nil
+end
+
+local function DateKey(y, m, d)
+    return y * 10000 + m * 100 + d
+end
+
+-- Naechster bevorstehender Raidtermin (Mittwoch/Donnerstag), oder Fallback-Text
+local function GetNextRaidLabel()
+    local sd = WeintCodex.SavedData
+    local today = date("*t")
+    local todayKey = DateKey(today.year, today.month, today.day)
+
+    local candidates = {}
+    local function Consider(raidData, dayName)
+        if not raidData or not raidData.date then return end
+        local y, m, d = ParseYMD(raidData.date)
+        if not y then return end
+        local key = DateKey(y, m, d)
+        if key >= todayKey then
+            table.insert(candidates, { key = key, dayName = dayName, data = raidData })
+        end
+    end
+    Consider(sd and sd.raidWednesday, "Mittwoch")
+    Consider(sd and sd.raidThursday,  "Donnerstag")
+
+    if #candidates == 0 then
+        return WeintCodex.ColorText("textDim", "Keine Anmeldung")
+    end
+
+    table.sort(candidates, function(a, b) return a.key < b.key end)
+    local n = candidates[1]
+    return n.dayName .. " · " .. n.data.date
+end
+
+local function GetSignupCount()
+    local sd = WeintCodex.SavedData
+    local total = 0
+    if sd and sd.raidWednesday and sd.raidWednesday.players then
+        total = total + #sd.raidWednesday.players
+    end
+    if sd and sd.raidThursday and sd.raidThursday.players then
+        total = total + #sd.raidThursday.players
+    end
+    return total
+end
+
+-- Anzahl Materialien unter 30% des Sollbestands (gleicher Schwellwert wie
+-- modules/materials.lua); zweiter Rueckgabewert = false wenn noch nie importiert.
+local function GetMaterialShortageCount()
+    local sd      = WeintCodex.SavedData
+    local matData = sd and sd.materialData
+    if not matData or not matData.items or #matData.items == 0 then
+        return 0, false
+    end
+    local shortages = 0
+    for _, item in ipairs(matData.items) do
+        local amount = tonumber(item.count)  or 0
+        local target = tonumber(item.target) or 0
+        if target > 0 and (amount / target) < 0.30 then
+            shortages = shortages + 1
+        end
+    end
+    return shortages, true
+end
+
+local function GetQueueCount()
+    if WeintCodex.Companion and WeintCodex.Companion.GetQueueSize then
+        return WeintCodex.Companion.GetQueueSize()
+    end
+    return 0
+end
+
+-- Aktiviert einen Tab so, als haette der Nutzer direkt darauf geklickt
+-- (Tab-Leiste + Sidebar ziehen korrekt mit).
+local function GoToTab(tabId)
+    local btn = tabButtons[tabId]
+    if btn then btn:Click() end
+end
+
+-- Modul-Kacheln des Dashboards (gleiche Icons wie die Tab-Leiste oben)
+local dashboardTiles = {
+    { id = "charakter",  icon = "Interface\\Icons\\Achievement_Character_Human_Male", title = "Charakter",   desc = "Enchants, Stats & Twink-Verwaltung" },
+    { id = "bossguides", icon = "Interface\\Icons\\Achievement_Boss_LichKing",        title = "Bossguides",  desc = "Rollen-Tipps für alle Bosse" },
+    { id = "raids",      icon = "Interface\\Icons\\Ability_Warrior_BattleShout",      title = "Raids",       desc = "Anmeldungen Mittwoch & Donnerstag" },
+    { id = "materials",  icon = "Interface\\Icons\\INV_Crate_01",                     title = "Materialien", desc = "Gildenbank-Übersicht" },
+    { id = "calendar",   icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",          title = "Kalender",    desc = "Termine & Ingame-Einladungen" },
+    { id = "weakauras",  icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",         title = "WeakAuras",   desc = "1-Klick-Import nach Kategorie" },
+    { id = "import",     icon = "Interface\\Icons\\INV_Misc_Note_01",                 title = "Import",      desc = "Daten vom Discord-Bot importieren" },
+}
 
 function WeintCodex.ShowHome()
     ClearContentPanel()
@@ -339,42 +453,181 @@ function WeintCodex.ShowHome()
         local hf = CreateFrame("Frame", nil, WeintCodex.ContentPanel)
         hf:SetAllPoints(WeintCodex.ContentPanel)
 
-        local welcome = hf:CreateFontString(nil, "OVERLAY")
-        welcome:SetFont("Fonts\\FRIZQT__.TTF", 26, "OUTLINE")
-        welcome:SetPoint("CENTER", hf, "CENTER", 0, 80)
-        welcome:SetText("|cff9B6BFF Weint|r|cff33D65ECodex|r")
+        ------------------------------------------------
+        -- A. Kompakte Hero-Leiste
+        ------------------------------------------------
+        local hero = CreateFrame("Frame", nil, hf)
+        hero:SetHeight(72)
+        hero:SetPoint("TOPLEFT",  hf, "TOPLEFT",  0, 0)
+        hero:SetPoint("TOPRIGHT", hf, "TOPRIGHT", 0, 0)
 
-        local sub = hf:CreateFontString(nil, "OVERLAY")
-        sub:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-        sub:SetPoint("TOP", welcome, "BOTTOM", 0, -10)
-        sub:SetText("|cff5B4880Raid Guide & Intelligence System|r")
-        sub:SetWidth(700)
-        sub:SetJustifyH("CENTER")
+        local wordmark = hero:CreateFontString(nil, "OVERLAY")
+        wordmark:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        wordmark:SetPoint("TOPLEFT", hero, "TOPLEFT", 20, -14)
+        wordmark:SetText(WeintCodex.ColorText("logoPurple", "Weint") .. WeintCodex.ColorText("logoGreen", "Codex"))
 
-        local desc = hf:CreateFontString(nil, "OVERLAY")
-        desc:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-        desc:SetPoint("TOP", sub, "BOTTOM", 0, -30)
-        desc:SetText(
-            "|cff4B3860Wähle einen Bereich in der Tab-Leiste oben aus.\n\n" ..
-            WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Charakter — Enchants, Stats & Twink-Verwaltung\n" ..
-            WeintCodex.Icon("Interface\\Icons\\Achievement_Boss_LichKing", 14) .. "  Bossguides — Rollen-Tipps für alle Bosse\n" ..
-            WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "  Raids — Anmeldungen Mittwoch & Donnerstag\n" ..
-            WeintCodex.Icon("Interface\\Icons\\INV_Crate_01", 14) .. "  Materialien — Gildenbank-Übersicht\n" ..
-            WeintCodex.Icon("Interface\\Icons\\Spell_Holy_MagicalSentry", 14) .. "  WeakAuras — 1-Klick-Import nach Kategorie\n" ..
-            WeintCodex.Icon("Interface\\Icons\\INV_Misc_Note_01", 14) .. "  Import — Daten vom Discord-Bot importieren|r"
-        )
-        desc:SetWidth(600)
-        desc:SetJustifyH("CENTER")
-        desc:SetSpacing(3)
+        local sub = hero:CreateFontString(nil, "OVERLAY")
+        sub:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        sub:SetPoint("TOPLEFT", wordmark, "BOTTOMLEFT", 0, -4)
+        sub:SetText(WeintCodex.ColorText("textDim", "Raid Guide & Intelligence System"))
 
+        local heroDiv = hero:CreateTexture(nil, "OVERLAY")
+        heroDiv:SetHeight(1)
+        heroDiv:SetPoint("BOTTOMLEFT",  hero, "BOTTOMLEFT",  20, 0)
+        heroDiv:SetPoint("BOTTOMRIGHT", hero, "BOTTOMRIGHT", -20, 0)
+        heroDiv:SetColorTexture(C.hairline[1], C.hairline[2], C.hairline[3], C.hairline[4])
+
+        local importBtn = WeintCodex.CreateCard(hero, { width = 110, height = 28, buttonStyle = true })
+        importBtn:SetPoint("TOPRIGHT", hero, "TOPRIGHT", -20, -14)
+        local importLbl = importBtn:CreateFontString(nil, "OVERLAY")
+        importLbl:SetAllPoints(importBtn)
+        importLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        importLbl:SetJustifyH("CENTER")
+        importLbl:SetText("Import")
+        importLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        importBtn:SetScript("OnClick", function()
+            if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
+                WeintCodex.Sync.ShowImportDialog()
+            end
+        end)
+        importBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+        importBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+
+        local calBtn = WeintCodex.CreateCard(hero, { width = 140, height = 28, buttonStyle = true })
+        calBtn:SetPoint("TOPRIGHT", importBtn, "TOPLEFT", -10, 0)
+        local calLbl = calBtn:CreateFontString(nil, "OVERLAY")
+        calLbl:SetAllPoints(calBtn)
+        calLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        calLbl:SetJustifyH("CENTER")
+        calLbl:SetText("Kalender öffnen")
+        calLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        calBtn:SetScript("OnClick", function() GoToTab("calendar") end)
+        calBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+        calBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+
+        ------------------------------------------------
+        -- B. Statistik-Reihe
+        ------------------------------------------------
+        local statRow = CreateFrame("Frame", nil, hf)
+        statRow:SetHeight(70)
+        statRow:SetPoint("TOPLEFT",  hero, "BOTTOMLEFT",  20, -18)
+        statRow:SetPoint("TOPRIGHT", hero, "BOTTOMRIGHT", -20, -18)
+
+        local STAT_W, STAT_GAP = 190, 14
+        local statDefs = {
+            { key = "raid",      label = "Nächster Raid",      tabId = "raids" },
+            { key = "signups",   label = "Anmeldungen",         tabId = "raids" },
+            { key = "materials", label = "Materialien",         tabId = "materials" },
+            { key = "queue",     label = "Sync-Warteschlange",  tabId = "import" },
+        }
+
+        local statCards = {}
+        for i, def in ipairs(statDefs) do
+            local card = WeintCodex.CreateCard(statRow, { width = STAT_W, height = 70, buttonStyle = true })
+            card:SetPoint("TOPLEFT", statRow, "TOPLEFT", (i - 1) * (STAT_W + STAT_GAP), 0)
+
+            local lbl = card:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
+            lbl:SetText(WeintCodex.ColorText("textDim", def.label))
+
+            local val = card:CreateFontString(nil, "OVERLAY")
+            val:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+            val:SetPoint("TOPLEFT",  lbl, "BOTTOMLEFT", 0, -8)
+            val:SetPoint("RIGHT",    card, "RIGHT", -12, 0)
+            val:SetJustifyH("LEFT")
+            val:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+
+            card:SetScript("OnClick", function() GoToTab(def.tabId) end)
+            card:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+            card:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+
+            card._valueStr = val
+            statCards[def.key] = card
+        end
+
+        ------------------------------------------------
+        -- C. Modul-Kachel-Raster
+        ------------------------------------------------
+        local gridLabel = hf:CreateFontString(nil, "OVERLAY")
+        gridLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        gridLabel:SetPoint("TOPLEFT", statRow, "BOTTOMLEFT", 0, -22)
+        gridLabel:SetText(WeintCodex.ColorText("textDim", "— BEREICHE —"))
+
+        local grid = CreateFrame("Frame", nil, hf)
+        grid:SetPoint("TOPLEFT",  gridLabel, "BOTTOMLEFT",  0, -10)
+        grid:SetPoint("TOPRIGHT", statRow,   "BOTTOMRIGHT", 0, -32)
+
+        local TILE_W, TILE_H, TILE_GAP, COLUMNS = 260, 84, 16, 3
+
+        for i, tile in ipairs(dashboardTiles) do
+            local col = (i - 1) % COLUMNS
+            local row = math.floor((i - 1) / COLUMNS)
+
+            local card = WeintCodex.CreateCard(grid, { width = TILE_W, height = TILE_H, buttonStyle = true })
+            card:SetPoint("TOPLEFT", grid, "TOPLEFT", col * (TILE_W + TILE_GAP), -row * (TILE_H + TILE_GAP))
+
+            local icon = card:CreateFontString(nil, "OVERLAY")
+            icon:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+            icon:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
+            icon:SetText(WeintCodex.Icon(tile.icon, 22))
+
+            local title = card:CreateFontString(nil, "OVERLAY")
+            title:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+            title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
+            title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+            title:SetText(tile.title)
+
+            local desc = card:CreateFontString(nil, "OVERLAY")
+            desc:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+            desc:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+            desc:SetJustifyH("LEFT")
+            desc:SetText(WeintCodex.ColorText("textDim", tile.desc))
+
+            card:SetScript("OnClick", function() GoToTab(tile.id) end)
+            card:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+            card:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+        end
+
+        ------------------------------------------------
+        -- D. Footer-Hinweis
+        ------------------------------------------------
         local hint = hf:CreateFontString(nil, "OVERLAY")
         hint:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        hint:SetPoint("TOP", desc, "BOTTOM", 0, -24)
-        hint:SetText("|cff3B2D60/wc  •  /wc import|r")
-        hint:SetJustifyH("CENTER")
+        hint:SetPoint("BOTTOM", hf, "BOTTOM", 0, 10)
+        hint:SetText(WeintCodex.ColorText("textDim", "/wc  •  /wc import"))
+
+        hf._statCards = statCards
 
         homeFrame = hf
     end
+
+    -- Dynamische Werte bei JEDEM Aufruf neu berechnen, nicht nur beim
+    -- ersten Bau der Struktur - siehe Kommentar oben an homeFrame.
+    local matShortage, hasMatScan = GetMaterialShortageCount()
+    local queueCount = GetQueueCount()
+
+    homeFrame._statCards.raid._valueStr:SetText(GetNextRaidLabel())
+    homeFrame._statCards.signups._valueStr:SetText(tostring(GetSignupCount()))
+
+    if not hasMatScan then
+        homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText("textDim", "Kein Scan"))
+    elseif matShortage > 0 then
+        homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText("danger", matShortage .. " Engpässe"))
+    else
+        homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText("success", "Alles im Soll"))
+    end
+
+    homeFrame._statCards.queue._valueStr:SetText(
+        queueCount > 0
+            and WeintCodex.ColorText("warning", queueCount .. " ausstehend")
+            or  WeintCodex.ColorText("textDim", "Keine")
+    )
+
+    WeintCodex.Navigation.SetTabBadge("materials", hasMatScan and matShortage > 0)
+    WeintCodex.Navigation.SetTabBadge("import", queueCount > 0)
+
     homeFrame:Show()
 end
 
