@@ -1187,6 +1187,22 @@ end
 -- SEITE: VERZAUBERUNGEN
 --------------------------------------------------
 
+-- Kuerzt Text auf eine Zeile mit "…", damit lange Item-/Slotnamen nicht
+-- ueber ihre Spalte hinaus wachsen (WoW FontStrings wuerden sonst
+-- standardmaessig auf 2+ Zeilen umbrechen und mit Nachbarzeilen/-spalten
+-- kollidieren). fs muss bereits SetWordWrap(false) gesetzt haben.
+local function TruncateOneLine(fs, text, maxWidth)
+    fs:SetText(text)
+    if fs:GetStringWidth() <= maxWidth then
+        return text
+    end
+    while #text > 1 and fs:GetStringWidth() > maxWidth do
+        text = text:sub(1, #text - 1)
+        fs:SetText(text .. "…")
+    end
+    return text .. "…"
+end
+
 local enchantFrame = nil
 
 function ShowEnchants()
@@ -1235,7 +1251,7 @@ function ShowEnchants()
 
     for _, row in ipairs(scan.enchants.rows) do
         local info = STATUS[row.status] or STATUS.neutral
-        local rowH = 34
+        local rowH = 40
 
         local rf = CreateFrame("Frame", nil, inner)
         rf:SetSize(inner:GetWidth() - 4, rowH)
@@ -1250,31 +1266,35 @@ function ShowEnchants()
         AttachStatusIcon(rf, row.status, 10, 0)
 
         local stLbl = rf:CreateFontString(nil, "OVERLAY")
-        stLbl:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+        stLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
         stLbl:SetPoint("LEFT", rf, "LEFT", 30, 0)
         stLbl:SetWidth(60)
         stLbl:SetJustifyH("LEFT")
         stLbl:SetText(StatusColorStr(row.status) .. info.label .. "|r")
 
         local slotLbl = rf:CreateFontString(nil, "OVERLAY")
-        slotLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        slotLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
         slotLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -6)
         slotLbl:SetWidth(140)
+        slotLbl:SetWordWrap(false)
         slotLbl:SetJustifyH("LEFT")
-        slotLbl:SetText(row.slotName)
+        slotLbl:SetText(TruncateOneLine(slotLbl, row.slotName, 138))
         slotLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 
         if row.itemName then
             local itemLbl = rf:CreateFontString(nil, "OVERLAY")
-            itemLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            itemLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
             itemLbl:SetPoint("BOTTOMLEFT", rf, "BOTTOMLEFT", 92, 5)
-            itemLbl:SetWidth(140)
+            itemLbl:SetWordWrap(false)
             itemLbl:SetJustifyH("LEFT")
-            itemLbl:SetText("|cff3B2D60" .. row.itemName .. "|r")
+            -- Einzeilig kuerzen statt umbrechen zu lassen, sonst kollidiert
+            -- eine 2. Zeile mit dem Slotnamen darueber (siehe TruncateOneLine).
+            local shortName = TruncateOneLine(itemLbl, row.itemName, 138)
+            itemLbl:SetText("|cff3B2D60" .. shortName .. "|r")
         end
 
         local curLbl = rf:CreateFontString(nil, "OVERLAY")
-        curLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        curLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
         curLbl:SetPoint("LEFT", rf, "LEFT", 238, 0)
         curLbl:SetWidth(232)
         curLbl:SetJustifyH("LEFT")
@@ -1298,7 +1318,7 @@ function ShowEnchants()
             local curName = row.enchId and GetEnchantDisplayName(row.enchId)
             if recName and not (curName and recName:lower() == curName:lower()) then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
-                recLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                recLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
                 recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")

@@ -52,7 +52,7 @@ for _, tabDef in ipairs(tabs) do
 
     local lbl = btn:CreateFontString(nil, "OVERLAY")
     lbl:SetAllPoints(btn)
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
     lbl:SetText(tabDef.label)
     lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     btn._label = lbl
@@ -163,8 +163,12 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             local indent = itemDef.indent and 20 or 5
 
             local btn = CreateFrame("Button", nil, sidebar)
-            btn:SetSize(202, 28)
-            btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", indent, offsetY)
+            btn:SetHeight(28)
+            -- Rechts relativ zur Sidebar verankert statt fester Breite, damit
+            -- eingerueckte Eintraege (indent=20) nicht ueber den rechten Rand
+            -- der Sidebar hinaus in das Hauptfeld hineinragen.
+            btn:SetPoint("TOPLEFT",  sidebar, "TOPLEFT",  indent, offsetY)
+            btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -5,     offsetY)
 
             local bg = btn:CreateTexture(nil, "BACKGROUND")
             bg:SetAllPoints(btn)
@@ -199,11 +203,12 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             end
 
             local lbl = btn:CreateFontString(nil, "OVERLAY")
-            lbl:SetPoint("LEFT", btn, "LEFT", iconOffsetX, 0)
-            lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            lbl:SetPoint("LEFT",  btn, "LEFT",  iconOffsetX, 0)
+            lbl:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
+            lbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
             lbl:SetText(itemDef.label or "")
             lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
-            lbl:SetWidth(180 - iconOffsetX)
+            lbl:SetJustifyH("LEFT")
             btn._label = lbl
 
             local function SetActive(self, on)
