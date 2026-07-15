@@ -257,7 +257,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -271,7 +271,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit überall. Jäger brauchen 7,5% Treffer UND 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit überall (Feingeschliffener Rubellit / Tödlicher Aragonit). Jäger brauchen 7,5% Treffer UND 7,5% Waffenkunde.",
     },
 
     HUNTER_MARKSMANSHIP = {
@@ -290,7 +290,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -315,7 +315,7 @@ WeintCodex_SpecProfiles = {
         },
         statWeights = {
             agility = 100, hit = 88, expertise = 85,
-            mastery = 72, crit = 68, haste = 60, stamina = 10,
+            crit = 70, haste = 62, mastery = 50, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4699, 4700, 4443 },
@@ -323,21 +323,21 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
             rot       = { 76692, 83151 },
-            gelb      = { 76700, 76697 },
+            gelb      = { 76697, 76700 },
             blau      = { 76680 },
-            orange    = { 76670, 76666 },
+            orange    = { 76658, 76670 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76643, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Meisterschaft. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
     },
 
     --------------------------------------------------

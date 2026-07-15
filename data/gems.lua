@@ -31,6 +31,7 @@
 --   Asketischer Urdiamant   -> Strenger Bergkristall      (76895)
 --   Mutiger Urdiamant       -> Mutiger Bergkristall       (95345)
 --   Brennender Urdiamant    -> Brennender Bergkristall    (76885)
+--   Agiler Urdiamant        -> Agiler Bergkristall        (76884)
 -- Weitere geänderte Grundsteinnamen (gleiche IDs):
 --   Starrer Chrysokoll  -> Massiver Chrysokoll   (76636)
 --   Blitzender Rubellit -> Scheinender Rubellit  (76695)
@@ -59,7 +60,7 @@ WeintCodex_Gems = {
     -- META: Urdiamanten (kaufbar)
     --------------------------------------------------
 
-    [76884] = { name = "Agiler Urdiamant",           color = "meta", stats = "+216 Beweglichkeit, +3% kritischer Schaden" },
+    [76884] = { name = "Agiler Bergkristall",         color = "meta", stats = "+216 Beweglichkeit, +3% kritischer Schaden" },
     [76885] = { name = "Brennender Bergkristall",     color = "meta", stats = "+216 Intelligenz, +3% kritischer Schaden" },
     [76886] = { name = "Widerscheinender Bergkristall", color = "meta", stats = "+216 Stärke, +3% kritischer Schaden" },
     [76895] = { name = "Strenger Bergkristall",         color = "meta", stats = "+432 Ausdauer, +2% Rüstung aus Gegenständen" },

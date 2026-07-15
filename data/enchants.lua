@@ -55,7 +55,7 @@ WeintCodex_Enchants = {
     -- Zielfernrohr sitzt auf der Waffe (Slot 16).
     --------------------------------------------------
 
-    [4699] = { name = "Lord Blastingtons Zielfernrohr des Schreckens", slot = "Waffe", verify = true },
+    [4699] = { name = "Fürst von Schmetternichs Todeszielfernrohr", slot = "Waffe" },  -- bestätigt (Lord Blastington's Scope of Doom)
     [4700] = { name = "Spiegelzielfernrohr",                            slot = "Waffe", verify = true },
     [4099] = { name = "Zielfernrohr (älteres Modell)",                  slot = "Waffe", verify = true },
     [4166] = { name = "Scharfes Zielfernrohr (älteres Modell)",         slot = "Waffe", verify = true },
