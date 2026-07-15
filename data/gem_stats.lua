@@ -74,6 +74,7 @@ WeintCodex_GemStats = {
     [76666] = { agility = 80,  haste = 160 },
     [76674] = { strength = 80, mastery = 160 },
     [76659] = { expertise = 160, crit = 160 },  -- Listiger Aragonit (fehlte bisher komplett)
+    [76664] = { parry = 160, dodge = 160 },     -- Bruchfester Aragonit (Tank)
 
     --------------------------------------------------
     -- LILA (Kunzit): 80 Primär + 160 Sekundär
@@ -88,6 +89,7 @@ WeintCodex_GemStats = {
     [76680] = { agility = 80,  hit = 160 },
     [76681] = { expertise = 160, hit = 160 },
     [76684] = { strength = 80, hit = 160 },
+    [76683] = { parry = 160, hit = 160 },       -- Fixierender Kunzit (Tank)
 
     --------------------------------------------------
     -- GRÜN (Dioptas): 160 + 160 Sekundär
@@ -103,6 +105,7 @@ WeintCodex_GemStats = {
     [76640] = { spirit = 160,  crit = 160 },
     [76645] = { spirit = 160,  mastery = 160 },
     [76651] = { haste = 160,   spirit = 160 },
+    [76589] = { hit = 160,     stamina = 120 },  -- Perfekter geschickter Alexandrit (Tank)
 
     --------------------------------------------------
     -- JUWELIER-EXKLUSIV (Serpentin):

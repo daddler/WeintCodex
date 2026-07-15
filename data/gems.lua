@@ -104,6 +104,7 @@ WeintCodex_Gems = {
     [76666] = { name = "Gewandter Aragonit",    color = "orange", stats = "+80 Beweglichkeit, +160 Tempowertung" },
     [76674] = { name = "Fachkundiger Aragonit", color = "orange", stats = "+80 Stärke, +160 Meisterschaftswertung" },
     [76659] = { name = "Listiger Aragonit",     color = "orange", stats = "+160 Waffenkunde, +160 kritische Trefferwertung" },
+    [76664] = { name = "Bruchfester Aragonit",  color = "orange", stats = "+160 Parierwertung, +160 Ausweichwertung" },
 
     --------------------------------------------------
     -- LILA (Kunzit): 80 Primär + 160 Sekundär
@@ -118,6 +119,7 @@ WeintCodex_Gems = {
     [76680] = { name = "Glitzernder Kunzit",       color = "lila", stats = "+80 Beweglichkeit, +160 Trefferwertung" },
     [76681] = { name = "Akkurater Kunzit",         color = "lila", stats = "+160 Waffenkunde, +160 Trefferwertung" },
     [76684] = { name = "Geätzter Kunzit",          color = "lila", stats = "+80 Stärke, +160 Trefferwertung" },
+    [76683] = { name = "Fixierender Kunzit",       color = "lila", stats = "+160 Parierwertung, +160 Trefferwertung" },
 
     --------------------------------------------------
     -- GRÜN (Dioptas): 160 + 160 Sekundär
@@ -133,6 +135,7 @@ WeintCodex_Gems = {
     [76640] = { name = "Nebliger Dioptas",      color = "grün", stats = "+160 Willenskraft, +160 kritische Trefferwertung" },
     [76645] = { name = "Meditativer Dioptas",   color = "grün", stats = "+160 Willenskraft, +160 Meisterschaftswertung" },
     [76651] = { name = "Geladener Dioptas",     color = "grün", stats = "+160 Tempowertung, +160 Willenskraft" },
+    [76589] = { name = "Perfekter geschickter Alexandrit", color = "grün", stats = "+160 Trefferwertung, +120 Ausdauer" },
 
     --------------------------------------------------
     -- JUWELIER-EXKLUSIV (Schlangenauge):

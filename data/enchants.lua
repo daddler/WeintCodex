@@ -96,6 +96,10 @@ WeintCodex_Enchants = {
     -- und ggf. entfernen.
     [4424] = { name = "Überlegene kritische Trefferwertung",  slot = "Umhang", stats = { crit = 180 }, verify = true },
     [4892] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 } },
+    -- HINWEIS: Schlüssel = Wowhead-Item-ID (74711), nicht die Link-Enchant-ID.
+    -- Für die Bewertung reicht der Name-Abgleich (Tooltip "Verzaubert: Großer
+    -- Schutz"); echte Enchant-ID bei Bedarf per /wc vz bestätigen.
+    [74711] = { name = "Großer Schutz",                      slot = "Umhang", stats = { stamina = 200 }, verify = true },  -- Tank (Umhang-Ausdauer)
 
     --------------------------------------------------
     -- HANDGELENKE
@@ -143,6 +147,9 @@ WeintCodex_Enchants = {
     -- wie 4426 (Pandarenschritt). Meisterschaftswert vom bisherigen
     -- (falschen) Haste-Tier übernommen und noch nicht exakt bestätigt.
     [4429] = { name = "Pandarenpfoten",                slot = "Füße", stats = { mastery = 175 }, verify = true },
+    -- Boots-Tempo (bestätigt via Nutzer/Wowhead). Schlüssel = Item-ID
+    -- (74715); Bewertung über Name-Abgleich ("Verzaubert: Großes Tempo").
+    [74715] = { name = "Großes Tempo",                 slot = "Füße", stats = { haste = 175 }, verify = true },
     -- ACHTUNG: Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
     -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenschritt) - kein
     -- separates reines "Beweglichkeit"-Enchant für Füße. User-Bericht

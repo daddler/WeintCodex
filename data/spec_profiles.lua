@@ -103,30 +103,33 @@ WeintCodex_SpecProfiles = {
             { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) optional" },
         },
         statWeights = {
-            mastery = 95, hit = 90, expertise = 90, stamina = 85,
-            parry = 65, dodge = 60, strength = 40, crit = 15, haste = 15,
+            stamina = 100, hit = 90, expertise = 88, parry = 70,
+            strength = 60, dodge = 55, mastery = 45, crit = 20, haste = 15,
         },
         bestEnchants = {
-            Waffe        = { 4444, 4445 },        -- Tanzender Stahl (def. Fallback: Koloss)
+            Waffe        = { 4444, 4445 },        -- Tanzender Stahl (Fallback: Koloss)
             Schultern    = { 4805 },
             Brust        = { 4420, 4419 },        -- Defensiv: Überragende Ausdauer
-            Umhang       = { 4421 },              -- TODO: "Großer Schutz" (ID offen)
+            Umhang       = { 74711 },             -- Großer Schutz (+200 Ausdauer)
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
             ["Hände"]    = { 4432, 4431 },        -- Defensiv: Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
             ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
         },
+        -- Defensiv (Ausdauer-Fokus): Gediegener Chrysokoll überall.
+        -- Sockelboni matchen, wenn lohnend: Rot -> Kunzit des Verteidigers,
+        -- Orange -> Bruchfester Aragonit, Grün -> Perfekter Alexandrit.
         bestGems = {
             meta      = { 76895, 95344 },
-            rot       = { 76695, 76693 },
-            gelb      = { 76700, 76698 },
-            blau      = { 76639 },
-            orange    = { 76674 },
-            lila      = { 76690, 76691 },
-            ["grün"]  = { 76656, 76643 },
-            prismatic = { 76639, 76695 },
+            rot       = { 76690, 76695, 76691 },  -- Kunzit d. Verteidigers (Parieren+Ausdauer); Parieren; Str+Ausdauer
+            gelb      = { 76589, 76698 },         -- Perfekter Alexandrit (Treffer+Ausdauer); Ausweichen
+            blau      = { 76639, 76636 },         -- Gediegener Chrysokoll (Ausdauer); Massiver (Treffer)
+            orange    = { 76664 },                -- Bruchfester Aragonit (Parieren+Ausweichen)
+            lila      = { 76690, 76683 },         -- Kunzit d. Verteidigers; Fixierender (Parieren+Treffer)
+            ["grün"]  = { 76589, 76656 },         -- Perfekter Alexandrit; Imposanter (Meister+Ausdauer)
+            prismatic = { 76639 },                -- Ausdauer universell
         },
-        gemNote = "Treffer/Waffenkunde-Cap, dann Ausdauer/Parieren/Ausweichen. (Sockelung wird noch auf die Defensiv-BiS umgestellt.)",
+        gemNote = "Defensiv: Ausdauer überall (Gediegener Chrysokoll), nach 7,5% Treffer/Waffenkunde Parieren/Ausweichen. Sockelbonus nur matchen, wenn er sich lohnt.",
     },
 
     --------------------------------------------------
@@ -1190,7 +1193,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4434 },
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 4428, 4426 },
+            ["Füße"]     = { 74715, 4428 },       -- Offensiv: Großes Tempo (Boots-Haste)
         },
         -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
         -- matchen, wenn sie sich lohnen (Rot -> Listiger Aragonit).
