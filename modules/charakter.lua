@@ -672,14 +672,9 @@ local function PickGemRecommendation(socketColor, profile, overStats, decision)
 
     local list
     if decision and decision.worthwhile == false and socketColor ~= "meta" then
-        -- Bonus ignorieren: den Farbe-egal-Besten empfehlen (Fallback:
-        -- prismatischer Stein bzw. Farb-Liste).
-        list = {}
-        if decision.overallId then list[#list + 1] = decision.overallId end
-        for _, id in ipairs(profile.bestGems.prismatic or {}) do
-            list[#list + 1] = id
-        end
-        if #list == 0 then list = profile.bestGems[socketColor] end
+        -- Bonus ignorieren: den kuratierten Universalstein (prismatic)
+        -- empfehlen; Fallback auf die Farb-Liste.
+        list = profile.bestGems.prismatic or profile.bestGems[socketColor]
     else
         list = profile.bestGems[socketColor] or profile.bestGems.prismatic
     end
@@ -711,21 +706,25 @@ end
 --------------------------------------------------
 -- SOCKELBONUS-ENTSCHEIDUNG (pro Item)
 --   Vergleicht zwei Strategien für ein Item:
---     MATCH:  in jedem farbigen Sockel den Farb-Stein
---             (bestGems[Farbe]) -> aktiviert den Sockelbonus.
---     IGNORE: in jedem farbigen Sockel den reinen Primärstein
---             (bestGems.prismatic) -> kein Bonus, dafür stärkerer Stein.
---   Der Sockelbonus wird mit den Stat-Gewichten der Spec bewertet.
+--     IGNORE: in jedem farbigen Sockel den kuratierten Universalstein
+--             (bestGems.prismatic[1], z.B. der reine Haupt-Sekundärstein)
+--             -> kein Bonus, dafür überall der stärkste Einzelstein.
+--     MATCH:  in jedem farbigen Sockel den besten FARBLICH passenden
+--             Stein (bestGems[Farbe][1]) -> aktiviert den Sockelbonus.
+--   Anker ist bewusst der kuratierte prismatische Stein (nicht der
+--   rechnerisch höchste über alle Listen) — sonst würden Treffer-/
+--   Waffenkunde-Steine über ihrem Cap als "beste" empfohlen.
 --   Ist der Bonus für die Klasse wertlos (Gewicht ~0, z.B. Ausweichen
 --   auf einem reinen DPS-Item), verliert MATCH und wir empfehlen den
---   stärkeren Stein — genau das gewünschte Verhalten.
+--   stärkeren Universalstein — genau das gewünschte Verhalten.
 --
 --   Rückgabe (Tabelle):
 --     bonus       = { stat, value } | nil
 --     bonusScore  = gewichteter Wert des Bonus
 --     matchCost   = Wertungsverlust durchs Farb-Matchen
 --     worthwhile  = bool (Bonus lohnt den Farb-Match)
---     pureId      = empfohlener reiner Primärstein (prismatic[1])
+--     pureId      = empfohlener Universalstein (prismatic[1])
+--     pureScore   = dessen gewichtete Wertung (Bewertungs-Anker)
 --------------------------------------------------
 
 local function EvaluateSocketBonus(bonus, sockets, profile)
@@ -737,63 +736,32 @@ local function EvaluateSocketBonus(bonus, sockets, profile)
     local weights  = profile.statWeights
     local gemStats = WeintCodex_GemStats or {}
 
-    -- Juwelier-exklusive Steine (Schlangenauge, "nur Juweliere") sind
-    -- die stärksten, dürfen aber nicht pauschal empfohlen werden — als
-    -- Farbe-egal-Basis daher ausschließen (konservativer Nicht-JC-Wert).
-    local function IsJcOnly(id)
-        local g = WeintCodex_Gems and WeintCodex_Gems[id]
-        return g and g.stats and g.stats:find("Juwelier", 1, true) ~= nil
-    end
+    local pureId = profile.bestGems.prismatic and profile.bestGems.prismatic[1]
+    decision.pureId = pureId
+    if not pureId then return decision end
 
-    -- Bester (nicht-JC-)Stein einer Liste (höchste gewichtete Wertung).
-    local function BestOf(list)
-        local bId, bScore = nil, -1
-        for _, id in ipairs(list or {}) do
-            if not IsJcOnly(id) then
-                local s = ScoreStats(gemStats[id], weights)
-                if s > bScore then bId, bScore = id, s end
-            end
-        end
-        return bId, bScore
-    end
+    local pureScore = ScoreStats(gemStats[pureId], weights)
+    decision.pureScore = pureScore
 
-    -- "Farbe-egal"-Wahl: bestbewerteter Stein über ALLE farbigen Listen.
-    -- Das ist der Stein, den man ohne Rücksicht auf den Sockelbonus
-    -- überall einsetzen würde — die echte Vergleichsbasis.
-    local overallId, overallScore = nil, -1
-    for color, list in pairs(profile.bestGems) do
-        if color ~= "meta" then
-            local id, sc = BestOf(list)
-            if id and sc > overallScore then overallId, overallScore = id, sc end
-        end
-    end
-    decision.overallId    = overallId
-    decision.overallScore = overallScore
-    -- Anzeige-/Fallback-Stein für "Bonus ignorieren": bevorzugt der vom
-    -- Audit gepflegte prismatische Stein, sonst der Farbe-egal-Beste.
-    decision.pureId = (profile.bestGems.prismatic and profile.bestGems.prismatic[1])
-                      or overallId
-
-    -- Ohne bekannten Bonus oder ohne Vergleichsbasis: bisheriges
-    -- (farbbasiertes) Verhalten — nichts regressiert.
-    if not bonus or overallScore < 0 then
-        return decision
-    end
+    -- Ohne bekannten Bonus: bisheriges (farbbasiertes) Verhalten.
+    if not bonus then return decision end
 
     local bonusScore = (weights[bonus.stat] or 0) * bonus.value
     decision.bonusScore = bonusScore
 
     -- Kosten des Matchens: pro FARBIGEM Sockel die Wertungsdifferenz
-    -- zwischen dem Farbe-egal-Besten und dem besten FARBLICH passenden
-    -- Stein. Ist der Farbe-egal-Beste selbst passend (z.B. roter
-    -- Primärstein im roten Sockel), kostet der Sockel 0.
+    -- zwischen dem Universalstein und dem besten farblich passenden
+    -- Empfehlungsstein (bestGems[Farbe][1]). Ist der passende Stein
+    -- gleich gut oder besser (z.B. roter Primärstein im roten Sockel),
+    -- kostet der Sockel 0 -> Matchen ist gratis.
     local matchCost = 0
     for _, socket in ipairs(sockets) do
         local color = socket.color
         if color and color ~= "meta" and color ~= "prismatic" then
-            local _, colorScore = BestOf(profile.bestGems[color])
-            if not colorScore or colorScore < 0 then colorScore = overallScore end
-            local diff = overallScore - colorScore
+            local colorList  = profile.bestGems[color]
+            local colorId    = colorList and colorList[1]
+            local colorScore = colorId and ScoreStats(gemStats[colorId], weights) or pureScore
+            local diff = pureScore - colorScore
             if diff > 0 then matchCost = matchCost + diff end
         end
     end
@@ -839,16 +807,17 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
         return "ok", nil, false
     end
 
-    -- Sockelbonus lohnt sich für dieses Item nicht: der Farbe-egal-Beste
-    -- ist das Ziel. Bewertung erfolgt hier gegen dessen Wertung, damit ein
-    -- starker Off-Color-Stein OPTIMAL zählt (statt fälschlich "falsch") und
-    -- ein schwächerer Farb-Stein (nur wegen des geringen Bonus) "ok" wird.
+    -- Sockelbonus lohnt sich für dieses Item nicht: der kuratierte
+    -- Universalstein ist das Ziel. Bewertung erfolgt gegen dessen Wertung,
+    -- damit ein starker Off-Color-Stein OPTIMAL zählt (statt fälschlich
+    -- "falsch") und ein schwächerer Farb-Stein (nur wegen des geringen
+    -- Bonus) "ok" wird.
     local ignoreBonus = decision and decision.worthwhile == false and not isMeta
-    if ignoreBonus and decision.overallScore and decision.overallScore > 0 then
+    if ignoreBonus and decision.pureScore and decision.pureScore > 0 then
         local weights = profile and profile.statWeights
         local myStats = WeintCodex_GemStats and WeintCodex_GemStats[gemId]
         if weights and myStats then
-            local pct = math.floor((ScoreStats(myStats, weights) / decision.overallScore) * 100 + 0.5)
+            local pct = math.floor((ScoreStats(myStats, weights) / decision.pureScore) * 100 + 0.5)
             if pct >= 90 then return "optimal", pct, false end
             if pct >= 65 then return "ok", pct, false end
             return "wrong", pct, false

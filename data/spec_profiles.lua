@@ -39,23 +39,26 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },       -- Tanzender Stahl / Elementarkraft
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },
+            Umhang       = { 4422, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4434 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4428, 4429 },
+            ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
         },
+        -- Krit ist der beste Sekundärstat -> überall Glatter Goldberyll.
+        -- Sockelboni matchen, wenn sie sich lohnen: Rot -> Gravierter
+        -- Aragonit (Str+Krit), Blau -> Stechender Dioptas (Krit+Treffer).
         bestGems = {
             meta      = { 76886, 95346 },
-            rot       = { 76696, 83141 },
-            gelb      = { 76697, 76699 },
-            blau      = { 76684 },
-            orange    = { 76661, 76669, 76674 },
-            lila      = { 76684, 76691 },
-            ["grün"]  = { 76641, 76642 },
-            prismatic = { 76696, 83141 },
+            rot       = { 76661, 76693, 76696 },  -- match: Gravierter Aragonit; Präziser Rubellit (Waffenkunde-Cap); Klobiger
+            gelb      = { 76697, 83146 },         -- Glatter Goldberyll (Krit) / JC-Schlangenauge
+            blau      = { 76641, 76636 },         -- Stechender Dioptas (match); Massiver Chrysokoll (Treffer-Cap)
+            orange    = { 76661 },                -- Gravierter Aragonit (Str+Krit)
+            lila      = { 76684 },                -- Geätzter Kunzit (Str+Treffer, situativ)
+            ["grün"]  = { 76641 },                -- Stechender Dioptas (Krit+Treffer)
+            prismatic = { 76697, 83146 },         -- Krit universell
         },
-        gemNote = "Stärke > Krit. Erst 7,5% Treffer + 7,5% Waffenkunde, dann Krit sockeln.",
+        gemNote = "Krit überall (Glatter Goldberyll). Erst 7,5% Treffer + 7,5% Waffenkunde. Sockelbonus nur matchen, wenn er sich lohnt.",
     },
 
     WARRIOR_FURY = {
@@ -72,23 +75,25 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },
+            Umhang       = { 4422, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4434 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4428, 4429 },
+            ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
         },
+        -- Krit überall; 1 Krit ~ 1,07 Stärke. Sockelboni matchen, wenn
+        -- sie sich lohnen: Rot -> Gravierter Aragonit, Blau -> Stechender Dioptas.
         bestGems = {
             meta      = { 76886, 95346 },
-            rot       = { 76696, 83141 },
-            gelb      = { 76697, 76699 },
-            blau      = { 76684 },
-            orange    = { 76661, 76669 },
-            lila      = { 76684, 76691 },
-            ["grün"]  = { 76641, 76642 },
-            prismatic = { 76696, 83141 },
+            rot       = { 76661, 76693, 76696 },
+            gelb      = { 76697, 83146 },
+            blau      = { 76641, 76636 },
+            orange    = { 76661 },
+            lila      = { 76684 },
+            ["grün"]  = { 76641 },
+            prismatic = { 76697, 83146 },
         },
-        gemNote = "Stärke > Krit. Beide Waffen Tanzender Stahl. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Krit überall (Glatter Goldberyll). Beide Waffen Tanzender Stahl. Erst 7,5% Treffer + 7,5% Waffenkunde. Sockelbonus nur matchen, wenn er sich lohnt.",
     },
 
     WARRIOR_PROTECTION = {
@@ -102,14 +107,14 @@ WeintCodex_SpecProfiles = {
             parry = 65, dodge = 60, strength = 40, crit = 15, haste = 15,
         },
         bestEnchants = {
-            Waffe        = { 4445, 4446, 4444 },  -- Koloss / Lied des Flusses
+            Waffe        = { 4444, 4445 },        -- Tanzender Stahl (def. Fallback: Koloss)
             Schultern    = { 4805 },
-            Brust        = { 4419, 4420 },
-            Umhang       = { 4421 },
-            Handgelenke  = { 4411, 4415 },
-            ["Hände"]    = { 4431, 4432 },
-            Beine        = { 4824 },
-            ["Füße"]     = { 4426, 4428 },
+            Brust        = { 4420, 4419 },        -- Defensiv: Überragende Ausdauer
+            Umhang       = { 4421 },              -- TODO: "Großer Schutz" (ID offen)
+            Handgelenke  = { 4411, 4415 },        -- Meisterschaft
+            ["Hände"]    = { 4432, 4431 },        -- Defensiv: Überragende Meisterschaft
+            Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
+            ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -121,7 +126,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76656, 76643 },
             prismatic = { 76639, 76695 },
         },
-        gemNote = "Treffer/Waffenkunde-Cap, dann Meisterschaft (Schildblock) > Parieren/Ausweichen.",
+        gemNote = "Treffer/Waffenkunde-Cap, dann Ausdauer/Parieren/Ausweichen. (Sockelung wird noch auf die Defensiv-BiS umgestellt.)",
     },
 
     --------------------------------------------------
@@ -1174,30 +1179,32 @@ WeintCodex_SpecProfiles = {
             { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) empfohlen" },
         },
         statWeights = {
-            hit = 100, expertise = 98, strength = 90, mastery = 70,
-            crit = 55, haste = 40, stamina = 35, parry = 25, dodge = 20,
+            hit = 100, expertise = 98, crit = 90, parry = 62,
+            dodge = 58, strength = 54, mastery = 48, haste = 40, stamina = 35,
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
-            Umhang       = { 4421 },
+            Umhang       = { 4422, 4421 },       -- Offensiv: Krit
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4434 },
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 4428, 4426 },
         },
+        -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
+        -- matchen, wenn sie sich lohnen (Rot -> Listiger Aragonit).
         bestGems = {
-            meta      = { 76886, 76895 },
-            rot       = { 76696, 83141 },
-            gelb      = { 76697, 76700 },
-            blau      = { 76684 },
-            orange    = { 76661, 76674 },
-            lila      = { 76684, 76681 },
-            ["grün"]  = { 76641, 76643 },
-            prismatic = { 76696, 83141 },
+            meta      = { 76886, 95346 },
+            rot       = { 76659, 76693, 76696 },  -- Listiger Aragonit (Waffenkunde+Krit); Präziser; Klobiger
+            gelb      = { 76697, 83146 },         -- Glatter Goldberyll (Krit)
+            blau      = { 76641, 76636 },
+            orange    = { 76659 },                -- Listiger Aragonit
+            lila      = { 76684 },
+            ["grün"]  = { 76641 },                -- Stechender Dioptas
+            prismatic = { 76697, 83146 },         -- Krit universell
         },
-        gemNote = "Offensiv: Nach Hit/Waffenkunde-Cap Stärke stacken. Mehr Bedrohung & DPS.",
+        gemNote = "Offensiv: Krit überall nach 7,5% Treffer/Waffenkunde. Sockelbonus nur matchen, wenn er sich lohnt.",
     },
 
     PALADIN_PROTECTION_OFFENSIVE = {

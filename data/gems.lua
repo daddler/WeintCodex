@@ -22,8 +22,21 @@
 --   Kaiseramethyst  -> Kunzit
 --   Wildjade        -> Dioptas
 --
+-- ERKENNTNIS (07/2026, Nutzerabgleich Wowhead MoP Classic DE):
+-- Auch die Meta-/Legendär-Steine wurden umbenannt — "Urdiamant"
+-- heißt jetzt "Bergkristall", teils mit geändertem Adjektiv:
+--   Kapazitiver Urdiamant   -> Geladener Bergkristall     (95346)
+--   Unbezähmbarer Urdiamant -> Unbeugsamer Bergkristall   (95344)
+--   Widerhallender Urdiamant-> Widerscheinender Bergkristall (76886)
+--   Asketischer Urdiamant   -> Strenger Bergkristall      (76895)
+-- Weitere geänderte Grundsteinnamen (gleiche IDs):
+--   Starrer Chrysokoll  -> Massiver Chrysokoll   (76636)
+--   Blitzender Rubellit -> Scheinender Rubellit  (76695)
+-- Die restlichen Meta-Namen (95347/95345/76884/76885/76888) werden
+-- beim jeweiligen Klassen-Audit bestätigt und dann nachgezogen.
+--
 -- Deutsche Grundsteine (MoP, aktuell):
---   Meta   = Urdiamant            Rot    = Rubellit
+--   Meta   = Bergkristall         Rot    = Rubellit
 --   Gelb   = Goldberyll           Blau   = Chrysokoll
 --   Orange = Aragonit             Lila   = Kunzit
 --   Grün   = Dioptas              JC     = Schlangenauge
@@ -37,8 +50,8 @@ WeintCodex_Gems = {
 
     [95347] = { name = "Finsterer Urdiamant",       color = "meta", stats = "+324 kritische Trefferwertung, Chance auf 30% Zaubertempo (Caster-DPS)" },
     [95345] = { name = "Mutiger Urdiamant",         color = "meta", stats = "+324 Willenskraft, Chance auf manafreie Zauber (Heiler)" },
-    [95346] = { name = "Kapazitiver Urdiamant",     color = "meta", stats = "+324 kritische Trefferwertung, lädt Blitzentladung auf (Nahkampf/Fernkampf)" },
-    [95344] = { name = "Unbezähmbarer Urdiamant",   color = "meta", stats = "+324 Ausdauer, Chance auf 20% Schadensverringerung (Tank)" },
+    [95346] = { name = "Geladener Bergkristall",     color = "meta", stats = "+324 kritische Trefferwertung, lädt Blitzentladung auf (Nahkampf/Fernkampf)" },
+    [95344] = { name = "Unbeugsamer Bergkristall",   color = "meta", stats = "+324 Ausdauer, Chance auf 20% Schadensverringerung (Tank)" },
 
     --------------------------------------------------
     -- META: Urdiamanten (kaufbar)
@@ -46,8 +59,8 @@ WeintCodex_Gems = {
 
     [76884] = { name = "Agiler Urdiamant",           color = "meta", stats = "+216 Beweglichkeit, +3% kritischer Schaden" },
     [76885] = { name = "Brennender Urdiamant",       color = "meta", stats = "+216 Intelligenz, +3% kritischer Schaden" },
-    [76886] = { name = "Widerhallender Urdiamant",   color = "meta", stats = "+216 Stärke, +3% kritischer Schaden" },
-    [76895] = { name = "Asketischer Urdiamant",      color = "meta", stats = "+432 Ausdauer, +2% Rüstung aus Gegenständen" },
+    [76886] = { name = "Widerscheinender Bergkristall", color = "meta", stats = "+216 Stärke, +3% kritischer Schaden" },
+    [76895] = { name = "Strenger Bergkristall",         color = "meta", stats = "+432 Ausdauer, +2% Rüstung aus Gegenständen" },
     [76888] = { name = "Revitalisierender Urdiamant", color = "meta", stats = "+432 Willenskraft, +3% kritische Heilung" },
 
     --------------------------------------------------
@@ -57,7 +70,7 @@ WeintCodex_Gems = {
     [76692] = { name = "Feingeschliffener Rubellit", color = "rot", stats = "+160 Beweglichkeit" },
     [76693] = { name = "Präziser Rubellit",          color = "rot", stats = "+320 Waffenkunde" },
     [76694] = { name = "Glänzender Rubellit",        color = "rot", stats = "+160 Intelligenz" },
-    [76695] = { name = "Blitzender Rubellit",        color = "rot", stats = "+320 Parierwertung" },
+    [76695] = { name = "Scheinender Rubellit",       color = "rot", stats = "+320 Parierwertung" },
     [76696] = { name = "Klobiger Rubellit",          color = "rot", stats = "+160 Stärke" },
 
     --------------------------------------------------
@@ -73,7 +86,7 @@ WeintCodex_Gems = {
     -- BLAU (Chrysokoll)
     --------------------------------------------------
 
-    [76636] = { name = "Starrer Chrysokoll",    color = "blau", stats = "+320 Trefferwertung" },
+    [76636] = { name = "Massiver Chrysokoll",   color = "blau", stats = "+320 Trefferwertung" },
     [76638] = { name = "Funkelnder Chrysokoll", color = "blau", stats = "+320 Willenskraft" },
     [76639] = { name = "Gediegener Chrysokoll", color = "blau", stats = "+240 Ausdauer" },
 
