@@ -140,8 +140,8 @@ WeintCodex_SpecProfiles = {
         role = "HEALER",
         caps = {},
         statWeights = {
-            intellect = 100, spirit = 85, haste = 72, mastery = 68,
-            crit = 50, stamina = 10,
+            intellect = 100, spirit = 90, mastery = 75, crit = 55,
+            haste = 45, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -149,54 +149,56 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
         },
         bestGems = {
-            meta      = { 76888, 95345 },
-            rot       = { 76694, 83150 },
-            gelb      = { 76699, 76700 },
-            blau      = { 76686, 76638 },
-            orange    = { 76668, 76660, 76672 },
-            lila      = { 76686 },
-            ["grün"]  = { 76651, 76645 },
-            prismatic = { 76694, 83150 },
+            meta      = { 76885, 95345 },         -- Brennender / Mutiger Bergkristall
+            rot       = { 76694, 83150 },         -- Glänzender Rubellit (Int)
+            gelb      = { 76700, 76699 },         -- Frakturierter (Meister) / Spiegelnder (Tempo, Ewige Flamme)
+            blau      = { 76686, 76638 },         -- Geläuterter Kunzit (Int+Wille); Funkelnder (Wille)
+            orange    = { 76672 },                -- Kunstvoller Aragonit (Int+Meister)
+            lila      = { 76686 },                -- Geläuterter Kunzit
+            ["grün"]  = { 76645, 76651 },         -- Meditativer (Wille+Meister); Geladener
+            prismatic = { 76694, 83150 },         -- Intelligenz universell
         },
-        gemNote = "Intelligenz > Willenskraft. Heiler brauchen kein Trefferwertungs-Cap.",
+        gemNote = "Intelligenz-Basis, Meisterschaft bester Durchsatz-Sekundärstat > Krit > Tempo (Tempo nur für Breakpoints). Sockelboni mit Int-Hybriden matchen.",
     },
 
     PALADIN_PROTECTION = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) optional" },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Waffenkunde) — Control-Paladin" },
         },
         statWeights = {
-            hit = 95, expertise = 95, haste = 82, mastery = 80,
-            stamina = 75, parry = 50, dodge = 45, strength = 40, crit = 20,
+            hit = 100, expertise = 98, mastery = 80, stamina = 80,
+            haste = 65, parry = 55, dodge = 55, strength = 45, crit = 20,
         },
         bestEnchants = {
-            Waffe        = { 4445, 4446, 4444 },
+            Waffe        = { 4446, 4445 },        -- Flussgesang (River's Song)
             Schultern    = { 4805 },
-            Brust        = { 4419, 4420 },
-            Umhang       = { 4421 },
-            Handgelenke  = { 4411, 4415 },
-            ["Hände"]    = { 4431, 4433 },
-            Beine        = { 4824 },
-            ["Füße"]     = { 4426, 4428 },
+            Brust        = { 4420, 4419 },        -- Überragende Ausdauer
+            Umhang       = { 74711 },             -- Großer Schutz
+            Handgelenke  = { 4411, 4415 },        -- Meisterschaft
+            ["Hände"]    = { 4432, 4431 },        -- Überragende Meisterschaft
+            Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
+            ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
         },
+        -- Control-Tank: Waffenkunde-Hardcap (15%) + Treffer zuerst, dann
+        -- Meisterschaft/Ausdauer. Sockelboni (Waffk./Treffer/Tempo/Ausdauer) matchen.
         bestGems = {
-            meta      = { 76895, 95344 },
-            rot       = { 76695, 76693 },
-            gelb      = { 76700, 76699 },
-            blau      = { 76639 },
-            orange    = { 76674, 76669 },
-            lila      = { 76690, 76684 },
-            ["grün"]  = { 76656, 76643 },
-            prismatic = { 76639, 76695 },
+            meta      = { 95344, 76886 },         -- Unbeugsamer (def); Widerscheinender (non-leg)
+            rot       = { 76693, 76695 },         -- Präziser Rubellit (Waffk.-Cap); Parieren
+            gelb      = { 76700, 76699 },         -- Frakturierter (Meister def); Spiegelnder (Tempo)
+            blau      = { 76639, 76636 },         -- Gediegener (Ausdauer def); Massiver (Treffer)
+            orange    = { 76671, 76667 },         -- Schneidender (Waffk.+Meister); Tückischer (Waffk.+Tempo)
+            lila      = { 76681, 76690 },         -- Akkurater (Waffk.+Treffer); Kunzit d. Verteidigers
+            ["grün"]  = { 76642, 76643 },         -- Blitzender (Tempo+Treffer); Mentors
+            prismatic = { 76700, 76693 },         -- Meisterschaft / Waffenkunde
         },
-        gemNote = "Control-Tank: Treffer/Waffenkunde-Cap ist Priorität 1, danach Tempo/Meisterschaft.",
+        gemNote = "Control-Tank: 15% Waffenkunde-Hardcap + 7,5% Treffer zuerst, dann Meisterschaft/Ausdauer. Sockelboni matchen.",
     },
 
     PALADIN_RETRIBUTION = {
@@ -206,30 +208,32 @@ WeintCodex_SpecProfiles = {
             { stat = "expertise",                pct = 7.5 },
         },
         statWeights = {
-            strength = 100, hit = 90, expertise = 88,
-            haste = 80, mastery = 70, crit = 65, stamina = 10,
+            hit = 95, expertise = 92, haste = 90, strength = 85,
+            mastery = 80, crit = 50, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },
+            Umhang       = { 4421, 4422 },       -- Präzision (Treffer), dann Krit
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4428, 4429 },
+            ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
         },
+        -- Tempo bis 50% Gesamt-Tempo, danach Meisterschaft. Sockelboni
+        -- lohnen fast immer (starke Tempo-/Meister-Hybride je Farbe).
         bestGems = {
             meta      = { 76886, 95346 },
-            rot       = { 76696, 83141 },
-            gelb      = { 76699, 76697 },
-            blau      = { 76684 },
-            orange    = { 76669, 76661, 76674 },
-            lila      = { 76684, 76691 },
-            ["grün"]  = { 76642, 76641 },
-            prismatic = { 76696, 83141 },
+            rot       = { 76667, 76693, 76696 },  -- Tückischer (Waffk.+Tempo, match); Präziser (Waffk.-Cap); Klobiger
+            gelb      = { 76699, 76700 },         -- Spiegelnder (Tempo <50%); Frakturierter (Meister >50%)
+            blau      = { 76684, 76636 },         -- Geätzter (Str+Treffer); Massiver (Treffer-Cap)
+            orange    = { 76667, 76671 },         -- Tückischer (Waffk.+Tempo); Schneidender (Waffk.+Meister)
+            lila      = { 76684 },                -- Geätzter Kunzit
+            ["grün"]  = { 76642, 76643 },         -- Blitzender (Tempo+Treffer); Mentors (Treffer+Meister)
+            prismatic = { 76699, 76700 },         -- Tempo universell (bis 50%, dann Meister)
         },
-        gemNote = "Stärke > Tempo. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Tempo bis 50% (Spiegelnder Goldberyll), danach Meisterschaft. Erst 7,5% Treffer/Waffenkunde. Sockelboni matchen (Hybride Tückischer/Blitzender).",
     },
 
     --------------------------------------------------
@@ -1214,11 +1218,11 @@ WeintCodex_SpecProfiles = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) empfohlen" },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Waffenkunde) empfohlen" },
         },
         statWeights = {
-            hit = 100, expertise = 98, haste = 88, strength = 80,
-            mastery = 70, crit = 40, stamina = 35, parry = 20, dodge = 15,
+            hit = 100, expertise = 98, haste = 90, crit = 70,
+            strength = 55, mastery = 45, stamina = 40, parry = 30, dodge = 25,
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },
@@ -1226,21 +1230,22 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421 },
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4433, 4431 },
+            ["Hände"]    = { 4431, 4434 },        -- Offensiv: Überragende Waffenkunde
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 4428, 4429 },
+            ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
         },
+        -- Offensiv: Waffenkunde-Hardcap + Treffer, dann Tempo/Krit (Rache-DPS).
         bestGems = {
-            meta      = { 76886, 76895 },
-            rot       = { 76696, 83141 },
-            gelb      = { 76699, 76700 },
-            blau      = { 76684 },
-            orange    = { 76669, 76674 },
-            lila      = { 76684, 76681 },
-            ["grün"]  = { 76642, 76643 },
-            prismatic = { 76696, 83141 },
+            meta      = { 76886, 95346 },
+            rot       = { 76667, 76693, 76696 },  -- Tückischer (Waffk.+Tempo); Präziser; Klobiger
+            gelb      = { 76699, 76700 },         -- Spiegelnder (Tempo); Frakturierter (Meister)
+            blau      = { 76636, 76639 },         -- Massiver (Treffer); Gediegener (Ausdauer)
+            orange    = { 76667, 76671 },         -- Tückischer; Schneidender
+            lila      = { 76681, 76684 },         -- Akkurater (Waffk.+Treffer); Geätzter (Str+Treffer)
+            ["grün"]  = { 76642, 76643 },         -- Blitzender; Mentors
+            prismatic = { 76699, 76700 },         -- Tempo universell
         },
-        gemNote = "Offensiv (Haste-Tank): Hit/Waffenkunde-Cap, dann Tempo für Heiligenmacht.",
+        gemNote = "Offensiv: 15% Waffenkunde-Hardcap + 7,5% Treffer, dann Tempo/Krit. Sockelboni matchen.",
     },
 
     DEATHKNIGHT_BLOOD_OFFENSIVE = {

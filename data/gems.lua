@@ -29,6 +29,8 @@
 --   Unbezähmbarer Urdiamant -> Unbeugsamer Bergkristall   (95344)
 --   Widerhallender Urdiamant-> Widerscheinender Bergkristall (76886)
 --   Asketischer Urdiamant   -> Strenger Bergkristall      (76895)
+--   Mutiger Urdiamant       -> Mutiger Bergkristall       (95345)
+--   Brennender Urdiamant    -> Brennender Bergkristall    (76885)
 -- Weitere geänderte Grundsteinnamen (gleiche IDs):
 --   Starrer Chrysokoll  -> Massiver Chrysokoll   (76636)
 --   Blitzender Rubellit -> Scheinender Rubellit  (76695)
@@ -49,7 +51,7 @@ WeintCodex_Gems = {
     --------------------------------------------------
 
     [95347] = { name = "Finsterer Urdiamant",       color = "meta", stats = "+324 kritische Trefferwertung, Chance auf 30% Zaubertempo (Caster-DPS)" },
-    [95345] = { name = "Mutiger Urdiamant",         color = "meta", stats = "+324 Willenskraft, Chance auf manafreie Zauber (Heiler)" },
+    [95345] = { name = "Mutiger Bergkristall",       color = "meta", stats = "+324 Willenskraft, Chance auf manafreie Zauber (Heiler)" },
     [95346] = { name = "Geladener Bergkristall",     color = "meta", stats = "+324 kritische Trefferwertung, lädt Blitzentladung auf (Nahkampf/Fernkampf)" },
     [95344] = { name = "Unbeugsamer Bergkristall",   color = "meta", stats = "+324 Ausdauer, Chance auf 20% Schadensverringerung (Tank)" },
 
@@ -58,7 +60,7 @@ WeintCodex_Gems = {
     --------------------------------------------------
 
     [76884] = { name = "Agiler Urdiamant",           color = "meta", stats = "+216 Beweglichkeit, +3% kritischer Schaden" },
-    [76885] = { name = "Brennender Urdiamant",       color = "meta", stats = "+216 Intelligenz, +3% kritischer Schaden" },
+    [76885] = { name = "Brennender Bergkristall",     color = "meta", stats = "+216 Intelligenz, +3% kritischer Schaden" },
     [76886] = { name = "Widerscheinender Bergkristall", color = "meta", stats = "+216 Stärke, +3% kritischer Schaden" },
     [76895] = { name = "Strenger Bergkristall",         color = "meta", stats = "+432 Ausdauer, +2% Rüstung aus Gegenständen" },
     [76888] = { name = "Revitalisierender Urdiamant", color = "meta", stats = "+432 Willenskraft, +3% kritische Heilung" },
@@ -105,6 +107,8 @@ WeintCodex_Gems = {
     [76674] = { name = "Fachkundiger Aragonit", color = "orange", stats = "+80 Stärke, +160 Meisterschaftswertung" },
     [76659] = { name = "Listiger Aragonit",     color = "orange", stats = "+160 Waffenkunde, +160 kritische Trefferwertung" },
     [76664] = { name = "Bruchfester Aragonit",  color = "orange", stats = "+160 Parierwertung, +160 Ausweichwertung" },
+    [76667] = { name = "Tückischer Aragonit",   color = "orange", stats = "+160 Waffenkunde, +160 Tempowertung" },
+    [76671] = { name = "Schneidender Aragonit", color = "orange", stats = "+160 Waffenkunde, +160 Meisterschaftswertung" },
 
     --------------------------------------------------
     -- LILA (Kunzit): 80 Primär + 160 Sekundär

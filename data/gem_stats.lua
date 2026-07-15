@@ -74,7 +74,9 @@ WeintCodex_GemStats = {
     [76666] = { agility = 80,  haste = 160 },
     [76674] = { strength = 80, mastery = 160 },
     [76659] = { expertise = 160, crit = 160 },  -- Listiger Aragonit (fehlte bisher komplett)
-    [76664] = { parry = 160, dodge = 160 },     -- Bruchfester Aragonit (Tank)
+    [76664] = { parry = 160, dodge = 160 },       -- Bruchfester Aragonit (Tank)
+    [76667] = { expertise = 160, haste = 160 },   -- Tückischer Aragonit
+    [76671] = { expertise = 160, mastery = 160 }, -- Schneidender Aragonit
 
     --------------------------------------------------
     -- LILA (Kunzit): 80 Primär + 160 Sekundär
