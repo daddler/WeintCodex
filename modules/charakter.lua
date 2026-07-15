@@ -154,6 +154,23 @@ local function GetGemDisplayName(gemId)
     return "Unbekannter Stein (ID: " .. gemId .. ")"
 end
 
+-- Sicherheitsnetz: liefert Name + ID der ersten AUFLÖSBAREN Empfehlung
+-- aus der Liste (überspringt IDs, die nur als "Unbekannt (ID …)" bzw.
+-- "Unbekannter Stein …" auflösen) und optional solche, die namensgleich
+-- zur bereits angelegten sind. Verhindert, dass eine kaputte ID als
+-- Empfehlung angezeigt wird, obwohl die richtige schon getragen wird.
+local function FirstResolvableName(list, resolver, curName)
+    if not list then return nil end
+    for _, id in ipairs(list) do
+        local n = resolver(id)
+        if n and not n:find("Unbekannt", 1, true)
+           and not (curName and n:lower() == curName:lower()) then
+            return n, id
+        end
+    end
+    return nil
+end
+
 --------------------------------------------------
 -- Verzauberungsname direkt vom Item-Tooltip lesen.
 -- Der Client liefert die offizielle deutsche
@@ -463,6 +480,71 @@ local function ScanItemSockets(link, slotId)
 end
 
 --------------------------------------------------
+-- SOCKELBONUS AUSLESEN (Tooltip-Scan)
+--   Der Sockelbonus (z.B. "Sockelbonus: +180 kritische
+--   Trefferwertung") steht nicht in GetItemStats, sondern
+--   nur im Item-Tooltip. Wir scannen die entsprechende
+--   Zeile und parsen Stat + Wert, um später zu entscheiden,
+--   ob sich das Farb-Matchen für dieses Item lohnt.
+--------------------------------------------------
+
+-- Prefix der Sockelbonus-Zeile (dt. Client: "Sockelbonus: %s")
+local SOCKET_BONUS_PREFIX = (_G.ITEM_SOCKET_BONUS or "Sockelbonus: %s")
+    :gsub("%%s.*$", ""):gsub("%s+$", "")
+
+-- Deutsche Stat-Bezeichnungen -> interne Keys (identisch zu statWeights).
+-- Reihenfolge = Priorität: spezifischere Begriffe zuerst
+-- ("kritische Trefferwertung" vor "Trefferwertung").
+local STAT_KEYWORDS = {
+    { "kritische trefferwertung", "crit" },
+    { "tempowertung",             "haste" },
+    { "meisterschaftswertung",    "mastery" },
+    { "ausweichwertung",          "dodge" },
+    { "parierwertung",            "parry" },
+    { "trefferwertung",           "hit" },
+    { "waffenkunde",              "expertise" },
+    { "beweglichkeit",            "agility" },
+    { "intelligenz",              "intellect" },
+    { "ausdauer",                 "stamina" },
+    { "willenskraft",             "spirit" },
+    { "stärke",                   "strength" },
+}
+
+local function ParseStatText(text)
+    if not text then return nil end
+    local value = tonumber(text:match("(%d+)"))
+    if not value then return nil end
+    local lower = text:lower()
+    for _, entry in ipairs(STAT_KEYWORDS) do
+        if lower:find(entry[1], 1, true) then
+            return entry[2], value
+        end
+    end
+    return nil
+end
+
+-- Gibt zurück: bonus = { stat=<key>, value=<num> } | nil, sowie den
+-- rohen Tooltip-Text der Sockelbonus-Zeile (für die Anzeige).
+local function ScanSocketBonus(slotId)
+    scanTip:ClearLines()
+    scanTip:SetInventoryItem("player", slotId)
+    local n = scanTip:NumLines() or 0
+    for i = 2, n do
+        local line = _G["WeintCodexScanTipTextLeft" .. i]
+        local txt = line and line:GetText()
+        if txt and txt:find(SOCKET_BONUS_PREFIX, 1, true) then
+            local stat, value = ParseStatText(txt)
+            local clean = txt:gsub("^%s*" .. SOCKET_BONUS_PREFIX .. "%s*", "")
+            if stat and value then
+                return { stat = stat, value = value }, clean
+            end
+            return nil, clean
+        end
+    end
+    return nil
+end
+
+--------------------------------------------------
 -- WAFFEN-ERKENNUNG (Nebenhand: Schild/Beihand
 -- bekommt keine Waffenverzauberung => neutral)
 --------------------------------------------------
@@ -579,9 +661,28 @@ end
 -- der KEINEN bereits übercappten Stat liefert. Sind alle
 -- Kandidaten der Sockelfarbe gecappt, weiche auf die
 -- prismatische Liste aus (z.B. reiner Primärstat).
-local function PickGemRecommendation(socketColor, profile, overStats)
+--
+-- decision (optional): Ergebnis von EvaluateSocketBonus. Lohnt sich
+-- das Farb-Matchen für dieses Item NICHT (decision.worthwhile == false),
+-- empfehlen wir für farbige Sockel den reinen Primärstein
+-- (prismatic), statt einen schwächeren Farb-Stein für einen
+-- geringwertigen Sockelbonus zu opfern.
+local function PickGemRecommendation(socketColor, profile, overStats, decision)
     if not profile or not profile.bestGems then return nil end
-    local list = profile.bestGems[socketColor] or profile.bestGems.prismatic
+
+    local list
+    if decision and decision.worthwhile == false and socketColor ~= "meta" then
+        -- Bonus ignorieren: den Farbe-egal-Besten empfehlen (Fallback:
+        -- prismatischer Stein bzw. Farb-Liste).
+        list = {}
+        if decision.overallId then list[#list + 1] = decision.overallId end
+        for _, id in ipairs(profile.bestGems.prismatic or {}) do
+            list[#list + 1] = id
+        end
+        if #list == 0 then list = profile.bestGems[socketColor] end
+    else
+        list = profile.bestGems[socketColor] or profile.bestGems.prismatic
+    end
     if not list then return nil end
 
     if overStats then
@@ -608,6 +709,100 @@ local function PickGemRecommendation(socketColor, profile, overStats)
 end
 
 --------------------------------------------------
+-- SOCKELBONUS-ENTSCHEIDUNG (pro Item)
+--   Vergleicht zwei Strategien für ein Item:
+--     MATCH:  in jedem farbigen Sockel den Farb-Stein
+--             (bestGems[Farbe]) -> aktiviert den Sockelbonus.
+--     IGNORE: in jedem farbigen Sockel den reinen Primärstein
+--             (bestGems.prismatic) -> kein Bonus, dafür stärkerer Stein.
+--   Der Sockelbonus wird mit den Stat-Gewichten der Spec bewertet.
+--   Ist der Bonus für die Klasse wertlos (Gewicht ~0, z.B. Ausweichen
+--   auf einem reinen DPS-Item), verliert MATCH und wir empfehlen den
+--   stärkeren Stein — genau das gewünschte Verhalten.
+--
+--   Rückgabe (Tabelle):
+--     bonus       = { stat, value } | nil
+--     bonusScore  = gewichteter Wert des Bonus
+--     matchCost   = Wertungsverlust durchs Farb-Matchen
+--     worthwhile  = bool (Bonus lohnt den Farb-Match)
+--     pureId      = empfohlener reiner Primärstein (prismatic[1])
+--------------------------------------------------
+
+local function EvaluateSocketBonus(bonus, sockets, profile)
+    local decision = { bonus = bonus, worthwhile = true }
+    if not profile or not profile.bestGems or not profile.statWeights then
+        return decision
+    end
+
+    local weights  = profile.statWeights
+    local gemStats = WeintCodex_GemStats or {}
+
+    -- Juwelier-exklusive Steine (Schlangenauge, "nur Juweliere") sind
+    -- die stärksten, dürfen aber nicht pauschal empfohlen werden — als
+    -- Farbe-egal-Basis daher ausschließen (konservativer Nicht-JC-Wert).
+    local function IsJcOnly(id)
+        local g = WeintCodex_Gems and WeintCodex_Gems[id]
+        return g and g.stats and g.stats:find("Juwelier", 1, true) ~= nil
+    end
+
+    -- Bester (nicht-JC-)Stein einer Liste (höchste gewichtete Wertung).
+    local function BestOf(list)
+        local bId, bScore = nil, -1
+        for _, id in ipairs(list or {}) do
+            if not IsJcOnly(id) then
+                local s = ScoreStats(gemStats[id], weights)
+                if s > bScore then bId, bScore = id, s end
+            end
+        end
+        return bId, bScore
+    end
+
+    -- "Farbe-egal"-Wahl: bestbewerteter Stein über ALLE farbigen Listen.
+    -- Das ist der Stein, den man ohne Rücksicht auf den Sockelbonus
+    -- überall einsetzen würde — die echte Vergleichsbasis.
+    local overallId, overallScore = nil, -1
+    for color, list in pairs(profile.bestGems) do
+        if color ~= "meta" then
+            local id, sc = BestOf(list)
+            if id and sc > overallScore then overallId, overallScore = id, sc end
+        end
+    end
+    decision.overallId    = overallId
+    decision.overallScore = overallScore
+    -- Anzeige-/Fallback-Stein für "Bonus ignorieren": bevorzugt der vom
+    -- Audit gepflegte prismatische Stein, sonst der Farbe-egal-Beste.
+    decision.pureId = (profile.bestGems.prismatic and profile.bestGems.prismatic[1])
+                      or overallId
+
+    -- Ohne bekannten Bonus oder ohne Vergleichsbasis: bisheriges
+    -- (farbbasiertes) Verhalten — nichts regressiert.
+    if not bonus or overallScore < 0 then
+        return decision
+    end
+
+    local bonusScore = (weights[bonus.stat] or 0) * bonus.value
+    decision.bonusScore = bonusScore
+
+    -- Kosten des Matchens: pro FARBIGEM Sockel die Wertungsdifferenz
+    -- zwischen dem Farbe-egal-Besten und dem besten FARBLICH passenden
+    -- Stein. Ist der Farbe-egal-Beste selbst passend (z.B. roter
+    -- Primärstein im roten Sockel), kostet der Sockel 0.
+    local matchCost = 0
+    for _, socket in ipairs(sockets) do
+        local color = socket.color
+        if color and color ~= "meta" and color ~= "prismatic" then
+            local _, colorScore = BestOf(profile.bestGems[color])
+            if not colorScore or colorScore < 0 then colorScore = overallScore end
+            local diff = overallScore - colorScore
+            if diff > 0 then matchCost = matchCost + diff end
+        end
+    end
+    decision.matchCost  = matchCost
+    decision.worthwhile = bonusScore >= matchCost
+    return decision
+end
+
+--------------------------------------------------
 -- LEGENDÄRE URDIAMANTEN (Wrathion-Questreihe, 5.2)
 -- Diese Steine sind IMMER optimal, wenn sie zur
 -- Rolle passen — sie sind besser als jeder
@@ -623,7 +818,11 @@ local LEGENDARY_META = {
 }
 
 -- Gibt zurück: status, qualityPct (oder nil), unbekannt (bool)
-local function EvaluateGem(gemId, socketColor, profile)
+-- decision (optional): Ergebnis von EvaluateSocketBonus. Lohnt sich das
+-- Matchen für dieses Item nicht, ist der reine Primärstein (prismatic)
+-- das Ziel: ein solcher Off-Color-Stein zählt dann als OPTIMAL (statt
+-- fälschlich "falsch"), ein Farb-Stein nur als "ok" (Empfehlung: umsockeln).
+local function EvaluateGem(gemId, socketColor, profile, decision)
     if not gemId then return "missing", nil, false end
 
     local gemData  = WeintCodex_Gems and WeintCodex_Gems[gemId]
@@ -638,6 +837,24 @@ local function EvaluateGem(gemId, socketColor, profile)
             return "optimal", 100, false
         end
         return "ok", nil, false
+    end
+
+    -- Sockelbonus lohnt sich für dieses Item nicht: der Farbe-egal-Beste
+    -- ist das Ziel. Bewertung erfolgt hier gegen dessen Wertung, damit ein
+    -- starker Off-Color-Stein OPTIMAL zählt (statt fälschlich "falsch") und
+    -- ein schwächerer Farb-Stein (nur wegen des geringen Bonus) "ok" wird.
+    local ignoreBonus = decision and decision.worthwhile == false and not isMeta
+    if ignoreBonus and decision.overallScore and decision.overallScore > 0 then
+        local weights = profile and profile.statWeights
+        local myStats = WeintCodex_GemStats and WeintCodex_GemStats[gemId]
+        if weights and myStats then
+            local pct = math.floor((ScoreStats(myStats, weights) / decision.overallScore) * 100 + 0.5)
+            if pct >= 90 then return "optimal", pct, false end
+            if pct >= 65 then return "ok", pct, false end
+            return "wrong", pct, false
+        end
+        -- Ohne Bewertungsgrundlage: nicht abwerten.
+        return "ok", nil, true
     end
 
     local bestList = profile and profile.bestGems and colorKey
@@ -781,19 +998,28 @@ local function ScanCharacter()
 
             -- Sockel
             local sockets = ScanItemSockets(link, slotDef.id)
-            for _, socket in ipairs(sockets) do
-                local status, qualityPct, unknown =
-                    EvaluateGem(socket.gemId, socket.color, profile)
-                scan.gems.rows[#scan.gems.rows + 1] = {
-                    slotId     = slotDef.id,
-                    slotName   = slotDef.name,
-                    itemName   = itemName,
-                    socket     = socket,
-                    gemId      = socket.gemId,
-                    status     = status,
-                    qualityPct = qualityPct,
-                    unknown    = unknown,
-                }
+            if #sockets > 0 then
+                -- Sockelbonus des Items auslesen und pro Item einmal
+                -- entscheiden, ob Farb-Matchen den Bonus wert ist.
+                local bonus, bonusText = ScanSocketBonus(slotDef.id)
+                local decision = EvaluateSocketBonus(bonus, sockets, profile)
+                decision.bonusText = bonusText
+
+                for _, socket in ipairs(sockets) do
+                    local status, qualityPct, unknown =
+                        EvaluateGem(socket.gemId, socket.color, profile, decision)
+                    scan.gems.rows[#scan.gems.rows + 1] = {
+                        slotId     = slotDef.id,
+                        slotName   = slotDef.name,
+                        itemName   = itemName,
+                        socket     = socket,
+                        gemId      = socket.gemId,
+                        status     = status,
+                        qualityPct = qualityPct,
+                        unknown    = unknown,
+                        decision   = decision,
+                    }
+                end
             end
         end
     end
@@ -845,10 +1071,11 @@ local function ScanCharacter()
         end
     end
 
-    -- Empfehlungen für Sockel-Reihen setzen (Overcap-bereinigt)
+    -- Empfehlungen für Sockel-Reihen setzen (Overcap-bereinigt,
+    -- Sockelbonus-Entscheidung berücksichtigt)
     for _, row in ipairs(scan.gems.rows) do
         row.recId = PickGemRecommendation(row.socket.color, profile,
-            next(overStats) and overStats or nil)
+            next(overStats) and overStats or nil, row.decision)
     end
 
     --------------------------------------------------
@@ -906,7 +1133,8 @@ local function ScanCharacter()
 
     for _, row in ipairs(scan.enchants.rows) do
         if row.status == "missing" then
-            local rec = row.recId and GetEnchantDisplayName(row.recId)
+            local rec = FirstResolvableName(
+                row.bestList or { row.recId }, GetEnchantDisplayName)
             issues[#issues + 1] = { prio = 1, status = "missing",
                 text = row.slotName .. ": Verzauberung fehlt"
                     .. (rec and (" — Empfehlung: " .. rec) or "") }
@@ -1313,10 +1541,13 @@ function ShowEnchants()
         end
 
         if row.recId and row.status ~= "optimal" and row.status ~= "neutral" then
-            -- Nie etwas empfehlen, das namensgleich schon drauf ist
-            local recName = GetEnchantDisplayName(row.recId)
+            -- Erste auflösbare Empfehlung wählen, die NICHT namensgleich
+            -- mit der bereits angelegten Verzauberung ist. Unauflösbare
+            -- IDs ("Unbekannt (ID …)") werden übersprungen.
             local curName = row.enchId and GetEnchantDisplayName(row.enchId)
-            if recName and not (curName and recName:lower() == curName:lower()) then
+            local recName = FirstResolvableName(
+                row.bestList or { row.recId }, GetEnchantDisplayName, curName)
+            if recName then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
                 recLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
                 recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
@@ -1411,6 +1642,21 @@ function ShowGems()
             slotHeader:SetText("|cff8B5CF6" .. row.slotName .. "|r"
                 .. (row.itemName and ("  |cff3B2D60" .. row.itemName .. "|r") or ""))
             yOff = yOff - 20
+
+            -- Sockelbonus + Entscheidung (genutzt / ignoriert)
+            local dec = row.decision
+            if dec and dec.bonus and dec.bonusText then
+                local used = (dec.worthwhile ~= false)
+                local verdict = used
+                    and "|cff22C55Egenutzt (Farbe matchen)|r"
+                    or  "|cffFFBB22ignoriert — reiner Primärstein stärker|r"
+                local bonusLine = inner:CreateFontString(nil, "OVERLAY")
+                bonusLine:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+                bonusLine:SetPoint("TOPLEFT", inner, "TOPLEFT", 16, yOff - 1)
+                bonusLine:SetText("|cff5B4880Sockelbonus: " .. dec.bonusText
+                    .. " — " .. verdict)
+                yOff = yOff - 15
+            end
         end
 
         local info = STATUS[row.status] or STATUS.neutral
@@ -1482,12 +1728,19 @@ function ShowGems()
         end
 
         if row.recId and row.status ~= "optimal" then
-            local recLbl = rf:CreateFontString(nil, "OVERLAY")
-            recLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-            recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
-            recLbl:SetWidth(220)
-            recLbl:SetJustifyH("LEFT")
-            recLbl:SetText("|cff8B5CF6> " .. (GetGemDisplayName(row.recId) or "?") .. "|r")
+            -- Kaputte/unauflösbare Empfehlungs-ID nicht anzeigen und nichts
+            -- empfehlen, das namensgleich schon eingesetzt ist.
+            local recName = GetGemDisplayName(row.recId)
+            local curName = row.gemId and GetGemDisplayName(row.gemId)
+            if recName and not recName:find("Unbekannt", 1, true)
+               and not (curName and recName:lower() == curName:lower()) then
+                local recLbl = rf:CreateFontString(nil, "OVERLAY")
+                recLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
+                recLbl:SetWidth(220)
+                recLbl:SetJustifyH("LEFT")
+                recLbl:SetText("|cff8B5CF6> " .. recName .. "|r")
+            end
         end
 
         yOff = yOff - (rowH + 2)

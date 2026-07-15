@@ -40,7 +40,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4434 },
             Beine        = { 4823 },
             ["Füße"]     = { 4428, 4429 },
@@ -73,7 +73,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4434 },
             Beine        = { 4823 },
             ["Füße"]     = { 4428, 4429 },
@@ -106,7 +106,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4805 },
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
-            Handgelenke  = { 4411, 4412 },
+            Handgelenke  = { 4411, 4415 },
             ["Hände"]    = { 4431, 4432 },
             Beine        = { 4824 },
             ["Füße"]     = { 4426, 4428 },
@@ -173,7 +173,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4805 },
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
-            Handgelenke  = { 4411, 4412 },
+            Handgelenke  = { 4411, 4415 },
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824 },
             ["Füße"]     = { 4426, 4428 },
@@ -206,7 +206,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4428, 4429 },
@@ -247,7 +247,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -280,7 +280,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -313,7 +313,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -350,7 +350,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -383,7 +383,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -416,7 +416,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -546,7 +546,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4805 },
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
-            Handgelenke  = { 4411, 4412 },
+            Handgelenke  = { 4411, 4415 },
             ["Hände"]    = { 4431, 4432 },
             Beine        = { 4824 },
             ["Füße"]     = { 4426, 4428 },
@@ -579,7 +579,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4428, 4429 },
@@ -612,7 +612,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4428, 4429 },
@@ -684,7 +684,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -1014,7 +1014,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -1083,7 +1083,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4430, 4428 },
+            ["Füße"]     = { 4425, 4428 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -1182,7 +1182,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4421 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4434 },
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 4428, 4426 },
@@ -1215,7 +1215,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4421 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4433, 4431 },
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 4428, 4429 },
@@ -1248,7 +1248,7 @@ WeintCodex_SpecProfiles = {
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4421 },
-            Handgelenke  = { 4412 },
+            Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4434 },
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 4428, 4426 },
@@ -1333,3 +1333,53 @@ WeintCodex_SpecProfiles = {
     },
 
 }
+
+--------------------------------------------------
+-- DATEN-VALIDATOR (Drift-Schutz)
+-- Prüft beim Laden, ob jede in den Spec-Profilen referenzierte
+-- Verzauberungs-/Stein-ID auch in enchants.lua / gems.lua existiert.
+-- Verhindert, dass gelöschte/umbenannte IDs (wie früher 4412)
+-- unbemerkt als "Unbekannt (ID …)" in Empfehlungen auftauchen.
+-- Wird von core/main.lua bei PLAYER_LOGIN aufgerufen, wenn alle
+-- Datentabellen geladen sind. Gibt nur bei Problemen etwas aus.
+--------------------------------------------------
+
+function WeintCodex_ValidateSpecData()
+    local enchants = WeintCodex_Enchants or {}
+    local gems     = WeintCodex_Gems or {}
+    local problems = {}
+
+    for specKey, profile in pairs(WeintCodex_SpecProfiles) do
+        if profile.bestEnchants then
+            for slot, list in pairs(profile.bestEnchants) do
+                for _, id in ipairs(list) do
+                    if not enchants[id] then
+                        problems[#problems + 1] = string.format(
+                            "%s / Verzauberung %s: ID %d fehlt in enchants.lua",
+                            specKey, tostring(slot), id)
+                    end
+                end
+            end
+        end
+        if profile.bestGems then
+            for color, list in pairs(profile.bestGems) do
+                for _, id in ipairs(list) do
+                    if not gems[id] then
+                        problems[#problems + 1] = string.format(
+                            "%s / Sockel %s: Stein-ID %d fehlt in gems.lua",
+                            specKey, tostring(color), id)
+                    end
+                end
+            end
+        end
+    end
+
+    if #problems > 0 then
+        print("|cff8B5CF6[WeintCodex]|r |cffff5555Datenprüfung: "
+            .. #problems .. " ungültige ID-Referenz(en):|r")
+        for _, msg in ipairs(problems) do
+            print("  |cffff9900" .. msg .. "|r")
+        end
+    end
+    return problems
+end

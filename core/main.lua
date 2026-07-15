@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "0.9.9.1"
+WeintCodex.Version = "0.9.9.2"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -49,6 +49,13 @@ local function OnEvent(self, event, addonName)
         if WeintCodex.Raids and WeintCodex.Raids.ResolveNames and WeintCodex.SavedData then
             WeintCodex.Raids.ResolveNames(WeintCodex.SavedData.raidWednesday)
             WeintCodex.Raids.ResolveNames(WeintCodex.SavedData.raidThursday)
+        end
+
+        -- Datenintegrität prüfen: warnt, falls Spec-Profile eine
+        -- Verzauberungs-/Stein-ID referenzieren, die nicht (mehr) in
+        -- enchants.lua / gems.lua existiert (Drift-Schutz).
+        if WeintCodex_ValidateSpecData then
+            WeintCodex_ValidateSpecData()
         end
 
         return
