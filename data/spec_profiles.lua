@@ -358,9 +358,9 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -391,9 +391,9 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -424,9 +424,9 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -440,7 +440,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76642, 76641 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Tempo. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Tempo > Krit. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
     },
 
     --------------------------------------------------
