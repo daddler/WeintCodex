@@ -1064,20 +1064,20 @@ WeintCodex_SpecProfiles = {
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
-            Beine        = { 4825, 4826 },
+            Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429, 4426 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
             rot       = { 76694, 83150 },
-            gelb      = { 76699, 76700 },
+            gelb      = { 76699, 76697 },
             blau      = { 76682, 76636, 76638 },
             orange    = { 76668, 76660 },
-            lila      = { 76682, 76686 },
-            ["grün"]  = { 76642, 76651 },
+            lila      = { 76686, 76682 },         -- Geläuterter Kunzit
+            ["grün"]  = { 76651, 76642 },         -- Geladener Dioptas (Tempo+Willenskraft)
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Tempo (Breakpoints!). Willenskraft zählt als Zaubertreffer (15% Cap).",
+        gemNote = "Intelligenz > Tempo (Breakpoints, Softcap 24,22%) > Krit > Meisterschaft (schwächster Stat). Willenskraft zählt als Zaubertreffer (15% Cap).",
     },
 
     DRUID_FERAL = {
@@ -1086,17 +1086,19 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5 },
         },
+        -- Meisterschaft (Blutungsschaden) ist stärker als Krit und
+        -- arguably sogar wichtiger als Treffer/Waffenkunde-Cap.
         statWeights = {
-            agility = 100, hit = 75, expertise = 72,
-            crit = 78, mastery = 70, haste = 60, stamina = 10,
+            agility = 100, mastery = 90, hit = 75, expertise = 72,
+            crit = 65, haste = 55, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -1105,23 +1107,25 @@ WeintCodex_SpecProfiles = {
             rot       = { 76692, 83151 },
             gelb      = { 76697, 76700 },
             blau      = { 76680 },
-            orange    = { 76658, 76670 },
+            orange    = { 76670, 76658 },         -- Versierter Aragonit (Agi+Meister)
             lila      = { 76680, 76687 },
             ["grün"]  = { 76641, 76643 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit überall. Treffer/Waffenkunde weniger kritisch als bei anderen Melees.",
+        gemNote = "Beweglichkeit > Meisterschaft (unser bester unbegrenzter Sekundärstat, mehr Blutungsschaden) > Krit > Tempo.",
     },
 
     DRUID_GUARDIAN = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5 },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% Waffenkunde (laut Guide Ziel, nicht nur 7,5%)" },
         },
+        -- Ausdauer > Treffer/Waffenkunde-Cap > Krit (Wut-Generierung/Rache) >
+        -- Beweglichkeit > Tempo > Meisterschaft (nur reduziert phys. Schaden, kaum priorisieren).
         statWeights = {
-            agility = 88, hit = 85, expertise = 85, crit = 75,
-            mastery = 70, stamina = 80, haste = 30, dodge = 40,
+            stamina = 100, hit = 90, expertise = 88, crit = 75,
+            agility = 55, haste = 35, dodge = 30, mastery = 15,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
@@ -1143,14 +1147,14 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76652, 76656 },
             prismatic = { 76639, 76692 },
         },
-        gemNote = "Beweglichkeit/Krit (Wilde Verteidigung) nach Treffer/Waffenkunde-Cap.",
+        gemNote = "Ausdauer > Treffer(7,5%)/Waffenkunde(15%) > Krit (Wut-Generierung). Meisterschaft nie priorisieren, außer maximale Verteidigung nötig.",
     },
 
     DRUID_RESTORATION = {
         role = "HEALER",
         caps = {},
         statWeights = {
-            intellect = 100, spirit = 82, mastery = 72, haste = 70,
+            intellect = 100, haste = 85, spirit = 70, mastery = 70,
             crit = 45, stamina = 10,
         },
         bestEnchants = {
@@ -1173,7 +1177,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76645, 76651 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Willenskraft > Meisterschaft (Lebensblüte). Kein Treffer-Cap nötig.",
+        gemNote = "Intelligenz > Tempo (Breakpoints) > Willenskraft ≈ Meisterschaft (Lebensblüte) > Krit. Kein Treffer-Cap nötig.",
     },
 
     --------------------------------------------------
@@ -1325,17 +1329,17 @@ WeintCodex_SpecProfiles = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5 },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% Waffenkunde (laut Guide Ziel, nicht nur 7,5%)" },
         },
         statWeights = {
-            hit = 100, expertise = 98, agility = 90, crit = 78,
-            mastery = 55, haste = 40, stamina = 30, dodge = 15,
+            hit = 100, expertise = 98, crit = 85, agility = 60,
+            haste = 45, stamina = 25, dodge = 15, mastery = 15,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4806, 4805 },
-            Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Brust        = { 4420, 4419 },        -- Überragende Ausdauer
+            Umhang       = { 74711 },             -- Großer Schutz
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4431 },
             Beine        = { 4822, 4824 },
@@ -1343,15 +1347,15 @@ WeintCodex_SpecProfiles = {
         },
         bestGems = {
             meta      = { 76884, 76895 },
-            rot       = { 76692, 83151 },
+            rot       = { 76693, 76692 },         -- Präziser Rubellit (Waffenkunde-Cap)
             gelb      = { 76697, 76699 },
-            blau      = { 76680 },
-            orange    = { 76658, 76666 },
-            lila      = { 76680, 76687 },
+            blau      = { 76636, 76639 },         -- Massiver Chrysokoll (reiner Treffer)
+            orange    = { 76659, 76658 },         -- Listiger Aragonit (Waffk.+Krit)
+            lila      = { 76681, 76680 },         -- Akkurater Kunzit (Waffk.+Treffer)
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Offensiv: Beweglichkeit + Krit (Wut-Generierung) nach Hit/Waffenkunde-Cap.",
+        gemNote = "Offensiv: Nach Treffer(7,5%)/Waffenkunde(15%)-Cap Krit (Wut-Generierung) > Beweglichkeit > Tempo.",
     },
 
 }
