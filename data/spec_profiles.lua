@@ -985,8 +985,8 @@ WeintCodex_SpecProfiles = {
         role = "HEALER",
         caps = {},
         statWeights = {
-            intellect = 100, spirit = 80, haste = 72, mastery = 60,
-            crit = 55, stamina = 10,
+            intellect = 100, spirit = 80, haste = 72, crit = 58,
+            mastery = 35, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -996,19 +996,19 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 74715, 4429 },       -- Großes Tempo (Boots-Haste)
         },
         bestGems = {
             meta      = { 76888, 95345 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76686, 76638 },
-            orange    = { 76668, 76660, 76672 },
+            orange    = { 76660, 76668, 76672 },  -- Machtvoller Aragonit (Int+Krit)
             lila      = { 76686 },
             ["grün"]  = { 76651, 76645 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Willenskraft > Tempo. Kein Treffer-Cap nötig.",
+        gemNote = "Intelligenz > Willenskraft (bis Manakomfort) > Tempo (Breakpoint) > Krit. Meisterschaft ist nahezu wirkungslos (Gabe der Schlange). Kein Treffer-Cap nötig.",
     },
 
     MONK_WINDWALKER = {
@@ -1034,14 +1034,14 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 76884, 95346 },
             rot       = { 76692, 83151 },
-            gelb      = { 76699, 76697 },
-            blau      = { 76680 },
+            gelb      = { 76700, 76699 },         -- Frakturierter Goldberyll (Meisterschaft)
+            blau      = { 76636 },                -- Massiver Chrysokoll (reiner Treffer)
             orange    = { 76666, 76658 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76642, 76641 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Tempo. Beide Waffen Tanzender Stahl. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Tempo > Krit ≈ Meisterschaft (seit Patch 5.2 aufgewertet). Beide Waffen Tanzender Stahl. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
     },
 
     --------------------------------------------------
@@ -1292,9 +1292,11 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5 },
         },
+        -- Priorität: Treffer/Waffenkunde(Cap) > Tempo (bis ~4000) > Krit >
+        -- Tempo (über 4000) > Meisterschaft (nur Minimum für Ausgewogenheit nötig).
         statWeights = {
-            hit = 100, expertise = 98, agility = 90, crit = 70,
-            haste = 60, mastery = 55, stamina = 30, dodge = 15,
+            hit = 100, expertise = 98, agility = 90, haste = 75,
+            crit = 65, mastery = 35, stamina = 30, dodge = 15,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
@@ -1308,15 +1310,15 @@ WeintCodex_SpecProfiles = {
         },
         bestGems = {
             meta      = { 76884, 76895 },
-            rot       = { 76692, 83151 },
-            gelb      = { 76697, 76699 },
+            rot       = { 76693, 76692 },         -- Präziser Rubellit (Waffenkunde-Cap)
+            gelb      = { 76699, 76697 },         -- Spiegelnder Goldberyll (Tempo)
             blau      = { 76680 },
-            orange    = { 76658, 76666 },
-            lila      = { 76680, 76687 },
+            orange    = { 76667, 76659 },         -- Tückischer Aragonit (Waffk.+Tempo)
+            lila      = { 76681, 76680 },         -- Akkurater Kunzit (Waffk.+Treffer)
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Offensiv: Beweglichkeit + Krit nach Hit/Waffenkunde-Cap.",
+        gemNote = "Offensiv: Nach Hit/Waffenkunde-Cap Tempo (bis ~4000) > Krit. Meisterschaft nur im nötigen Minimum, Rest in Krit/Tempo.",
     },
 
     DRUID_GUARDIAN_OFFENSIVE = {
