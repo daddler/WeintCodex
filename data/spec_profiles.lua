@@ -549,19 +549,21 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) optional" },
         },
+        -- "Most Defensive"-Prioritätsreihe: Ausdauer > Meisterschaft > Parieren >
+        -- Stärke > Treffer/Waffenkunde(7,5%) > Tempo > Ausweichen > Krit.
         statWeights = {
-            mastery = 100, hit = 90, expertise = 88, stamina = 80,
-            strength = 45, parry = 60, dodge = 55, crit = 15, haste = 20,
+            stamina = 100, mastery = 90, parry = 80, strength = 70,
+            hit = 65, expertise = 63, haste = 45, dodge = 40, crit = 25,
         },
         bestEnchants = {
             Waffe        = { 3368, 3847 },        -- Gefallener Kreuzfahrer / Steinhautgargoyle
-            Schultern    = { 4805 },
+            Schultern    = { 4803 },              -- Große Inschrift des Tigerzahns
             Brust        = { 4419, 4420 },
-            Umhang       = { 4421 },
+            Umhang       = { 4422, 4421 },        -- Überragender kritischer Trefferwert
             Handgelenke  = { 4411, 4415 },
-            ["Hände"]    = { 4431, 4432 },
-            Beine        = { 4824 },
-            ["Füße"]     = { 4426, 4428 },
+            ["Hände"]    = { 4433, 4431 },        -- Großes Tempo
+            Beine        = { 4823, 4824 },        -- Zornbalgbeinrüstung
+            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -573,7 +575,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76656, 76643 },
             prismatic = { 76639, 76695 },
         },
-        gemNote = "Meisterschaft (Blutschild) ist Hauptstat nach Treffer/Waffenkunde-Cap.",
+        gemNote = "Defensiv: Ausdauer > Meisterschaft (Blutschild) > Parieren > Stärke, nach Treffer/Waffenkunde-Cap.",
     },
 
     DEATHKNIGHT_FROST = {
@@ -584,7 +586,7 @@ WeintCodex_SpecProfiles = {
         },
         statWeights = {
             strength = 100, hit = 90, expertise = 88,
-            mastery = 78, haste = 72, crit = 65, stamina = 5,
+            mastery = 85, crit = 70, haste = 45, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 3368, 3370 },        -- Fallen Crusader / Razorice (bei Dual-Wield)
@@ -594,19 +596,19 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4428, 4429 },
+            ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
         },
         bestGems = {
             meta      = { 76886, 95346 },
             rot       = { 76696, 83141 },
             gelb      = { 76700, 76697 },
             blau      = { 76684 },
-            orange    = { 76674, 76669 },
+            orange    = { 76671, 76674 },         -- Schneidender Aragonit (Waffk.+Meister)
             lila      = { 76684, 76691 },
             ["grün"]  = { 76643, 76641 },
             prismatic = { 76696, 83141 },
         },
-        gemNote = "Stärke > Meisterschaft. Dual-Wield: Gefallener Kreuzfahrer + Razorice.",
+        gemNote = "Stärke > Meisterschaft > Krit > Tempo (schwächster Stat). Dual-Wield: Gefallener Kreuzfahrer + Rune des schneidenden Eises.",
     },
 
     DEATHKNIGHT_UNHOLY = {
@@ -617,7 +619,7 @@ WeintCodex_SpecProfiles = {
         },
         statWeights = {
             strength = 100, hit = 90, expertise = 88,
-            haste = 78, mastery = 72, crit = 65, stamina = 5,
+            crit = 75, haste = 65, mastery = 40, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 3368 },
@@ -627,19 +629,20 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4428, 4429 },
+            ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
         },
+        -- Ab ~ilvl 540 lohnt sich Krit mehr als reine Stärke-Sockelung.
         bestGems = {
             meta      = { 76886, 95346 },
             rot       = { 76696, 83141 },
-            gelb      = { 76699, 76697 },
+            gelb      = { 76697, 76699 },
             blau      = { 76684 },
-            orange    = { 76669, 76674 },
+            orange    = { 76659, 76661 },         -- Listiger Aragonit (Waffk.+Krit)
             lila      = { 76684, 76691 },
-            ["grün"]  = { 76642, 76641 },
+            ["grün"]  = { 76641, 76642 },
             prismatic = { 76696, 83141 },
         },
-        gemNote = "Stärke > Tempo/Meisterschaft. Rune: Gefallener Kreuzfahrer.",
+        gemNote = "Stärke > Krit (ab ~ilvl 540) > Tempo > Meisterschaft (schwächster Stat). Rune: Gefallener Kreuzfahrer.",
     },
 
     --------------------------------------------------
@@ -1254,31 +1257,33 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) empfohlen" },
         },
+        -- "Offensive"-Prioritätsreihe: Treffer/Waffenkunde(7,5%) > Krit >
+        -- Tempo > Parieren > Ausweichen > Stärke > Ausdauer > Meisterschaft (schwächster Stat).
         statWeights = {
-            hit = 100, expertise = 98, strength = 88, mastery = 75,
-            haste = 50, crit = 45, stamina = 35, parry = 25, dodge = 20,
+            hit = 100, expertise = 98, crit = 85, haste = 75,
+            parry = 55, dodge = 50, strength = 45, stamina = 25, mastery = 20,
         },
         bestEnchants = {
             Waffe        = { 3368, 3847 },
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
-            Umhang       = { 4421 },
-            Handgelenke  = { 4415 },
-            ["Hände"]    = { 4431, 4434 },
+            Umhang       = { 4422, 4421 },        -- Überragender kritischer Trefferwert
+            Handgelenke  = { 4411, 4415 },
+            ["Hände"]    = { 4433, 4431 },        -- Großes Tempo
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 4428, 4426 },
+            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
         },
         bestGems = {
             meta      = { 76886, 76895 },
             rot       = { 76696, 83141 },
             gelb      = { 76697, 76700 },
             blau      = { 76684 },
-            orange    = { 76661, 76674 },
+            orange    = { 76659, 76661 },         -- Listiger Aragonit (Waffk.+Krit)
             lila      = { 76684, 76681 },
             ["grün"]  = { 76641, 76643 },
             prismatic = { 76696, 83141 },
         },
-        gemNote = "Offensiv: Stärke nach Hit/Waffenkunde-Cap. Meisterschaft bleibt wertvoll (Blutschild).",
+        gemNote = "Offensiv: Nach Treffer/Waffenkunde-Cap Krit > Tempo. Meisterschaft ist hier der schwächste Stat.",
     },
 
     MONK_BREWMASTER_OFFENSIVE = {

@@ -46,7 +46,7 @@ WeintCodex_Enchants = {
     --------------------------------------------------
 
     [3368] = { name = "Rune des gefallenen Kreuzfahrers",     slot = "Waffe", isDkRune = true },
-    [3370] = { name = "Rune des Klingeneises (Razorice)",     slot = "Waffe", isDkRune = true, verify = true },
+    [3370] = { name = "Rune des schneidenden Eises",          slot = "Waffe", isDkRune = true },  -- Razorice, bestätigt (PDF-Abgleich)
     [3847] = { name = "Rune des Steinhautgargoyles",          slot = "Waffe", isDkRune = true },
 
     --------------------------------------------------
