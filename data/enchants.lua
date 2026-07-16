@@ -131,7 +131,7 @@ WeintCodex_Enchants = {
     [4823] = { name = "Zornbalgbeinrüstung",                 slot = "Beine", stats = { strength = 285, crit = 165 } },
     [4824] = { name = "Eisenschuppenbeinrüstung",            slot = "Beine", stats = { stamina = 430, dodge = 165 } },
     [4825] = { name = "Großer perlmuttfarbener Zauberfaden", slot = "Beine", stats = { intellect = 285, spirit = 165 }, verify = true },
-    [4826] = { name = "Großer zerulanblauer Zauberfaden",    slot = "Beine", stats = { intellect = 285, crit = 165 }, verify = true },
+    [4826] = { name = "Großer himmelblauer Zauberfaden",     slot = "Beine", stats = { intellect = 285, crit = 165 } },  -- bestätigt (Nutzer-Feedback), korrekter Name statt "zerulanblau"
 
     --------------------------------------------------
     -- FÜSSE
