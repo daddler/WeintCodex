@@ -854,7 +854,7 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15 },
         },
         statWeights = {
-            intellect = 100, hit = 92, mastery = 80, haste = 75,
+            intellect = 100, hit = 92, haste = 85, mastery = 75,
             crit = 55, spirit = 10, stamina = 5,
         },
         bestEnchants = {
@@ -864,20 +864,20 @@ WeintCodex_SpecProfiles = {
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
-            Beine        = { 4825, 4826 },
+            Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429, 4426 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
             rot       = { 76694, 83150 },
-            gelb      = { 76700, 76699 },
+            gelb      = { 76699, 76700 },         -- Spiegelnder Goldberyll (Tempo)
             blau      = { 76682, 76636 },
-            orange    = { 76672, 76668 },
+            orange    = { 76668, 76672 },         -- Tollkühner Aragonit (Int+Tempo)
             lila      = { 76682 },
-            ["grün"]  = { 76643, 76642 },
+            ["grün"]  = { 76642, 76643 },         -- Blitzender Dioptas (Tempo+Treffer)
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Meisterschaft. 15% Zaubertreffer Pflicht.",
+        gemNote = "Intelligenz > Tempo (Softcap ~13737) > Meisterschaft > Krit (schwächster Stat). 15% Zaubertreffer Pflicht.",
     },
 
     WARLOCK_DEMONOLOGY = {
@@ -886,7 +886,7 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15 },
         },
         statWeights = {
-            intellect = 100, hit = 92, mastery = 80, haste = 72,
+            intellect = 100, hit = 92, haste = 82, mastery = 75,
             crit = 58, spirit = 10, stamina = 5,
         },
         bestEnchants = {
@@ -896,7 +896,7 @@ WeintCodex_SpecProfiles = {
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
-            Beine        = { 4825, 4826 },
+            Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429, 4426 },
         },
         bestGems = {
@@ -909,7 +909,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76643, 76642 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Meisterschaft (Besessenheit). 15% Zaubertreffer Pflicht.",
+        gemNote = "Intelligenz > Tempo (Breakpoints ~3036/12,5% & ~8064/25%) > Meisterschaft (Besessenheit) > Krit (schwächster Stat). 15% Zaubertreffer Pflicht.",
     },
 
     WARLOCK_DESTRUCTION = {
@@ -918,8 +918,8 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15 },
         },
         statWeights = {
-            intellect = 100, hit = 92, crit = 78, mastery = 72,
-            haste = 65, spirit = 10, stamina = 5,
+            intellect = 100, hit = 92, mastery = 85, haste = 70,
+            crit = 45, spirit = 10, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -934,14 +934,14 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 76885, 95347 },
             rot       = { 76694, 83150 },
-            gelb      = { 76697, 76700 },
+            gelb      = { 76700, 76697 },         -- Frakturierter Goldberyll (Meister)
             blau      = { 76682, 76636 },
-            orange    = { 76660, 76672 },
+            orange    = { 76672, 76660 },         -- Kunstvoller Aragonit (Int+Meister)
             lila      = { 76682 },
-            ["grün"]  = { 76641, 76643 },
+            ["grün"]  = { 76643, 76641 },         -- Dioptas des Mentors (Treffer+Meister)
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Krit (Verheerung/Glutbildung). 15% Zaubertreffer Pflicht.",
+        gemNote = "Intelligenz > Meisterschaft (Glutsturm, verstärkt Emberzauber) > Tempo > Krit (teuerster Stat). 15% Zaubertreffer Pflicht.",
     },
 
     --------------------------------------------------
