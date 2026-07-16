@@ -655,8 +655,8 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15, spiritZaehlt = true },
         },
         statWeights = {
-            intellect = 100, hit = 92, spirit = 88, haste = 82,
-            mastery = 75, crit = 60, stamina = 5,
+            intellect = 100, hit = 92, spirit = 88, mastery = 85,
+            haste = 75, crit = 60, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -671,14 +671,14 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 76885, 95347 },
             rot       = { 76694, 83150 },
-            gelb      = { 76699, 76700 },
+            gelb      = { 76700, 76699 },
             blau      = { 76682, 76636, 76638 },
-            orange    = { 76668, 76672 },
+            orange    = { 76672, 76668 },
             lila      = { 76682, 76686 },
-            ["grün"]  = { 76642, 76651 },
+            ["grün"]  = { 76645, 76642 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "15% Zaubertreffer Pflicht — Willenskraft zählt dank Elementarpräzision als Treffer.",
+        gemNote = "Intelligenz > Meisterschaft (wirkt wie Tempo) > Tempo > Krit. 15% Zaubertreffer Pflicht — Willenskraft zählt dank Elementarpräzision als Treffer.",
     },
 
     SHAMAN_ENHANCEMENT = {
@@ -697,7 +697,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
         },
@@ -718,8 +718,8 @@ WeintCodex_SpecProfiles = {
         role = "HEALER",
         caps = {},
         statWeights = {
-            intellect = 100, spirit = 85, haste = 70, mastery = 68,
-            crit = 50, stamina = 10,
+            intellect = 100, haste = 85, crit = 65, mastery = 55,
+            spirit = 35, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -727,7 +727,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429, 4426 },
         },
@@ -741,7 +741,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76651, 76645 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Willenskraft (Mana-Regeneration). Kein Treffer-Cap nötig.",
+        gemNote = "Intelligenz > Tempo (Breakpoints: 2017/3379) > Krit > Meisterschaft. Willenskraft ist ab ~5000 kaum noch nötig (Glyphe Tellurische Ströme).",
     },
 
     --------------------------------------------------
