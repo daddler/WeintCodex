@@ -754,7 +754,7 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15 },
         },
         statWeights = {
-            intellect = 100, hit = 92, haste = 80, mastery = 75,
+            intellect = 100, hit = 92, mastery = 85, haste = 75,
             crit = 60, spirit = 10, stamina = 5,
         },
         bestEnchants = {
@@ -764,20 +764,20 @@ WeintCodex_SpecProfiles = {
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
-            Beine        = { 4825, 4826 },
+            Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429, 4426 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
             rot       = { 76694, 83150 },
-            gelb      = { 76699, 76700 },
+            gelb      = { 76700, 76699 },
             blau      = { 76682, 76636 },
-            orange    = { 76668, 76672 },
+            orange    = { 76672, 76668 },         -- Kunstvoller Aragonit (Int+Meister)
             lila      = { 76682 },
-            ["grün"]  = { 76642, 76641 },
+            ["grün"]  = { 76643, 76642 },         -- Dioptas des Mentors (Treffer+Meister)
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz-Stacking. 15% Zaubertreffer Pflicht — überschüssigen Treffer aussockeln!",
+        gemNote = "Intelligenz > Meisterschaft (skaliert mit ungenutztem Mana) > Tempo > Krit. 15% Zaubertreffer Pflicht — überschüssigen Treffer aussockeln!",
     },
 
     MAGE_FIRE = {
@@ -818,8 +818,8 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15 },
         },
         statWeights = {
-            intellect = 100, hit = 92, haste = 80, mastery = 72,
-            crit = 58, spirit = 10, stamina = 5,
+            intellect = 100, hit = 92, haste = 80, crit = 65,
+            mastery = 50, spirit = 10, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -828,7 +828,7 @@ WeintCodex_SpecProfiles = {
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
-            Beine        = { 4825, 4826 },
+            Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429, 4426 },
         },
         bestGems = {
@@ -841,7 +841,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76642, 76641 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Tempo. 15% Zaubertreffer Pflicht.",
+        gemNote = "Intelligenz > Tempo > Krit > Meisterschaft (schwächster Stat mit früher Ausrüstung, steigt später über Krit). 15% Zaubertreffer Pflicht.",
     },
 
     --------------------------------------------------
