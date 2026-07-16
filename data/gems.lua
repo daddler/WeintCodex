@@ -32,6 +32,9 @@
 --   Mutiger Urdiamant       -> Mutiger Bergkristall       (95345)
 --   Brennender Urdiamant    -> Brennender Bergkristall    (76885)
 --   Agiler Urdiamant        -> Agiler Bergkristall        (76884)
+--   Revitalisierender Urdiamant -> Revitalisierender Bergkristall (76888)
+--   Finsterer Urdiamant     -> Finsterer Bergkristall      (95347)
+-- Damit sind alle 9 Meta-/Legendär-Steine auf "Bergkristall" umgestellt.
 -- Weitere geänderte Grundsteinnamen (gleiche IDs):
 --   Starrer Chrysokoll  -> Massiver Chrysokoll   (76636)
 --   Blitzender Rubellit -> Scheinender Rubellit  (76695)
@@ -51,7 +54,7 @@ WeintCodex_Gems = {
     -- META: Legendäre Urdiamanten (Wrathion-Questreihe)
     --------------------------------------------------
 
-    [95347] = { name = "Finsterer Urdiamant",       color = "meta", stats = "+324 kritische Trefferwertung, Chance auf 30% Zaubertempo (Caster-DPS)" },
+    [95347] = { name = "Finsterer Bergkristall",     color = "meta", stats = "+324 kritische Trefferwertung, Chance auf 30% Zaubertempo (Caster-DPS)" },
     [95345] = { name = "Mutiger Bergkristall",       color = "meta", stats = "+324 Willenskraft, Chance auf manafreie Zauber (Heiler)" },
     [95346] = { name = "Geladener Bergkristall",     color = "meta", stats = "+324 kritische Trefferwertung, lädt Blitzentladung auf (Nahkampf/Fernkampf)" },
     [95344] = { name = "Unbeugsamer Bergkristall",   color = "meta", stats = "+324 Ausdauer, Chance auf 20% Schadensverringerung (Tank)" },
@@ -64,7 +67,7 @@ WeintCodex_Gems = {
     [76885] = { name = "Brennender Bergkristall",     color = "meta", stats = "+216 Intelligenz, +3% kritischer Schaden" },
     [76886] = { name = "Widerscheinender Bergkristall", color = "meta", stats = "+216 Stärke, +3% kritischer Schaden" },
     [76895] = { name = "Strenger Bergkristall",         color = "meta", stats = "+432 Ausdauer, +2% Rüstung aus Gegenständen" },
-    [76888] = { name = "Revitalisierender Urdiamant", color = "meta", stats = "+432 Willenskraft, +3% kritische Heilung" },
+    [76888] = { name = "Revitalisierender Bergkristall", color = "meta", stats = "+432 Willenskraft, +3% kritische Heilung" },
 
     --------------------------------------------------
     -- ROT (Rubellit): 160 Primär / 320 Sekundär

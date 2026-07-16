@@ -451,8 +451,8 @@ WeintCodex_SpecProfiles = {
         role = "HEALER",
         caps = {},
         statWeights = {
-            intellect = 100, spirit = 82, mastery = 72, haste = 62,
-            crit = 58, stamina = 10,
+            intellect = 100, spirit = 80, crit = 78, mastery = 65,
+            haste = 35, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -469,20 +469,20 @@ WeintCodex_SpecProfiles = {
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76699 },
             blau      = { 76686, 76638 },
-            orange    = { 76672, 76668, 76660 },
+            orange    = { 76660, 76672, 76668 },
             lila      = { 76686 },
             ["grün"]  = { 76645, 76651 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Willenskraft > Meisterschaft (Schilde). Kein Treffer-Cap nötig.",
+        gemNote = "Intelligenz > Krit ≈ Willenskraft > Meisterschaft. Tempo ist unser schwächster Stat. Kein Treffer-Cap nötig.",
     },
 
     PRIEST_HOLY = {
         role = "HEALER",
         caps = {},
         statWeights = {
-            intellect = 100, spirit = 80, haste = 72, mastery = 65,
-            crit = 50, stamina = 10,
+            intellect = 100, spirit = 85, crit = 70, mastery = 60,
+            haste = 35, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -499,12 +499,12 @@ WeintCodex_SpecProfiles = {
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76686, 76638 },
-            orange    = { 76668, 76660, 76672 },
+            orange    = { 76660, 76668, 76672 },
             lila      = { 76686 },
             ["grün"]  = { 76651, 76645 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Willenskraft > Tempo. Kein Treffer-Cap nötig.",
+        gemNote = "Intelligenz > Willenskraft > Krit > Meisterschaft. Tempo (außerhalb von Breakpoints) ist unser schwächster Stat. Kein Treffer-Cap nötig.",
     },
 
     PRIEST_SHADOW = {
@@ -513,8 +513,8 @@ WeintCodex_SpecProfiles = {
             { stat = "hit", typ = "spell", pct = 15, spiritZaehlt = true },
         },
         statWeights = {
-            intellect = 100, hit = 92, spirit = 88, haste = 85,
-            crit = 62, mastery = 60, stamina = 5,
+            intellect = 100, haste = 90, hit = 85, spirit = 82,
+            crit = 65, mastery = 62, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
@@ -532,11 +532,11 @@ WeintCodex_SpecProfiles = {
             gelb      = { 76699, 76700 },
             blau      = { 76682, 76636, 76638 },
             orange    = { 76668, 76660 },
-            lila      = { 76682, 76686 },
-            ["grün"]  = { 76642, 76651 },
+            lila      = { 76686, 76682 },
+            ["grün"]  = { 76651, 76642 },
             prismatic = { 76694, 83150 },
         },
-        gemNote = "Intelligenz > Tempo. 15% Zaubertreffer — Willenskraft zählt dank Zwielichtgleichgewicht als Treffer!",
+        gemNote = "Intelligenz > Tempo (unser bester Stat) > Krit ≈ Meisterschaft. 15% Zaubertreffer — Willenskraft zählt dank Zwielichtgleichgewicht als Treffer!",
     },
 
     --------------------------------------------------
