@@ -121,16 +121,26 @@ end
 local scanTip = CreateFrame("GameTooltip", "WeintCodexScanTip", nil, "GameTooltipTemplate")
 scanTip:SetOwner(UIParent, "ANCHOR_NONE")
 
-WeintCodex._enchantNameCache = WeintCodex._enchantNameCache or {}
+-- WICHTIG: zwei GETRENNTE Caches, nicht eine gemeinsame Tabelle!
+-- _enchantDbNameCache cached DB-/Hyperlink-Namen NACH Enchant-ID (für
+-- Empfehlungstexte). _enchantTooltipCache cached den LIVE vom Item-Tooltip
+-- gelesenen Namen (für angelegte Verzauberungen). Beide teilen sich zufällig
+-- denselben Enchant-ID-Namensraum — würden sie denselben Cache nutzen,
+-- könnte ein DB-Namenslookup für eine ID X (z.B. beim Auflösen einer
+-- Empfehlung) einen späteren Live-Tooltip-Scan für ein ANDERES Item mit
+-- derselben ID X unterdrücken (Cache-Hit liefert den ungeprüften DB-Namen,
+-- statt den Tooltip zu scannen) — und umgekehrt.
+WeintCodex._enchantDbNameCache = WeintCodex._enchantDbNameCache or {}
+WeintCodex._enchantTooltipCache = WeintCodex._enchantTooltipCache or {}
 
 local function GetEnchantDisplayName(enchantId)
     if not enchantId then return nil end
-    if WeintCodex._enchantNameCache[enchantId] then
-        return WeintCodex._enchantNameCache[enchantId]
+    if WeintCodex._enchantDbNameCache[enchantId] then
+        return WeintCodex._enchantDbNameCache[enchantId]
     end
     local db = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
     if db and db.name then
-        WeintCodex._enchantNameCache[enchantId] = db.name
+        WeintCodex._enchantDbNameCache[enchantId] = db.name
         return db.name
     end
     scanTip:ClearLines()
@@ -139,7 +149,7 @@ local function GetEnchantDisplayName(enchantId)
         local line = _G["WeintCodexScanTipTextLeft1"]
         local name = line and line:GetText()
         if name and name ~= "" then
-            WeintCodex._enchantNameCache[enchantId] = name
+            WeintCodex._enchantDbNameCache[enchantId] = name
             return name
         end
     end
@@ -189,8 +199,8 @@ end
 
 local function GetEquippedEnchantText(slotId, enchantId)
     if not enchantId then return nil end
-    if WeintCodex._enchantNameCache[enchantId] then
-        return WeintCodex._enchantNameCache[enchantId]
+    if WeintCodex._enchantTooltipCache[enchantId] then
+        return WeintCodex._enchantTooltipCache[enchantId]
     end
     scanTip:ClearLines()
     scanTip:SetInventoryItem("player", slotId)
@@ -201,7 +211,7 @@ local function GetEquippedEnchantText(slotId, enchantId)
         if txt then
             local name = txt:match(ENCHANT_LINE_PATTERN)
             if name and name ~= "" then
-                WeintCodex._enchantNameCache[enchantId] = name
+                WeintCodex._enchantTooltipCache[enchantId] = name
                 return name
             end
         end
@@ -210,7 +220,8 @@ local function GetEquippedEnchantText(slotId, enchantId)
 end
 
 local function ClearCharakterCache()
-    WeintCodex._enchantNameCache = {}
+    WeintCodex._enchantDbNameCache = {}
+    WeintCodex._enchantTooltipCache = {}
 end
 
 --------------------------------------------------
@@ -1214,7 +1225,13 @@ function WeintCodex.Charakter.DumpEnchants()
                 local tt = GetEquippedEnchantText(slotDef.id, enchId)
                 local db = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
                 local marker = ""
-                if not db then
+                if not tt and db then
+                    -- Live-Tooltip-Scan lieferte keinen Namen — der unten
+                    -- gezeigte Name stammt UNGEPRÜFT aus der DB und kann
+                    -- falsch sein, auch wenn kein "(DB-Name: ...)"-Konflikt
+                    -- auftaucht (es gibt ja nichts, womit man vergleichen könnte).
+                    marker = "  |cffff9900(Live-Scan fehlgeschlagen — Name aus DB, ungeprüft!)|r"
+                elseif not db then
                     marker = "  |cffff9900(fehlt in enchants.lua!)|r"
                 elseif tt and db.name and tt:lower() ~= db.name:lower() then
                     marker = "  |cffFFBB22(DB-Name: " .. db.name .. ")|r"
