@@ -89,6 +89,11 @@ WeintCodex_Enchants = {
 
     [4421] = { name = "Präzision",                            slot = "Umhang", stats = { hit = 180 } },  -- WoWHead: "Formel: Umhang - Präzision" (item 84568)
     [4422] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },  -- WoWHead: "Enchant Cloak - Superior Critical Strike" (spell 104404)
+    -- 4423 fehlte bisher komplett (zeigte "Unbekannt (ID 4423)" im Charakter-Fenster).
+    -- Lückenlos zwischen 4422 (Umhang-Krit) und 4424 (Umhang-Krit-Duplikat) einsortiert;
+    -- passt zur "Enchant Cloak - Superior Intellect" (spell 104403, Formel-Item 84569) aus
+    -- derselben 5.2-Formel-Reihe (Präzision/Krit/Intellekt). ID per /wc vz in-game bestätigen.
+    [4423] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 }, verify = true },
     -- ACHTUNG: 4424 hat denselben Stat-Wert (crit 180) wie 4422 unter
     -- anderem Namen - laut WoWHead ist "Greater Critical Strike"
     -- (spell 74247) ein älteres/niedrigeres Cata-Enchant, kein MoP-

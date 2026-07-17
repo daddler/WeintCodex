@@ -339,13 +339,30 @@ local function ApplyCustomWeights(profile, profileKey, tankStyle)
 end
 
 --------------------------------------------------
+-- SPEC-ANZEIGENAME (lokalisiert über WoW-Client-API)
+-- Liefert z.B. "Hexenmeister (Verderbnis)" — für die UI.
+-- profileKey bleibt separat der interne Daten-Key.
+--------------------------------------------------
+
+local function GetSpecDisplayName(localizedClassName, specIndex)
+    if not specIndex or not GetSpecializationInfo then
+        return localizedClassName
+    end
+    local ok, _, specDisplayName = pcall(GetSpecializationInfo, specIndex)
+    if ok and specDisplayName then
+        return string.format("%s (%s)", localizedClassName, specDisplayName)
+    end
+    return localizedClassName
+end
+
+--------------------------------------------------
 -- AKTIVES SPEC-PROFIL ERMITTELN
--- Gibt zurück: profile, profileKey, tankStyle
+-- Gibt zurück: profile, profileKey, tankStyle, specDisplay
 --------------------------------------------------
 
 local function GetCurrentSpecProfile()
-    local _, className = UnitClass("player")
-    if not className then return nil, nil, nil end
+    local localizedClassName, className = UnitClass("player")
+    if not className then return nil, nil, nil, nil end
 
     local specIndex
     if GetSpecialization then
@@ -356,13 +373,14 @@ local function GetCurrentSpecProfile()
         local ok, idx = pcall(GetPrimaryTalentTree)
         if ok then specIndex = idx end
     end
-    if not specIndex then return nil, nil, nil end
+    if not specIndex then return nil, nil, nil, nil end
 
     local specs = SPEC_MAP[className]
     local specName = specs and specs[specIndex]
-    if not specName then return nil, nil, nil end
+    if not specName then return nil, nil, nil, nil end
 
     local profileKey = className .. "_" .. specName
+    local specDisplay = GetSpecDisplayName(localizedClassName, specIndex)
 
     if TANK_SPECS[profileKey] then
         local style = GetTankStyle(profileKey)
@@ -370,15 +388,15 @@ local function GetCurrentSpecProfile()
             local offProfile = WeintCodex_SpecProfiles
                 and WeintCodex_SpecProfiles[profileKey .. "_OFFENSIVE"]
             if offProfile then
-                return ApplyCustomWeights(offProfile, profileKey, "OFF"), profileKey, "OFF"
+                return ApplyCustomWeights(offProfile, profileKey, "OFF"), profileKey, "OFF", specDisplay
             end
         end
         local defProfile = WeintCodex_SpecProfiles and WeintCodex_SpecProfiles[profileKey]
-        return ApplyCustomWeights(defProfile, profileKey, "DEF"), profileKey, "DEF"
+        return ApplyCustomWeights(defProfile, profileKey, "DEF"), profileKey, "DEF", specDisplay
     end
 
     local profile = WeintCodex_SpecProfiles and WeintCodex_SpecProfiles[profileKey]
-    return ApplyCustomWeights(profile, profileKey, nil), profileKey, nil
+    return ApplyCustomWeights(profile, profileKey, nil), profileKey, nil, specDisplay
 end
 
 --------------------------------------------------
@@ -921,17 +939,18 @@ end
 --------------------------------------------------
 
 local function ScanCharacter()
-    local profile, profileKey, tankStyle = GetCurrentSpecProfile()
+    local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
     local capStates = BuildCapStates(profile)
 
     local scan = {
-        profile    = profile,
-        profileKey = profileKey,
-        tankStyle  = tankStyle,
-        caps       = capStates,
-        enchants   = { rows = {} },
-        gems       = { rows = {} },
-        issues     = {},
+        profile     = profile,
+        profileKey  = profileKey,
+        tankStyle   = tankStyle,
+        specDisplay = specDisplay,
+        caps        = capStates,
+        enchants    = { rows = {} },
+        gems        = { rows = {} },
+        issues      = {},
     }
 
     --------------------------------------------------
@@ -1295,7 +1314,7 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
         local customHint = (scan.profile and scan.profile.customWeights)
             and "  |cffFFBB22[eigene Gewichtung aktiv]|r" or ""
         local profWarn = (not scan.profile) and "  |cffff9900(kein Profil hinterlegt!)|r" or ""
-        specInfo:SetText("|cff5B4880Spec: " .. scan.profileKey .. styleHint .. "|r" .. customHint .. profWarn)
+        specInfo:SetText("|cff5B4880Spec: " .. (scan.specDisplay or scan.profileKey) .. styleHint .. "|r" .. customHint .. profWarn)
     else
         specInfo:SetText("|cffff9900Spec konnte nicht ermittelt werden — einloggen bzw. Spec wählen!|r")
     end
@@ -1428,7 +1447,7 @@ function ShowEnchants()
         h:SetText("|cff4B3880" .. text .. "|r")
     end
     MakeHeader("STATUS",                 24, 70)
-    MakeHeader("SLOT / ITEM",            94, 140)
+    MakeHeader("SLOT / GEGENSTAND",      94, 140)
     MakeHeader("AKTUELLE VERZAUBERUNG", 240, 230)
     MakeHeader("EMPFEHLUNG",            478, 220)
 
@@ -1832,7 +1851,7 @@ function ShowUebersicht()
     if scan.profileKey then
         local styleHint = scan.tankStyle
             and (" [" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]") or ""
-        specLbl:SetText("|cff8B5CF6" .. scan.profileKey .. styleHint .. "|r")
+        specLbl:SetText("|cff8B5CF6" .. (scan.specDisplay or scan.profileKey) .. styleHint .. "|r")
     else
         specLbl:SetText("|cffff9900Kein Profil gefunden|r")
     end
@@ -1861,7 +1880,7 @@ function ShowUebersicht()
     local bannerTitle = banner:CreateFontString(nil, "OVERLAY")
     bannerTitle:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     bannerTitle:SetPoint("TOPLEFT", banner, "TOPLEFT", 58, -10)
-    bannerTitle:SetText("Gear-Check: "
+    bannerTitle:SetText("Ausrüstungs-Check: "
         .. (score.checks > 0 and (score.total .. " / 100 Punkte") or "keine Daten"))
     bannerTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
@@ -1966,7 +1985,7 @@ function ShowUebersicht()
         local capTitle = capCard:CreateFontString(nil, "OVERLAY")
         capTitle:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
         capTitle:SetPoint("TOPLEFT", capCard, "TOPLEFT", 12, -10)
-        capTitle:SetText("Stat-Caps")
+        capTitle:SetText("Sekundärstat-Caps")
         capTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
         if #scan.caps == 0 then
@@ -2253,9 +2272,9 @@ function ShowPriorisierung()
     prioFrame:SetAllPoints(cp)
     prioFrame:Show()
 
-    local profile, profileKey, tankStyle = GetCurrentSpecProfile()
+    local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
     DrawPageHeader(prioFrame, "Priorisierung (eigene Gewichtung)",
-        { profile = profile, profileKey = profileKey, tankStyle = tankStyle },
+        { profile = profile, profileKey = profileKey, tankStyle = tankStyle, specDisplay = specDisplay },
         ShowPriorisierung)
 
     local effKey = GetEffectiveProfileKey(profileKey, tankStyle)
@@ -2295,7 +2314,7 @@ function ShowPriorisierung()
     local cbLbl = prioFrame:CreateFontString(nil, "OVERLAY")
     cbLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
     cbLbl:SetPoint("LEFT", cb, "RIGHT", 4, 0)
-    cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff5B4880(für " .. effKey .. ")|r")
+    cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff5B4880(für " .. (specDisplay or profileKey) .. ")|r")
 
     -- Eingabefelder
     local boxes = {}
@@ -2350,7 +2369,7 @@ function ShowPriorisierung()
             enabled = cb:GetChecked() and true or false,
             weights = w,
         }
-        print("|cff8B5CF6[WeintCodex]|r Gewichtung für " .. effKey .. " gespeichert"
+        print("|cff8B5CF6[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " gespeichert"
             .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert)."))
         ShowPriorisierung()
     end)
@@ -2358,7 +2377,7 @@ function ShowPriorisierung()
 
     local resetBtn = MakeBtn(prioFrame, "Auf Standard zurücksetzen", 180, 24, function()
         sd.customWeights[effKey] = nil
-        print("|cff8B5CF6[WeintCodex]|r Gewichtung für " .. effKey .. " auf Standard zurückgesetzt.")
+        print("|cff8B5CF6[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " auf Standard zurückgesetzt.")
         ShowPriorisierung()
     end)
     resetBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 186, yOff - 8)
