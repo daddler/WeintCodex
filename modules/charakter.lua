@@ -340,7 +340,7 @@ end
 
 --------------------------------------------------
 -- SPEC-ANZEIGENAME (lokalisiert über WoW-Client-API)
--- Liefert z.B. "Hexenmeister (Verderbnis)" — für die UI.
+-- Liefert z.B. "Hexenmeister (Gebrechen)" — für die UI.
 -- profileKey bleibt separat der interne Daten-Key.
 --------------------------------------------------
 
