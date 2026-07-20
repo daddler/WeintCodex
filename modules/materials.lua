@@ -151,7 +151,7 @@ local function CreateMatFrame()
     eyebrow:SetText(WeintCodex.ColorText("textFaint", "GILDENBANKMATERIALIEN"))
 
     local titleStr = summary:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
     titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.Title = titleStr
@@ -226,7 +226,7 @@ local function CreateMatFrame()
 
     local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT",     colBar, "BOTTOMLEFT",  0, 0)
-    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4, 0)
+    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -26, 0)
 
     local scrollChild = CreateFrame("Frame", nil, scroll)
     scrollChild:SetWidth(600)
@@ -382,15 +382,22 @@ local function RefreshMatDisplay(matData, filterCat)
     -- Inspector: Sync-Status, Auto-Einkaufsliste, Schwellen
     --------------------------------------------------
 
+    -- Nur echte "niedrig"-Positionen (< THRESH_OK vom Soll) aufnehmen,
+    -- nicht jede beliebige Unterdeckung - sonst dominieren Items mit
+    -- großem Sollbestand die Liste, obwohl sie prozentual im grünen
+    -- Bereich liegen.
     local shoppingItems = {}
     for _, item in ipairs(dataSource.items) do
         local amount = tonumber(item.count)  or 0
         local target = tonumber(item.target) or 0
-        if target > 0 and amount < target then
-            table.insert(shoppingItems, { name = item.name, missing = target - amount })
+        if target > 0 then
+            local pct = amount / target
+            if pct < THRESH_OK then
+                table.insert(shoppingItems, { name = item.name, missing = target - amount, pct = pct })
+            end
         end
     end
-    table.sort(shoppingItems, function(a, b) return a.missing > b.missing end)
+    table.sort(shoppingItems, function(a, b) return a.pct < b.pct end)
 
     local shoppingListItems = {}
     for i = 1, math.min(6, #shoppingItems) do

@@ -335,7 +335,7 @@ function WeintCodex.Sync.ShowImportDialog()
 
     -- Title
     local titleStr = f:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 21, "")
     titleStr:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -18)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     titleStr:SetText("Daten importieren")

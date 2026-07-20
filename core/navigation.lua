@@ -695,7 +695,7 @@ function WeintCodex.ShowHome()
         hero:SetPoint("TOPRIGHT", hf, "TOPRIGHT", 0, 0)
 
         local wordmark = hero:CreateFontString(nil, "OVERLAY")
-        wordmark:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        wordmark:SetFont("Fonts\\MORPHEUS.TTF", 20, "")
         wordmark:SetPoint("TOPLEFT", hero, "TOPLEFT", 20, -14)
         wordmark:SetText(WeintCodex.ColorText("textBright", "WeintCodex"))
 

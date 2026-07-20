@@ -246,7 +246,7 @@ local function CreateRaidFrame()
     eyebrow:SetText(WeintCodex.ColorText("textFaint", "RAIDANMELDUNGEN"))
 
     local titleStr = summary:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
     titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.Title = titleStr
@@ -321,7 +321,7 @@ local function CreateRaidFrame()
 
     local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT",     colBar, "BOTTOMLEFT",  0, 0)
-    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4, 0)
+    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -26, 0)
 
     local scrollChild = CreateFrame("Frame", nil, scroll)
     scrollChild:SetWidth(760)
