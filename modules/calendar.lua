@@ -217,7 +217,7 @@ local function CreateCalendarFrame()
     SetSolidBg(header, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.50)
 
     local titleStr = header:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 21, "")
     titleStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -14)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     titleStr:SetText("Kalender")

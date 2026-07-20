@@ -1397,7 +1397,7 @@ end
 
 local function DrawPageHeader(frame, titleText, scan, onRefresh)
     local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+    title:SetFont("Fonts\\MORPHEUS.TTF", 17, "")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
     title:SetText("|cffC8763A" .. titleText .. "|r")
 
@@ -1528,7 +1528,7 @@ function ShowEnchants()
     local sf, inner = CreateScrollArea(enchantFrame, 14, headerY - 18, 20, 400)
     sf:ClearAllPoints()
     sf:SetPoint("TOPLEFT",     enchantFrame, "TOPLEFT",     14, headerY - 18)
-    sf:SetPoint("BOTTOMRIGHT", enchantFrame, "BOTTOMRIGHT", -14, 24)
+    sf:SetPoint("BOTTOMRIGHT", enchantFrame, "BOTTOMRIGHT", -26, 24)
     inner:SetWidth(sf:GetWidth() - 22)
 
     local yOff = 0
@@ -1681,7 +1681,7 @@ function ShowGems()
     local sf, inner = CreateScrollArea(gemFrame, 14, headerY - 18, 20, 400)
     sf:ClearAllPoints()
     sf:SetPoint("TOPLEFT",     gemFrame, "TOPLEFT",     14, headerY - 18)
-    sf:SetPoint("BOTTOMRIGHT", gemFrame, "BOTTOMRIGHT", -14, 24)
+    sf:SetPoint("BOTTOMRIGHT", gemFrame, "BOTTOMRIGHT", -26, 24)
     inner:SetWidth(sf:GetWidth() - 22)
 
     local yOff = 0
@@ -1950,7 +1950,7 @@ function ShowUebersicht()
 
     local body = CreateFrame("ScrollFrame", nil, uebersichtFrame, "UIPanelScrollFrameTemplate")
     body:SetPoint("TOPLEFT",     uebersichtFrame, "TOPLEFT",     0, 0)
-    body:SetPoint("BOTTOMRIGHT", uebersichtFrame, "BOTTOMRIGHT", -4, 4)
+    body:SetPoint("BOTTOMRIGHT", uebersichtFrame, "BOTTOMRIGHT", -26, 4)
 
     local bc = CreateFrame("Frame", nil, body)
     bc:SetWidth(UEBERSICHT_W)
@@ -1979,7 +1979,7 @@ function ShowUebersicht()
     end
 
     local h1 = bc:CreateFontString(nil, "OVERLAY")
-    h1:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    h1:SetFont("Fonts\\MORPHEUS.TTF", 21, "")
     h1:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
     h1:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     h1:SetText("Ausrüstungs-Check")
@@ -2619,7 +2619,7 @@ function ShowTwinkverwaltung()
     twinkFrame:SetAllPoints(cp)
 
     local title = twinkFrame:CreateFontString(nil, "OVERLAY")
-    title:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+    title:SetFont("Fonts\\MORPHEUS.TTF", 17, "")
     title:SetPoint("TOPLEFT", twinkFrame, "TOPLEFT", 16, -14)
     title:SetText("|cffC8763ATwinkverwaltung|r")
 
@@ -2669,7 +2669,7 @@ function ShowTwinkverwaltung()
     local sf, inner = CreateScrollArea(twinkFrame, 14, -52, 20, 400)
     sf:ClearAllPoints()
     sf:SetPoint("TOPLEFT",     twinkFrame, "TOPLEFT",     14, -52)
-    sf:SetPoint("BOTTOMRIGHT", twinkFrame, "BOTTOMRIGHT", -14, 36)
+    sf:SetPoint("BOTTOMRIGHT", twinkFrame, "BOTTOMRIGHT", -26, 36)
     inner:SetWidth(sf:GetWidth() - 22)
 
     local saved = GetSavedTwinkSelection()

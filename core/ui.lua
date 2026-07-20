@@ -390,7 +390,7 @@ titleDiv:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", 0, 0)
 titleDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
 local wordmark = titleBar:CreateFontString(nil, "OVERLAY")
-wordmark:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+wordmark:SetFont("Fonts\\MORPHEUS.TTF", 16, "")
 wordmark:SetPoint("LEFT", titleBar, "LEFT", 20, 0)
 wordmark:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 wordmark:SetText("WeintCodex")

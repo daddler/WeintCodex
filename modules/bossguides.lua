@@ -96,7 +96,7 @@ local function CreateGuideFrame()
     f.InstanceStr = instanceStr
 
     local bossNameStr = topBar:CreateFontString(nil, "OVERLAY")
-    bossNameStr:SetFont("Fonts\\FRIZQT__.TTF", 22, "OUTLINE")
+    bossNameStr:SetFont("Fonts\\MORPHEUS.TTF", 23, "")
     bossNameStr:SetPoint("TOPLEFT", instanceStr, "BOTTOMLEFT", 0, -6)
     bossNameStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.BossName = bossNameStr
@@ -163,7 +163,7 @@ local function CreateGuideFrame()
 
     local body = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     body:SetPoint("TOPLEFT",     topBar, "BOTTOMLEFT",  0, -8)
-    body:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4, 4)
+    body:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -26, 4)
 
     local bodyChild = CreateFrame("Frame", nil, body)
     bodyChild:SetWidth(BODY_W)

@@ -46,7 +46,7 @@ if not cp then return end
             --------------------------------------------------
 
             local title = container:CreateFontString(nil, "OVERLAY")
-            title:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+            title:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
             title:SetPoint("TOPLEFT", 15, -10)
             title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
