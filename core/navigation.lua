@@ -54,6 +54,7 @@ for i, tabDef in ipairs(tabs) do
     btn._bar = bar
 
     local icon = btn:CreateFontString(nil, "OVERLAY")
+    icon:SetFont("Fonts\\FRIZQT__.TTF", 22, "")
     icon:SetAllPoints(btn)
     icon:SetJustifyH("CENTER")
     icon:SetJustifyV("MIDDLE")
