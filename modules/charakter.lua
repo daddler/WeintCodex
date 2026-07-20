@@ -133,6 +133,15 @@ scanTip:SetOwner(UIParent, "ANCHOR_NONE")
 WeintCodex._enchantDbNameCache = WeintCodex._enchantDbNameCache or {}
 WeintCodex._enchantTooltipCache = WeintCodex._enchantTooltipCache or {}
 
+-- Manche Items sind beim Scan noch nicht vollständig aus dem Server-Cache
+-- geladen (GetItemInfo liefert nil) — der Tooltip zeigt dann nur "Wird
+-- abgerufen..." OHNE Verzauberungszeile, der Live-Scan schlägt fehl und wir
+-- fallen auf den (evtl. falschen/ungeprüften) DB-Namen zurück. Betroffene
+-- Item-IDs werden hier gesammelt; sobald der Client sie nachliefert
+-- (GET_ITEM_INFO_RECEIVED, siehe itemInfoWatcher weiter unten), wird die
+-- aktive Seite automatisch neu gescannt.
+local pendingItemInfoIds = {}
+
 local function GetEnchantDisplayName(enchantId)
     if not enchantId then return nil end
     if WeintCodex._enchantDbNameCache[enchantId] then
@@ -197,7 +206,7 @@ do
                                     :gsub("%%%%s", "(.+)")
 end
 
-local function GetEquippedEnchantText(slotId, enchantId)
+local function GetEquippedEnchantText(slotId, enchantId, link)
     if not enchantId then return nil end
     if WeintCodex._enchantTooltipCache[enchantId] then
         return WeintCodex._enchantTooltipCache[enchantId]
@@ -215,6 +224,16 @@ local function GetEquippedEnchantText(slotId, enchantId)
                 return name
             end
         end
+    end
+
+    -- Scan lieferte keine Verzauberungszeile. Wenn die BASIS-Itemdaten
+    -- selbst noch nicht im Client-Cache liegen (GetItemInfo == nil), ist
+    -- der Tooltip nur unvollständig ("Wird abgerufen...") — das ist die
+    -- Ursache, nicht ein falscher/fehlender DB-Eintrag. Für diese Item-ID
+    -- auf Nachlieferung warten (GET_ITEM_INFO_RECEIVED, s.u.).
+    local itemId = link and tonumber(link:match("item:(%d+):"))
+    if itemId and not GetItemInfo(itemId) then
+        pendingItemInfoIds[itemId] = true
     end
     return nil
 end
@@ -980,7 +999,7 @@ local function ScanCharacter()
                 if not skip then
                     -- Offizieller deutscher Name vom Tooltip (landet im
                     -- Cache und dient dem Namensabgleich bei der Bewertung)
-                    local tooltipName = GetEquippedEnchantText(slotDef.id, enchId)
+                    local tooltipName = GetEquippedEnchantText(slotDef.id, enchId, link)
                     local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile, tooltipName)
                     scan.enchants.rows[#scan.enchants.rows + 1] = {
                         slotId    = slotDef.id,
@@ -1222,7 +1241,7 @@ function WeintCodex.Charakter.DumpEnchants()
             local enchId, gems = ParseItemLink(link)
             if enchId then
                 any = true
-                local tt = GetEquippedEnchantText(slotDef.id, enchId)
+                local tt = GetEquippedEnchantText(slotDef.id, enchId, link)
                 local db = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
                 local marker = ""
                 if not tt and db then
@@ -1296,6 +1315,21 @@ equipWatcher:SetScript("OnEvent", function(self)
         end)
     else
         RefreshActiveCharakterView()
+    end
+end)
+
+-- Nachlieferung fehlender Item-Basisdaten (siehe pendingItemInfoIds oben):
+-- GET_ITEM_INFO_RECEIVED feuert, sobald der Client Daten zu einer zuvor
+-- ungecachten Item-ID nachgeladen hat. Betrifft uns das (Item stand in
+-- pendingItemInfoIds), scannen wir die aktive Seite neu — der Live-Tooltip-
+-- Scan hat dann alle Daten und liefert den echten Verzauberungsnamen statt
+-- des ungeprüften DB-Fallbacks.
+local itemInfoWatcher = CreateFrame("Frame")
+itemInfoWatcher:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+itemInfoWatcher:SetScript("OnEvent", function(self, event, itemId, success)
+    if itemId and pendingItemInfoIds[itemId] then
+        pendingItemInfoIds[itemId] = nil
+        if success and activeCharakterView then RefreshActiveCharakterView() end
     end
 end)
 
@@ -1397,7 +1431,7 @@ end
 
 local function DrawPageHeader(frame, titleText, scan, onRefresh)
     local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont("Fonts\\MORPHEUS.TTF", 17, "")
+    title:SetFont(WeintCodex.Fonts.serif, 19, "")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
     title:SetText("|cffC8763A" .. titleText .. "|r")
 
@@ -1968,7 +2002,7 @@ function ShowUebersicht()
     DrawBorder(portrait, C.border[1], C.border[2], C.border[3], C.border[4], 1)
 
     local eyebrow = bc:CreateFontString(nil, "OVERLAY")
-    eyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    eyebrow:SetFont(WeintCodex.Fonts.mono, 10, "")
     eyebrow:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 16, -4)
     if scan.profileKey then
         local styleHint = scan.tankStyle
@@ -1979,8 +2013,8 @@ function ShowUebersicht()
     end
 
     local h1 = bc:CreateFontString(nil, "OVERLAY")
-    h1:SetFont("Fonts\\MORPHEUS.TTF", 21, "")
-    h1:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+    h1:SetFont(WeintCodex.Fonts.serif, 28, "")
+    h1:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -8)
     h1:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     h1:SetText("Ausrüstungs-Check")
 
@@ -1990,8 +2024,8 @@ function ShowUebersicht()
     end
 
     local sub = bc:CreateFontString(nil, "OVERLAY")
-    sub:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
-    sub:SetPoint("TOPLEFT", h1, "BOTTOMLEFT", 0, -6)
+    sub:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    sub:SetPoint("TOPLEFT", h1, "BOTTOMLEFT", 0, -8)
     sub:SetPoint("RIGHT", bc, "RIGHT", -20, 0)
     sub:SetJustifyH("LEFT")
     if score.checks == 0 then
@@ -2010,20 +2044,20 @@ function ShowUebersicht()
     if score.checks == 0 then gradeCol = C.textDim end
 
     local scoreNum = bc:CreateFontString(nil, "OVERLAY")
-    scoreNum:SetFont("Fonts\\FRIZQT__.TTF", 26, "OUTLINE")
-    scoreNum:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -56, -22)
+    scoreNum:SetFont(WeintCodex.Fonts.serifBold, 38, "")
+    scoreNum:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -66, -20)
     scoreNum:SetJustifyH("RIGHT")
     scoreNum:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
     scoreNum:SetText(score.checks > 0 and (score.total .. " / 100") or "—")
 
     local gradeBadge = CreateFrame("Frame", nil, bc)
-    gradeBadge:SetSize(28, 24)
-    gradeBadge:SetPoint("LEFT", scoreNum, "RIGHT", 10, 1)
+    gradeBadge:SetSize(34, 30)
+    gradeBadge:SetPoint("LEFT", scoreNum, "RIGHT", 12, 1)
     SetSolidBg(gradeBadge, gradeCol[1] * 0.12, gradeCol[2] * 0.12, gradeCol[3] * 0.12, 1.0)
     DrawBorder(gradeBadge, gradeCol[1], gradeCol[2], gradeCol[3], 0.80, 1)
     local gradeLbl = gradeBadge:CreateFontString(nil, "OVERLAY")
     gradeLbl:SetAllPoints(gradeBadge)
-    gradeLbl:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    gradeLbl:SetFont(WeintCodex.Fonts.serif, 17, "")
     gradeLbl:SetJustifyH("CENTER")
     gradeLbl:SetJustifyV("MIDDLE")
     gradeLbl:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
@@ -2031,16 +2065,16 @@ function ShowUebersicht()
 
     local headerDiv = bc:CreateTexture(nil, "OVERLAY")
     headerDiv:SetHeight(1)
-    headerDiv:SetPoint("TOPLEFT",  bc, "TOPLEFT",  20, -118)
-    headerDiv:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, -118)
+    headerDiv:SetPoint("TOPLEFT",  bc, "TOPLEFT",  20, -132)
+    headerDiv:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, -132)
     headerDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
     -- =============================================
     -- AUSRÜSTUNGS-STATUS (Karten-Raster mit Fortschrittsbalken)
     -- =============================================
     local gridLabel = bc:CreateFontString(nil, "OVERLAY")
-    gridLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    gridLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, -134)
+    gridLabel:SetFont(WeintCodex.Fonts.mono, 10, "")
+    gridLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, -148)
     gridLabel:SetText(WeintCodex.ColorText("textFaint", "AUSRÜSTUNGS-STATUS"))
 
     local cardDefs = {
@@ -2051,7 +2085,7 @@ function ShowUebersicht()
         cardDefs[#cardDefs + 1] = { kind = "cap", cap = cs, onClick = ShowWerteverteilung }
     end
 
-    local GRID_TOP, GRID_H, GRID_GAP = -154, 92, 10
+    local GRID_TOP, GRID_H, GRID_GAP = -168, 100, 10
     local colW = (UEBERSICHT_W - 40 - GRID_GAP * (#cardDefs - 1)) / #cardDefs
 
     for i, def in ipairs(cardDefs) do
@@ -2062,7 +2096,7 @@ function ShowUebersicht()
         DrawBorder(card, C.border[1], C.border[2], C.border[3], C.border[4], 1)
 
         local lbl = card:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.mono, 10, "")
         lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
         lbl:SetPoint("RIGHT", card, "RIGHT", -10, 0)
         lbl:SetJustifyH("LEFT")
@@ -2094,7 +2128,7 @@ function ShowUebersicht()
         end
 
         local num = card:CreateFontString(nil, "OVERLAY")
-        num:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        num:SetFont(WeintCodex.Fonts.serif, 22, "")
         num:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -8)
         num:SetTextColor(mainCol[1], mainCol[2], mainCol[3])
         num:SetText(mainText)
@@ -2130,7 +2164,7 @@ function ShowUebersicht()
     local hbY = GRID_TOP - GRID_H - 26
 
     local hbLabel = bc:CreateFontString(nil, "OVERLAY")
-    hbLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    hbLabel:SetFont(WeintCodex.Fonts.mono, 10, "")
     hbLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, hbY)
     hbLabel:SetText(WeintCodex.ColorText("textFaint", "HANDLUNGSBEDARF · NACH PRIORITÄT"))
 
@@ -2171,7 +2205,7 @@ function ShowUebersicht()
             badgeLbl:SetText(tostring(i))
 
             local txt = row:CreateFontString(nil, "OVERLAY")
-            txt:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            txt:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
             txt:SetPoint("LEFT",  badge, "RIGHT", 12, 0)
             txt:SetPoint("RIGHT", row, "RIGHT", -10, 0)
             txt:SetJustifyH("LEFT")
@@ -2188,7 +2222,7 @@ function ShowUebersicht()
     -- =============================================
     local wsY = rowY - 18
     local wsLabel = bc:CreateFontString(nil, "OVERLAY")
-    wsLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    wsLabel:SetFont(WeintCodex.Fonts.mono, 10, "")
     wsLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, wsY)
     wsLabel:SetText(WeintCodex.ColorText("textFaint", "WERTE-SUMMEN DER AUSRÜSTUNG"))
 
@@ -2209,7 +2243,7 @@ function ShowUebersicht()
         none:SetText(WeintCodex.ColorText("textFaint", "Keine Werte ermittelt (Charakter einloggen / Items anlegen)."))
         rowY = wsTop - 26
     else
-        local WS_COLS, WS_GAP, WS_ROW_H = 4, 10, 50
+        local WS_COLS, WS_GAP, WS_ROW_H = 4, 10, 58
         local wsColW = (UEBERSICHT_W - 40 - WS_GAP * (WS_COLS - 1)) / WS_COLS
 
         for i, entry in ipairs(statEntries) do
@@ -2228,7 +2262,7 @@ function ShowUebersicht()
             lbl2:SetText(entry.label)
 
             local val = box:CreateFontString(nil, "OVERLAY")
-            val:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+            val:SetFont(WeintCodex.Fonts.serif, 18, "")
             val:SetPoint("TOPLEFT", lbl2, "BOTTOMLEFT", 0, -4)
             val:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
             val:SetText("+" .. entry.value)
@@ -2827,4 +2861,17 @@ function WeintCodex.Charakter.Show()
         { label = "Twinkverwaltung", onClick = ShowTwinkverwaltung },
     })
     WeintCodex.Navigation.ActivateFirst()
+end
+
+-- Direkteinstieg fuer die globale Suche (core/search.lua): baut die normale
+-- Charakter-Seite auf und wechselt danach sofort auf die Zielansicht, statt
+-- immer bei "Uebersicht" zu landen.
+function WeintCodex.Charakter.ShowEnchants()
+    WeintCodex.Charakter.Show()
+    ShowEnchants()
+end
+
+function WeintCodex.Charakter.ShowGems()
+    WeintCodex.Charakter.Show()
+    ShowGems()
 end
