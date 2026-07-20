@@ -434,6 +434,7 @@ SetSolidBg(searchBox, C.headerBg[1], C.headerBg[2], C.headerBg[3], 1.0)
 DrawBorder(searchBox, C.border[1], C.border[2], C.border[3], C.border[4], 1)
 
 local searchIcon = searchBox:CreateFontString(nil, "OVERLAY")
+searchIcon:SetFont("Fonts\\FRIZQT__.TTF", 13, "")
 searchIcon:SetPoint("LEFT", searchBox, "LEFT", 8, 0)
 searchIcon:SetText(WeintCodex.Icon("Interface\\Common\\UI-Searchbox-Icon", 13))
 
