@@ -41,42 +41,49 @@ WeintCodex_BossData = {
                 name = "Ätzender Schlag",
                 spellID = 143436,
                 desc = "Massiver Frontalangriff mit stapelbarer Schattenschadenerhöhung.",
-                color = {0.20, 0.60, 0.90}
+                color = {0.20, 0.60, 0.90},
+                tag = { label = "Tank", color = "blue" }
             },
             {
                 name = "Sickerndes Sha",
                 spellID = 143281,
                 desc = "Nahbereichsschaden um Immerseus.",
-                color = {0.65, 0.25, 0.85}
+                color = {0.65, 0.25, 0.85},
+                tag = { label = "Melee", color = "gold" }
             },
             {
                 name = "Wirbel",
                 spellID = 143309,
                 desc = "Verderbte Wasserströme bewegen sich durch den Raum und stoßen Spieler zurück.",
-                color = {0.30, 0.75, 1.00}
+                color = {0.30, 0.75, 1.00},
+                tag = { label = "Dodge", color = "gold" }
             },
             {
                 name = "Sha-Blitz",
                 spellID = 143295,
                 desc = "Verursacht Schattenschaden und erschafft Sha-Pfützen.",
-                color = {0.75, 0.30, 0.95}
+                color = {0.75, 0.30, 0.95},
+                tag = { label = "Raid", color = "red" }
             },
             {
                 name = "Teilung",
                 desc = "Immerseus zerfällt in Sha-Tropfen und verseuchte Tropfen.",
-                color = {0.95, 0.75, 0.25}
+                color = {0.95, 0.75, 0.25},
+                tag = { label = "Phase", color = "purple" }
             },
             {
                 name = "Sha-Tropfen",
                 spellID = 71603,
                 desc = "Müssen zerstört werden, um Verderbnis zu reduzieren.",
-                color = {0.90, 0.40, 0.25}
+                color = {0.90, 0.40, 0.25},
+                tag = { label = "DPS", color = "red" }
             },
             {
                 name = "Verseuchte Tropfen",
                 spellID = 71604,
                 desc = "Müssen geheilt werden, um Verderbnis zu reduzieren.",
-                color = {0.20, 0.90, 0.45}
+                color = {0.20, 0.90, 0.45},
+                tag = { label = "Heal", color = "green" }
             },
             {
                 name = "Sha-Rückstände",

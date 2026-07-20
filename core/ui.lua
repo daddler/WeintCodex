@@ -259,7 +259,7 @@ local FRAME_MAX_H = 1000
 
 local RAIL_W       = 64
 local SIDEBAR_W    = 240
-local INSPECTOR_W  = 300
+local INSPECTOR_W  = 340
 local TITLEBAR_H   = 52
 
 local frame = CreateFrame("Frame", "WeintCodexMainFrame", UIParent)

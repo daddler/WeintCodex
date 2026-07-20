@@ -48,12 +48,10 @@ end
 --------------------------------------------------
 -- Guide Frame erstellen
 --   Top (120px):    Portrait + Name/Instanz + Zitat
---   Rollen-Umschalter: Titelleiste (Tank/Heiler/Schaden)
+--   Rollen-Umschalter: Segmented Control im Content (Tank/Heiler/Schaden)
 --   Body (scrollbar): GUIDE-Tipps + FÄHIGKEITEN-Liste
 --   Inspector:       Kurz & Knapp + Notizen + "Im Raid ansagen"
 --------------------------------------------------
-
-local BODY_W = 560
 
 local function CreateGuideFrame()
     if guideFrame then return guideFrame end
@@ -110,7 +108,7 @@ local function CreateGuideFrame()
     f.QuoteStr = quoteStr
 
     -- ------------------------------------------------
-    -- Rollen-Umschalter (Titelleiste, Segmented Control)
+    -- Rollen-Umschalter (Segmented Control, im Content statt Titelleiste)
     -- ------------------------------------------------
 
     local roleDefs = {
@@ -119,12 +117,16 @@ local function CreateGuideFrame()
         { key = "dps",    label = "Schaden", colorName = "red"   },
     }
 
+    local roleBar = CreateFrame("Frame", nil, f)
+    roleBar:SetHeight(34)
+    roleBar:SetPoint("TOPLEFT",  topBar, "BOTTOMLEFT",  0, -8)
+    roleBar:SetPoint("TOPRIGHT", topBar, "BOTTOMRIGHT", 0, -8)
+    f.RoleBar = roleBar
+
     local roleBtns = {}
-    local rX = 0
     for _, rd in ipairs(roleDefs) do
-        local rb = CreateFrame("Button", nil, WeintCodex.TitleBarActions)
-        rb:SetSize(74, 30)
-        rb:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", rX, -11)
+        local rb = CreateFrame("Button", nil, roleBar)
+        rb:SetHeight(34)
 
         local rbg = rb:CreateTexture(nil, "BACKGROUND")
         rbg:SetAllPoints(rb)
@@ -153,7 +155,6 @@ local function CreateGuideFrame()
         rb:SetScript("OnClick", function() ShowRoleTips(rd.key) end)
 
         table.insert(roleBtns, rb)
-        rX = rX - 78
     end
     f.RoleBtns = roleBtns
 
@@ -162,11 +163,11 @@ local function CreateGuideFrame()
     -- ------------------------------------------------
 
     local body = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    body:SetPoint("TOPLEFT",     topBar, "BOTTOMLEFT",  0, -8)
-    body:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -26, 4)
+    body:SetPoint("TOPLEFT",     roleBar, "BOTTOMLEFT", 0, -8)
+    body:SetPoint("BOTTOMRIGHT", f,       "BOTTOMRIGHT", -26, 4)
 
     local bodyChild = CreateFrame("Frame", nil, body)
-    bodyChild:SetWidth(BODY_W)
+    bodyChild:SetWidth(560)
     bodyChild:SetHeight(1)
     body:SetScrollChild(bodyChild)
     f.LeftChild = bodyChild
@@ -187,7 +188,7 @@ local function CreateGuideFrame()
     local tipText = bodyChild:CreateFontString(nil, "OVERLAY")
     tipText:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
     tipText:SetPoint("TOPLEFT", bodyChild, "TOPLEFT", 20, -40)
-    tipText:SetWidth(BODY_W - 40)
+    tipText:SetWidth(520)
     tipText:SetJustifyH("LEFT")
     tipText:SetSpacing(6)
     tipText:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
@@ -206,6 +207,51 @@ local function CreateGuideFrame()
 
     guideFrame = f
     return f
+end
+
+--------------------------------------------------
+-- Content nutzt die tatsaechliche Panelbreite statt einer festen Spalte
+-- (analog Charakter-Uebersicht). Wird bei jedem ShowRoleTips() neu
+-- ausgerechnet, damit ein zwischenzeitlicher Fensterresize beim naechsten
+-- Rollen-/Bosswechsel korrekt uebernommen wird.
+--
+-- Zwei getrennte Breiten noetig: "roleBar" haengt direkt an f (kein
+-- ScrollFrame-Kind) und darf die volle Panelbreite nutzen. "LeftChild"/
+-- "TipText" stecken dagegen im ScrollFrame "body", das -26px fuer die
+-- Scrollleiste reserviert (siehe body:SetPoint BOTTOMRIGHT) - ohne den
+-- Abzug waere der Scroll-Child breiter als sein sichtbarer Viewport und
+-- der rechte Rand der Faehigkeiten-Zeilen wuerde abgeschnitten.
+--------------------------------------------------
+
+local function UpdateBodyWidth(f)
+    local fullW = math.max(560, WeintCodex.ContentPanel:GetWidth())
+    local bodyW = math.max(560, WeintCodex.ContentPanel:GetWidth() - 26)
+
+    f.LeftChild:SetWidth(bodyW)
+    f.TipText:SetWidth(bodyW - 40)
+
+    local segW = fullW / #f.RoleBtns
+    f.RoleDividers = f.RoleDividers or {}
+    for i, rb in ipairs(f.RoleBtns) do
+        rb:SetWidth(segW)
+        rb:ClearAllPoints()
+        rb:SetPoint("TOPLEFT", f.RoleBar, "TOPLEFT", (i - 1) * segW, 0)
+
+        if i > 1 then
+            local div = f.RoleDividers[i]
+            if not div then
+                div = f.RoleBar:CreateTexture(nil, "OVERLAY")
+                div:SetWidth(1)
+                div:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+                f.RoleDividers[i] = div
+            end
+            div:ClearAllPoints()
+            div:SetPoint("TOP",    f.RoleBar, "TOPLEFT", (i - 1) * segW, 0)
+            div:SetPoint("BOTTOM", f.RoleBar, "BOTTOMLEFT", (i - 1) * segW, 0)
+        end
+    end
+
+    return bodyW
 end
 
 --------------------------------------------------
@@ -277,10 +323,30 @@ local function BuildAbilityRows(f, abilities)
         abName:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
         abName:SetText(ab.name or "")
 
+        local descRightPad = -10
+        if ab.tag and ab.tag.label then
+            local tagCol = C[ab.tag.color] or C.textDim
+            local badge = CreateFrame("Frame", nil, row)
+            badge:SetSize(52, 18)
+            badge:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+            WeintCodex.SetSolidBg(badge, tagCol[1], tagCol[2], tagCol[3], 0.15)
+            WeintCodex.DrawBorder(badge, tagCol[1], tagCol[2], tagCol[3], 0.60, 1)
+
+            local tagLbl = badge:CreateFontString(nil, "OVERLAY")
+            tagLbl:SetAllPoints(badge)
+            tagLbl:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+            tagLbl:SetJustifyH("CENTER")
+            tagLbl:SetJustifyV("MIDDLE")
+            tagLbl:SetTextColor(tagCol[1], tagCol[2], tagCol[3])
+            tagLbl:SetText(string.upper(ab.tag.label))
+
+            descRightPad = -68
+        end
+
         local abDesc = row:CreateFontString(nil, "OVERLAY")
         abDesc:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
         abDesc:SetPoint("TOPLEFT", abName, "BOTTOMLEFT", 0, -3)
-        abDesc:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+        abDesc:SetPoint("RIGHT", row, "RIGHT", descRightPad, 0)
         abDesc:SetJustifyH("LEFT")
         abDesc:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         abDesc:SetText(ab.desc or "")
@@ -344,6 +410,8 @@ function ShowRoleTips(roleKey)
     local f = guideFrame
     if not f then return end
 
+    UpdateBodyWidth(f)
+
     local data = WeintCodex_BossData and WeintCodex_BossData[selectedBoss]
     local savedData = WeintCodex.SavedData and WeintCodex.SavedData.bossData
     if savedData and savedData[selectedBoss] and savedData[selectedBoss][roleKey] then
@@ -405,7 +473,7 @@ function ShowRoleTips(roleKey)
 
     WeintCodex.Navigation.SetInspector({
         { type = "header", text = "Kurz & Knapp" },
-        { type = "list", items = kurzItems },
+        { type = "checklist", items = kurzItems },
         { type = "divider" },
         { type = "header", text = "Notizen" },
         { type = "notes", height = 110,

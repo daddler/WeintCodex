@@ -1964,13 +1964,19 @@ end
 
 local uebersichtFrame = nil
 
-local UEBERSICHT_W = 560
-
 function ShowUebersicht()
     activeCharakterView = "uebersicht"
     local cp = GetContentPanel()
     if not cp then return end
     for _, child in pairs({ cp:GetChildren() }) do child:Hide() end
+
+    -- Content nutzt die tatsaechliche Panelbreite statt einer festen Spalte,
+    -- damit Kacheln/Grids den verfuegbaren Platz fuellen statt Leerraum
+    -- rechts stehen zu lassen (siehe Fensterbreite in core/ui.lua). -26 fuer
+    -- die Scrollleiste, die "body" unten rechts abzieht (siehe SetPoint dort) -
+    -- sonst ist der Scroll-Child breiter als sein sichtbarer Viewport und der
+    -- rechte Rand von Kacheln/Headerzeile wird abgeschnitten.
+    local UEBERSICHT_W = math.max(560, cp:GetWidth() - 26)
 
     if uebersichtFrame then uebersichtFrame:Hide(); uebersichtFrame = nil end
     uebersichtFrame = CreateFrame("Frame", nil, cp)
@@ -2085,7 +2091,7 @@ function ShowUebersicht()
         cardDefs[#cardDefs + 1] = { kind = "cap", cap = cs, onClick = ShowWerteverteilung }
     end
 
-    local GRID_TOP, GRID_H, GRID_GAP = -168, 100, 10
+    local GRID_TOP, GRID_H, GRID_GAP = -168, 112, 14
     local colW = (UEBERSICHT_W - 40 - GRID_GAP * (#cardDefs - 1)) / #cardDefs
 
     for i, def in ipairs(cardDefs) do
@@ -2243,7 +2249,7 @@ function ShowUebersicht()
         none:SetText(WeintCodex.ColorText("textFaint", "Keine Werte ermittelt (Charakter einloggen / Items anlegen)."))
         rowY = wsTop - 26
     else
-        local WS_COLS, WS_GAP, WS_ROW_H = 4, 10, 58
+        local WS_COLS, WS_GAP, WS_ROW_H = 4, 14, 64
         local wsColW = (UEBERSICHT_W - 40 - WS_GAP * (WS_COLS - 1)) / WS_COLS
 
         for i, entry in ipairs(statEntries) do

@@ -247,8 +247,8 @@ end
 --
 -- Generisches Baukasten-System, damit jedes Modul seinen eigenen
 -- Kontext-Inhalt deklarativ beschreiben kann, ohne Layout-Code zu
--- duplizieren. Block-Typen: header, rows, list, card, notes, button,
--- divider, spacer.
+-- duplizieren. Block-Typen: header, rows, list, checklist, card, notes,
+-- button, divider, spacer.
 --------------------------------------------------
 
 local inspectorWidgets   = {}
@@ -358,6 +358,44 @@ local function InspectorListCard(parent, y, item)
     return y - card:GetHeight() - 6
 end
 
+-- Wie InspectorListCard, aber mit einer dekorativen Haekchen-Box links (fuer
+-- kuratierte Kurzfassungs-Punkte, kein interaktives Checkbox-Widget noetig).
+local function InspectorChecklistItem(parent, y, item)
+    local card = CreateFrame("Frame", nil, parent)
+    card:SetHeight(38)
+    card:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    WeintCodex.SetSolidBg(card, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+    WeintCodex.DrawSlimBorder(card, "hairline")
+
+    -- Dekorative "erledigt/kuratiert"-Markierung: bewusst eine schlichte
+    -- gefuellte Flaeche statt eines echten Blizzard-Icons (z.B. Readycheck-
+    -- Haekchen), damit hier keine Verwechslung mit einem aktiven Raid-
+    -- Readycheck entsteht - es ist rein dekorativ, kein Widget-Zustand.
+    local box = CreateFrame("Frame", nil, card)
+    box:SetSize(18, 18)
+    box:SetPoint("LEFT", card, "LEFT", 10, 0)
+    WeintCodex.SetSolidBg(box, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+    WeintCodex.DrawSlimBorder(box, "hairline")
+
+    local check = box:CreateTexture(nil, "OVERLAY")
+    check:SetSize(10, 10)
+    check:SetPoint("CENTER", box, "CENTER", 0, 0)
+    check:SetColorTexture(C.green[1], C.green[2], C.green[3], 0.70)
+
+    local lbl = card:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetPoint("LEFT",  box, "RIGHT", 10, 0)
+    lbl:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    lbl:SetJustifyH("LEFT")
+    local lc = C[item.labelColor or "textNormal"] or C.textNormal
+    lbl:SetTextColor(lc[1], lc[2], lc[3])
+    lbl:SetText(item.label or "")
+
+    table.insert(inspectorWidgets, card)
+    return y - card:GetHeight() - 6
+end
+
 local function InspectorCard(parent, y, opts)
     local lineCount = opts.lines and #opts.lines or 0
     local h = 20 + lineCount * 15
@@ -459,7 +497,7 @@ local function InspectorNotes(parent, y, opts)
     return y - h - 6
 end
 
--- blocks: Liste von { type = "header"|"rows"|"list"|"card"|"notes"|"button"|"divider"|"spacer", ... }
+-- blocks: Liste von { type = "header"|"rows"|"list"|"checklist"|"card"|"notes"|"button"|"divider"|"spacer", ... }
 function WeintCodex.Navigation.SetInspector(blocks)
     WeintCodex.Navigation.ClearInspector()
     local parent = WeintCodex.Inspector
@@ -474,6 +512,11 @@ function WeintCodex.Navigation.SetInspector(blocks)
             if block.title then y = InspectorHeader(parent, y, block.title) end
             for _, item in ipairs(block.items or {}) do
                 y = InspectorListCard(parent, y, item)
+            end
+        elseif block.type == "checklist" then
+            if block.title then y = InspectorHeader(parent, y, block.title) end
+            for _, item in ipairs(block.items or {}) do
+                y = InspectorChecklistItem(parent, y, item)
             end
         elseif block.type == "card" then
             y = InspectorCard(parent, y, block)
