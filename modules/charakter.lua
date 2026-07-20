@@ -1870,280 +1870,8 @@ local function DrawCapBar(parent, x, y, w, cs)
 end
 
 --------------------------------------------------
--- SEITE: ÜBERSICHT
---------------------------------------------------
-
-local uebersichtFrame = nil
-
-function ShowUebersicht()
-    activeCharakterView = "uebersicht"
-    local cp = GetContentPanel()
-    if not cp then return end
-    for _, child in pairs({ cp:GetChildren() }) do child:Hide() end
-
-    if uebersichtFrame then uebersichtFrame:Hide(); uebersichtFrame = nil end
-    uebersichtFrame = CreateFrame("Frame", nil, cp)
-    uebersichtFrame:SetAllPoints(cp)
-
-    MakeRefreshButton(ShowUebersicht)
-    WeintCodex.SetBreadcrumb("Charakter", "Übersicht")
-
-    local scan  = ScanCharacter()
-    local score = scan.score
-    local panelW = math.max(cp:GetWidth() or 0, 660)
-
-    -- =============================================
-    -- 3D-PORTRAIT + Name + Spec
-    -- =============================================
-    local portrait = CreateFrame("PlayerModel", nil, uebersichtFrame)
-    portrait:SetSize(148, 220)
-    portrait:SetPoint("TOPLEFT", uebersichtFrame, "TOPLEFT", 16, -16)
-    portrait:SetUnit("player")
-    DrawBorder(portrait, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.60, 2)
-    SetSolidBg(portrait, C.bgDark[1], C.bgDark[2], C.bgDark[3], 0.80)
-
-    local nameLbl = uebersichtFrame:CreateFontString(nil, "OVERLAY")
-    nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    nameLbl:SetPoint("TOP", portrait, "BOTTOM", 0, -4)
-    nameLbl:SetWidth(148)
-    nameLbl:SetJustifyH("CENTER")
-    nameLbl:SetText(UnitName("player") or "—")
-    nameLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-
-    local specLbl = uebersichtFrame:CreateFontString(nil, "OVERLAY")
-    specLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    specLbl:SetPoint("TOP", nameLbl, "BOTTOM", 0, -2)
-    specLbl:SetWidth(148)
-    specLbl:SetJustifyH("CENTER")
-    if scan.profileKey then
-        local styleHint = scan.tankStyle
-            and (" [" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]") or ""
-        specLbl:SetText("|cffC8763A" .. (scan.specDisplay or scan.profileKey) .. styleHint .. "|r")
-    else
-        specLbl:SetText("|cffff9900Kein Profil gefunden|r")
-    end
-
-    -- =============================================
-    -- SCORE-BANNER
-    -- =============================================
-    local gradeCol
-    if score.grade == "S" or score.grade == "A" then gradeCol = C.green
-    elseif score.grade == "B" or score.grade == "C" then gradeCol = C.gold
-    else gradeCol = C.red end
-    if score.checks == 0 then gradeCol = C.textDim end
-
-    local banner = CreateFrame("Frame", nil, uebersichtFrame)
-    banner:SetSize(panelW - 192, 64)
-    banner:SetPoint("TOPLEFT", uebersichtFrame, "TOPLEFT", 176, -16)
-    SetSolidBg(banner, gradeCol[1] * 0.10, gradeCol[2] * 0.10, gradeCol[3] * 0.10, 0.95)
-    DrawBorder(banner, gradeCol[1], gradeCol[2], gradeCol[3], 0.80, 2)
-
-    local gradeLbl = banner:CreateFontString(nil, "OVERLAY")
-    gradeLbl:SetFont("Fonts\\FRIZQT__.TTF", 34, "OUTLINE")
-    gradeLbl:SetPoint("LEFT", banner, "LEFT", 16, 0)
-    gradeLbl:SetText(score.checks > 0 and score.grade or "?")
-    gradeLbl:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
-
-    local bannerTitle = banner:CreateFontString(nil, "OVERLAY")
-    bannerTitle:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-    bannerTitle:SetPoint("TOPLEFT", banner, "TOPLEFT", 58, -10)
-    bannerTitle:SetText("Ausrüstungs-Check: "
-        .. (score.checks > 0 and (score.total .. " / 100 Punkte") or "keine Daten"))
-    bannerTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-
-    local nIssues = 0
-    for _, is in ipairs(scan.issues) do
-        if is.prio <= 3 then nIssues = nIssues + 1 end
-    end
-    local bannerSub = banner:CreateFontString(nil, "OVERLAY")
-    bannerSub:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    bannerSub:SetPoint("TOPLEFT", banner, "TOPLEFT", 58, -32)
-    bannerSub:SetWidth(banner:GetWidth() - 70)
-    bannerSub:SetJustifyH("LEFT")
-    if score.checks == 0 then
-        bannerSub:SetText("|cffff9900Keine Prüfdaten — Charakter einloggen / Spec-Profil prüfen.|r")
-    elseif nIssues == 0 then
-        bannerSub:SetText("|cff22C55EAlles versorgt: Verzauberungen, Sockel und Caps sind sauber!|r")
-    else
-        bannerSub:SetText(string.format(
-            "|cffFFBB22%d Problem%s gefunden — Details unter Handlungsbedarf.|r",
-            nIssues, nIssues == 1 and "" or "e"))
-    end
-
-    -- =============================================
-    -- SCORE-KARTEN (klickbar)
-    -- =============================================
-    local function MakeCard(label, counts, xOff, w, onClick)
-        local filled  = counts.total - counts.missing
-        local pct     = (counts.total > 0) and math.floor((filled / counts.total) * 100) or 0
-        local qual    = (filled > 0) and math.floor(counts.points / filled + 0.5) or 0
-        if qual > 100 then qual = 100 end
-        local mainCol
-        if counts.total == 0 then
-            mainCol = C.textDim
-        elseif counts.missing == 0 then
-            mainCol = (counts.overcap > 0) and PURPLE or C.green
-        else
-            mainCol = (pct >= 75) and C.gold or C.red
-        end
-
-        local card = CreateFrame("Button", nil, uebersichtFrame)
-        card:SetSize(w, 96)
-        card:SetPoint("TOPLEFT", uebersichtFrame, "TOPLEFT", xOff, -88)
-        SetSolidBg(card, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
-        DrawBorder(card, mainCol[1], mainCol[2], mainCol[3], 0.70, 2)
-
-        local lbl = card:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-        lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
-        lbl:SetText(label)
-        lbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-
-        local num = card:CreateFontString(nil, "OVERLAY")
-        num:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-        num:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -28)
-        num:SetText(filled .. " / " .. counts.total)
-        num:SetTextColor(mainCol[1], mainCol[2], mainCol[3])
-
-        local qualLbl = card:CreateFontString(nil, "OVERLAY")
-        qualLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-        qualLbl:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -54)
-        qualLbl:SetText("|cffC8763AQualität: " .. qual .. "%|r")
-
-        local sub = {}
-        if counts.missing > 0 then sub[#sub + 1] = "|cffff5555" .. counts.missing .. " fehlen|r" end
-        if counts.overcap > 0 then sub[#sub + 1] = "|cffcc88ff" .. counts.overcap .. " über Cap|r" end
-        if counts.wrong   > 0 then sub[#sub + 1] = "|cffff8855" .. counts.wrong .. " falsch|r" end
-        if #sub > 0 then
-            local subLbl = card:CreateFontString(nil, "OVERLAY")
-            subLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-            subLbl:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -68)
-            subLbl:SetWidth(w - 20)
-            subLbl:SetJustifyH("LEFT")
-            subLbl:SetText(table.concat(sub, "  "))
-        end
-
-        local hint = card:CreateFontString(nil, "OVERLAY")
-        hint:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
-        hint:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-        hint:SetText("|cff4A423A> Details|r")
-
-        card:SetScript("OnEnter", function(self) SetSolidBg(self, C.surface3[1], C.surface3[2], C.surface3[3], 0.98) end)
-        card:SetScript("OnLeave", function(self) SetSolidBg(self, C.surface2[1], C.surface2[2], C.surface2[3], 0.95) end)
-        if onClick then card:SetScript("OnClick", onClick) end
-        return card
-    end
-
-    MakeCard("Verzauberungen",  scan.enchants.counts, 176, 200, ShowEnchants)
-    MakeCard("Sockel & Steine", scan.gems.counts,     386, 200, ShowGems)
-
-    -- Cap-Karte (rechts): Treffer / Waffenkunde
-    local capW = panelW - 612
-    if capW > 130 then
-        local capCard = CreateFrame("Button", nil, uebersichtFrame)
-        capCard:SetSize(capW, 96)
-        capCard:SetPoint("TOPLEFT", uebersichtFrame, "TOPLEFT", 596, -88)
-        SetSolidBg(capCard, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
-        DrawBorder(capCard, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.55, 2)
-        capCard:SetScript("OnClick", function() ShowWerteverteilung() end)
-        capCard:SetScript("OnEnter", function(self) SetSolidBg(self, C.surface3[1], C.surface3[2], C.surface3[3], 0.98) end)
-        capCard:SetScript("OnLeave", function(self) SetSolidBg(self, C.surface2[1], C.surface2[2], C.surface2[3], 0.95) end)
-
-        local capTitle = capCard:CreateFontString(nil, "OVERLAY")
-        capTitle:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-        capTitle:SetPoint("TOPLEFT", capCard, "TOPLEFT", 12, -10)
-        capTitle:SetText("Sekundärstat-Caps")
-        capTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-
-        if #scan.caps == 0 then
-            local none = capCard:CreateFontString(nil, "OVERLAY")
-            none:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-            none:SetPoint("TOPLEFT", capCard, "TOPLEFT", 12, -32)
-            none:SetWidth(capW - 24)
-            none:SetJustifyH("LEFT")
-            none:SetText("|cff6B6259Keine Caps für diese Spec.|r")
-        else
-            local cy = -28
-            for _, cs in ipairs(scan.caps) do
-                cy = cy - DrawCapBar(capCard, 12, cy, capW - 24, cs)
-            end
-        end
-    end
-
-    -- =============================================
-    -- HANDLUNGSBEDARF
-    -- =============================================
-    local detY = -196
-
-    local detTitle = uebersichtFrame:CreateFontString(nil, "OVERLAY")
-    detTitle:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    detTitle:SetPoint("TOPLEFT", uebersichtFrame, "TOPLEFT", 176, detY)
-    detTitle:SetText("|cff6B6259— HANDLUNGSBEDARF (nach Priorität) —|r")
-
-    local divLine = uebersichtFrame:CreateTexture(nil, "OVERLAY")
-    divLine:SetPoint("TOPLEFT",  uebersichtFrame, "TOPLEFT",  176, detY - 13)
-    divLine:SetPoint("TOPRIGHT", uebersichtFrame, "TOPRIGHT",  -16, detY - 13)
-    divLine:SetHeight(1)
-    divLine:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.35)
-
-    local sf, inner = CreateScrollArea(uebersichtFrame, 176, detY - 18, 20, 200)
-    sf:ClearAllPoints()
-    sf:SetPoint("TOPLEFT",     uebersichtFrame, "TOPLEFT",     176, detY - 18)
-    sf:SetPoint("BOTTOMRIGHT", uebersichtFrame, "BOTTOMRIGHT", -14, 24)
-    inner:SetWidth(sf:GetWidth() - 22)
-
-    local rowY = 0
-    if #scan.issues == 0 and score.checks > 0 then
-        local ok = inner:CreateFontString(nil, "OVERLAY")
-        ok:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-        ok:SetPoint("TOPLEFT", inner, "TOPLEFT", 6, -8)
-        ok:SetText("|cff22C55EAlles top — keine offenen Punkte!|r")
-        rowY = -30
-    else
-        for _, issue in ipairs(scan.issues) do
-            local rf = CreateFrame("Frame", nil, inner)
-            rf:SetSize(inner:GetWidth() - 4, 20)
-            rf:SetPoint("TOPLEFT", inner, "TOPLEFT", 2, rowY)
-
-            AttachStatusIcon(rf, issue.status, 2, 0)
-
-            local txt = rf:CreateFontString(nil, "OVERLAY")
-            txt:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-            txt:SetPoint("LEFT", rf, "LEFT", 24, 0)
-            txt:SetWidth(inner:GetWidth() - 34)
-            txt:SetJustifyH("LEFT")
-            txt:SetWordWrap(false)
-            txt:SetText(StatusColorStr(issue.status) .. issue.text .. "|r")
-
-            rowY = rowY - 21
-        end
-    end
-    inner:SetHeight(math.max(20, -rowY + 10))
-
-    local foot = uebersichtFrame:CreateFontString(nil, "OVERLAY")
-    foot:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    foot:SetPoint("BOTTOMLEFT", uebersichtFrame, "BOTTOMLEFT", 16, 6)
-    foot:SetText("|cff4A423AKarten anklicken für Details. Scan läuft bei Itemwechsel automatisch.|r")
-
-    local combined = {
-        total   = scan.enchants.counts.total   + scan.gems.counts.total,
-        missing = scan.enchants.counts.missing + scan.gems.counts.missing,
-        optimal = scan.enchants.counts.optimal + scan.gems.counts.optimal,
-        ok      = scan.enchants.counts.ok      + scan.gems.counts.ok,
-        overcap = scan.enchants.counts.overcap + scan.gems.counts.overcap,
-        wrong   = scan.enchants.counts.wrong   + scan.gems.counts.wrong,
-        points  = scan.enchants.counts.points  + scan.gems.counts.points,
-    }
-    ShowScoreInspector(combined, {
-        { type = "button", label = "Verzauberungen", onClick = ShowEnchants },
-        { type = "button", label = "Sockel & Steine", onClick = ShowGems },
-    })
-
-    uebersichtFrame:Show()
-end
-
---------------------------------------------------
--- SEITE: WERTEVERTEILUNG (Stats + Caps)
+-- Stat-Summen der Ausrüstung (gemeinsam genutzt von Übersicht &
+-- Werteverteilung)
 --------------------------------------------------
 
 local STAT_LABELS = {
@@ -2195,6 +1923,350 @@ local function CollectEquippedStats()
     end
     return totals
 end
+
+--------------------------------------------------
+-- SEITE: ÜBERSICHT
+--------------------------------------------------
+
+local uebersichtFrame = nil
+
+local UEBERSICHT_W = 560
+
+function ShowUebersicht()
+    activeCharakterView = "uebersicht"
+    local cp = GetContentPanel()
+    if not cp then return end
+    for _, child in pairs({ cp:GetChildren() }) do child:Hide() end
+
+    if uebersichtFrame then uebersichtFrame:Hide(); uebersichtFrame = nil end
+    uebersichtFrame = CreateFrame("Frame", nil, cp)
+    uebersichtFrame:SetAllPoints(cp)
+
+    MakeRefreshButton(ShowUebersicht)
+    WeintCodex.SetBreadcrumb("Charakter", "Übersicht")
+
+    local scan  = ScanCharacter()
+    local score = scan.score
+
+    local body = CreateFrame("ScrollFrame", nil, uebersichtFrame, "UIPanelScrollFrameTemplate")
+    body:SetPoint("TOPLEFT",     uebersichtFrame, "TOPLEFT",     0, 0)
+    body:SetPoint("BOTTOMRIGHT", uebersichtFrame, "BOTTOMRIGHT", -4, 4)
+
+    local bc = CreateFrame("Frame", nil, body)
+    bc:SetWidth(UEBERSICHT_W)
+    bc:SetHeight(1)
+    body:SetScrollChild(bc)
+
+    -- =============================================
+    -- HEADER: Portrait + Eyebrow/H1/Subtitle + Score
+    -- =============================================
+    local portrait = CreateFrame("PlayerModel", nil, bc)
+    portrait:SetSize(86, 86)
+    portrait:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, -18)
+    portrait:SetUnit("player")
+    SetSolidBg(portrait, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+    DrawBorder(portrait, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+
+    local eyebrow = bc:CreateFontString(nil, "OVERLAY")
+    eyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    eyebrow:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 16, -4)
+    if scan.profileKey then
+        local styleHint = scan.tankStyle
+            and (" · " .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv")) or ""
+        eyebrow:SetText(WeintCodex.ColorText("textFaint", string.upper((scan.specDisplay or scan.profileKey) .. styleHint)))
+    else
+        eyebrow:SetText(WeintCodex.ColorText("warning", "KEIN SPEC-PROFIL GEFUNDEN"))
+    end
+
+    local h1 = bc:CreateFontString(nil, "OVERLAY")
+    h1:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    h1:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+    h1:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    h1:SetText("Ausrüstungs-Check")
+
+    local nIssues = 0
+    for _, is in ipairs(scan.issues) do
+        if is.prio <= 3 then nIssues = nIssues + 1 end
+    end
+
+    local sub = bc:CreateFontString(nil, "OVERLAY")
+    sub:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+    sub:SetPoint("TOPLEFT", h1, "BOTTOMLEFT", 0, -6)
+    sub:SetPoint("RIGHT", bc, "RIGHT", -20, 0)
+    sub:SetJustifyH("LEFT")
+    if score.checks == 0 then
+        sub:SetText(WeintCodex.ColorText("warning", "Keine Prüfdaten — Charakter einloggen / Spec-Profil prüfen."))
+    elseif nIssues == 0 then
+        sub:SetText(WeintCodex.ColorText("success", "Alles versorgt · Verzauberungen, Sockel und Caps sind sauber."))
+    else
+        sub:SetText(WeintCodex.ColorText("warning",
+            nIssues .. " Problem" .. (nIssues == 1 and "" or "e") .. " gefunden · Details unter Handlungsbedarf."))
+    end
+
+    local gradeCol
+    if score.grade == "S" or score.grade == "A" then gradeCol = C.green
+    elseif score.grade == "B" or score.grade == "C" then gradeCol = C.gold
+    else gradeCol = C.red end
+    if score.checks == 0 then gradeCol = C.textDim end
+
+    local scoreNum = bc:CreateFontString(nil, "OVERLAY")
+    scoreNum:SetFont("Fonts\\FRIZQT__.TTF", 26, "OUTLINE")
+    scoreNum:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -56, -22)
+    scoreNum:SetJustifyH("RIGHT")
+    scoreNum:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
+    scoreNum:SetText(score.checks > 0 and (score.total .. " / 100") or "—")
+
+    local gradeBadge = CreateFrame("Frame", nil, bc)
+    gradeBadge:SetSize(28, 24)
+    gradeBadge:SetPoint("LEFT", scoreNum, "RIGHT", 10, 1)
+    SetSolidBg(gradeBadge, gradeCol[1] * 0.12, gradeCol[2] * 0.12, gradeCol[3] * 0.12, 1.0)
+    DrawBorder(gradeBadge, gradeCol[1], gradeCol[2], gradeCol[3], 0.80, 1)
+    local gradeLbl = gradeBadge:CreateFontString(nil, "OVERLAY")
+    gradeLbl:SetAllPoints(gradeBadge)
+    gradeLbl:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    gradeLbl:SetJustifyH("CENTER")
+    gradeLbl:SetJustifyV("MIDDLE")
+    gradeLbl:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
+    gradeLbl:SetText(score.checks > 0 and score.grade or "?")
+
+    local headerDiv = bc:CreateTexture(nil, "OVERLAY")
+    headerDiv:SetHeight(1)
+    headerDiv:SetPoint("TOPLEFT",  bc, "TOPLEFT",  20, -118)
+    headerDiv:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, -118)
+    headerDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+
+    -- =============================================
+    -- AUSRÜSTUNGS-STATUS (Karten-Raster mit Fortschrittsbalken)
+    -- =============================================
+    local gridLabel = bc:CreateFontString(nil, "OVERLAY")
+    gridLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    gridLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, -134)
+    gridLabel:SetText(WeintCodex.ColorText("textFaint", "AUSRÜSTUNGS-STATUS"))
+
+    local cardDefs = {
+        { kind = "counts", label = "Verzauberungen",  counts = scan.enchants.counts, onClick = ShowEnchants },
+        { kind = "counts", label = "Sockel & Steine",  counts = scan.gems.counts,     onClick = ShowGems },
+    }
+    for _, cs in ipairs(scan.caps) do
+        cardDefs[#cardDefs + 1] = { kind = "cap", cap = cs, onClick = ShowWerteverteilung }
+    end
+
+    local GRID_TOP, GRID_H, GRID_GAP = -154, 92, 10
+    local colW = (UEBERSICHT_W - 40 - GRID_GAP * (#cardDefs - 1)) / #cardDefs
+
+    for i, def in ipairs(cardDefs) do
+        local card = CreateFrame("Button", nil, bc)
+        card:SetSize(colW, GRID_H)
+        card:SetPoint("TOPLEFT", bc, "TOPLEFT", 20 + (i - 1) * (colW + GRID_GAP), GRID_TOP)
+        SetSolidBg(card, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+        DrawBorder(card, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+
+        local lbl = card:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
+        lbl:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+        lbl:SetJustifyH("LEFT")
+
+        local mainCol, mainText, subText, pct
+        if def.kind == "counts" then
+            local counts = def.counts
+            local filled = counts.total - counts.missing
+            pct = (counts.total > 0) and (filled / counts.total) or 0
+            local qual = (filled > 0) and math.floor(counts.points / filled + 0.5) or 0
+            if qual > 100 then qual = 100 end
+            if counts.total == 0 then mainCol = C.textDim
+            elseif counts.missing == 0 then mainCol = (counts.overcap > 0) and PURPLE or C.green
+            else mainCol = (pct >= 0.75) and C.gold or C.red end
+            lbl:SetText(WeintCodex.ColorText("textFaint", string.upper(def.label)))
+            mainText = filled .. " / " .. counts.total
+            subText  = "Qualität " .. qual .. "%"
+        else
+            local cs = def.cap
+            if cs.overPct > 0.25 then mainCol = PURPLE
+            elseif cs.overPct < -0.3 then mainCol = C.red
+            else mainCol = C.green end
+            pct = (cs.capPct > 0) and math.max(0, math.min(1, cs.current / cs.capPct)) or 0
+            lbl:SetText(WeintCodex.ColorText("textFaint", string.upper(cs.label)))
+            mainText = string.format("%.1f%%", cs.current)
+            if cs.overPct > 0.25 then subText = string.format("Cap %.1f%% · über", cs.capPct)
+            elseif cs.overPct < -0.3 then subText = string.format("Cap %.1f%% · fehlt", cs.capPct)
+            else subText = string.format("Cap %.1f%% · optimal", cs.capPct) end
+        end
+
+        local num = card:CreateFontString(nil, "OVERLAY")
+        num:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        num:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -8)
+        num:SetTextColor(mainCol[1], mainCol[2], mainCol[3])
+        num:SetText(mainText)
+
+        local subLbl = card:CreateFontString(nil, "OVERLAY")
+        subLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        subLbl:SetPoint("TOPLEFT", num, "BOTTOMLEFT", 0, -4)
+        subLbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+        subLbl:SetText(subText)
+
+        local track = card:CreateTexture(nil, "OVERLAY")
+        track:SetHeight(3)
+        track:SetPoint("BOTTOMLEFT",  card, "BOTTOMLEFT",  10, 10)
+        track:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -10, 10)
+        track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+
+        if pct > 0.01 then
+            local fill = card:CreateTexture(nil, "OVERLAY")
+            fill:SetHeight(3)
+            fill:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 10, 10)
+            fill:SetWidth(math.max(1, (colW - 20) * math.min(pct, 1)))
+            fill:SetColorTexture(mainCol[1], mainCol[2], mainCol[3], 1.0)
+        end
+
+        card:SetScript("OnEnter", function(self) SetSolidBg(self, C.surface3[1], C.surface3[2], C.surface3[3], 1.0) end)
+        card:SetScript("OnLeave", function(self) SetSolidBg(self, C.surface2[1], C.surface2[2], C.surface2[3], 1.0) end)
+        if def.onClick then card:SetScript("OnClick", def.onClick) end
+    end
+
+    -- =============================================
+    -- HANDLUNGSBEDARF · NACH PRIORITÄT
+    -- =============================================
+    local hbY = GRID_TOP - GRID_H - 26
+
+    local hbLabel = bc:CreateFontString(nil, "OVERLAY")
+    hbLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    hbLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, hbY)
+    hbLabel:SetText(WeintCodex.ColorText("textFaint", "HANDLUNGSBEDARF · NACH PRIORITÄT"))
+
+    local rowY = hbY - 20
+    if score.checks == 0 then
+        local none = bc:CreateFontString(nil, "OVERLAY")
+        none:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        none:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY)
+        none:SetText(WeintCodex.ColorText("textFaint", "Keine Prüfdaten vorhanden."))
+        rowY = rowY - 26
+    elseif #scan.issues == 0 then
+        local ok = bc:CreateFontString(nil, "OVERLAY")
+        ok:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        ok:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY)
+        ok:SetText(WeintCodex.ColorText("success", "Alles top — keine offenen Punkte!"))
+        rowY = rowY - 26
+    else
+        for i, issue in ipairs(scan.issues) do
+            local row = CreateFrame("Frame", nil, bc)
+            row:SetHeight(34)
+            row:SetPoint("TOPLEFT",  bc, "TOPLEFT",  20, rowY)
+            row:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, rowY)
+            SetSolidBg(row, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+            DrawBorder(row, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+
+            local info = STATUS[issue.status] or STATUS.neutral
+            local badge = CreateFrame("Frame", nil, row)
+            badge:SetSize(22, 22)
+            badge:SetPoint("LEFT", row, "LEFT", 6, 0)
+            SetSolidBg(badge, info.color[1] * 0.20, info.color[2] * 0.20, info.color[3] * 0.20, 1.0)
+
+            local badgeLbl = badge:CreateFontString(nil, "OVERLAY")
+            badgeLbl:SetAllPoints(badge)
+            badgeLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            badgeLbl:SetJustifyH("CENTER")
+            badgeLbl:SetJustifyV("MIDDLE")
+            badgeLbl:SetTextColor(info.color[1], info.color[2], info.color[3])
+            badgeLbl:SetText(tostring(i))
+
+            local txt = row:CreateFontString(nil, "OVERLAY")
+            txt:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            txt:SetPoint("LEFT",  badge, "RIGHT", 12, 0)
+            txt:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+            txt:SetJustifyH("LEFT")
+            txt:SetWordWrap(false)
+            txt:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+            txt:SetText(issue.text or "")
+
+            rowY = rowY - 38
+        end
+    end
+
+    -- =============================================
+    -- WERTE-SUMMEN DER AUSRÜSTUNG
+    -- =============================================
+    local wsY = rowY - 18
+    local wsLabel = bc:CreateFontString(nil, "OVERLAY")
+    wsLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    wsLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, wsY)
+    wsLabel:SetText(WeintCodex.ColorText("textFaint", "WERTE-SUMMEN DER AUSRÜSTUNG"))
+
+    local wsTop = wsY - 20
+    local totals = CollectEquippedStats()
+    local statEntries = {}
+    for _, key in ipairs(STAT_ORDER) do
+        local value = totals[key]
+        if value and value > 0 then
+            statEntries[#statEntries + 1] = { label = STAT_LABELS[key], value = value }
+        end
+    end
+
+    if #statEntries == 0 then
+        local none = bc:CreateFontString(nil, "OVERLAY")
+        none:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        none:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, wsTop)
+        none:SetText(WeintCodex.ColorText("textFaint", "Keine Werte ermittelt (Charakter einloggen / Items anlegen)."))
+        rowY = wsTop - 26
+    else
+        local WS_COLS, WS_GAP, WS_ROW_H = 4, 10, 50
+        local wsColW = (UEBERSICHT_W - 40 - WS_GAP * (WS_COLS - 1)) / WS_COLS
+
+        for i, entry in ipairs(statEntries) do
+            local col = (i - 1) % WS_COLS
+            local row = math.floor((i - 1) / WS_COLS)
+            local box = CreateFrame("Frame", nil, bc)
+            box:SetSize(wsColW, WS_ROW_H)
+            box:SetPoint("TOPLEFT", bc, "TOPLEFT", 20 + col * (wsColW + WS_GAP), wsTop - row * (WS_ROW_H + WS_GAP))
+            SetSolidBg(box, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+            DrawBorder(box, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+
+            local lbl2 = box:CreateFontString(nil, "OVERLAY")
+            lbl2:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            lbl2:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -8)
+            lbl2:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+            lbl2:SetText(entry.label)
+
+            local val = box:CreateFontString(nil, "OVERLAY")
+            val:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+            val:SetPoint("TOPLEFT", lbl2, "BOTTOMLEFT", 0, -4)
+            val:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+            val:SetText("+" .. entry.value)
+        end
+
+        local wsRows = math.ceil(#statEntries / WS_COLS)
+        rowY = wsTop - wsRows * (WS_ROW_H + WS_GAP)
+    end
+
+    local foot = bc:CreateFontString(nil, "OVERLAY")
+    foot:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    foot:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY - 8)
+    foot:SetText(WeintCodex.ColorText("textGhost", "Karten anklicken für Details. Scan läuft bei Itemwechsel automatisch."))
+
+    bc:SetHeight(math.abs(rowY) + 40)
+
+    local combined = {
+        total   = scan.enchants.counts.total   + scan.gems.counts.total,
+        missing = scan.enchants.counts.missing + scan.gems.counts.missing,
+        optimal = scan.enchants.counts.optimal + scan.gems.counts.optimal,
+        ok      = scan.enchants.counts.ok      + scan.gems.counts.ok,
+        overcap = scan.enchants.counts.overcap + scan.gems.counts.overcap,
+        wrong   = scan.enchants.counts.wrong   + scan.gems.counts.wrong,
+        points  = scan.enchants.counts.points  + scan.gems.counts.points,
+    }
+    ShowScoreInspector(combined, {
+        { type = "button", label = "Verzauberungen", onClick = ShowEnchants },
+        { type = "button", label = "Sockel & Steine", onClick = ShowGems },
+    })
+
+    uebersichtFrame:Show()
+end
+
+--------------------------------------------------
+-- SEITE: WERTEVERTEILUNG (Stats + Caps)
+-- (STAT_LABELS/STAT_ORDER/CollectEquippedStats stehen weiter oben vor
+-- SEITE: ÜBERSICHT, da beide Seiten sie nutzen)
+--------------------------------------------------
 
 local werteFrame = nil
 
