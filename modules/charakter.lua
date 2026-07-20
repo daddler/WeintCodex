@@ -133,6 +133,15 @@ scanTip:SetOwner(UIParent, "ANCHOR_NONE")
 WeintCodex._enchantDbNameCache = WeintCodex._enchantDbNameCache or {}
 WeintCodex._enchantTooltipCache = WeintCodex._enchantTooltipCache or {}
 
+-- Manche Items sind beim Scan noch nicht vollständig aus dem Server-Cache
+-- geladen (GetItemInfo liefert nil) — der Tooltip zeigt dann nur "Wird
+-- abgerufen..." OHNE Verzauberungszeile, der Live-Scan schlägt fehl und wir
+-- fallen auf den (evtl. falschen/ungeprüften) DB-Namen zurück. Betroffene
+-- Item-IDs werden hier gesammelt; sobald der Client sie nachliefert
+-- (GET_ITEM_INFO_RECEIVED, siehe itemInfoWatcher weiter unten), wird die
+-- aktive Seite automatisch neu gescannt.
+local pendingItemInfoIds = {}
+
 local function GetEnchantDisplayName(enchantId)
     if not enchantId then return nil end
     if WeintCodex._enchantDbNameCache[enchantId] then
@@ -197,7 +206,7 @@ do
                                     :gsub("%%%%s", "(.+)")
 end
 
-local function GetEquippedEnchantText(slotId, enchantId)
+local function GetEquippedEnchantText(slotId, enchantId, link)
     if not enchantId then return nil end
     if WeintCodex._enchantTooltipCache[enchantId] then
         return WeintCodex._enchantTooltipCache[enchantId]
@@ -215,6 +224,16 @@ local function GetEquippedEnchantText(slotId, enchantId)
                 return name
             end
         end
+    end
+
+    -- Scan lieferte keine Verzauberungszeile. Wenn die BASIS-Itemdaten
+    -- selbst noch nicht im Client-Cache liegen (GetItemInfo == nil), ist
+    -- der Tooltip nur unvollständig ("Wird abgerufen...") — das ist die
+    -- Ursache, nicht ein falscher/fehlender DB-Eintrag. Für diese Item-ID
+    -- auf Nachlieferung warten (GET_ITEM_INFO_RECEIVED, s.u.).
+    local itemId = link and tonumber(link:match("item:(%d+):"))
+    if itemId and not GetItemInfo(itemId) then
+        pendingItemInfoIds[itemId] = true
     end
     return nil
 end
@@ -980,7 +999,7 @@ local function ScanCharacter()
                 if not skip then
                     -- Offizieller deutscher Name vom Tooltip (landet im
                     -- Cache und dient dem Namensabgleich bei der Bewertung)
-                    local tooltipName = GetEquippedEnchantText(slotDef.id, enchId)
+                    local tooltipName = GetEquippedEnchantText(slotDef.id, enchId, link)
                     local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile, tooltipName)
                     scan.enchants.rows[#scan.enchants.rows + 1] = {
                         slotId    = slotDef.id,
@@ -1222,7 +1241,7 @@ function WeintCodex.Charakter.DumpEnchants()
             local enchId, gems = ParseItemLink(link)
             if enchId then
                 any = true
-                local tt = GetEquippedEnchantText(slotDef.id, enchId)
+                local tt = GetEquippedEnchantText(slotDef.id, enchId, link)
                 local db = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
                 local marker = ""
                 if not tt and db then
@@ -1296,6 +1315,21 @@ equipWatcher:SetScript("OnEvent", function(self)
         end)
     else
         RefreshActiveCharakterView()
+    end
+end)
+
+-- Nachlieferung fehlender Item-Basisdaten (siehe pendingItemInfoIds oben):
+-- GET_ITEM_INFO_RECEIVED feuert, sobald der Client Daten zu einer zuvor
+-- ungecachten Item-ID nachgeladen hat. Betrifft uns das (Item stand in
+-- pendingItemInfoIds), scannen wir die aktive Seite neu — der Live-Tooltip-
+-- Scan hat dann alle Daten und liefert den echten Verzauberungsnamen statt
+-- des ungeprüften DB-Fallbacks.
+local itemInfoWatcher = CreateFrame("Frame")
+itemInfoWatcher:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+itemInfoWatcher:SetScript("OnEvent", function(self, event, itemId, success)
+    if itemId and pendingItemInfoIds[itemId] then
+        pendingItemInfoIds[itemId] = nil
+        if success and activeCharakterView then RefreshActiveCharakterView() end
     end
 end)
 

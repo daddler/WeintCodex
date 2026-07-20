@@ -94,12 +94,12 @@ WeintCodex_Enchants = {
     -- passt zur "Enchant Cloak - Superior Intellect" (spell 104403, Formel-Item 84569) aus
     -- derselben 5.2-Formel-Reihe (Präzision/Krit/Intellekt). ID per /wc vz in-game bestätigen.
     [4423] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 }, verify = true },
-    -- ACHTUNG: 4424 hat denselben Stat-Wert (crit 180) wie 4422 unter
-    -- anderem Namen - laut WoWHead ist "Greater Critical Strike"
-    -- (spell 74247) ein älteres/niedrigeres Cata-Enchant, kein MoP-
-    -- Gegenstück. Vermutlich veraltet/Duplikat - per /wc vz prüfen
-    -- und ggf. entfernen.
-    [4424] = { name = "Überlegene kritische Trefferwertung",  slot = "Umhang", stats = { crit = 180 }, verify = true },
+    -- Übersetzungsfehler behoben (User-Bericht per In-Game-Tooltip): 4424
+    -- ist keine ältere/andere Verzauberung, sondern derselbe Enchant wie
+    -- 4422 ("Überragende kritische Trefferwertung") — die frühere Vermutung
+    -- eines veralteten Cata-Duplikats war falsch. Name korrigiert, damit der
+    -- Namensabgleich in charakter.lua ihn als optimal erkennt.
+    [4424] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },
     [4892] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 } },
     -- HINWEIS: Schlüssel = Wowhead-Item-ID (74711), nicht die Link-Enchant-ID.
     -- Für die Bewertung reicht der Name-Abgleich (Tooltip "Verzaubert: Großer
