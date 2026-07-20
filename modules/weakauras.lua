@@ -4,6 +4,8 @@
 
 WeintCodex.WeakAuras = {}
 
+local C = WeintCodex.Colors
+
 --------------------------------------------------
 -- Hilfsfunktion
 --------------------------------------------------
@@ -46,19 +48,26 @@ if not cp then return end
             local title = container:CreateFontString(nil, "OVERLAY")
             title:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
             title:SetPoint("TOPLEFT", 15, -10)
+            title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
             local descriptionText = ""
+            local categoryLabel   = "Auren"
 
             if category == "class" then
-                title:SetText("Klassenauren")
+                categoryLabel = "Klassenauren"
+                title:SetText(categoryLabel)
                 descriptionText = "Hier findest du die vollständigen Klassenauren für alle Spezialisierungen. Mit einem Klick auf |cffC8763AInstallieren|r wird die Aura automatisch an WeakAuras übergeben."
                 elseif category == "raid" then
-                    title:SetText("Raidauren")
+                    categoryLabel = "Raidauren"
+                    title:SetText(categoryLabel)
                     descriptionText = "Hier findest du Raid-Auren und Boss-Pakete. Installiere die gewünschten Pakete direkt mit einem Klick."
                     elseif category == "utility" then
-                        title:SetText("Utility-Auren")
+                        categoryLabel = "Utility-Auren"
+                        title:SetText(categoryLabel)
                         descriptionText = "Hier findest du allgemeine Utility-Auren, die unabhängig von Klasse oder Raid genutzt werden können."
                         end
+
+                        WeintCodex.SetBreadcrumb("WeakAuras", categoryLabel)
 
                         local description = container:CreateFontString(nil, "OVERLAY")
                         description:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
@@ -75,7 +84,7 @@ if not cp then return end
                         line:SetHeight(1)
                         line:SetPoint("TOPLEFT", description, "BOTTOMLEFT", 0, -12)
                         line:SetPoint("TOPRIGHT", container, "TOPRIGHT", -20, -12)
-                        line:SetColorTexture(0.45, 0.20, 0.70, 0.35)
+                        line:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
                         --------------------------------------------------
                         -- Tabellenüberschrift
@@ -167,7 +176,7 @@ if not cp then return end
 
                     local bg = row:CreateTexture(nil, "BACKGROUND")
                     bg:SetAllPoints()
-                    bg:SetColorTexture(0.08, 0.08, 0.08, 0.20)
+                    bg:SetColorTexture(C.bgCard[1], C.bgCard[2], C.bgCard[3], 0.35)
 
                     --------------------------------------------------
                     -- Icon
@@ -225,9 +234,7 @@ if not cp then return end
                         local btnBg = btn:CreateTexture(nil, "BACKGROUND")
                         btnBg:SetAllPoints()
                         btnBg:SetColorTexture(
-                            0.55,
-                            0.25,
-                            0.85,
+                            C.purple[1], C.purple[2], C.purple[3],
                             0.08
                         )
 
@@ -236,9 +243,7 @@ if not cp then return end
                         accent:SetPoint("LEFT")
                         accent:SetSize(3, 24)
                         accent:SetColorTexture(
-                            0.55,
-                            0.25,
-                            0.85,
+                            C.purple[1], C.purple[2], C.purple[3],
                             0.5
                         )
 
@@ -247,13 +252,13 @@ if not cp then return end
                         borderTop:SetPoint("TOPLEFT")
                         borderTop:SetPoint("TOPRIGHT")
                         borderTop:SetHeight(1)
-                        borderTop:SetColorTexture(0.55, 0.25, 0.85, 0.25)
+                        borderTop:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.25)
 
                         local borderBottom = btn:CreateTexture(nil, "BORDER")
                         borderBottom:SetPoint("BOTTOMLEFT")
                         borderBottom:SetPoint("BOTTOMRIGHT")
                         borderBottom:SetHeight(1)
-                        borderBottom:SetColorTexture(0.55, 0.25, 0.85, 0.25)
+                        borderBottom:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.25)
 
                         -- Text
                         local txt = btn:CreateFontString(nil, "OVERLAY")
@@ -268,16 +273,12 @@ if not cp then return end
                         btn:SetScript("OnEnter", function()
 
                         btnBg:SetColorTexture(
-                            0.55,
-                            0.25,
-                            0.85,
+                            C.purple[1], C.purple[2], C.purple[3],
                             0.20
                         )
 
                         accent:SetColorTexture(
-                            0.55,
-                            0.25,
-                            0.85,
+                            C.purple[1], C.purple[2], C.purple[3],
                             1
                         )
 
@@ -292,24 +293,16 @@ if not cp then return end
                         btn:SetScript("OnLeave", function()
 
                         btnBg:SetColorTexture(
-                            0.55,
-                            0.25,
-                            0.85,
+                            C.purple[1], C.purple[2], C.purple[3],
                             0.08
                         )
 
                         accent:SetColorTexture(
-                            0.55,
-                            0.25,
-                            0.85,
+                            C.purple[1], C.purple[2], C.purple[3],
                             0.5
                         )
 
-                        txt:SetTextColor(
-                            0.85,
-                            0.82,
-                            0.78
-                        )
+                        txt:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 
                         end)
 
@@ -347,6 +340,21 @@ if not cp then return end
                         container:SetHeight(height)
 
                         container:Show()
+
+                        local waInstalled = (WeakAuras ~= nil)
+                        WeintCodex.Navigation.SetInspector({
+                            { type = "header", text = categoryLabel },
+                            { type = "rows", rows = {
+                                { label = "Einträge",  value = tostring(#entries) },
+                                { label = "WeakAuras", value = waInstalled and "erkannt" or "nicht gefunden",
+                                  valueColor = waInstalled and "success" or "danger" },
+                            }},
+                            { type = "divider" },
+                            { type = "card", lines = {
+                                "Ein Klick auf 'Installieren' übergibt die Aura direkt",
+                                "an WeakAuras und schließt WeintCodex danach.",
+                            }},
+                        })
 
                         end
 

@@ -49,6 +49,7 @@ local C = {
     warning     = {0.784, 0.627, 0.227, 1.0},
     danger      = {0.784, 0.353, 0.227, 1.0},
     info        = {0.420, 0.627, 0.851, 1.0},
+    violet      = {0.72,  0.45,  0.98,  1.0},   -- eigenstaendiger 5. Status (z.B. "Ueber Cap")
 
     -- Schlanke, blasse Rahmen-/Trenner-Toene fuer die reduzierte Ornamentik.
     hairline     = {0.141, 0.122, 0.106, 1.0},
@@ -563,7 +564,7 @@ function WeintCodex.ShowExportDialog(titleText, exportStr)
         local ebBg = CreateFrame("Frame", nil, f)
         ebBg:SetSize(560, 110)
         ebBg:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -8)
-        SetSolidBg(ebBg, 0.04, 0.02, 0.10, 0.95)
+        SetSolidBg(ebBg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.95)
         DrawBorder(ebBg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.60, 1)
 
         local eb = CreateFrame("EditBox", nil, ebBg)
