@@ -59,6 +59,21 @@ local C = {
 WeintCodex.Colors = C
 
 --------------------------------------------------
+-- Font-Helper
+-- Eigene Schriftdateien (SIL OFL 1.1, siehe media/fonts/OFL-LICENSE.txt) fuer
+-- die Fraunces/JetBrains-Mono-Optik aus dem Redesign-Mockup. FRIZQT__.TTF
+-- bleibt fuer normalen Fliesstext/Buttons/Listen die Basis - diese Fonts
+-- werden gezielt fuer Ueberschriften, grosse Zahlen und Mono-/Eyebrow-Labels
+-- eingesetzt, nicht addonweit ausgetauscht.
+--------------------------------------------------
+WeintCodex.Fonts = {
+    serif       = "Interface\\AddOns\\WeintCodex\\media\\fonts\\Fraunces-Medium.ttf",
+    serifBold   = "Interface\\AddOns\\WeintCodex\\media\\fonts\\Fraunces-SemiBold.ttf",
+    mono        = "Interface\\AddOns\\WeintCodex\\media\\fonts\\JetBrainsMono-Regular.ttf",
+    monoMedium  = "Interface\\AddOns\\WeintCodex\\media\\fonts\\JetBrainsMono-Medium.ttf",
+}
+
+--------------------------------------------------
 -- Icon-Helper
 --------------------------------------------------
 -- Das UI-Font (FRIZQT__.TTF) unterstuetzt keine Unicode-Emoji - vorher
@@ -321,7 +336,7 @@ brandLabel:SetText("W")
 
 -- Versionsmarke am unteren Rand der Leiste
 local railVersion = iconRail:CreateFontString(nil, "OVERLAY")
-railVersion:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+railVersion:SetFont(WeintCodex.Fonts.mono, 9, "")
 railVersion:SetPoint("BOTTOM", iconRail, "BOTTOM", 0, 10)
 railVersion:SetText(WeintCodex.ColorText("textGhost", "v" .. (WeintCodex.Version or "1.0")))
 
@@ -366,7 +381,7 @@ sidebarDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
 local sidebarHeader = sidebar:CreateFontString(nil, "OVERLAY")
 sidebarHeader:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, -20)
-sidebarHeader:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+sidebarHeader:SetFont(WeintCodex.Fonts.mono, 10, "")
 sidebarHeader:SetText(WeintCodex.ColorText("textFaint", "NAVIGATION"))
 WeintCodex.SidebarHeader = sidebarHeader
 
@@ -390,7 +405,7 @@ titleDiv:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", 0, 0)
 titleDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
 local wordmark = titleBar:CreateFontString(nil, "OVERLAY")
-wordmark:SetFont("Fonts\\MORPHEUS.TTF", 16, "")
+wordmark:SetFont(WeintCodex.Fonts.serif, 18, "")
 wordmark:SetPoint("LEFT", titleBar, "LEFT", 20, 0)
 wordmark:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 wordmark:SetText("WeintCodex")
@@ -400,10 +415,82 @@ wordDiv:SetSize(1, 16)
 wordDiv:SetPoint("LEFT", wordmark, "RIGHT", 14, 0)
 wordDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
+-- Globale Suche: fixe Breite, rechts mit Abstand zum Aktionsbereich verankert
+-- (siehe titleActions weiter unten - dessen Inhalt ist je Modul unterschiedlich
+-- breit, 280px Reserve deckt die breitesten Faelle, z.B. raids.lua, ab).
+-- Logik/Datenindex/Strg+K-Abfangen sitzen in core/search.lua.
+local searchBox = CreateFrame("EditBox", nil, titleBar)
+searchBox:SetHeight(28)
+searchBox:SetWidth(240)
+searchBox:SetPoint("RIGHT", titleBar, "RIGHT", -280, 0)
+searchBox:SetAutoFocus(false)
+searchBox:SetFontObject("ChatFontNormal")
+searchBox:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+searchBox:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+searchBox:SetTextInsets(22, 46, 0, 0)
+searchBox:SetMaxLetters(80)
+
+SetSolidBg(searchBox, C.headerBg[1], C.headerBg[2], C.headerBg[3], 1.0)
+DrawBorder(searchBox, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+
+local searchIcon = searchBox:CreateFontString(nil, "OVERLAY")
+searchIcon:SetPoint("LEFT", searchBox, "LEFT", 8, 0)
+searchIcon:SetText(WeintCodex.Icon("Interface\\Common\\UI-Searchbox-Icon", 13))
+
+local searchPlaceholder = searchBox:CreateFontString(nil, "OVERLAY")
+searchPlaceholder:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+searchPlaceholder:SetPoint("LEFT", searchBox, "LEFT", 22, 0)
+searchPlaceholder:SetPoint("RIGHT", searchBox, "RIGHT", -46, 0)
+searchPlaceholder:SetJustifyH("LEFT")
+searchPlaceholder:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+searchPlaceholder:SetText("Suche Boss, Verzauberung, Material…")
+
+local searchChip = CreateFrame("Frame", nil, searchBox)
+searchChip:SetSize(38, 16)
+searchChip:SetPoint("RIGHT", searchBox, "RIGHT", -8, 0)
+SetSolidBg(searchChip, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+DrawBorder(searchChip, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+local searchChipLbl = searchChip:CreateFontString(nil, "OVERLAY")
+searchChipLbl:SetAllPoints(searchChip)
+searchChipLbl:SetFont(WeintCodex.Fonts.mono, 9, "")
+searchChipLbl:SetJustifyH("CENTER")
+searchChipLbl:SetJustifyV("MIDDLE")
+searchChipLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+searchChipLbl:SetText("Strg K")
+
+searchBox:SetScript("OnEscapePressed", searchBox.ClearFocus)
+searchBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+searchBox:SetScript("OnTextChanged", function(self)
+    searchPlaceholder:SetShown(self:GetText() == "")
+    if WeintCodex.Search then WeintCodex.Search.OnTextChanged(self:GetText()) end
+end)
+searchBox:SetScript("OnEditFocusGained", function(self)
+    searchChip:Hide()
+    if WeintCodex.Search then WeintCodex.Search.OnFocusGained(self:GetText()) end
+end)
+searchBox:SetScript("OnEditFocusLost", function(self)
+    searchChip:Show()
+    if WeintCodex.Search then WeintCodex.Search.OnFocusLost() end
+end)
+
+WeintCodex.SearchBox = searchBox
+
+-- Ergebnis-Dropdown: eigener Frame ueber dem Content-Panel verankert (nicht
+-- Kind von titleBar, damit es nicht am Titelleisten-Rand abgeschnitten wird).
+-- Aufbau/Befuellung in core/search.lua.
+local searchResults = CreateFrame("Frame", nil, frame)
+searchResults:SetPoint("TOPLEFT",  searchBox, "BOTTOMLEFT",  0, -4)
+searchResults:SetPoint("TOPRIGHT", searchBox, "BOTTOMRIGHT", 0, -4)
+searchResults:SetFrameStrata("DIALOG")
+SetSolidBg(searchResults, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+DrawBorder(searchResults, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+searchResults:Hide()
+WeintCodex.SearchResults = searchResults
+
 local breadcrumb = titleBar:CreateFontString(nil, "OVERLAY")
 breadcrumb:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
 breadcrumb:SetPoint("LEFT", wordDiv, "RIGHT", 14, 0)
-breadcrumb:SetPoint("RIGHT", titleBar, "RIGHT", -20, 0)
+breadcrumb:SetPoint("RIGHT", searchBox, "LEFT", -16, 0)
 breadcrumb:SetJustifyH("LEFT")
 breadcrumb:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
 WeintCodex.Breadcrumb = breadcrumb

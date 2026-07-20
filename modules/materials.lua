@@ -453,6 +453,14 @@ local function RefreshMatDisplay(matData, filterCat)
     })
 end
 
+-- Fuer die globale Suche (core/search.lua): dieselbe Datenquelle wie Show()
+-- verwendet (echter Scan, sonst Platzhalterdaten), ohne die Seite aufzubauen.
+function WeintCodex.Materials.GetItems()
+    local matData = WeintCodex.SavedData and WeintCodex.SavedData.materialData
+    local source  = (matData and matData.items and #matData.items > 0) and matData or sampleData
+    return source.items or {}
+end
+
 --------------------------------------------------
 -- Modul anzeigen
 --------------------------------------------------

@@ -489,3 +489,10 @@ function WeintCodex.BossGuides.Show()
         ShowBoss(bossOrder[1].name)
     end
 end
+
+-- Direkteinstieg fuer die globale Suche (core/search.lua): merkt sich den
+-- Zielboss, damit Show() ihn statt des ersten Bosses in der Liste anzeigt.
+function WeintCodex.BossGuides.ShowBoss(bossName)
+    selectedBoss = bossName
+    WeintCodex.BossGuides.Show()
+end

@@ -51,3 +51,5 @@ modules/calendar.lua
 modules/weakauras.lua
 modules/sync.lua
 
+core/search.lua
+
