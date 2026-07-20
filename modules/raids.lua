@@ -377,7 +377,7 @@ local function CreateRaidFrame()
         WeintCodex.SavedData.raidThursday = nil
 
         print(
-            "|cff5B4880[WeintCodex]|r Raiddaten gelöscht."
+            "|cff6B6259[WeintCodex]|r Raiddaten gelöscht."
         )
 
         end)
@@ -450,9 +450,9 @@ local function RefreshRaidDisplay(raidData)
         noData:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         noData:SetText(
             "Keine Raidanmeldungen vorhanden.\n\n" ..
-            "Importiere Daten über den |cff8B5CF6Import|r-Tab:\n\n" ..
-            "|cff5B4880WCIMPORT:RAIDWED:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...|r\n" ..
-            "|cff5B4880WCIMPORT:RAIDTHU:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...|r"
+            "Importiere Daten über den |cffC8763AImport|r-Tab:\n\n" ..
+            "|cff6B6259WCIMPORT:RAIDWED:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...|r\n" ..
+            "|cff6B6259WCIMPORT:RAIDTHU:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...|r"
         )
         noData:SetSpacing(3)
         sc:SetHeight(120)
@@ -468,7 +468,7 @@ local function RefreshRaidDisplay(raidData)
         return
     end
 
-    f.DateStr:SetText("|cff5B4880" .. (raidData.date or "") .. "|r")
+    f.DateStr:SetText("|cff6B6259" .. (raidData.date or "") .. "|r")
 
     local tanks, healers, dps = {}, {}, {}
     for _, p in ipairs(raidData.players) do
@@ -533,7 +533,7 @@ local function RefreshRaidDisplay(raidData)
             local classLbl = row:CreateFontString(nil, "OVERLAY")
             classLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
             classLbl:SetPoint("LEFT", row, "LEFT", 220, 0)
-            classLbl:SetText("|cff4B4880" .. cIcon .. " " .. (p.class or "") .. "|r")
+            classLbl:SetText("|cff6B6259" .. cIcon .. " " .. (p.class or "") .. "|r")
             classLbl:SetWidth(140)
 
             -- Role
@@ -548,7 +548,7 @@ local function RefreshRaidDisplay(raidData)
                 local noteLbl = row:CreateFontString(nil, "OVERLAY")
                 noteLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
                 noteLbl:SetPoint("LEFT", row, "LEFT", 500, 0)
-                noteLbl:SetText("|cff4B4060" .. p.note .. "|r")
+                noteLbl:SetText("|cff6B6259" .. p.note .. "|r")
                 noteLbl:SetWidth(320)
             end
 
@@ -610,7 +610,7 @@ function WeintCodex.Raids.Show()
             onClick = function()
                 activeDay = "wednesday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-                f.Title:SetText("|cff" .. "D4A850Raidanmeldungen|r  |cff5B4880Mittwoch|r")
+                f.Title:SetText("|cff" .. "D4A850Raidanmeldungen|r  |cff6B6259Mittwoch|r")
                 RefreshRaidDisplay(data)
             end,
         },
@@ -619,7 +619,7 @@ function WeintCodex.Raids.Show()
             onClick = function()
                 activeDay = "thursday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidThursday
-                f.Title:SetText("|cffD4A850Raidanmeldungen|r  |cff5B4880Donnerstag|r")
+                f.Title:SetText("|cffD4A850Raidanmeldungen|r  |cff6B6259Donnerstag|r")
                 RefreshRaidDisplay(data)
             end,
         },
@@ -629,7 +629,7 @@ function WeintCodex.Raids.Show()
 
     -- Default: Mittwoch
     local initData = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-    f.Title:SetText("|cffD4A850Raidanmeldungen|r  |cff5B4880Mittwoch|r")
+    f.Title:SetText("|cffD4A850Raidanmeldungen|r  |cff6B6259Mittwoch|r")
     RefreshRaidDisplay(initData)
 end
 

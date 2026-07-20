@@ -72,8 +72,8 @@ local function OnEvent(self, event, addonName)
 
                 window = {
                     scale  = 1.0,
-                    width  = 1100,
-                    height = 752,
+                    width  = 1500,
+                    height = 800,
                 },
 
                 minimap = {
@@ -84,9 +84,19 @@ local function OnEvent(self, event, addonName)
         end
 
         WeintCodex_SavedData.window =
-            WeintCodex_SavedData.window or { scale = 1.0, width = 1100, height = 752 }
-        WeintCodex_SavedData.window.width  = WeintCodex_SavedData.window.width  or 1100
-        WeintCodex_SavedData.window.height = WeintCodex_SavedData.window.height or 752
+            WeintCodex_SavedData.window or { scale = 1.0, width = 1500, height = 800 }
+        WeintCodex_SavedData.window.width  = WeintCodex_SavedData.window.width  or 1500
+        WeintCodex_SavedData.window.height = WeintCodex_SavedData.window.height or 800
+
+        -- Migration auf das Redesign (Icon-Rail + Inspector-Spalte benötigen
+        -- mehr Breite): alte, kleinere gespeicherte Fenstergrößen einmalig anheben.
+        if WeintCodex_SavedData.window.width < 1180 then
+            WeintCodex_SavedData.window.width = 1500
+        end
+        if WeintCodex_SavedData.window.height < 780 then
+            WeintCodex_SavedData.window.height = 800
+        end
+
         WeintCodex_SavedData.twinks        = WeintCodex_SavedData.twinks or {}
         WeintCodex_SavedData.minimap =
         WeintCodex_SavedData.minimap or {
@@ -111,7 +121,7 @@ local function OnEvent(self, event, addonName)
         WeintCodex.ResetToHome()
     end
 
-    print("|cff8B5CF6[WeintCodex]|r |cff22C55Ev" .. WeintCodex.Version .. "|r geladen. |cffaaaaaa/wc zum Öffnen.|r")
+    print("|cffC8763A[WeintCodex]|r |cff22C55Ev" .. WeintCodex.Version .. "|r geladen. |cffaaaaaa/wc zum Öffnen.|r")
 end
 
 local loader = CreateFrame("Frame")

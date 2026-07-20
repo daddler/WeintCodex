@@ -226,7 +226,7 @@ local function CreateCalendarFrame()
     subStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     subStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 10, 2)
     subStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    subStr:SetText("|cff4B4060Kalender-Eintrag aus Raidanmeldungen erstellen|r")
+    subStr:SetText("|cff6B6259Kalender-Eintrag aus Raidanmeldungen erstellen|r")
 
     local headerDiv = header:CreateTexture(nil, "OVERLAY")
     headerDiv:SetHeight(1)
@@ -253,7 +253,7 @@ local function CreateCalendarFrame()
     local detailsSect = leftPanel:CreateFontString(nil, "OVERLAY")
     detailsSect:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
     detailsSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -16)
-    detailsSect:SetText("|cff8B5CF6EVENT-DETAILS|r")
+    detailsSect:SetText("|cffC8763AEVENT-DETAILS|r")
 
     local detailsLine = leftPanel:CreateTexture(nil, "OVERLAY")
     detailsLine:SetHeight(1)
@@ -278,7 +278,7 @@ local function CreateCalendarFrame()
     local timeSep = leftPanel:CreateFontString(nil, "OVERLAY")
     timeSep:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
     timeSep:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 276, -100)
-    timeSep:SetText("|cff6B5090:|r")
+    timeSep:SetText("|cff6B6259:|r")
 
     -- Beschreibung
     local descLabel = leftPanel:CreateFontString(nil, "OVERLAY")
@@ -321,7 +321,7 @@ local function CreateCalendarFrame()
     local autoFillLbl = autoFillBtn:CreateFontString(nil, "OVERLAY")
     autoFillLbl:SetAllPoints(autoFillBtn)
     autoFillLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    autoFillLbl:SetText("|cff8B8BC0" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Felder aus Raidanmeldung befüllen|r")
+    autoFillLbl:SetText("|cff8A8177" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Felder aus Raidanmeldung befüllen|r")
 
     autoFillBtn:SetScript("OnEnter", function(self)
         SetSolidBg(self, C.purple[1] * 0.15, C.purple[2] * 0.15, C.purple[3] * 0.15, 0.90)
@@ -347,7 +347,7 @@ local function CreateCalendarFrame()
     local invSect = leftPanel:CreateFontString(nil, "OVERLAY")
     invSect:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
     invSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -262)
-    invSect:SetText("|cff8B5CF6EINLADUNGEN|r")
+    invSect:SetText("|cffC8763AEINLADUNGEN|r")
 
     local invLine = leftPanel:CreateTexture(nil, "OVERLAY")
     invLine:SetHeight(1)
@@ -461,7 +461,7 @@ local function CreateCalendarFrame()
     local previewSect = rightPanel:CreateFontString(nil, "OVERLAY")
     previewSect:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
     previewSect:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 10, -16)
-    previewSect:SetText("|cff8B5CF6EINZULADENDE SPIELER|r")
+    previewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r")
     f.PreviewSect = previewSect
 
     local previewLine = rightPanel:CreateTexture(nil, "OVERLAY")
@@ -536,14 +536,14 @@ local function CreateCalendarFrame()
             AddInvitees(data)
         end
 
-        f.StatusText:SetText("|cff8B5CF6" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Kalender wird vorbereitet...|r")
+        f.StatusText:SetText("|cffC8763A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Kalender wird vorbereitet...|r")
 
         CreateIngameCalendarEvent(
             title, descText, dateStr, hour, minute, invitePlayers,
             function(success, msg)
                 if success then
                     f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
-                    print("|cff8B5CF6[WeintCodex Kalender]|r |cff33D65E" ..
+                    print("|cffC8763A[WeintCodex Kalender]|r |cff33D65E" ..
                         "Eintrag '" .. title .. "' vorbereitet (" ..
                         #invitePlayers .. " Spieler).|r")
                 else
@@ -680,7 +680,7 @@ RefreshPlayerPreview = function(f, raidData)
         local classLbl = row:CreateFontString(nil, "OVERLAY")
         classLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
         classLbl:SetPoint("LEFT", row, "LEFT", 190, 0)
-        classLbl:SetText("|cff4B4880" .. (p.class or "") .. "|r")
+        classLbl:SetText("|cff6B6259" .. (p.class or "") .. "|r")
         classLbl:SetWidth(120)
 
         table.insert(activePreviewRows, row)
@@ -761,7 +761,7 @@ function WeintCodex.Calendar.Show()
             onClick = function()
                 activeDay = "wednesday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-                f.PreviewSect:SetText("|cff8B5CF6EINZULADENDE SPIELER|r  |cff5B4880Mittwoch|r")
+                f.PreviewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r  |cff6B6259Mittwoch|r")
                 AutoFillFromData(f, data)
                 RefreshPlayerPreview(f, data)
                 f.StatusText:SetText("")
@@ -772,7 +772,7 @@ function WeintCodex.Calendar.Show()
             onClick = function()
                 activeDay = "thursday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidThursday
-                f.PreviewSect:SetText("|cff8B5CF6EINZULADENDE SPIELER|r  |cff5B4880Donnerstag|r")
+                f.PreviewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r  |cff6B6259Donnerstag|r")
                 AutoFillFromData(f, data)
                 RefreshPlayerPreview(f, data)
                 f.StatusText:SetText("")

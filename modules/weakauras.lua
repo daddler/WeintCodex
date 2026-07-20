@@ -51,7 +51,7 @@ if not cp then return end
 
             if category == "class" then
                 title:SetText("Klassenauren")
-                descriptionText = "Hier findest du die vollständigen Klassenauren für alle Spezialisierungen. Mit einem Klick auf |cff9B6BFFInstallieren|r wird die Aura automatisch an WeakAuras übergeben."
+                descriptionText = "Hier findest du die vollständigen Klassenauren für alle Spezialisierungen. Mit einem Klick auf |cffC8763AInstallieren|r wird die Aura automatisch an WeakAuras übergeben."
                 elseif category == "raid" then
                     title:SetText("Raidauren")
                     descriptionText = "Hier findest du Raid-Auren und Boss-Pakete. Installiere die gewünschten Pakete direkt mit einem Klick."

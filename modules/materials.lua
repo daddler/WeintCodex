@@ -68,30 +68,18 @@ local sampleData = {
 }
 
 --------------------------------------------------
--- Helpers
+-- Spalten-Layout (Tabellen-Ansicht)
 --------------------------------------------------
 
-local function SetSolidBg(f, r, g, b, a)
-    local t = f:CreateTexture(nil, "BACKGROUND")
-    t:SetAllPoints(f)
-    t:SetColorTexture(r, g, b, a or 1)
-    return t
-end
+local ROW_PAD                = 20
+local COL_NAME_X, COL_NAME_W = 34, 230
+local COL_COUNT_X            = 280
+local COL_BAR_X, COL_BAR_W   = 372, 130
+local COL_CAT_X              = 512
 
-local function DrawBorder(f, r, g, b, a, thick)
-    thick = thick or 1
-    local W, H = f:GetWidth(), f:GetHeight()
-    local function T(pt, rpt, w, h)
-        local t = f:CreateTexture(nil, "OVERLAY")
-        t:SetColorTexture(r, g, b, a)
-        t:SetPoint(pt, f, rpt, 0, 0)
-        t:SetSize(w, h)
-    end
-    T("TOPLEFT",    "TOPLEFT",    W,     thick)
-    T("BOTTOMLEFT", "BOTTOMLEFT", W,     thick)
-    T("TOPLEFT",    "TOPLEFT",    thick, H)
-    T("TOPRIGHT",   "TOPRIGHT",   thick, H)
-end
+-- Schwellwerte relativ zum Sollbestand (target)
+local THRESH_GOOD = 0.70
+local THRESH_OK   = 0.30
 
 --------------------------------------------------
 -- Frame erstellen
@@ -104,166 +92,30 @@ local function CreateMatFrame()
     local f  = CreateFrame("Frame", nil, cp)
     f:SetAllPoints(cp)
 
-    -- Header
-    local header = CreateFrame("Frame", nil, f)
-    header:SetHeight(72)
-    header:SetPoint("TOPLEFT",  f, "TOPLEFT",  0, 0)
-    header:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
-    SetSolidBg(header, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.50)
-
-    local titleStr = header:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-    titleStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -14)
-    titleStr:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
-    titleStr:SetText("Gildenbankmaterialien")
-    f.Title = titleStr
-
-    local updateStr = header:CreateFontString(nil, "OVERLAY")
-    updateStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    updateStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 10, 2)
-    updateStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    f.UpdateStr = updateStr
-
-    -- Export Buttons
+    --------------------------------------------------
+    -- Companion-Button (Titelleiste)
     --------------------------------------------------
 
-    -- Export für Bot
-
-    local exportBtn = CreateFrame("Button", nil, header)
-    exportBtn:SetSize(130, 26)
-    exportBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -20, -14)
-
-    SetSolidBg(exportBtn, C.purple[1], C.purple[2], C.purple[3], 0.80)
-    DrawBorder(exportBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
-
-    local exportLbl = exportBtn:CreateFontString(nil, "OVERLAY")
-    exportLbl:SetAllPoints(exportBtn)
-    exportLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    exportLbl:SetText("Export für Bot")
-    exportLbl:SetTextColor(1, 1, 1)
-
-    exportBtn:SetScript("OnEnter", function(self)
-    SetSolidBg(self, C.purple[1] * 1.25, C.purple[2] * 1.25, C.purple[3] * 1.15, 0.90)
-    end)
-
-    exportBtn:SetScript("OnLeave", function(self)
-    SetSolidBg(self, C.purple[1], C.purple[2], C.purple[3], 0.80)
-    end)
-
-    exportBtn:SetScript("OnClick", function()
-
-    local exportStr = WeintCodex.Materials.GetExportString()
-
-    if exportStr == "" or
-        not WeintCodex.SavedData or
-        not WeintCodex.SavedData.materialData then
-
-        WeintCodex.ShowExportDialog(
-            "Export für Discord-Bot",
-            "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen."
-        )
-
-        else
-
-            WeintCodex.ShowExportDialog(
-                "Export für Discord-Bot",
-                exportStr
-            )
-
-            end
-
-            end)
-
-    --------------------------------------------------
-    -- Komplett-Export
-    --------------------------------------------------
-
-    local fullExportBtn = CreateFrame("Button", nil, header)
-    fullExportBtn:SetSize(130, 26)
-    fullExportBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -160, -14)
-
-    SetSolidBg(fullExportBtn, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-    DrawBorder(fullExportBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
-
-    local fullExportLbl = fullExportBtn:CreateFontString(nil, "OVERLAY")
-    fullExportLbl:SetAllPoints(fullExportBtn)
-    fullExportLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    fullExportLbl:SetText("Komplett-Export")
-    fullExportLbl:SetTextColor(1, 1, 1)
-
-    fullExportBtn:SetScript("OnEnter", function(self)
-    SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
-    end)
-
-    fullExportBtn:SetScript("OnLeave", function(self)
-    SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-    end)
-
-    fullExportBtn:SetScript("OnClick", function()
-
-    local exportStr = WeintCodex.Materials.GetFullBankExportString()
-
-    if exportStr == "" or
-        not WeintCodex.SavedData or
-        not WeintCodex.SavedData.guildBankCache then
-
-        WeintCodex.ShowExportDialog(
-            "Komplett-Export der Gildenbank",
-            "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen."
-        )
-
-        else
-
-            WeintCodex.ShowExportDialog(
-                "Komplett-Export der Gildenbank",
-                exportStr
-            )
-
-            end
-
-            end)
-
-    --------------------------------------------------
-    -- Companion
-    --------------------------------------------------
-
-    local companionBtn = CreateFrame("Button", nil, header)
-    companionBtn:SetSize(130, 26)
-    companionBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -300, -14)
-
-    SetSolidBg(companionBtn, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-    DrawBorder(companionBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
+    local companionBtn = WeintCodex.CreateCard(WeintCodex.TitleBarActions, { width = 96, height = 30, buttonStyle = true })
+    companionBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", 0, -11)
 
     local companionLbl = companionBtn:CreateFontString(nil, "OVERLAY")
     companionLbl:SetAllPoints(companionBtn)
     companionLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    companionLbl:SetJustifyH("CENTER")
     companionLbl:SetText("Companion")
-    companionLbl:SetTextColor(1, 1, 1)
+    companionLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 
-    companionBtn:SetScript("OnEnter", function(self)
-    SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
-    end)
-
-    companionBtn:SetScript("OnLeave", function(self)
-    SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-    end)
-
+    companionBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+    companionBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
     companionBtn:SetScript("OnClick", function()
-
-    local exportStr = WeintCodex.Materials.GetExportString()
-
-    if exportStr == "" then
-
-        print("|cffff4444[WeintCodex]|r Keine Materialdaten vorhanden.")
-
-        return
-
+        local exportStr = WeintCodex.Materials.GetExportString()
+        if exportStr == "" then
+            print(WeintCodex.ColorText("danger", "[WeintCodex]") .. " Keine Materialdaten vorhanden.")
+            return
         end
 
-        local id = WeintCodex.Companion.Send(
-            "materials",
-            exportStr
-        )
+        local id = WeintCodex.Companion.Send("materials", exportStr)
 
         WeintCodex.Dialog.Show([[
             Die Daten wurden erfolgreich vorbereitet.
@@ -274,71 +126,110 @@ local function CreateMatFrame()
             neu geladen werden.
         ]])
 
-        print(
-            "|cff00ff00[WeintCompanion]|r Nachricht #" ..
-            id ..
-            " zur Warteschlange hinzugefügt."
-        )
+        print(WeintCodex.ColorText("success", "[WeintCompanion]") .. " Nachricht #" .. id .. " zur Warteschlange hinzugefügt.")
+    end)
+    f.CompanionBtn = companionBtn
 
-        end)
-    -- Legend bar (status colors)
-    local legendBar = CreateFrame("Frame", nil, header)
-    legendBar:SetHeight(22)
-    legendBar:SetPoint("BOTTOMLEFT",  header, "BOTTOMLEFT",  16, 8)
-    legendBar:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -16, 8)
+    --------------------------------------------------
+    -- Summary-Leiste
+    --------------------------------------------------
 
-    local function LegendDot(text, x, r, g, b)
-        local dot = legendBar:CreateTexture(nil, "OVERLAY")
-        dot:SetSize(10, 10)
-        dot:SetPoint("LEFT", legendBar, "LEFT", x, 0)
-        dot:SetColorTexture(r, g, b, 0.90)
+    local summary = CreateFrame("Frame", nil, f)
+    summary:SetHeight(70)
+    summary:SetPoint("TOPLEFT",  f, "TOPLEFT",  0, 0)
+    summary:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
 
-        local lbl = legendBar:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        lbl:SetPoint("LEFT", legendBar, "LEFT", x + 14, 0)
-        lbl:SetText("|cff888888" .. text .. "|r")
+    local summaryDiv = summary:CreateTexture(nil, "OVERLAY")
+    summaryDiv:SetHeight(1)
+    summaryDiv:SetPoint("BOTTOMLEFT",  summary, "BOTTOMLEFT",  0, 0)
+    summaryDiv:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", 0, 0)
+    summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+
+    local eyebrow = summary:CreateFontString(nil, "OVERLAY")
+    eyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
+    eyebrow:SetText(WeintCodex.ColorText("textFaint", "GILDENBANKMATERIALIEN"))
+
+    local titleStr = summary:CreateFontString(nil, "OVERLAY")
+    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+    titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    f.Title = titleStr
+
+    local updateStr = summary:CreateFontString(nil, "OVERLAY")
+    updateStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    updateStr:SetPoint("TOPLEFT", titleStr, "BOTTOMLEFT", 2, -4)
+    f.UpdateStr = updateStr
+
+    -- Stat-Quartett rechts: GUT / OK / NIEDRIG / GESAMT
+    local statDefs = {
+        { key = "good",  label = "GUT",     color = "success" },
+        { key = "ok",    label = "OK",      color = "warning" },
+        { key = "low",   label = "NIEDRIG", color = "danger" },
+        { key = "total", label = "GESAMT",  color = "textBright" },
+    }
+    local statStrs = {}
+    local sx = -ROW_PAD
+    for i = #statDefs, 1, -1 do
+        local def = statDefs[i]
+        local box = CreateFrame("Frame", nil, summary)
+        box:SetSize(64, 40)
+        box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
+
+        local lbl = box:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
+        lbl:SetJustifyH("RIGHT")
+        lbl:SetText(WeintCodex.ColorText("textFaint", def.label))
+
+        local val = box:CreateFontString(nil, "OVERLAY")
+        val:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
+        val:SetJustifyH("RIGHT")
+        local col = C[def.color] or C.textBright
+        val:SetTextColor(col[1], col[2], col[3])
+        statStrs[def.key] = val
+
+        sx = sx - 74
     end
-    LegendDot(">= 100: gut", 0, 0.13, 0.77, 0.37)
-    LegendDot(">= 20: ok",  130, 0.96, 0.76, 0.20)
-    LegendDot("< 20: niedrig", 256, 0.95, 0.35, 0.25)
+    f.StatStrs = statStrs
 
-    local headerDiv = header:CreateTexture(nil, "OVERLAY")
-    headerDiv:SetHeight(1)
-    headerDiv:SetPoint("BOTTOMLEFT",  header, "BOTTOMLEFT",  0, 0)
-    headerDiv:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", 0, 0)
-    headerDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50)
+    --------------------------------------------------
+    -- Tabellenkopf
+    --------------------------------------------------
 
-    -- Column labels
     local colBar = CreateFrame("Frame", nil, f)
-    colBar:SetHeight(22)
-    colBar:SetPoint("TOPLEFT",  header, "BOTTOMLEFT",  0, 0)
-    colBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, 0)
-    SetSolidBg(colBar, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.35)
-
-    local function ColLbl(text, x)
-        local l = colBar:CreateFontString(nil, "OVERLAY")
-        l:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        l:SetPoint("LEFT", colBar, "LEFT", x, 0)
-        l:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-        l:SetText(text)
-    end
-    ColLbl("Material",    16)
-    ColLbl("Bestand",    320)
-    ColLbl("Kategorie",  500)
+    colBar:SetHeight(26)
+    colBar:SetPoint("TOPLEFT",  summary, "BOTTOMLEFT",  0, 0)
+    colBar:SetPoint("TOPRIGHT", summary, "BOTTOMRIGHT", 0, 0)
 
     local colDiv = colBar:CreateTexture(nil, "OVERLAY")
     colDiv:SetHeight(1)
     colDiv:SetPoint("BOTTOMLEFT",  colBar, "BOTTOMLEFT",  0, 0)
     colDiv:SetPoint("BOTTOMRIGHT", colBar, "BOTTOMRIGHT", 0, 0)
-    colDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.30)
+    colDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    -- Scroll frame
+    local function ColLbl(text, x)
+        local l = colBar:CreateFontString(nil, "OVERLAY")
+        l:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        l:SetPoint("LEFT", colBar, "LEFT", x, 0)
+        l:SetText(WeintCodex.ColorText("textFaint", text))
+    end
+    ColLbl("MATERIAL",    COL_NAME_X)
+    ColLbl("BESTAND",     COL_COUNT_X)
+    ColLbl("FORTSCHRITT", COL_BAR_X)
+    ColLbl("KATEGORIE",   COL_CAT_X)
+
+    --------------------------------------------------
+    -- Scroll-Bereich
+    --------------------------------------------------
+
     local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT",     colBar, "BOTTOMLEFT",  0,   0)
-    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4,  4)
+    scroll:SetPoint("TOPLEFT",     colBar, "BOTTOMLEFT",  0, 0)
+    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4, 0)
 
     local scrollChild = CreateFrame("Frame", nil, scroll)
-    scrollChild:SetWidth(860)
+    scrollChild:SetWidth(600)
     scrollChild:SetHeight(1)
     scroll:SetScrollChild(scrollChild)
     f.ScrollChild = scrollChild
@@ -358,8 +249,6 @@ local function RefreshMatDisplay(matData, filterCat)
     local sc = f.ScrollChild
 
     for _, row in ipairs(activeMatRows) do row:Hide() end
-    for _, child in pairs({sc:GetChildren()}) do child:Hide() end
-    for _, child in pairs({sc:GetRegions()}) do child:Hide() end
     wipe(activeMatRows)
 
     -- Choose data source (imported or sample)
@@ -371,10 +260,14 @@ local function RefreshMatDisplay(matData, filterCat)
     end
 
     if isSample then
-        f.UpdateStr:SetText("|cff3B2D60Beispieldaten — importiere via |r|cff8B5CF6Import|r|cff3B2D60-Tab|r")
+        f.UpdateStr:SetText(WeintCodex.ColorText("textFaint", "Beispieldaten — importiere via ")
+            .. WeintCodex.ColorText("purple", "Import") .. WeintCodex.ColorText("textFaint", "-Tab"))
     else
-        f.UpdateStr:SetText("|cff5B4880Stand: " .. (dataSource.date or "unbekannt") .. "|r")
+        f.UpdateStr:SetText(WeintCodex.ColorText("textFaint", "Stand: " .. (dataSource.date or "unbekannt")))
     end
+
+    f.Title:SetText((not filterCat or filterCat == "Alle") and "Alle Materialien" or filterCat)
+    WeintCodex.SetBreadcrumb("Materialien", (not filterCat or filterCat == "Alle") and "Gildenbank" or filterCat)
 
     local items = dataSource.items
     if filterCat and filterCat ~= "Alle" then
@@ -387,98 +280,170 @@ local function RefreshMatDisplay(matData, filterCat)
         items = filtered
     end
 
+    local goodN, okN, lowN = 0, 0, 0
+
     if #items == 0 then
         local noData = sc:CreateFontString(nil, "OVERLAY")
-        noData:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-        noData:SetPoint("TOPLEFT", sc, "TOPLEFT", 16, -20)
+        noData:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noData:SetPoint("TOPLEFT", sc, "TOPLEFT", ROW_PAD, -20)
         noData:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         noData:SetText("Keine Einträge in dieser Kategorie.")
         sc:SetHeight(60)
         table.insert(activeMatRows, noData)
-        return
-    end
+    else
+        local offsetY = -2
 
-    local offsetY = -4
-    local altRow  = false
+        for _, item in ipairs(items) do
+            local row = CreateFrame("Frame", nil, sc)
+            row:SetHeight(30)
+            row:SetPoint("TOPLEFT",  sc, "TOPLEFT",  0, offsetY)
+            row:SetPoint("TOPRIGHT", sc, "TOPRIGHT", 0, offsetY)
 
-    for _, item in ipairs(items) do
-        local row = CreateFrame("Frame", nil, sc)
-        row:SetHeight(28)
-        row:SetPoint("TOPLEFT",  sc, "TOPLEFT",  0, offsetY)
-        row:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -6, offsetY)
+            local rowDiv = row:CreateTexture(nil, "OVERLAY")
+            rowDiv:SetHeight(1)
+            rowDiv:SetPoint("BOTTOMLEFT",  row, "BOTTOMLEFT",  0, 0)
+            rowDiv:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+            rowDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], 0.60)
 
-        local rowBg = row:CreateTexture(nil, "BACKGROUND")
-        rowBg:SetAllPoints(row)
-        if altRow then
-            rowBg:SetColorTexture(C.bgCard[1], C.bgCard[2], C.bgCard[3], 0.50)
-        else
-            rowBg:SetColorTexture(0, 0, 0, 0)
-        end
-        altRow = not altRow
+            local amount = tonumber(item.count)  or 0
+            local target = tonumber(item.target) or 0
+            local pct    = (target > 0) and (amount / target) or 0
 
-        local amount = tonumber(item.count) or 0
-        local target = tonumber(item.target) or 0
+            local statusColor
+            if pct >= THRESH_GOOD then
+                statusColor = "success"
+                goodN = goodN + 1
+            elseif pct >= THRESH_OK then
+                statusColor = "warning"
+                okN = okN + 1
+            else
+                statusColor = "danger"
+                lowN = lowN + 1
+            end
+            local sColor = C[statusColor]
 
-        local amountColor
-        local statusStrip
+            local dot = row:CreateTexture(nil, "OVERLAY")
+            dot:SetSize(6, 6)
+            dot:SetPoint("LEFT", row, "LEFT", 6, 0)
+            dot:SetColorTexture(sColor[1], sColor[2], sColor[3], 1.0)
 
-        local percent = 0
+            local nameLbl = row:CreateFontString(nil, "OVERLAY")
+            nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            nameLbl:SetPoint("LEFT", row, "LEFT", COL_NAME_X, 0)
+            nameLbl:SetWidth(COL_NAME_W)
+            nameLbl:SetJustifyH("LEFT")
+            local nc = (statusColor == "danger") and C.textBright or C.textMuted
+            nameLbl:SetTextColor(nc[1], nc[2], nc[3])
+            nameLbl:SetText(item.name or "?")
 
-        if target > 0 then
-            percent = amount / target
+            local cntLbl = row:CreateFontString(nil, "OVERLAY")
+            cntLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            cntLbl:SetPoint("LEFT", row, "LEFT", COL_COUNT_X, 0)
+            if target > 0 then
+                cntLbl:SetText(WeintCodex.ColorText(statusColor, tostring(amount)) .. WeintCodex.ColorText("textFaint", " / " .. target))
+            else
+                cntLbl:SetText(WeintCodex.ColorText(statusColor, tostring(amount)))
             end
 
-            if percent >= 0.70 then
-                amountColor = "|cff22C55E"
-                statusStrip = {0.13, 0.77, 0.37}
-                elseif percent >= 0.30 then
-                    amountColor = "|cffF59E0B"
-                    statusStrip = {0.96, 0.76, 0.20}
-                    else
-                        amountColor = "|cffEF4444"
-                        statusStrip = {0.95, 0.35, 0.25}
-                        end
+            local track = row:CreateTexture(nil, "OVERLAY")
+            track:SetSize(COL_BAR_W, 4)
+            track:SetPoint("LEFT", row, "LEFT", COL_BAR_X, 0)
+            track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
 
-        -- Status color strip
-        local strip = row:CreateTexture(nil, "OVERLAY")
-        strip:SetSize(2, 28)
-        strip:SetPoint("LEFT", row, "LEFT", 0, 0)
-        strip:SetColorTexture(statusStrip[1], statusStrip[2], statusStrip[3], 0.80)
+            local fillPct = math.max(0, math.min(1, pct))
+            if fillPct > 0.005 then
+                local fill = row:CreateTexture(nil, "OVERLAY")
+                fill:SetSize(math.max(1, COL_BAR_W * fillPct), 4)
+                fill:SetPoint("LEFT", row, "LEFT", COL_BAR_X, 0)
+                fill:SetColorTexture(sColor[1], sColor[2], sColor[3], 1.0)
+            end
 
-        -- Item name
-        local nameLbl = row:CreateFontString(nil, "OVERLAY")
-        nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-        nameLbl:SetPoint("LEFT", row, "LEFT", 12, 0)
-        nameLbl:SetText("|cffdddddd" .. (item.name or "?") .. "|r")
-        nameLbl:SetWidth(296)
+            if item.category and item.category ~= "" then
+                local catLbl = row:CreateFontString(nil, "OVERLAY")
+                catLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+                catLbl:SetPoint("LEFT", row, "LEFT", COL_CAT_X, 0)
+                catLbl:SetText(WeintCodex.ColorText("textFaint", item.category))
+            end
 
-        -- Count
-        local cntLbl = row:CreateFontString(nil, "OVERLAY")
-        cntLbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-        cntLbl:SetPoint("LEFT", row, "LEFT", 320, 0)
-        local target = tonumber(item.target) or 0
-
-        if target > 0 then
-            cntLbl:SetText(amountColor .. amount .. "/" .. target .. "|r")
-            else
-                cntLbl:SetText(amountColor .. amount .. "|r")
-                end
-
-        -- Category tag
-        if item.category and item.category ~= "" then
-            local catLbl = row:CreateFontString(nil, "OVERLAY")
-            catLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-            catLbl:SetPoint("LEFT", row, "LEFT", 430, 0)
-            catLbl:SetText("|cff4B4880" .. item.category .. "|r")
-            catLbl:SetWidth(120)
+            table.insert(activeMatRows, row)
+            offsetY = offsetY - 30
         end
 
-
-        table.insert(activeMatRows, row)
-        offsetY = offsetY - 28
+        sc:SetHeight(math.abs(offsetY) + 10)
     end
 
-    sc:SetHeight(math.abs(offsetY) + 14)
+    -- Summary-Kacheln aktualisieren
+    f.StatStrs.good:SetText(tostring(goodN))
+    f.StatStrs.ok:SetText(tostring(okN))
+    f.StatStrs.low:SetText(tostring(lowN))
+    f.StatStrs.total:SetText(tostring(#items))
+
+    --------------------------------------------------
+    -- Inspector: Sync-Status, Auto-Einkaufsliste, Schwellen
+    --------------------------------------------------
+
+    local shoppingItems = {}
+    for _, item in ipairs(dataSource.items) do
+        local amount = tonumber(item.count)  or 0
+        local target = tonumber(item.target) or 0
+        if target > 0 and amount < target then
+            table.insert(shoppingItems, { name = item.name, missing = target - amount })
+        end
+    end
+    table.sort(shoppingItems, function(a, b) return a.missing > b.missing end)
+
+    local shoppingListItems = {}
+    for i = 1, math.min(6, #shoppingItems) do
+        local si = shoppingItems[i]
+        shoppingListItems[#shoppingListItems + 1] = {
+            label = si.name, value = "+" .. si.missing, valueColor = "danger",
+        }
+    end
+    if #shoppingListItems == 0 then
+        shoppingListItems[1] = { label = "Alles im Soll", labelColor = "success" }
+    end
+
+    WeintCodex.Navigation.SetInspector({
+        { type = "header", text = "Sync-Status" },
+        { type = "rows", rows = {
+            { label = "Letzter Import", value = isSample and "—" or (dataSource.date or "—") },
+            { label = "Einträge",       value = tostring(#dataSource.items) },
+            { label = "Bot-Kanäle",     value = (WeintCodex.Companion ~= nil) and "verbunden" or "nicht verfügbar",
+                valueColor = (WeintCodex.Companion ~= nil) and "success" or "textDim" },
+        }},
+        { type = "divider" },
+        { type = "header", text = "Auto-Einkaufsliste · " .. #shoppingItems .. " Positionen" },
+        { type = "list", items = shoppingListItems },
+        { type = "divider" },
+        { type = "header", text = "Schwellen" },
+        { type = "rows", rows = {
+            { label = string.format("≥ %.0f%% vom Soll", THRESH_GOOD * 100), value = "gut",    valueColor = "success" },
+            { label = string.format("≥ %.0f%% vom Soll", THRESH_OK   * 100), value = "ok",      valueColor = "warning" },
+            { label = string.format("< %.0f%% vom Soll", THRESH_OK   * 100), value = "niedrig", valueColor = "danger" },
+        }},
+        { type = "button", style = "primary", label = "Export für Bot", onClick = function()
+            local exportStr = WeintCodex.Materials.GetExportString()
+            if exportStr == "" or not WeintCodex.SavedData or not WeintCodex.SavedData.materialData then
+                WeintCodex.ShowExportDialog(
+                    "Export für Discord-Bot",
+                    "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen."
+                )
+            else
+                WeintCodex.ShowExportDialog("Export für Discord-Bot", exportStr)
+            end
+        end },
+        { type = "button", label = "Komplett-Export", onClick = function()
+            local exportStr = WeintCodex.Materials.GetFullBankExportString()
+            if exportStr == "" or not WeintCodex.SavedData or not WeintCodex.SavedData.guildBankCache then
+                WeintCodex.ShowExportDialog(
+                    "Komplett-Export der Gildenbank",
+                    "Keine Gildenbank-Daten zum Exportieren vorhanden. Bitte zuerst die Gildenbank im Spiel öffnen."
+                )
+            else
+                WeintCodex.ShowExportDialog("Komplett-Export der Gildenbank", exportStr)
+            end
+        end },
+    })
 end
 
 --------------------------------------------------
@@ -491,6 +456,7 @@ function WeintCodex.Materials.Show()
 
     local f = CreateMatFrame()
     f:Show()
+    f.CompanionBtn:Show()
 
     -- Gather categories from current data
     local matData = WeintCodex.SavedData and WeintCodex.SavedData.materialData
@@ -511,6 +477,7 @@ function WeintCodex.Materials.Show()
             label   = "Alle Materialien",
             onClick = function() RefreshMatDisplay(matData, "Alle") end,
         },
+        { isGroup = true, label = "KATEGORIEN" },
     }
     for _, cat in ipairs(cats) do
         local cn = cat
@@ -580,11 +547,11 @@ end
 
 local function ScanCurrentTab()
     if not GuildBankFrame or not GuildBankFrame:IsShown() then return end
-    
+
     local now = GetTime()
     if now - lastScanTime < 0.5 then return end
     lastScanTime = now
-    
+
     local tabIndex = GetCurrentGuildBankTab()
     local name, icon, isViewable = GetGuildBankTabInfo(tabIndex)
     if not isViewable then return end
@@ -619,7 +586,7 @@ local function ScanCurrentTab()
     end
 
     WeintCodex.SavedData.guildBankCache[tabIndex] = tabData
-    print("|cff8B5CF6[WeintCodex]|r Gildenbank-Fach '" .. name .. "' erfolgreich gescannt.")
+    print(WeintCodex.ColorText("purple", "[WeintCodex]") .. " Gildenbank-Fach '" .. name .. "' erfolgreich gescannt.")
 
     UpdateRequiredMaterialsFromCache()
 end

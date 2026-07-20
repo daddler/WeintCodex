@@ -7,75 +7,80 @@ WeintCodex.Navigation = {}
 local C = WeintCodex.Colors
 local activeTab = nil
 
+-- Icon-Rail Definition: id, Icon-Textur (echtes Blizzard-Icon statt SVG-Linienicon,
+-- da WoW keine beliebigen Vektorpfade rendern kann) und Tooltip-Beschriftung.
 local tabs = {
-    { id = "charakter",  label = "|TInterface\\Icons\\Achievement_Character_Human_Male:14|t Charakter" },
-    { id = "bossguides", label = "|TInterface\\Icons\\Achievement_Boss_LichKing:14|t Bossguides" },
-    { id = "raids",      label = "|TInterface\\Icons\\Ability_Warrior_BattleShout:14|t Raids" },
-    { id = "materials",  label = "|TInterface\\Icons\\INV_Crate_01:14|t Materialien" },
-    { id = "calendar",   label = "|TInterface\\Icons\\INV_Misc_PocketWatch_01:14|t Kalender" },
-    { id = "weakauras",  label = "|TInterface\\Icons\\Spell_Holy_MagicalSentry:14|t WeakAuras" },
-    { id = "import",     label = "|TInterface\\Icons\\INV_Misc_Note_01:14|t Import" },
+    { id = "charakter",  icon = "Interface\\Icons\\Achievement_Character_Human_Male", tooltip = "Charakter" },
+    { id = "bossguides", icon = "Interface\\Icons\\Achievement_Boss_LichKing",        tooltip = "Bossguides" },
+    { id = "raids",      icon = "Interface\\Icons\\Ability_Warrior_BattleShout",      tooltip = "Raids" },
+    { id = "materials",  icon = "Interface\\Icons\\INV_Crate_01",                     tooltip = "Materialien" },
+    { id = "calendar",   icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",          tooltip = "Kalender" },
+    { id = "weakauras",  icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",         tooltip = "WeakAuras" },
+    { id = "import",     icon = "Interface\\Icons\\INV_Misc_Note_01",                 tooltip = "Import" },
 }
 
 local tabButtons = {}
-local offsetX    = 10
+
+local RAIL_ICON_SIZE  = 44
+local RAIL_ICON_GAP   = 6
+local RAIL_ICON_START = -64 -- unterhalb des Marken-Badges (siehe core/ui.lua)
 
 local function SetTabActive(btn, isActive)
     if isActive then
-        btn._bg:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.22)
-        btn._underline:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
-        btn._label:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        btn._bg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+        btn._bar:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
     else
         btn._bg:SetColorTexture(0, 0, 0, 0)
-        btn._underline:SetColorTexture(0, 0, 0, 0)
-        btn._label:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+        btn._bar:SetColorTexture(0, 0, 0, 0)
     end
 end
 
-for _, tabDef in ipairs(tabs) do
-    local btn = CreateFrame("Button", nil, WeintCodex.TabBar)
-
-    btn:SetSize(100, 40)
-    btn:SetPoint("TOPLEFT", WeintCodex.TabBar, "TOPLEFT", 0, 0)
+for i, tabDef in ipairs(tabs) do
+    local btn = CreateFrame("Button", nil, WeintCodex.IconRail)
+    btn:SetSize(RAIL_ICON_SIZE, RAIL_ICON_SIZE)
+    btn:SetPoint("TOP", WeintCodex.IconRail, "TOP", 0, RAIL_ICON_START - (i - 1) * (RAIL_ICON_SIZE + RAIL_ICON_GAP))
 
     local bg = btn:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(btn)
     bg:SetColorTexture(0, 0, 0, 0)
     btn._bg = bg
 
-    local underline = btn:CreateTexture(nil, "OVERLAY")
-    underline:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
-    underline:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
-    underline:SetHeight(2)
-    underline:SetColorTexture(0, 0, 0, 0)
-    btn._underline = underline
+    -- Aktiv-Indikator: schlanker Akzentbalken am linken Rand des Icons
+    local bar = btn:CreateTexture(nil, "OVERLAY")
+    bar:SetWidth(2)
+    bar:SetPoint("TOPLEFT",    btn, "TOPLEFT",    -1,  4)
+    bar:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", -1, -4)
+    bar:SetColorTexture(0, 0, 0, 0)
+    btn._bar = bar
 
-    local lbl = btn:CreateFontString(nil, "OVERLAY")
-    lbl:SetAllPoints(btn)
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-    lbl:SetText(tabDef.label)
-    lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    btn._label = lbl
+    local icon = btn:CreateFontString(nil, "OVERLAY")
+    icon:SetAllPoints(btn)
+    icon:SetJustifyH("CENTER")
+    icon:SetJustifyV("MIDDLE")
+    icon:SetText(WeintCodex.Icon(tabDef.icon, 22))
+    btn._icon = icon
 
     -- Benachrichtigungspunkt (standardmaessig versteckt, siehe SetTabBadge)
     local dot = btn:CreateTexture(nil, "OVERLAY")
     dot:SetSize(6, 6)
-    dot:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -8, -6)
+    dot:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -2, -2)
     dot:SetColorTexture(C.accentDot[1], C.accentDot[2], C.accentDot[3], 1.0)
     dot:Hide()
     btn._dot = dot
 
     btn:SetScript("OnEnter", function(self)
         if activeTab ~= tabDef.id then
-            self._bg:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.10)
-            self._label:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+            self._bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 0.80)
         end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(tabDef.tooltip)
+        GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function(self)
         if activeTab ~= tabDef.id then
             self._bg:SetColorTexture(0, 0, 0, 0)
-            self._label:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         end
+        GameTooltip:Hide()
     end)
     btn:SetScript("OnClick", function(self)
         if activeTab == tabDef.id then return end
@@ -97,34 +102,6 @@ function WeintCodex.Navigation.SetTabBadge(tabId, on)
     if on then btn._dot:Show() else btn._dot:Hide() end
 end
 
-local function UpdateTabLayout()
-
-local tabWidth =
-(WeintCodex.TabBar:GetWidth() - 20) / #tabs
-
-local x = 10
-
-for _, btn in ipairs(tabButtons) do
-    btn:SetWidth(tabWidth)
-    btn:ClearAllPoints()
-    btn:SetPoint(
-        "TOPLEFT",
-        WeintCodex.TabBar,
-        "TOPLEFT",
-        x,
-        0
-    )
-
-    x = x + tabWidth
-    end
-    end
-
-    WeintCodex.TabBar:SetScript(
-        "OnSizeChanged",
-        UpdateTabLayout
-    )
-
-    UpdateTabLayout()
 --------------------------------------------------
 -- Sidebar builder
 --------------------------------------------------
@@ -137,16 +114,16 @@ function WeintCodex.Navigation.ClearSidebar()
     for _, grp  in ipairs(sidebarGroups) do grp:Hide()  end
     wipe(sidebarItems)
     wipe(sidebarGroups)
-    WeintCodex.SidebarHeader:SetText("|cff4B4060— NAVIGATION —|r")
+    WeintCodex.SidebarHeader:SetText(WeintCodex.ColorText("textFaint", "NAVIGATION"))
 end
 
 -- Build flat list of items
 function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
     WeintCodex.Navigation.ClearSidebar()
-    WeintCodex.SidebarHeader:SetText("|cff8B5CF6" .. (sectionTitle or "") .. "|r")
+    WeintCodex.SidebarHeader:SetText(WeintCodex.ColorText("purple", string.upper(sectionTitle or "")))
 
     local sidebar  = WeintCodex.Sidebar
-    local offsetY  = -34
+    local offsetY  = -46
 
     for _, itemDef in ipairs(items) do
         local isGroup = itemDef.isGroup
@@ -154,21 +131,21 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
         if isGroup then
             local lbl = sidebar:CreateFontString(nil, "OVERLAY")
             lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-            lbl:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 10, offsetY)
-            lbl:SetText("|cff5B4880" .. (itemDef.label or "") .. "|r")
-            lbl:SetWidth(192)
+            lbl:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, offsetY)
+            lbl:SetText(WeintCodex.ColorText("textGhost", itemDef.label or ""))
+            lbl:SetWidth(204)
             table.insert(sidebarGroups, lbl)
             offsetY = offsetY - 18
         else
-            local indent = itemDef.indent and 20 or 5
+            local indent = itemDef.indent and 32 or 16
 
             local btn = CreateFrame("Button", nil, sidebar)
             btn:SetHeight(28)
             -- Rechts relativ zur Sidebar verankert statt fester Breite, damit
-            -- eingerueckte Eintraege (indent=20) nicht ueber den rechten Rand
-            -- der Sidebar hinaus in das Hauptfeld hineinragen.
+            -- eingerueckte Eintraege nicht ueber den rechten Rand der Sidebar
+            -- hinaus in das Hauptfeld hineinragen.
             btn:SetPoint("TOPLEFT",  sidebar, "TOPLEFT",  indent, offsetY)
-            btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -5,     offsetY)
+            btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -12,    offsetY)
 
             local bg = btn:CreateTexture(nil, "BACKGROUND")
             bg:SetAllPoints(btn)
@@ -258,6 +235,253 @@ function WeintCodex.Navigation.ActivateFirst()
 end
 
 --------------------------------------------------
+-- Inspector (rechte Kontext-Spalte)
+--
+-- Generisches Baukasten-System, damit jedes Modul seinen eigenen
+-- Kontext-Inhalt deklarativ beschreiben kann, ohne Layout-Code zu
+-- duplizieren. Block-Typen: header, rows, list, card, notes, button,
+-- divider, spacer.
+--------------------------------------------------
+
+local inspectorWidgets   = {}
+local INSPECTOR_PAD      = 20
+local INSPECTOR_CONTENT_W = WeintCodex.Inspector:GetWidth() - INSPECTOR_PAD * 2
+
+function WeintCodex.Navigation.ClearInspector()
+    for _, w in ipairs(inspectorWidgets) do w:Hide() end
+    wipe(inspectorWidgets)
+end
+
+-- Verbirgt frei belegte Aktions-Buttons in der Titelleiste (z.B. "Companion",
+-- Rollen-Umschalter). Module parenten ihre eigenen Buttons einmalig an
+-- WeintCodex.TitleBarActions und rufen diese Funktion beim Tab-Wechsel auf.
+function WeintCodex.Navigation.ClearTitleActions()
+    for _, child in ipairs({ WeintCodex.TitleBarActions:GetChildren() }) do
+        child:Hide()
+    end
+end
+
+local function InspectorHeader(parent, y, text)
+    local h = parent:CreateFontString(nil, "OVERLAY")
+    h:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    h:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    h:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    h:SetJustifyH("LEFT")
+    h:SetText(WeintCodex.ColorText("textFaint", string.upper(text or "")))
+    table.insert(inspectorWidgets, h)
+    return y - 18
+end
+
+local function InspectorDivider(parent, y)
+    local d = parent:CreateTexture(nil, "OVERLAY")
+    d:SetHeight(1)
+    d:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    d:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    d:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+    table.insert(inspectorWidgets, d)
+    return y - 14
+end
+
+local function InspectorRows(parent, y, rows)
+    for _, row in ipairs(rows) do
+        local lbl = parent:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        lbl:SetPoint("TOPLEFT", parent, "TOPLEFT", INSPECTOR_PAD, y)
+        lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+        lbl:SetText(row.label or "")
+        table.insert(inspectorWidgets, lbl)
+
+        local val = parent:CreateFontString(nil, "OVERLAY")
+        val:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        val:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+        val:SetJustifyH("RIGHT")
+        local vc = C[row.valueColor or "textNormal"] or C.textNormal
+        val:SetTextColor(vc[1], vc[2], vc[3])
+        val:SetText(row.value or "")
+        table.insert(inspectorWidgets, val)
+
+        y = y - 20
+    end
+    return y - 4
+end
+
+local function InspectorListCard(parent, y, item)
+    local card = CreateFrame("Frame", nil, parent)
+    card:SetHeight(item.progress and 40 or 30)
+    card:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    WeintCodex.SetSolidBg(card, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+    WeintCodex.DrawSlimBorder(card, "hairline")
+
+    local lbl = card:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -7)
+    lbl:SetPoint("RIGHT", card, "RIGHT", -70, 0)
+    lbl:SetJustifyH("LEFT")
+    local lc = C[item.labelColor or "textNormal"] or C.textNormal
+    lbl:SetTextColor(lc[1], lc[2], lc[3])
+    lbl:SetText(item.label or "")
+
+    local val = card:CreateFontString(nil, "OVERLAY")
+    val:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    val:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -7)
+    val:SetJustifyH("RIGHT")
+    local vc = C[item.valueColor or "textDim"] or C.textDim
+    val:SetTextColor(vc[1], vc[2], vc[3])
+    val:SetText(item.value or "")
+
+    if item.progress then
+        local barW = INSPECTOR_CONTENT_W - 20
+        local track = card:CreateTexture(nil, "OVERLAY")
+        track:SetHeight(3)
+        track:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 10, 8)
+        track:SetSize(barW, 3)
+        track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+
+        local fillCol = C[item.progressColor or "purple"] or C.purple
+        local pct  = math.max(0, math.min(1, item.progress))
+        local fill = card:CreateTexture(nil, "OVERLAY")
+        fill:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 10, 8)
+        fill:SetSize(math.max(1, barW * pct), 3)
+        fill:SetColorTexture(fillCol[1], fillCol[2], fillCol[3], 1.0)
+    end
+
+    table.insert(inspectorWidgets, card)
+    return y - card:GetHeight() - 6
+end
+
+local function InspectorCard(parent, y, opts)
+    local lineCount = opts.lines and #opts.lines or 0
+    local h = 20 + lineCount * 15
+    if opts.title    then h = h + 18 end
+    if opts.subtitle then h = h + 14 end
+
+    local card = CreateFrame("Frame", nil, parent)
+    card:SetHeight(h)
+    card:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    WeintCodex.SetSolidBg(card, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+    WeintCodex.DrawSlimBorder(card, "hairline")
+
+    local yy = -10
+    if opts.title then
+        local t = card:CreateFontString(nil, "OVERLAY")
+        t:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        t:SetPoint("TOPLEFT", card, "TOPLEFT", 10, yy)
+        t:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        t:SetText(opts.title)
+        yy = yy - 18
+    end
+    if opts.subtitle then
+        local s = card:CreateFontString(nil, "OVERLAY")
+        s:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        s:SetPoint("TOPLEFT", card, "TOPLEFT", 10, yy)
+        s:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        s:SetText(opts.subtitle)
+        yy = yy - 14
+    end
+    for _, line in ipairs(opts.lines or {}) do
+        local l = card:CreateFontString(nil, "OVERLAY")
+        l:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+        l:SetPoint("TOPLEFT",  card, "TOPLEFT",  10, yy)
+        l:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, yy)
+        l:SetJustifyH("LEFT")
+        l:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+        l:SetText(line)
+        yy = yy - 15
+    end
+
+    table.insert(inspectorWidgets, card)
+    return y - h - 6
+end
+
+local function InspectorButton(parent, y, opts)
+    local isPrimary = (opts.style == "primary")
+    local btn = WeintCodex.CreateCard(parent, {
+        width = INSPECTOR_CONTENT_W, height = 32, buttonStyle = true,
+        surface = isPrimary and "surface3" or "surface2",
+    })
+    btn:SetPoint("TOPLEFT", parent, "TOPLEFT", INSPECTOR_PAD, y)
+    if isPrimary then
+        WeintCodex.DrawSlimBorder(btn, "purple", 0.9, 1)
+    end
+
+    local lbl = btn:CreateFontString(nil, "OVERLAY")
+    lbl:SetAllPoints(btn)
+    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetJustifyH("CENTER")
+    lbl:SetJustifyV("MIDDLE")
+    lbl:SetText(opts.label or "")
+    local lc = isPrimary and C.textBright or C.textNormal
+    lbl:SetTextColor(lc[1], lc[2], lc[3])
+
+    if opts.onClick then btn:SetScript("OnClick", opts.onClick) end
+    btn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+    btn:SetScript("OnLeave", function(self) self:SetSurface(isPrimary and "surface3" or "surface2") end)
+
+    table.insert(inspectorWidgets, btn)
+    return y - 32 - 8
+end
+
+local function InspectorNotes(parent, y, opts)
+    local h = opts.height or 100
+    local bg = CreateFrame("Frame", nil, parent)
+    bg:SetHeight(h)
+    bg:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    bg:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    WeintCodex.SetSolidBg(bg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.90)
+    WeintCodex.DrawSlimBorder(bg, "hairline")
+
+    local box = CreateFrame("EditBox", nil, bg)
+    box:SetPoint("TOPLEFT",     bg, "TOPLEFT",     6, -6)
+    box:SetPoint("BOTTOMRIGHT", bg, "BOTTOMRIGHT", -6, 6)
+    box:SetMultiLine(true)
+    box:SetMaxLetters(0)
+    box:SetAutoFocus(false)
+    box:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    box:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+    box:SetTextInsets(2, 2, 2, 2)
+    box:SetText((opts.get and opts.get()) or "")
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnTextChanged", function(self)
+        if opts.set then opts.set(self:GetText()) end
+    end)
+
+    table.insert(inspectorWidgets, bg)
+    return y - h - 6
+end
+
+-- blocks: Liste von { type = "header"|"rows"|"list"|"card"|"notes"|"button"|"divider"|"spacer", ... }
+function WeintCodex.Navigation.SetInspector(blocks)
+    WeintCodex.Navigation.ClearInspector()
+    local parent = WeintCodex.Inspector
+    local y = -22
+
+    for _, block in ipairs(blocks or {}) do
+        if block.type == "header" then
+            y = InspectorHeader(parent, y, block.text)
+        elseif block.type == "rows" then
+            y = InspectorRows(parent, y, block.rows or {})
+        elseif block.type == "list" then
+            if block.title then y = InspectorHeader(parent, y, block.title) end
+            for _, item in ipairs(block.items or {}) do
+                y = InspectorListCard(parent, y, item)
+            end
+        elseif block.type == "card" then
+            y = InspectorCard(parent, y, block)
+        elseif block.type == "notes" then
+            y = InspectorNotes(parent, y, block)
+        elseif block.type == "button" then
+            y = InspectorButton(parent, y, block)
+        elseif block.type == "divider" then
+            y = InspectorDivider(parent, y)
+        elseif block.type == "spacer" then
+            y = y - (block.height or 12)
+        end
+    end
+end
+
+--------------------------------------------------
 -- Content Panel cleaner
 --------------------------------------------------
 
@@ -278,6 +502,8 @@ end
 
 function WeintCodex.Navigation.SwitchTo(tabId)
     WeintCodex.Navigation.ClearSidebar()
+    WeintCodex.Navigation.ClearInspector()
+    WeintCodex.Navigation.ClearTitleActions()
     ClearContentPanel()
 
     if tabId == "charakter" then
@@ -451,6 +677,7 @@ local dashboardTiles = {
 function WeintCodex.ShowHome()
     ClearContentPanel()
     WeintCodex.Navigation.ClearSidebar()
+    WeintCodex.Navigation.ClearTitleActions()
     for _, b in ipairs(tabButtons) do SetTabActive(b, false) end
     activeTab = nil
 
@@ -469,7 +696,7 @@ function WeintCodex.ShowHome()
         local wordmark = hero:CreateFontString(nil, "OVERLAY")
         wordmark:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
         wordmark:SetPoint("TOPLEFT", hero, "TOPLEFT", 20, -14)
-        wordmark:SetText(WeintCodex.ColorText("logoPurple", "Weint") .. WeintCodex.ColorText("logoGreen", "Codex"))
+        wordmark:SetText(WeintCodex.ColorText("textBright", "WeintCodex"))
 
         local sub = hero:CreateFontString(nil, "OVERLAY")
         sub:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
@@ -632,6 +859,24 @@ function WeintCodex.ShowHome()
 
     WeintCodex.Navigation.SetTabBadge("materials", hasMatScan and matShortage > 0)
     WeintCodex.Navigation.SetTabBadge("import", queueCount > 0)
+
+    WeintCodex.SetBreadcrumb("Dashboard")
+
+    WeintCodex.Navigation.SetInspector({
+        { type = "header", text = "Gilden-Puls" },
+        { type = "rows", rows = {
+            { label = "Nächster Raid",     value = GetNextRaidLabel() },
+            { label = "Anmeldungen",       value = tostring(GetSignupCount()) },
+            { label = "Materialien",       value = (not hasMatScan) and "Kein Scan"
+                or (matShortage > 0 and (matShortage .. " Engpässe") or "Alles im Soll"),
+                valueColor = (not hasMatScan) and "textDim" or (matShortage > 0 and "danger" or "success") },
+            { label = "Sync-Warteschlange", value = queueCount > 0 and (queueCount .. " ausstehend") or "Keine",
+                valueColor = queueCount > 0 and "warning" or "textDim" },
+        }},
+        { type = "divider" },
+        { type = "button", style = "primary", label = "Kalender öffnen", onClick = function() GoToTab("calendar") end },
+        { type = "button", label = "Daten importieren", onClick = function() GoToTab("import") end },
+    })
 
     homeFrame:Show()
 end
