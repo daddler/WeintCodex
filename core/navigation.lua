@@ -7,17 +7,21 @@ WeintCodex.Navigation = {}
 local C = WeintCodex.Colors
 local activeTab = nil
 
--- Icon-Rail Definition: id, Icon-Textur (echtes Blizzard-Icon statt SVG-Linienicon,
--- da WoW keine beliebigen Vektorpfade rendern kann) und Tooltip-Beschriftung.
+-- Icon-Rail Definition: id, flaches Linien-Icon (eigene Textur statt echtem
+-- Blizzard-Icon, siehe media/icons/ - Vektorpfade kann WoW zur Laufzeit nicht
+-- rendern, deshalb werden die Icons einmalig vorgerendert) und Tooltip-Beschriftung.
+local ICON_PATH = "Interface\\AddOns\\WeintCodex\\media\\icons\\"
 local tabs = {
-    { id = "charakter",  icon = "Interface\\Icons\\Achievement_Character_Human_Male", tooltip = "Charakter" },
-    { id = "bossguides", icon = "Interface\\Icons\\Achievement_Boss_LichKing",        tooltip = "Bossguides" },
-    { id = "raids",      icon = "Interface\\Icons\\Ability_Warrior_BattleShout",      tooltip = "Raids" },
-    { id = "materials",  icon = "Interface\\Icons\\INV_Crate_01",                     tooltip = "Materialien" },
-    { id = "calendar",   icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",          tooltip = "Kalender" },
-    { id = "weakauras",  icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",         tooltip = "WeakAuras" },
-    { id = "import",     icon = "Interface\\Icons\\INV_Misc_Note_01",                 tooltip = "Import" },
+    { id = "charakter",  icon = ICON_PATH .. "nav_charakter",  tooltip = "Charakter" },
+    { id = "bossguides", icon = ICON_PATH .. "nav_bossguides", tooltip = "Bossguides" },
+    { id = "raids",      icon = ICON_PATH .. "nav_raids",      tooltip = "Raids" },
+    { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien" },
+    { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender" },
+    { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
+    { id = "import",     icon = ICON_PATH .. "nav_import",     tooltip = "Import" },
 }
+
+local RAIL_ICON_GLYPH = 20
 
 local tabButtons = {}
 
@@ -29,9 +33,11 @@ local function SetTabActive(btn, isActive)
     if isActive then
         btn._bg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
         btn._bar:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
+        btn._icon:SetVertexColor(C.textBright[1], C.textBright[2], C.textBright[3])
     else
         btn._bg:SetColorTexture(0, 0, 0, 0)
         btn._bar:SetColorTexture(0, 0, 0, 0)
+        btn._icon:SetVertexColor(C.textDim[1], C.textDim[2], C.textDim[3])
     end
 end
 
@@ -53,12 +59,11 @@ for i, tabDef in ipairs(tabs) do
     bar:SetColorTexture(0, 0, 0, 0)
     btn._bar = bar
 
-    local icon = btn:CreateFontString(nil, "OVERLAY")
-    icon:SetFont("Fonts\\FRIZQT__.TTF", 22, "")
-    icon:SetAllPoints(btn)
-    icon:SetJustifyH("CENTER")
-    icon:SetJustifyV("MIDDLE")
-    icon:SetText(WeintCodex.Icon(tabDef.icon, 22))
+    local icon = btn:CreateTexture(nil, "OVERLAY")
+    icon:SetSize(RAIL_ICON_GLYPH, RAIL_ICON_GLYPH)
+    icon:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    icon:SetTexture(tabDef.icon)
+    icon:SetVertexColor(C.textDim[1], C.textDim[2], C.textDim[3])
     btn._icon = icon
 
     -- Benachrichtigungspunkt (standardmaessig versteckt, siehe SetTabBadge)
@@ -72,6 +77,7 @@ for i, tabDef in ipairs(tabs) do
     btn:SetScript("OnEnter", function(self)
         if activeTab ~= tabDef.id then
             self._bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 0.80)
+            self._icon:SetVertexColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
         end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(tabDef.tooltip)
@@ -80,6 +86,7 @@ for i, tabDef in ipairs(tabs) do
     btn:SetScript("OnLeave", function(self)
         if activeTab ~= tabDef.id then
             self._bg:SetColorTexture(0, 0, 0, 0)
+            self._icon:SetVertexColor(C.textDim[1], C.textDim[2], C.textDim[3])
         end
         GameTooltip:Hide()
     end)
