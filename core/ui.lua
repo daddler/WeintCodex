@@ -1,53 +1,60 @@
 --------------------------------------------------
 -- WeintCodex :: UI Core
--- Dark fantasy theme: Purple / Green / Gold
+-- "Codex" theme: warmes Kaffeehaus-Dunkel / Amber-Akzent
+-- (Redesign auf Basis der Claude-Design-Vorlagen v1.0)
 --------------------------------------------------
 
 local C = {
-    bgDark      = {0.04, 0.03, 0.09, 0.98},
-    bgMid       = {0.08, 0.05, 0.16, 0.96},
-    bgPanel     = {0.06, 0.04, 0.13, 0.98},
-    bgCard      = {0.07, 0.05, 0.15, 1.0},
-    purple      = {0.54, 0.36, 0.96, 1.0},
-    purpleDim   = {0.34, 0.22, 0.64, 1.0},
-    purpleDeep  = {0.18, 0.10, 0.40, 1.0},
-    green       = {0.13, 0.77, 0.37, 1.0},
-    greenDim    = {0.08, 0.50, 0.24, 1.0},
-    gold        = {0.96, 0.76, 0.20, 1.0},
-    goldDim     = {0.70, 0.52, 0.10, 1.0},
-    blue        = {0.40, 0.80, 1.00, 1.0},
-    blueDim     = {0.25, 0.55, 0.80, 1.0},
-    red         = {0.95, 0.35, 0.25, 1.0},
-    redDim      = {0.65, 0.20, 0.15, 1.0},
-    textBright  = {0.96, 0.93, 1.00, 1.0},
-    textNormal  = {0.76, 0.71, 0.91, 1.0},
-    textDim     = {0.46, 0.41, 0.61, 1.0},
-    border      = {0.42, 0.26, 0.76, 0.80},
-    borderGlow  = {0.54, 0.36, 0.96, 0.30},
-    headerBg    = {0.05, 0.03, 0.13, 1.0},
+    -- Basis-Flaechen, dunkel nach hell gestaffelt
+    bgDark      = {0.043, 0.039, 0.035, 1.0},   -- 0b0a09 - Fensterhintergrund
+    bgMid       = {0.071, 0.063, 0.055, 1.0},   -- 12100d - mittlere Flaeche
+    bgPanel     = {0.063, 0.051, 0.043, 1.0},   -- 100d0b - Rail/Panel
+    bgCard      = {0.078, 0.067, 0.055, 1.0},   -- 14110e - Karten/Zeilen
 
-    -- Exakte Wordmark-Farben aus dem .toc-Titelstring (#9B6BFF / #33D65E),
-    -- leicht abweichend von C.purple/C.green - eigener Name statt Rename,
-    -- damit bestehende Verwendung von C.purple/C.green unberuehrt bleibt.
-    logoPurple  = {0.608, 0.420, 1.00, 1.0},
-    logoGreen   = {0.200, 0.839, 0.369, 1.0},
+    -- Amber-Akzent (ersetzt vormals Lila als Primaerakzent)
+    purple      = {0.784, 0.463, 0.227, 1.0},   -- c8763a - Primaerakzent
+    purpleDim   = {0.635, 0.353, 0.149, 1.0},   -- a25a26 - gedaempfter Akzent
+    purpleDeep  = {0.353, 0.196, 0.086, 1.0},   -- 5a3216 - tiefer Akzent (Pressed)
+
+    -- Erfolg / Warnung / Gefahr / Info
+    green       = {0.290, 0.486, 0.349, 1.0},   -- 4a7c59 - Erfolg
+    greenDim    = {0.208, 0.361, 0.259, 1.0},   -- 355c42
+    gold        = {0.784, 0.627, 0.227, 1.0},   -- c8a03a - Warnung/OK
+    goldDim     = {0.478, 0.373, 0.110, 1.0},   -- 7a5f1c
+    blue        = {0.420, 0.627, 0.851, 1.0},   -- 6ba0d9 - Info/Tank
+    blueDim     = {0.227, 0.431, 0.647, 1.0},   -- 3a6ea5
+    red         = {0.784, 0.353, 0.227, 1.0},   -- c85a3a - Gefahr/DPS
+    redDim      = {0.478, 0.188, 0.125, 1.0},   -- 7a3020
+
+    -- Textstufen (bright > normal > muted > dim > faint > ghost)
+    textBright  = {0.949, 0.929, 0.898, 1.0},   -- f2ede4
+    textNormal  = {0.910, 0.890, 0.859, 1.0},   -- e8e3db
+    textMuted   = {0.788, 0.757, 0.710, 1.0},   -- c9c1b5
+    textDim     = {0.541, 0.506, 0.467, 1.0},   -- 8a8177
+    textFaint   = {0.420, 0.384, 0.349, 1.0},   -- 6b6259
+    textGhost   = {0.290, 0.259, 0.227, 1.0},   -- 4a423a
+
+    border      = {0.141, 0.122, 0.106, 1.0},   -- 241f1b - Standard-Hairline
+    borderGlow  = {0.784, 0.463, 0.227, 0.30},  -- Akzent-Glow (Hover/aktiv)
+    headerBg    = {0.051, 0.043, 0.035, 1.0},   -- 0d0b09 - Insets (Suchfeld etc.)
 
     -- Flache Elevation-Stufen fuer das reduzierte, ruhigere Panel-Design.
-    surface0    = {0.04,  0.03,  0.09,  1.0},
-    surface1    = {0.06,  0.045, 0.125, 1.0},
-    surface2    = {0.075, 0.055, 0.145, 1.0},
-    surface3    = {0.095, 0.07,  0.175, 1.0},
+    surface0    = {0.043, 0.039, 0.035, 1.0},   -- 0b0a09
+    surface1    = {0.063, 0.051, 0.043, 1.0},   -- 100d0b
+    surface2    = {0.078, 0.067, 0.055, 1.0},   -- 14110e
+    surface3    = {0.118, 0.098, 0.082, 1.0},   -- 1e1915
 
     -- Semantische Aliase auf bestehende Tontoene.
-    success     = {0.13, 0.77, 0.37, 1.0},
-    warning     = {0.96, 0.76, 0.20, 1.0},
-    danger      = {0.95, 0.35, 0.25, 1.0},
-    info        = {0.40, 0.80, 1.00, 1.0},
+    success     = {0.290, 0.486, 0.349, 1.0},
+    warning     = {0.784, 0.627, 0.227, 1.0},
+    danger      = {0.784, 0.353, 0.227, 1.0},
+    info        = {0.420, 0.627, 0.851, 1.0},
+    violet      = {0.72,  0.45,  0.98,  1.0},   -- eigenstaendiger 5. Status (z.B. "Ueber Cap")
 
     -- Schlanke, blasse Rahmen-/Trenner-Toene fuer die reduzierte Ornamentik.
-    hairline     = {0.30, 0.20, 0.50, 0.35},
-    hairlineSoft = {0.30, 0.20, 0.50, 0.18},
-    accentDot    = {0.96, 0.76, 0.20, 1.0},
+    hairline     = {0.141, 0.122, 0.106, 1.0},
+    hairlineSoft = {0.141, 0.122, 0.106, 0.55},
+    accentDot    = {0.784, 0.463, 0.227, 1.0},
 }
 WeintCodex.Colors = C
 
@@ -224,13 +231,21 @@ WeintCodex.C           = C
 --------------------------------------------------
 -- Main Frame
 --------------------------------------------------
+-- Layout (Redesign v1.0): 4 Spalten statt Banner/Tabbar/Sidebar
+--   Icon-Rail (64px) | Sub-Nav (240px) | Content (flex) | Inspector (300px)
+--------------------------------------------------
 
-local FRAME_W   = 1100
-local FRAME_H   = 752
-local FRAME_MIN_W = 1100
-local FRAME_MIN_H = 752
-local FRAME_MAX_W = 1600
+local FRAME_W   = 1500
+local FRAME_H   = 800
+local FRAME_MIN_W = 1180
+local FRAME_MIN_H = 780
+local FRAME_MAX_W = 1700
 local FRAME_MAX_H = 1000
+
+local RAIL_W       = 64
+local SIDEBAR_W    = 240
+local INSPECTOR_W  = 300
+local TITLEBAR_H   = 52
 
 local frame = CreateFrame("Frame", "WeintCodexMainFrame", UIParent)
 frame:SetSize(FRAME_W, FRAME_H)
@@ -257,56 +272,71 @@ frame:SetResizable(true)
 frame:SetResizeBounds(FRAME_MIN_W, FRAME_MIN_H, FRAME_MAX_W, FRAME_MAX_H)
 frame:Hide()
 
-SetSolidBg(frame, C.bgDark[1], C.bgDark[2], C.bgDark[3], C.bgDark[4])
-DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.55, 1)
+-- Sanfter vertikaler Verlauf (17130f -> 12100d), statt Vollton
+local frameBg = frame:CreateTexture(nil, "BACKGROUND")
+frameBg:SetAllPoints(frame)
+frameBg:SetTexture("Interface\\Buttons\\WHITE8X8")
+frameBg:SetGradient("VERTICAL",
+    CreateColor(C.bgDark[1], C.bgDark[2], C.bgDark[3], 1),
+    CreateColor(C.bgMid[1],  C.bgMid[2],  C.bgMid[3],  1)
+)
+DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.45, 1)
 
 --------------------------------------------------
--- Header (banner design)
+-- Icon-Rail (linke Navigationsspalte)
 --------------------------------------------------
 
-local HEADER_H = 120
+local iconRail = CreateFrame("Frame", nil, frame)
+iconRail:SetWidth(RAIL_W)
+iconRail:SetPoint("TOPLEFT",    frame, "TOPLEFT",    1, -1)
+iconRail:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1,  1)
+SetSolidBg(iconRail, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
 
-local header = CreateFrame("Frame", nil, frame)
-header:SetPoint("TOPLEFT",  frame, "TOPLEFT",  0, 0)
-header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
-header:SetHeight(HEADER_H)
+local railDiv = iconRail:CreateTexture(nil, "OVERLAY")
+railDiv:SetPoint("TOPRIGHT",    iconRail, "TOPRIGHT",    0, 0)
+railDiv:SetPoint("BOTTOMRIGHT", iconRail, "BOTTOMRIGHT", 0, 0)
+railDiv:SetWidth(1)
+railDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
--- Background horizontal gradient (calmer, lower-contrast surface)
-local bgTex = header:CreateTexture(nil, "BACKGROUND")
-bgTex:SetAllPoints(header)
-bgTex:SetTexture("Interface\\Buttons\\WHITE8X8")
-bgTex:SetGradient("HORIZONTAL",
-                  CreateColor(0.03, 0.02, 0.08, 1),
-                  CreateColor(C.surface1[1], C.surface1[2], C.surface1[3], 1)
+-- Markenzeichen "W"
+local brandBadge = CreateFrame("Frame", nil, iconRail)
+brandBadge:SetSize(36, 36)
+brandBadge:SetPoint("TOP", iconRail, "TOP", 0, -14)
+
+local brandTex = brandBadge:CreateTexture(nil, "BACKGROUND")
+brandTex:SetAllPoints(brandBadge)
+brandTex:SetTexture("Interface\\Buttons\\WHITE8X8")
+brandTex:SetGradient("VERTICAL",
+    CreateColor(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 1),
+    CreateColor(C.purple[1],    C.purple[2],    C.purple[3],    1)
 )
 
--- Accent strip top (relative width) - dezenter Hairline-Akzent
-local topAccent = header:CreateTexture(nil, "OVERLAY")
-topAccent:SetHeight(2)
-topAccent:SetPoint("TOPLEFT",  header, "TOPLEFT",  0, 0)
-topAccent:SetPoint("TOPRIGHT", header, "TOPRIGHT", 0, 0)
-topAccent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.35)
+local brandLabel = brandBadge:CreateFontString(nil, "OVERLAY")
+brandLabel:SetAllPoints(brandBadge)
+brandLabel:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+brandLabel:SetJustifyH("CENTER")
+brandLabel:SetJustifyV("MIDDLE")
+brandLabel:SetTextColor(0.10, 0.06, 0.03, 1.0)
+brandLabel:SetText("W")
 
--- Bottom divider line (relative width) - schlanke Trennlinie statt Glow-Band
-DrawHLine(header, C.purple[1], C.purple[2], C.purple[3], 0.40, 0, "OVERLAY")
+-- Versionsmarke am unteren Rand der Leiste
+local railVersion = iconRail:CreateFontString(nil, "OVERLAY")
+railVersion:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+railVersion:SetPoint("BOTTOM", iconRail, "BOTTOM", 0, 10)
+railVersion:SetText(WeintCodex.ColorText("textGhost", "v" .. (WeintCodex.Version or "1.0")))
 
--- Logo
-local logoFrame = CreateFrame("Frame", nil, header)
-logoFrame:SetSize(450, 110)
-logoFrame:SetPoint("CENTER", header, "CENTER", 0, 0)
+WeintCodex.IconRail    = iconRail
+WeintCodex.RailIconTop = brandBadge
 
-local logoTex = logoFrame:CreateTexture(nil, "ARTWORK")
-logoTex:SetAllPoints(logoFrame)
-logoTex:SetTexture("Interface\\AddOns\\WeintCodex\\media\\logo")
-
--- Close Button
-local closeBtn = CreateFrame("Button", nil, header)
-closeBtn:SetSize(26, 26)
-closeBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
+-- Close Button (oben rechts über der gesamten Fensterbreite)
+local closeBtn = CreateFrame("Button", nil, frame)
+closeBtn:SetSize(24, 24)
+closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
+closeBtn:SetFrameLevel(frame:GetFrameLevel() + 20)
 
 local closeX = closeBtn:CreateFontString(nil, "OVERLAY")
 closeX:SetAllPoints(closeBtn)
-closeX:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+closeX:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
 closeX:SetText("|cffff5555×|r")
 
 closeBtn:SetScript("OnClick", function() frame:Hide() end)
@@ -320,82 +350,110 @@ closeBtn:SetScript("OnLeave", function()
 end)
 
 --------------------------------------------------
--- Footer bar
+-- Sub-Nav (Sidebar) - kontextabhaengige Navigationsspalte
 --------------------------------------------------
 
-local footer = CreateFrame("Frame", nil, frame)
-footer:SetPoint("BOTTOMLEFT",  frame, "BOTTOMLEFT",  0, 0)
-footer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-footer:SetHeight(22)
-SetSolidBg(footer, C.headerBg[1], C.headerBg[2], C.headerBg[3], 1.0)
-
--- Top divider (relative width)
-DrawHLine(footer, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.40, 0, "OVERLAY")
-
-local footerLeft = footer:CreateFontString(nil, "OVERLAY")
-footerLeft:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-footerLeft:SetPoint("LEFT", footer, "LEFT", 12, 0)
-footerLeft:SetText(WeintCodex.ColorText("textDim", "WeintCodex v" .. (WeintCodex.Version or "0.7")))
-
-local footerRight = footer:CreateFontString(nil, "OVERLAY")
-footerRight:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-footerRight:SetPoint("RIGHT", footer, "RIGHT", -12, 0)
-footerRight:SetText(WeintCodex.ColorText("textDim", "Für die Gilde. Für den Erfolg. Bis einer weint. "))
-
---------------------------------------------------
--- Tab Bar
---------------------------------------------------
-
-local tabBar = CreateFrame("Frame", nil, frame)
-tabBar:SetPoint("TOPLEFT",  header, "BOTTOMLEFT",  0, 0)
-tabBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, 0)
-tabBar:SetHeight(40)
-SetSolidBg(tabBar, C.bgMid[1], C.bgMid[2], C.bgMid[3], C.bgMid[4])
-
--- Bottom divider (relative width) - schlanke Hairline
-DrawHLine(tabBar, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.30, 0, "OVERLAY")
-
-WeintCodex.TabBar = tabBar
-
---------------------------------------------------
--- Content Area
---------------------------------------------------
-
-local bodyFrame = CreateFrame("Frame", nil, frame)
-bodyFrame:SetPoint("TOPLEFT",    tabBar, "BOTTOMLEFT",  0,   0)
-bodyFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0,  22)
-SetSolidBg(bodyFrame, C.bgDark[1], C.bgDark[2], C.bgDark[3], 1.0)
-
---------------------------------------------------
--- Sidebar
---------------------------------------------------
-
-local sidebar = CreateFrame("Frame", nil, bodyFrame)
-sidebar:SetWidth(212)
-sidebar:SetPoint("TOPLEFT",    bodyFrame, "TOPLEFT",    0, 0)
-sidebar:SetPoint("BOTTOMLEFT", bodyFrame, "BOTTOMLEFT", 0, 0)
-SetSolidBg(sidebar, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], C.bgPanel[4])
+local sidebar = CreateFrame("Frame", nil, frame)
+sidebar:SetWidth(SIDEBAR_W)
+sidebar:SetPoint("TOPLEFT",    iconRail, "TOPRIGHT",    0, 0)
+sidebar:SetPoint("BOTTOMLEFT", iconRail, "BOTTOMRIGHT", 0, 0)
 
 local sidebarDiv = sidebar:CreateTexture(nil, "OVERLAY")
 sidebarDiv:SetPoint("TOPRIGHT",    sidebar, "TOPRIGHT",    0,  0)
 sidebarDiv:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", 0,  0)
 sidebarDiv:SetWidth(1)
-sidebarDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.30)
+sidebarDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
 local sidebarHeader = sidebar:CreateFontString(nil, "OVERLAY")
-sidebarHeader:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 10, -12)
-sidebarHeader:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-sidebarHeader:SetText("|cff4B4060— NAVIGATION —|r")
+sidebarHeader:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, -20)
+sidebarHeader:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+sidebarHeader:SetText(WeintCodex.ColorText("textFaint", "NAVIGATION"))
 WeintCodex.SidebarHeader = sidebarHeader
+
+--------------------------------------------------
+-- Hauptspalte: Titelleiste + Content
+--------------------------------------------------
+
+local mainColumn = CreateFrame("Frame", nil, frame)
+mainColumn:SetPoint("TOPLEFT",     sidebar, "TOPRIGHT",    0, 0)
+mainColumn:SetPoint("BOTTOMRIGHT", frame,   "BOTTOMRIGHT", -(INSPECTOR_W + 1), 1)
+
+local titleBar = CreateFrame("Frame", nil, mainColumn)
+titleBar:SetHeight(TITLEBAR_H)
+titleBar:SetPoint("TOPLEFT",  mainColumn, "TOPLEFT",  0, 0)
+titleBar:SetPoint("TOPRIGHT", mainColumn, "TOPRIGHT", 0, 0)
+
+local titleDiv = titleBar:CreateTexture(nil, "OVERLAY")
+titleDiv:SetHeight(1)
+titleDiv:SetPoint("BOTTOMLEFT",  titleBar, "BOTTOMLEFT",  0, 0)
+titleDiv:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", 0, 0)
+titleDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+
+local wordmark = titleBar:CreateFontString(nil, "OVERLAY")
+wordmark:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+wordmark:SetPoint("LEFT", titleBar, "LEFT", 20, 0)
+wordmark:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+wordmark:SetText("WeintCodex")
+
+local wordDiv = titleBar:CreateTexture(nil, "OVERLAY")
+wordDiv:SetSize(1, 16)
+wordDiv:SetPoint("LEFT", wordmark, "RIGHT", 14, 0)
+wordDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+
+local breadcrumb = titleBar:CreateFontString(nil, "OVERLAY")
+breadcrumb:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+breadcrumb:SetPoint("LEFT", wordDiv, "RIGHT", 14, 0)
+breadcrumb:SetPoint("RIGHT", titleBar, "RIGHT", -20, 0)
+breadcrumb:SetJustifyH("LEFT")
+breadcrumb:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+WeintCodex.Breadcrumb = breadcrumb
+
+-- Frei belegbarer Aktionsbereich rechts in der Titelleiste (z.B. Buttons je Modul)
+local titleActions = CreateFrame("Frame", nil, titleBar)
+titleActions:SetHeight(TITLEBAR_H)
+titleActions:SetPoint("TOPRIGHT", titleBar, "TOPRIGHT", -16, 0)
+titleActions:SetWidth(1)
+WeintCodex.TitleBarActions = titleActions
+
+function WeintCodex.SetBreadcrumb(...)
+    local parts = { ... }
+    local segs = {}
+    for i, p in ipairs(parts) do
+        if i == #parts then
+            segs[#segs + 1] = WeintCodex.ColorText("textNormal", p)
+        else
+            segs[#segs + 1] = WeintCodex.ColorText("textDim", p)
+            segs[#segs + 1] = WeintCodex.ColorText("textGhost", "  ›  ")
+        end
+    end
+    breadcrumb:SetText(table.concat(segs))
+end
 
 --------------------------------------------------
 -- Content Panel
 --------------------------------------------------
 
-local contentPanel = CreateFrame("Frame", nil, bodyFrame)
-contentPanel:SetPoint("TOPLEFT",     sidebar,    "TOPRIGHT",    0, 0)
-contentPanel:SetPoint("BOTTOMRIGHT", bodyFrame,  "BOTTOMRIGHT", 0, 0)
-SetSolidBg(contentPanel, C.bgDark[1], C.bgDark[2], C.bgDark[3], 1.0)
+local contentPanel = CreateFrame("Frame", nil, mainColumn)
+contentPanel:SetPoint("TOPLEFT",     titleBar,   "BOTTOMLEFT",  0, 0)
+contentPanel:SetPoint("BOTTOMRIGHT", mainColumn, "BOTTOMRIGHT", 0, 0)
+
+--------------------------------------------------
+-- Inspector (rechte Kontext-Spalte)
+--------------------------------------------------
+
+local inspector = CreateFrame("Frame", nil, frame)
+inspector:SetWidth(INSPECTOR_W)
+inspector:SetPoint("TOPRIGHT",    frame, "TOPRIGHT",    -1, -1)
+inspector:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1,  1)
+SetSolidBg(inspector, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
+
+local inspectorDiv = inspector:CreateTexture(nil, "OVERLAY")
+inspectorDiv:SetPoint("TOPLEFT",    inspector, "TOPLEFT",    0, 0)
+inspectorDiv:SetPoint("BOTTOMLEFT", inspector, "BOTTOMLEFT", 0, 0)
+inspectorDiv:SetWidth(1)
+inspectorDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+
+WeintCodex.Inspector = inspector
 
 --------------------------------------------------
 -- Resize Grip (bottom-right corner)
@@ -464,11 +522,9 @@ end)
 --------------------------------------------------
 
 WeintCodex.MainFrame    = frame
-WeintCodex.Header       = header
+WeintCodex.TitleBar     = titleBar
 WeintCodex.Sidebar      = sidebar
 WeintCodex.ContentPanel = contentPanel
-WeintCodex.BodyFrame    = bodyFrame
-WeintCodex.Footer       = footer
 WeintCodex.ApplySavedWindow = ApplySavedWindow
 
 --------------------------------------------------
@@ -508,7 +564,7 @@ function WeintCodex.ShowExportDialog(titleText, exportStr)
         local ebBg = CreateFrame("Frame", nil, f)
         ebBg:SetSize(560, 110)
         ebBg:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -8)
-        SetSolidBg(ebBg, 0.04, 0.02, 0.10, 0.95)
+        SetSolidBg(ebBg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.95)
         DrawBorder(ebBg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.60, 1)
 
         local eb = CreateFrame("EditBox", nil, ebBg)

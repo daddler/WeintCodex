@@ -337,8 +337,25 @@ function WeintCodex.Sync.ShowImportDialog()
     local titleStr = f:CreateFontString(nil, "OVERLAY")
     titleStr:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
     titleStr:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -18)
-    titleStr:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
+    titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     titleStr:SetText("Daten importieren")
+
+    WeintCodex.SetBreadcrumb("Import")
+    WeintCodex.Navigation.SetInspector({
+        { type = "header", text = "Unterstützte Typen" },
+        { type = "rows", rows = {
+            { label = "BOSS",    value = "Bossguides" },
+            { label = "RAIDWED", value = "Raid Mittwoch" },
+            { label = "RAIDTHU", value = "Raid Donnerstag" },
+            { label = "MAT",     value = "Materialien" },
+            { label = "WA",      value = "WeakAuras" },
+        }},
+        { type = "divider" },
+        { type = "card", lines = {
+            "Der Bot-Exportbefehl erzeugt den passenden",
+            "WCIMPORT:...-String automatisch.",
+        }},
+    })
 
     local divider = f:CreateTexture(nil, "OVERLAY")
     divider:SetHeight(1)
@@ -356,10 +373,10 @@ function WeintCodex.Sync.ShowImportDialog()
     helpText:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
     helpText:SetText(
         "Führe im Discord-Bot einen Exportbefehl aus und füge den generierten String unten ein.\n\n" ..
-        "|cff9B6BFFBossguides:|r   /export boss        ->  WCIMPORT:BOSS:...\n" ..
-        "|cff66ccffRaid Mi:|r       /export raidwed     ->  WCIMPORT:RAIDWED:...\n" ..
-        "|cff66ccffRaid Do:|r       /export raidthu     ->  WCIMPORT:RAIDTHU:...\n" ..
-        "|cffF59E0BMaterialien:|r  /export mat          ->  WCIMPORT:MAT:...\n" ..
+        "|cffC8763ABossguides:|r   /export boss        ->  WCIMPORT:BOSS:...\n" ..
+        "|cff6BA0D9Raid Mi:|r       /export raidwed     ->  WCIMPORT:RAIDWED:...\n" ..
+        "|cff6BA0D9Raid Do:|r       /export raidthu     ->  WCIMPORT:RAIDTHU:...\n" ..
+        "|cffC8A03AMaterialien:|r  /export mat          ->  WCIMPORT:MAT:...\n" ..
         "|cff33D65EWeakAuras:|r    /export wa           ->  WCIMPORT:WA:..."
     )
 
@@ -374,7 +391,7 @@ function WeintCodex.Sync.ShowImportDialog()
     fmtTitle:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     fmtTitle:SetPoint("TOPLEFT", fmtBg, "TOPLEFT", 8, -8)
     fmtTitle:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    fmtTitle:SetText("|cff6B5090Format-Referenz:|r")
+    fmtTitle:SetText("|cff6B6259Format-Referenz:|r")
 
     local fmtText = fmtBg:CreateFontString(nil, "OVERLAY")
     fmtText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
@@ -400,7 +417,7 @@ function WeintCodex.Sync.ShowImportDialog()
     local editBg = CreateFrame("Frame", nil, f)
     editBg:SetSize(840, 120)
     editBg:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -280)
-    SetSolidBg(editBg, 0.04, 0.02, 0.10, 0.95)
+    SetSolidBg(editBg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.95)
     DrawBorder(editBg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.60, 1)
 
     local editBox = CreateFrame("EditBox", nil, editBg)
@@ -444,8 +461,8 @@ function WeintCodex.Sync.ShowImportDialog()
     local clearBtn = CreateFrame("Button", nil, f)
     clearBtn:SetSize(120, 38)
     clearBtn:SetPoint("TOPLEFT", importBtn, "TOPRIGHT", 12, 0)
-    SetSolidBg(clearBtn, 0.22, 0.08, 0.08, 0.80)
-    DrawBorder(clearBtn, 0.55, 0.15, 0.15, 0.80, 1)
+    SetSolidBg(clearBtn, C.danger[1] * 0.3, C.danger[2] * 0.3, C.danger[3] * 0.3, 0.80)
+    DrawBorder(clearBtn, C.danger[1], C.danger[2], C.danger[3], 0.80, 1)
 
     local clearBtnLbl = clearBtn:CreateFontString(nil, "OVERLAY")
     clearBtnLbl:SetAllPoints(clearBtn)
@@ -471,7 +488,7 @@ function WeintCodex.Sync.ShowImportDialog()
     histTitle:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
     histTitle:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -490)
     histTitle:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    histTitle:SetText("|cff4B4060— Letzte Importe —|r")
+    histTitle:SetText("|cff6B6259— Letzte Importe —|r")
 
     local histText = f:CreateFontString(nil, "OVERLAY")
     histText:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
@@ -486,17 +503,17 @@ function WeintCodex.Sync.ShowImportDialog()
         local lines = {}
         if sd then
             if sd.raidWednesday and sd.raidWednesday.date and sd.raidWednesday.date ~= "" then
-                lines[#lines+1] = "|cff66ccff" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "|r  Mittwoch-Raid:   " .. sd.raidWednesday.date .. "   (" .. (sd.raidWednesday.players and #sd.raidWednesday.players or 0) .. " Spieler)"
+                lines[#lines+1] = "|cff6BA0D9" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "|r  Mittwoch-Raid:   " .. sd.raidWednesday.date .. "   (" .. (sd.raidWednesday.players and #sd.raidWednesday.players or 0) .. " Spieler)"
             end
             if sd.raidThursday and sd.raidThursday.date and sd.raidThursday.date ~= "" then
-                lines[#lines+1] = "|cff66ccff" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "|r  Donnerstag-Raid: " .. sd.raidThursday.date .. "   (" .. (sd.raidThursday.players and #sd.raidThursday.players or 0) .. " Spieler)"
+                lines[#lines+1] = "|cff6BA0D9" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_BattleShout", 14) .. "|r  Donnerstag-Raid: " .. sd.raidThursday.date .. "   (" .. (sd.raidThursday.players and #sd.raidThursday.players or 0) .. " Spieler)"
             end
             if sd.materialData and sd.materialData.date and sd.materialData.date ~= "" then
-                lines[#lines+1] = "|cffF59E0B" .. WeintCodex.Icon("Interface\\Icons\\INV_Crate_01", 14) .. "|r  Materialien:     " .. sd.materialData.date .. "   (" .. (sd.materialData.items and #sd.materialData.items or 0) .. " Einträge)"
+                lines[#lines+1] = "|cffC8A03A" .. WeintCodex.Icon("Interface\\Icons\\INV_Crate_01", 14) .. "|r  Materialien:     " .. sd.materialData.date .. "   (" .. (sd.materialData.items and #sd.materialData.items or 0) .. " Einträge)"
             end
         end
         if #lines == 0 then
-            histText:SetText("|cff3B2D60Noch keine Importe vorhanden.|r")
+            histText:SetText("|cff4A423ANoch keine Importe vorhanden.|r")
         else
             histText:SetText(table.concat(lines, "\n"))
         end
@@ -519,7 +536,7 @@ function WeintCodex.Sync.ShowImportDialog()
             editBox:SetText("")
             UpdateHistory()
             C_Timer.After(0.8, function()
-                print("|cff8B5CF6[WeintCodex]|r |cff33D65E" .. msg .. "|r")
+                print("|cffC8763A[WeintCodex]|r |cff33D65E" .. msg .. "|r")
             end)
         else
             f.StatusText:SetText("|cffff6666" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " Fehler: " .. msg .. "|r")
@@ -534,8 +551,8 @@ end
 function WeintCodex.Sync.QuickImport(str)
     local ok, msg = ProcessImport(str)
     if ok then
-        print("|cff8B5CF6[WeintCodex Import]|r |cff33D65E" .. msg .. "|r")
+        print("|cffC8763A[WeintCodex Import]|r |cff33D65E" .. msg .. "|r")
     else
-        print("|cff8B5CF6[WeintCodex Import]|r |cffff6666Fehler: " .. msg .. "|r")
+        print("|cffC8763A[WeintCodex Import]|r |cffff6666Fehler: " .. msg .. "|r")
     end
 end

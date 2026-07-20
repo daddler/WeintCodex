@@ -14,9 +14,9 @@ local activeDay = "wednesday"
 --------------------------------------------------
 
 local roleColors = {
-    TANK   = { r = 0.40, g = 0.80, b = 1.00, label = WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tank"   },
-    HEALER = { r = 0.13, g = 0.77, b = 0.37, label = WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler" },
-    DPS    = { r = 1.00, g = 0.49, b = 0.27, label = WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS"   },
+    TANK   = { r = C.blue[1],  g = C.blue[2],  b = C.blue[3],  label = WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tank"   },
+    HEALER = { r = C.green[1], g = C.green[2], b = C.green[3], label = WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler" },
+    DPS    = { r = C.red[1],   g = C.red[2],   b = C.red[3],   label = WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS"   },
 }
 
 local classColors = {
@@ -32,6 +32,8 @@ local classColors = {
     MONK       = "|cff00ff96",
     DRUID      = "|cffff7d0a",
 }
+
+local dayLabels = { wednesday = "Mittwoch", thursday = "Donnerstag" }
 
 --------------------------------------------------
 -- Namensauflösung (Discord-Name -> WoW-Charaktername)
@@ -152,34 +154,20 @@ StaticPopupDialogs["WEINTCODEX_EDIT_ROSTER_NAME"] = {
 }
 
 --------------------------------------------------
--- Helpers
+-- Spalten-Layout
 --------------------------------------------------
 
-local function SetSolidBg(f, r, g, b, a)
-    local t = f:CreateTexture(nil, "BACKGROUND")
-    t:SetAllPoints(f)
-    t:SetColorTexture(r, g, b, a or 1)
-    return t
-end
-
-local function DrawBorder(f, r, g, b, a, thick)
-    thick = thick or 1
-    local W, H = f:GetWidth(), f:GetHeight()
-    local function T(pt, rpt, w, h)
-        local t = f:CreateTexture(nil, "OVERLAY")
-        t:SetColorTexture(r, g, b, a)
-        t:SetPoint(pt, f, rpt, 0, 0)
-        t:SetSize(w, h)
-    end
-    T("TOPLEFT",    "TOPLEFT",    W,     thick)
-    T("BOTTOMLEFT", "BOTTOMLEFT", W,     thick)
-    T("TOPLEFT",    "TOPLEFT",    thick, H)
-    T("TOPRIGHT",   "TOPRIGHT",   thick, H)
-end
+local ROW_PAD = 20
+local COL_NAME_X, COL_NAME_W = 20, 220
+local COL_CLASS_X            = 250
+local COL_ROLE_X             = 400
+local COL_NOTE_X             = 520
 
 --------------------------------------------------
 -- Frame erstellen
 --------------------------------------------------
+
+local reloadBtn, clearBtn = nil, nil
 
 local function CreateRaidFrame()
     if raidFrame then return raidFrame end
@@ -188,102 +176,20 @@ local function CreateRaidFrame()
     local f  = CreateFrame("Frame", nil, cp)
     f:SetAllPoints(cp)
 
-    -- Header area (fixed)
-    local header = CreateFrame("Frame", nil, f)
-    header:SetHeight(90)
-    header:SetPoint("TOPLEFT",  f, "TOPLEFT",  0, 0)
-    header:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
-    SetSolidBg(header, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.55)
+    --------------------------------------------------
+    -- Titelleisten-Aktionen (Singleton, ueberlebt Tages-Wechsel)
+    --------------------------------------------------
 
-    -- Titel
-    local titleStr = header:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-    titleStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -14)
-    titleStr:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
-    titleStr:SetText("Raidanmeldungen")
-    f.Title = titleStr
-
-    -- Datum + Status
-    local dateStr = header:CreateFontString(nil, "OVERLAY")
-    dateStr:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    dateStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 10, 2)
-    dateStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    dateStr:SetText("")
-    f.DateStr = dateStr
-
-    -- Zusammenfassung (Tank/Heiler/DPS/Gesamt)
-    local summaryFrame = CreateFrame("Frame", nil, header)
-    summaryFrame:SetHeight(34)
-    summaryFrame:SetPoint("BOTTOMLEFT",  header, "BOTTOMLEFT",  16,  8)
-    summaryFrame:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -16, 8)
-
-    -- 4 stat cards
-    local statDefs = {
-        { key = "tank",  label = WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks",  col = {0.40, 0.80, 1.00} },
-        { key = "heal",  label = WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler", col = {0.13, 0.77, 0.37} },
-        { key = "dps",   label = WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS",   col = {1.00, 0.49, 0.27} },
-        { key = "total", label = "Gesamt",     col = {0.65, 0.60, 0.80} },
-    }
-
-    local statLabels = {}
-    for i, sd in ipairs(statDefs) do
-        local card = CreateFrame("Frame", nil, summaryFrame)
-        card:SetSize(118, 30)
-        card:SetPoint("LEFT", summaryFrame, "LEFT", (i - 1) * 130, 0)
-        SetSolidBg(card, C.bgCard[1], C.bgCard[2], C.bgCard[3], 0.80)
-        DrawBorder(card, sd.col[1], sd.col[2], sd.col[3], 0.40, 1)
-
-        local lbl = card:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-        lbl:SetAllPoints(card)
-        lbl:SetJustifyH("CENTER")
-        lbl:SetTextColor(sd.col[1] * 0.85, sd.col[2] * 0.85, sd.col[3] * 0.85)
-        lbl:SetText(sd.label .. ": —")
-        statLabels[sd.key] = lbl
-    end
-    f.StatLabels = statLabels
-
-    -- Neue Discord-Anmeldungen mid-Session abholen: SavedVariables
-    -- werden vom Client nur bei Login/Reload von der Festplatte
-    -- gelesen - schreibt Companion waehrend der laufenden Session neue
-    -- Daten in die Datei, sieht das laufende Spiel das erst nach einem
-    -- /reload. Ein direktes "Abrufen" ohne Reload ist daher technisch
-    -- nicht moeglich.
-    local reloadButton = CreateFrame("Button", nil, header)
-    reloadButton:SetSize(230, 26)
-    reloadButton:SetPoint(
-        "TOPRIGHT",
-        header,
-        "TOPRIGHT",
-        -170,
-        -14
-    )
-
-    SetSolidBg(
-        reloadButton,
-        C.purpleDim[1],
-        C.purpleDim[2],
-        C.purpleDim[3],
-        0.80
-    )
-
-    DrawBorder(
-        reloadButton,
-        C.purple[1],
-        C.purple[2],
-        C.purple[3],
-        1.0,
-        1
-    )
-
-    local reloadLabel = reloadButton:CreateFontString(nil, "OVERLAY")
-    reloadLabel:SetAllPoints(reloadButton)
-    reloadLabel:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    reloadLabel:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Discord-Anmeldungen abrufen")
-    reloadLabel:SetTextColor(1, 1, 1)
-
-    reloadButton:SetScript("OnEnter", function(self)
-        SetSolidBg(self, C.purple[1] * 0.90, C.purple[2] * 0.90, C.purple[3] * 0.90, 0.90)
+    reloadBtn = WeintCodex.CreateCard(WeintCodex.TitleBarActions, { width = 190, height = 30, buttonStyle = true })
+    reloadBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", -110, -11)
+    local reloadLbl = reloadBtn:CreateFontString(nil, "OVERLAY")
+    reloadLbl:SetAllPoints(reloadBtn)
+    reloadLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    reloadLbl:SetJustifyH("CENTER")
+    reloadLbl:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Anmeldungen abrufen")
+    reloadLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+    reloadBtn:SetScript("OnEnter", function(self)
+        self:SetSurface("surface3")
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetText(
             "Läd die von Companion zuletzt geschriebenen Daten neu " ..
@@ -293,133 +199,132 @@ local function CreateRaidFrame()
         )
         GameTooltip:Show()
     end)
-    reloadButton:SetScript("OnLeave", function(self)
-        SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
+    reloadBtn:SetScript("OnLeave", function(self)
+        self:SetSurface("surface2")
         GameTooltip:Hide()
     end)
-    reloadButton:SetScript("OnClick", function()
-        ReloadUI()
-    end)
+    reloadBtn:SetScript("OnClick", function() ReloadUI() end)
 
-    local clearButton = CreateFrame("Button", nil, header)
-    clearButton:SetSize(140, 26)
-    clearButton:SetPoint(
-        "TOPRIGHT",
-        header,
-        "TOPRIGHT",
-        -20,
-        -14
-    )
-
-    SetSolidBg(
-        clearButton,
-        C.purpleDim[1],
-        C.purpleDim[2],
-        C.purpleDim[3],
-        0.80
-    )
-
-    DrawBorder(
-        clearButton,
-        C.purple[1],
-        C.purple[2],
-        C.purple[3],
-        1.0,
-        1
-    )
-
-    local clearLabel = clearButton:CreateFontString(
-        nil,
-        "OVERLAY"
-    )
-
-    clearLabel:SetAllPoints(clearButton)
-    clearLabel:SetFont(
-        "Fonts\\FRIZQT__.TTF",
-        11,
-        "OUTLINE"
-    )
-
-    clearLabel:SetText("Raiddaten löschen")
-    clearLabel:SetTextColor(1, 1, 1)
-
-    clearButton:SetScript("OnEnter", function(self)
-
-    SetSolidBg(
-        self,
-        C.purple[1] * 0.90,
-        C.purple[2] * 0.90,
-        C.purple[3] * 0.90,
-        0.90
-    )
-
-    end)
-
-    clearButton:SetScript("OnLeave", function(self)
-
-    SetSolidBg(
-        self,
-        C.purpleDim[1],
-        C.purpleDim[2],
-        C.purpleDim[3],
-        0.80
-    )
-
-    end)
-
-    clearButton:SetScript("OnClick", function()
-
-    if not WeintCodex.SavedData then
-        return
-        end
-
+    clearBtn = WeintCodex.CreateCard(WeintCodex.TitleBarActions, { width = 96, height = 30, buttonStyle = true })
+    clearBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", 0, -11)
+    local clearLbl = clearBtn:CreateFontString(nil, "OVERLAY")
+    clearLbl:SetAllPoints(clearBtn)
+    clearLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    clearLbl:SetJustifyH("CENTER")
+    clearLbl:SetText("Löschen")
+    clearLbl:SetTextColor(C.danger[1], C.danger[2], C.danger[3])
+    clearBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+    clearBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+    clearBtn:SetScript("OnClick", function()
+        if not WeintCodex.SavedData then return end
         WeintCodex.SavedData.raidWednesday = nil
-        WeintCodex.SavedData.raidThursday = nil
+        WeintCodex.SavedData.raidThursday  = nil
+        print(WeintCodex.ColorText("textFaint", "[WeintCodex]") .. " Raiddaten gelöscht.")
+        if raidFrame and raidFrame:IsShown() then
+            WeintCodex.Raids.Show()
+        end
+    end)
 
-        print(
-            "|cff5B4880[WeintCodex]|r Raiddaten gelöscht."
-        )
+    --------------------------------------------------
+    -- Summary-Leiste
+    --------------------------------------------------
 
-        end)
+    local summary = CreateFrame("Frame", nil, f)
+    summary:SetHeight(70)
+    summary:SetPoint("TOPLEFT",  f, "TOPLEFT",  0, 0)
+    summary:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
 
-    local headerDiv = header:CreateTexture(nil, "OVERLAY")
-    headerDiv:SetHeight(1)
-    headerDiv:SetPoint("BOTTOMLEFT",  header, "BOTTOMLEFT",  0, 0)
-    headerDiv:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", 0, 0)
-    headerDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50)
+    local summaryDiv = summary:CreateTexture(nil, "OVERLAY")
+    summaryDiv:SetHeight(1)
+    summaryDiv:SetPoint("BOTTOMLEFT",  summary, "BOTTOMLEFT",  0, 0)
+    summaryDiv:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", 0, 0)
+    summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    -- Column headers
-    local colBar = CreateFrame("Frame", nil, f)
-    colBar:SetHeight(24)
-    colBar:SetPoint("TOPLEFT",  header, "BOTTOMLEFT",  0, 0)
-    colBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, 0)
-    SetSolidBg(colBar, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.40)
+    local eyebrow = summary:CreateFontString(nil, "OVERLAY")
+    eyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
+    eyebrow:SetText(WeintCodex.ColorText("textFaint", "RAIDANMELDUNGEN"))
 
-    local function ColHeader(text, x)
-        local lbl = colBar:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        lbl:SetPoint("LEFT", colBar, "LEFT", x, 0)
-        lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-        lbl:SetText(text)
+    local titleStr = summary:CreateFontString(nil, "OVERLAY")
+    titleStr:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+    titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    f.Title = titleStr
+
+    local dateStr = summary:CreateFontString(nil, "OVERLAY")
+    dateStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    dateStr:SetPoint("TOPLEFT", titleStr, "BOTTOMLEFT", 2, -4)
+    f.DateStr = dateStr
+
+    -- Stat-Quartett rechts: TANKS / HEILER / DPS / GESAMT
+    local statDefs = {
+        { key = "tank",  label = "TANKS",  color = "blue" },
+        { key = "heal",  label = "HEILER", color = "green" },
+        { key = "dps",   label = "DPS",    color = "red" },
+        { key = "total", label = "GESAMT", color = "textBright" },
+    }
+    local statStrs = {}
+    local sx = -ROW_PAD
+    for i = #statDefs, 1, -1 do
+        local def = statDefs[i]
+        local box = CreateFrame("Frame", nil, summary)
+        box:SetSize(64, 40)
+        box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
+
+        local lbl = box:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
+        lbl:SetJustifyH("RIGHT")
+        lbl:SetText(WeintCodex.ColorText("textFaint", def.label))
+
+        local val = box:CreateFontString(nil, "OVERLAY")
+        val:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
+        val:SetJustifyH("RIGHT")
+        local col = C[def.color] or C.textBright
+        val:SetTextColor(col[1], col[2], col[3])
+        statStrs[def.key] = val
+
+        sx = sx - 74
     end
-    ColHeader("Spieler",   12)
-    ColHeader("Klasse",   220)
-    ColHeader("Rolle",    380)
-    ColHeader("Notiz",    500)
+    f.StatStrs = statStrs
+
+    --------------------------------------------------
+    -- Tabellenkopf
+    --------------------------------------------------
+
+    local colBar = CreateFrame("Frame", nil, f)
+    colBar:SetHeight(26)
+    colBar:SetPoint("TOPLEFT",  summary, "BOTTOMLEFT",  0, 0)
+    colBar:SetPoint("TOPRIGHT", summary, "BOTTOMRIGHT", 0, 0)
 
     local colDiv = colBar:CreateTexture(nil, "OVERLAY")
     colDiv:SetHeight(1)
     colDiv:SetPoint("BOTTOMLEFT",  colBar, "BOTTOMLEFT",  0, 0)
     colDiv:SetPoint("BOTTOMRIGHT", colBar, "BOTTOMRIGHT", 0, 0)
-    colDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.30)
+    colDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    -- Scroll frame (player list)
+    local function ColLbl(text, x)
+        local l = colBar:CreateFontString(nil, "OVERLAY")
+        l:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        l:SetPoint("LEFT", colBar, "LEFT", x, 0)
+        l:SetText(WeintCodex.ColorText("textFaint", text))
+    end
+    ColLbl("SPIELER", COL_NAME_X)
+    ColLbl("KLASSE",  COL_CLASS_X)
+    ColLbl("ROLLE",   COL_ROLE_X)
+    ColLbl("NOTIZ",   COL_NOTE_X)
+
+    --------------------------------------------------
+    -- Scroll-Bereich
+    --------------------------------------------------
+
     local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT",     colBar, "BOTTOMLEFT",  0,   0)
-    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4,  4)
+    scroll:SetPoint("TOPLEFT",     colBar, "BOTTOMLEFT",  0, 0)
+    scroll:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", -4, 0)
 
     local scrollChild = CreateFrame("Frame", nil, scroll)
-    scrollChild:SetWidth(860)
+    scrollChild:SetWidth(760)
     scrollChild:SetHeight(1)
     scroll:SetScrollChild(scrollChild)
     f.ScrollChild = scrollChild
@@ -434,122 +339,139 @@ end
 
 local activePlayerRows = {}
 
+local function UpdateInspector(raidData)
+    local total = raidData and raidData.players and #raidData.players or 0
+    WeintCodex.Navigation.SetInspector({
+        { type = "header", text = "Gilden-Puls" },
+        { type = "rows", rows = {
+            { label = "Tag",          value = dayLabels[activeDay] or "—" },
+            { label = "Stand",        value = (raidData and raidData.date) or "—" },
+            { label = "Anmeldungen",  value = total .. " / 25", valueColor = (total > 0) and "success" or "textDim" },
+        }},
+        { type = "divider" },
+        { type = "header", text = "Namenskorrektur" },
+        { type = "card", lines = {
+            "Stimmt ein Charaktername nicht (Discord- statt WoW-Name)?",
+            "Notiz-Symbol in der jeweiligen Zeile anklicken und korrigieren.",
+        }},
+        { type = "divider" },
+        { type = "button", label = "Import-Format anzeigen", onClick = function()
+            WeintCodex.ShowExportDialog(
+                "Raid-Import-Format",
+                "WCIMPORT:RAIDWED:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...\n" ..
+                "WCIMPORT:RAIDTHU:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,..."
+            )
+        end },
+    })
+end
+
 local function RefreshRaidDisplay(raidData)
     local f  = CreateRaidFrame()
     local sc = f.ScrollChild
 
     for _, row in ipairs(activePlayerRows) do row:Hide() end
-    for _, child in pairs({sc:GetChildren()}) do child:Hide() end
-    for _, child in pairs({sc:GetRegions()}) do child:Hide() end
     wipe(activePlayerRows)
+
+    f.Title:SetText(dayLabels[activeDay] or "Raidanmeldungen")
+    WeintCodex.SetBreadcrumb("Raids", dayLabels[activeDay] or "—")
+    UpdateInspector(raidData)
 
     if not raidData or not raidData.players or #raidData.players == 0 then
         local noData = sc:CreateFontString(nil, "OVERLAY")
-        noData:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-        noData:SetPoint("TOPLEFT", sc, "TOPLEFT", 16, -20)
+        noData:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noData:SetPoint("TOPLEFT", sc, "TOPLEFT", ROW_PAD, -20)
         noData:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-        noData:SetText(
-            "Keine Raidanmeldungen vorhanden.\n\n" ..
-            "Importiere Daten über den |cff8B5CF6Import|r-Tab:\n\n" ..
-            "|cff5B4880WCIMPORT:RAIDWED:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...|r\n" ..
-            "|cff5B4880WCIMPORT:RAIDTHU:DATUM:Name1|TANK|WARRIOR|,Name2|HEALER|PALADIN|,...|r"
-        )
+        noData:SetJustifyH("LEFT")
+        noData:SetWidth(700)
+        noData:SetText(WeintCodex.ColorText("textFaint",
+            "Keine Raidanmeldungen vorhanden. Importiere Daten über den ") ..
+            WeintCodex.ColorText("purple", "Import") ..
+            WeintCodex.ColorText("textFaint", "-Tab."))
         noData:SetSpacing(3)
         sc:SetHeight(120)
 
-        -- Reset stat cards
-        local sl = f.StatLabels
-        sl.tank:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks: —")
-        sl.heal:SetText(WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler: —")
-        sl.dps:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS: —")
-        sl.total:SetText("Gesamt: —")
+        f.StatStrs.tank:SetText("—")
+        f.StatStrs.heal:SetText("—")
+        f.StatStrs.dps:SetText("—")
+        f.StatStrs.total:SetText("—")
         f.DateStr:SetText("")
         table.insert(activePlayerRows, noData)
         return
     end
 
-    f.DateStr:SetText("|cff5B4880" .. (raidData.date or "") .. "|r")
+    f.DateStr:SetText(WeintCodex.ColorText("textFaint", raidData.date or ""))
 
     local tanks, healers, dps = {}, {}, {}
     for _, p in ipairs(raidData.players) do
-        if     p.role == "TANK"   then tanks[#tanks+1]   = p
+        if     p.role == "TANK"   then tanks[#tanks+1]     = p
         elseif p.role == "HEALER" then healers[#healers+1] = p
-        else                           dps[#dps+1]       = p end
+        else                            dps[#dps+1]         = p end
     end
 
     local total = #raidData.players
-    local sl    = f.StatLabels
-    sl.tank:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks: "  .. #tanks)
-    sl.heal:SetText(WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler: " .. #healers)
-    sl.dps:SetText(WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS: "    .. #dps)
-    sl.total:SetText("Gesamt: " .. total .. "/25")
+    f.StatStrs.tank:SetText(tostring(#tanks))
+    f.StatStrs.heal:SetText(tostring(#healers))
+    f.StatStrs.dps:SetText(tostring(#dps))
+    f.StatStrs.total:SetText(total .. "/25")
 
-    local offsetY = -4
-    local altRow  = false
+    local offsetY = -2
 
-    local function DrawSection(players, sectionLabel, sectionColor)
+    local function DrawSection(players, sectionLabel, colorName)
         if #players == 0 then return end
 
-        -- Section label
         local sHdr = sc:CreateFontString(nil, "OVERLAY")
-        sHdr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        sHdr:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, offsetY)
-        sHdr:SetText(sectionColor .. "— " .. sectionLabel .. " (" .. #players .. ") —|r")
+        sHdr:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        sHdr:SetPoint("TOPLEFT", sc, "TOPLEFT", ROW_PAD, offsetY - 6)
+        sHdr:SetText(WeintCodex.ColorText(colorName, string.upper(sectionLabel) .. " · " .. #players))
         table.insert(activePlayerRows, sHdr)
-        offsetY = offsetY - 20
+        offsetY = offsetY - 22
 
         for _, p in ipairs(players) do
             local row = CreateFrame("Frame", nil, sc)
             row:SetHeight(28)
             row:SetPoint("TOPLEFT",  sc, "TOPLEFT",  0, offsetY)
-            row:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -6, offsetY)
+            row:SetPoint("TOPRIGHT", sc, "TOPRIGHT", 0, offsetY)
 
-            local rowBg = row:CreateTexture(nil, "BACKGROUND")
-            rowBg:SetAllPoints(row)
-            if altRow then
-                rowBg:SetColorTexture(C.bgCard[1], C.bgCard[2], C.bgCard[3], 0.50)
-            else
-                rowBg:SetColorTexture(0, 0, 0, 0)
-            end
-            altRow = not altRow
+            local rowDiv = row:CreateTexture(nil, "OVERLAY")
+            rowDiv:SetHeight(1)
+            rowDiv:SetPoint("BOTTOMLEFT",  row, "BOTTOMLEFT",  0, 0)
+            rowDiv:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+            rowDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], 0.60)
 
-            -- Role color strip
             local rc = roleColors[p.role] or roleColors.DPS
             local strip = row:CreateTexture(nil, "OVERLAY")
             strip:SetSize(2, 28)
             strip:SetPoint("LEFT", row, "LEFT", 0, 0)
             strip:SetColorTexture(rc.r, rc.g, rc.b, 0.80)
 
-            -- Player name
-            local ccol   = classColors[p.class] or "|cffdddddd"
+            local ccol = classColors[p.class] or "|cffdddddd"
             local nameLbl = row:CreateFontString(nil, "OVERLAY")
             nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-            nameLbl:SetPoint("LEFT", row, "LEFT", 10, 0)
+            nameLbl:SetPoint("LEFT", row, "LEFT", COL_NAME_X, 0)
+            nameLbl:SetWidth(COL_NAME_W)
+            nameLbl:SetJustifyH("LEFT")
             nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
-            nameLbl:SetWidth(200)
 
-            -- Class
             local cIcon = WeintCodex.ClassIcon(p.class, 14)
             local classLbl = row:CreateFontString(nil, "OVERLAY")
             classLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-            classLbl:SetPoint("LEFT", row, "LEFT", 220, 0)
-            classLbl:SetText("|cff4B4880" .. cIcon .. " " .. (p.class or "") .. "|r")
+            classLbl:SetPoint("LEFT", row, "LEFT", COL_CLASS_X, 0)
+            classLbl:SetText(WeintCodex.ColorText("textFaint", cIcon .. " " .. (p.class or "")))
             classLbl:SetWidth(140)
 
-            -- Role
             local roleLbl = row:CreateFontString(nil, "OVERLAY")
             roleLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-            roleLbl:SetPoint("LEFT", row, "LEFT", 380, 0)
-            roleLbl:SetText(sectionColor .. (rc.label or p.role) .. "|r")
+            roleLbl:SetPoint("LEFT", row, "LEFT", COL_ROLE_X, 0)
+            roleLbl:SetText(WeintCodex.ColorText(colorName, rc.label or p.role))
             roleLbl:SetWidth(110)
 
-            -- Note
             if p.note and p.note ~= "" then
                 local noteLbl = row:CreateFontString(nil, "OVERLAY")
                 noteLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-                noteLbl:SetPoint("LEFT", row, "LEFT", 500, 0)
-                noteLbl:SetText("|cff4B4060" .. p.note .. "|r")
-                noteLbl:SetWidth(320)
+                noteLbl:SetPoint("LEFT", row, "LEFT", COL_NOTE_X, 0)
+                noteLbl:SetPoint("RIGHT", row, "RIGHT", -30, 0)
+                noteLbl:SetJustifyH("LEFT")
+                noteLbl:SetText(WeintCodex.ColorText("textFaint", p.note))
             end
 
             -- Namen manuell korrigieren (falls Bot/Auto-Erkennung den
@@ -583,14 +505,14 @@ local function RefreshRaidDisplay(raidData)
             table.insert(activePlayerRows, row)
             offsetY = offsetY - 28
         end
-        offsetY = offsetY - 6
+        offsetY = offsetY - 8
     end
 
-    DrawSection(tanks,   "Tanks",  "|cff66ccff")
-    DrawSection(healers, "Heiler", "|cff66ff88")
-    DrawSection(dps,     "DPS",    "|cffff8855")
+    DrawSection(tanks,   "Tanks",  "blue")
+    DrawSection(healers, "Heiler", "green")
+    DrawSection(dps,     "DPS",    "red")
 
-    sc:SetHeight(math.abs(offsetY) + 24)
+    sc:SetHeight(math.abs(offsetY) + 20)
 end
 
 --------------------------------------------------
@@ -603,34 +525,30 @@ function WeintCodex.Raids.Show()
 
     local f = CreateRaidFrame()
     f:Show()
+    reloadBtn:Show()
+    clearBtn:Show()
 
     local sidebarItems = {
         {
             label = "Mittwoch",
             onClick = function()
                 activeDay = "wednesday"
-                local data = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-                f.Title:SetText("|cff" .. "D4A850Raidanmeldungen|r  |cff5B4880Mittwoch|r")
-                RefreshRaidDisplay(data)
+                RefreshRaidDisplay(WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday)
             end,
         },
         {
             label = "Donnerstag",
             onClick = function()
                 activeDay = "thursday"
-                local data = WeintCodex.SavedData and WeintCodex.SavedData.raidThursday
-                f.Title:SetText("|cffD4A850Raidanmeldungen|r  |cff5B4880Donnerstag|r")
-                RefreshRaidDisplay(data)
+                RefreshRaidDisplay(WeintCodex.SavedData and WeintCodex.SavedData.raidThursday)
             end,
         },
     }
 
     WeintCodex.Navigation.BuildSidebar("Raids", sidebarItems)
 
-    -- Default: Mittwoch
-    local initData = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-    f.Title:SetText("|cffD4A850Raidanmeldungen|r  |cff5B4880Mittwoch|r")
-    RefreshRaidDisplay(initData)
+    activeDay = "wednesday"
+    RefreshRaidDisplay(WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday)
 end
 
 -- Called by sync.lua after import
