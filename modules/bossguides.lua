@@ -12,6 +12,13 @@ local selectedBoss  = nil
 local selectedRole  = nil
 local guideFrame    = nil
 
+-- Schluessel fuer WeintCodex.SavedData.encounterProgress sowie Teilstring
+-- zur Erkennung der passenden Blizzard-Lockout-Instanz (robuster als ein
+-- exakter Namensvergleich gegen unsere eigene, ggf. leicht abweichende
+-- Instanz-Bezeichnung in data/BossData.lua).
+local INSTANCE_NAME  = "Schlacht um Orgrimmar"
+local INSTANCE_MATCH = "Orgrimmar"
+
 --------------------------------------------------
 -- Boss-Reihenfolge SoO
 --------------------------------------------------
@@ -99,10 +106,43 @@ local function CreateGuideFrame()
     bossNameStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.BossName = bossNameStr
 
+    -- ------------------------------------------------
+    -- Fortschritts-Block (rechts, Encounter-Tracking - siehe
+    -- modules/encounter_tracking.lua). Zitat weicht dem Block aus.
+    -- ------------------------------------------------
+
+    local progressBox = CreateFrame("Frame", nil, topBar)
+    progressBox:SetSize(120, 60)
+    progressBox:SetPoint("TOPRIGHT", topBar, "TOPRIGHT", -20, -20)
+
+    local progressEyebrow = progressBox:CreateFontString(nil, "OVERLAY")
+    progressEyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    progressEyebrow:SetPoint("TOPRIGHT", progressBox, "TOPRIGHT", 0, 0)
+    progressEyebrow:SetJustifyH("RIGHT")
+    progressEyebrow:SetText(WeintCodex.ColorText("textFaint", "FORTSCHRITT"))
+
+    local progressPct = progressBox:CreateFontString(nil, "OVERLAY")
+    progressPct:SetFont(WeintCodex.Fonts.serifBold, 28, "")
+    progressPct:SetPoint("TOPRIGHT", progressEyebrow, "BOTTOMRIGHT", 0, -4)
+    progressPct:SetJustifyH("RIGHT")
+    f.ProgressPct = progressPct
+
+    local progressTrack = progressBox:CreateTexture(nil, "OVERLAY")
+    progressTrack:SetHeight(3)
+    progressTrack:SetPoint("BOTTOMRIGHT", progressBox, "BOTTOMRIGHT", 0, 0)
+    progressTrack:SetSize(120, 3)
+    progressTrack:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+
+    local progressFill = progressBox:CreateTexture(nil, "OVERLAY")
+    progressFill:SetHeight(3)
+    progressFill:SetPoint("BOTTOMRIGHT", progressBox, "BOTTOMRIGHT", 0, 0)
+    f.ProgressFill = progressFill
+    f.ProgressTrackW = 120
+
     local quoteStr = topBar:CreateFontString(nil, "OVERLAY")
     quoteStr:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
     quoteStr:SetPoint("TOPLEFT", bossNameStr, "BOTTOMLEFT", 0, -8)
-    quoteStr:SetPoint("RIGHT", topBar, "RIGHT", -20, 0)
+    quoteStr:SetPoint("RIGHT", progressBox, "LEFT", -20, 0)
     quoteStr:SetJustifyH("LEFT")
     quoteStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     f.QuoteStr = quoteStr
@@ -366,6 +406,69 @@ local ROLE_COLOR_NAME = { tank = "blue", healer = "green", dps = "red" }
 local roleLabels = { tank = "Tank Guide", healer = "Heiler Guide", dps = "Schaden Guide" }
 
 --------------------------------------------------
+-- Encounter-Fortschritt (Sidebar-Status + Header-Balken)
+--------------------------------------------------
+
+local function FormatRelativeTime(timestamp)
+    if type(timestamp) ~= "number" then return nil end
+    local diff = time() - timestamp
+    if diff < 0 then diff = 0 end
+    if diff < 3600 then
+        return "<1h"
+    elseif diff < 86400 then
+        return math.floor(diff / 3600) .. "h"
+    else
+        return math.floor(diff / 86400) .. "d"
+    end
+end
+
+local function BuildBossStatus(bossIndex)
+    local et = WeintCodex.EncounterTracking
+    local status = et and et.GetStatus(INSTANCE_NAME, bossIndex)
+
+    if status and status.cleared then
+        local rel = FormatRelativeTime(status.clearedAt)
+        return { text = rel and ("Cleared · " .. rel) or "Cleared", color = "green" }
+    end
+
+    if status and status.wipes and status.wipes > 0 then
+        local wipes = status.wipes
+        return { text = "Offen · " .. wipes .. " Wipe" .. (wipes == 1 and "" or "s"), color = "gold" }
+    end
+
+    return { text = "Offen", color = "textFaint" }
+end
+
+local function UpdateProgressHeader(f)
+    if not (f and f.ProgressPct) then return end
+
+    local et    = WeintCodex.EncounterTracking
+    local total = #bossOrder
+    local cleared = 0
+    if et then
+        for i = 1, total do
+            local status = et.GetStatus(INSTANCE_NAME, i)
+            if status and status.cleared then cleared = cleared + 1 end
+        end
+    end
+
+    local pct = (total > 0) and (cleared / total) or 0
+    local col = (total > 0 and cleared >= total) and C.green or C.purple
+
+    f.ProgressPct:SetText(math.floor(pct * 100 + 0.5) .. "%")
+    f.ProgressPct:SetTextColor(col[1], col[2], col[3])
+
+    local trackW = f.ProgressTrackW or 120
+    if pct > 0.005 then
+        f.ProgressFill:SetWidth(math.max(1, trackW * pct))
+        f.ProgressFill:SetColorTexture(col[1], col[2], col[3], 1.0)
+        f.ProgressFill:Show()
+    else
+        f.ProgressFill:Hide()
+    end
+end
+
+--------------------------------------------------
 -- Boss-Tipps im Raid-/Gruppenchat ansagen
 --------------------------------------------------
 
@@ -520,6 +623,16 @@ local function ShowBoss(bossName)
 
     WeintCodex.SetBreadcrumb("Bossguides", data and data.instance or "Schlacht um Orgrimmar", bossName)
 
+    if WeintCodex.EncounterTracking then
+        local bossIndex
+        for i, bossInfo in ipairs(bossOrder) do
+            if bossInfo.name == bossName then bossIndex = i break end
+        end
+        if bossIndex then
+            WeintCodex.EncounterTracking.SetActiveContext(INSTANCE_NAME, INSTANCE_MATCH, bossIndex, bossName)
+        end
+    end
+
     selectedRole = nil
     local autoRole = GetPlayerRole()
     ShowRoleTips(autoRole or "tank")
@@ -537,19 +650,25 @@ function WeintCodex.BossGuides.Show()
     f:Show()
     for _, rb in ipairs(f.RoleBtns) do rb:Show() end
 
+    if WeintCodex.EncounterTracking then
+        WeintCodex.EncounterTracking.RefreshFromLockout(INSTANCE_NAME, INSTANCE_MATCH)
+    end
+
     local sidebarItems = {}
-    for _, bossInfo in ipairs(bossOrder) do
+    for i, bossInfo in ipairs(bossOrder) do
         local bn = bossInfo.name
         local data = WeintCodex_BossData and WeintCodex_BossData[bn]
 
         sidebarItems[#sidebarItems + 1] = {
             label    = bn,
             portrait = data and data.portrait,
+            status   = BuildBossStatus(i),
             onClick  = function() ShowBoss(bn) end,
         }
         end
 
     WeintCodex.Navigation.BuildSidebar("Schlacht um Orgrimmar", sidebarItems)
+    UpdateProgressHeader(f)
 
     if selectedBoss then
         ShowBoss(selectedBoss)

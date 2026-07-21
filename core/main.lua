@@ -65,10 +65,11 @@ local function OnEvent(self, event, addonName)
 
         if not WeintCodex_SavedData then
             WeintCodex_SavedData = {
-                bossData     = {},
-                raidData     = {},
-                materialData = {},
-                twinks       = {},
+                bossData          = {},
+                raidData          = {},
+                materialData      = {},
+                twinks            = {},
+                encounterProgress = {},
 
                 window = {
                     scale  = 1.0,
@@ -97,7 +98,8 @@ local function OnEvent(self, event, addonName)
             WeintCodex_SavedData.window.height = 800
         end
 
-        WeintCodex_SavedData.twinks        = WeintCodex_SavedData.twinks or {}
+        WeintCodex_SavedData.twinks            = WeintCodex_SavedData.twinks or {}
+        WeintCodex_SavedData.encounterProgress = WeintCodex_SavedData.encounterProgress or {}
         WeintCodex_SavedData.minimap =
         WeintCodex_SavedData.minimap or {
             angle = 225,

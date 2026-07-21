@@ -42,6 +42,7 @@ data/weakauras/dungeonpack_glows.lua
 data/weakauras/class_pack_anchors.lua
 
 modules/charakter.lua
+modules/encounter_tracking.lua
 modules/bossguides.lua
 modules/raids.lua
 modules/dialog.lua

@@ -145,10 +145,12 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             table.insert(sidebarGroups, lbl)
             offsetY = offsetY - 18
         else
-            local indent = itemDef.indent and 32 or 16
+            local indent   = itemDef.indent and 32 or 16
+            local hasStatus = itemDef.status ~= nil
+            local itemH    = hasStatus and 40 or 28
 
             local btn = CreateFrame("Button", nil, sidebar)
-            btn:SetHeight(28)
+            btn:SetHeight(itemH)
             -- Rechts relativ zur Sidebar verankert statt fester Breite, damit
             -- eingerueckte Eintraege nicht ueber den rechten Rand der Sidebar
             -- hinaus in das Hauptfeld hineinragen.
@@ -160,11 +162,24 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             bg:SetColorTexture(0, 0, 0, 0)
             btn._bg = bg
 
+            -- Dauerhafter Akzentstreifen (z.B. End-Boss-Kennzeichnung),
+            -- unabhaengig vom Aktiv-/Hover-Zustand sichtbar - siehe
+            -- BaselineAccent()/SetActive() weiter unten.
+            local accentColor = itemDef.accentColor and C[itemDef.accentColor]
+
             local accent = btn:CreateTexture(nil, "OVERLAY")
-            accent:SetSize(3, 28)
+            accent:SetSize(3, itemH)
             accent:SetPoint("LEFT", btn, "LEFT", 0, 0)
-            accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.0)
             btn._accent = accent
+
+            local function BaselineAccent()
+                if accentColor then
+                    accent:SetColorTexture(accentColor[1], accentColor[2], accentColor[3], 0.6)
+                else
+                    accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.0)
+                end
+            end
+            BaselineAccent()
 
             local iconOffsetX = 12
 
@@ -188,7 +203,6 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             end
 
             local lbl = btn:CreateFontString(nil, "OVERLAY")
-            lbl:SetPoint("LEFT",  btn, "LEFT",  iconOffsetX, 0)
             lbl:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
             lbl:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
             lbl:SetText(itemDef.label or "")
@@ -196,15 +210,50 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             lbl:SetJustifyH("LEFT")
             btn._label = lbl
 
+            local statusLbl
+            if hasStatus then
+                -- Zweizeilig: Name oben, Status-Subline darunter. Rechter
+                -- Rand um 20px statt 8px eingerueckt, damit der Progress-
+                -- Punkt (nur beim aktiven Eintrag sichtbar) nicht mit
+                -- langen Namen/Statustexten kollidiert.
+                lbl:ClearAllPoints()
+                lbl:SetPoint("TOPLEFT", btn, "TOPLEFT", iconOffsetX, -8)
+                lbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+
+                statusLbl = btn:CreateFontString(nil, "OVERLAY")
+                statusLbl:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -4)
+                statusLbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+                statusLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+                statusLbl:SetJustifyH("LEFT")
+                local sc = C[itemDef.status.color or "textFaint"] or C.textFaint
+                statusLbl:SetTextColor(sc[1], sc[2], sc[3])
+                statusLbl:SetText(itemDef.status.text or "")
+                btn._statusLbl = statusLbl
+            else
+                lbl:SetPoint("LEFT", btn, "LEFT", iconOffsetX, 0)
+            end
+
+            local dot
+            if hasStatus then
+                dot = btn:CreateTexture(nil, "OVERLAY")
+                dot:SetSize(6, 6)
+                dot:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
+                dot:SetColorTexture(C.accentDot[1], C.accentDot[2], C.accentDot[3], 1.0)
+                dot:Hide()
+                btn._dot = dot
+            end
+
             local function SetActive(self, on)
                 if on then
                     self._bg:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.20)
                     self._accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
                     self._label:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+                    if self._dot then self._dot:Show() end
                 else
                     self._bg:SetColorTexture(0, 0, 0, 0)
-                    self._accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.0)
+                    BaselineAccent()
                     self._label:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+                    if self._dot then self._dot:Hide() end
                 end
             end
             btn.SetActive = SetActive
@@ -230,7 +279,7 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
             end)
 
             table.insert(sidebarItems, btn)
-            offsetY = offsetY - 30
+            offsetY = offsetY - (hasStatus and 42 or 30)
         end
     end
 end
