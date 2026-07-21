@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "0.9.9.17"
+WeintCodex.Version = "0.9.9.18"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
