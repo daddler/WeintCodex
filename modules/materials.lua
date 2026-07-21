@@ -68,6 +68,31 @@ local sampleData = {
 }
 
 --------------------------------------------------
+-- Sockelsteine (Gildenbank-Vorrat)
+-- Nur die von der Gilde bevorrateten Sorten - Name und Stats werden
+-- aus data/gems.lua übernommen, damit es nur eine Quelle für
+-- Sockelstein-Daten gibt (statt sie hier erneut zu pflegen).
+--------------------------------------------------
+local SOCKELSTEIN_IDS = {
+    76666, 76659, 76672, 76658,  -- Aragonit (Orange)
+    76642, 76643, 76652, 76645,  -- Dioptas (Grün)
+    76700, 76697, 76699,         -- Goldberyll (Gelb)
+    76680,                       -- Kunzit (Lila)
+    76692, 76694, 76696,         -- Rubellit (Rot)
+    76639,                       -- Chrysokoll
+}
+
+for _, gemId in ipairs(SOCKELSTEIN_IDS) do
+    local gem = WeintCodex_Gems[gemId]
+    if gem then
+        table.insert(sampleData.items, {
+            name = gem.name, count = 0, category = "Sockelsteine",
+            target = 10, stats = gem.stats,
+        })
+    end
+end
+
+--------------------------------------------------
 -- Spalten-Layout (Tabellen-Ansicht)
 --------------------------------------------------
 
@@ -549,6 +574,7 @@ local function UpdateRequiredMaterialsFromCache()
             count    = tostring(count),
                      category = item.category,
                      target   = item.target,
+                     stats    = item.stats,
                      note     = string.format("%d/%d", count, item.target)
         })
         end
@@ -632,7 +658,10 @@ function WeintCodex.Materials.GetExportString()
 
     local items = {}
     for _, item in ipairs(WeintCodex.SavedData.materialData.items) do
-        table.insert(items, string.format("%s|%s|%s", item.name, item.count, item.note or ""))
+        -- Stats-Text enthält ", " (z. B. Sockelsteine) - das würde die
+        -- items-Trennung per "," oben zerstören, daher hier maskiert.
+        local statsField = (item.stats or ""):gsub(",%s*", ";")
+        table.insert(items, string.format("%s|%s|%s|%s", item.name, item.count, item.note or "", statsField))
     end
     table.insert(parts, table.concat(items, ","))
 
