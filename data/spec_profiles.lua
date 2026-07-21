@@ -114,7 +114,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
             ["Hände"]    = { 4432, 4431 },        -- Defensiv: Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
-            ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
+            ["Füße"]     = { 4429 },              -- Pandarenpfoten
         },
         -- Defensiv (Ausdauer-Fokus): Gediegener Chrysokoll überall.
         -- Sockelboni matchen, wenn lohnend: Rot -> Kunzit des Verteidigers,
@@ -151,7 +151,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
+            ["Füße"]     = { 4429 },              -- Pandarenpfoten
         },
         bestGems = {
             meta      = { 76885, 95345 },         -- Brennender / Mutiger Bergkristall
@@ -184,7 +184,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
             ["Hände"]    = { 4432, 4431 },        -- Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
-            ["Füße"]     = { 4429, 4426 },        -- Pandarenpfoten
+            ["Füße"]     = { 4429 },              -- Pandarenpfoten
         },
         -- Control-Tank: Waffenkunde-Hardcap (15%) + Treffer zuerst, dann
         -- Meisterschaft/Ausdauer. Sockelboni (Waffk./Treffer/Tempo/Ausdauer) matchen.
@@ -462,7 +462,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -492,7 +492,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -524,7 +524,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -666,7 +666,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -729,7 +729,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -765,7 +765,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -797,7 +797,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -829,7 +829,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -865,7 +865,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -897,7 +897,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -929,7 +929,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -966,7 +966,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4426, 4425, 4428 },
+            ["Füße"]     = { 4429, 4425, 4428 },
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -1065,7 +1065,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -1135,7 +1135,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4426, 4425, 4428 },
+            ["Füße"]     = { 4429, 4425, 4428 },
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -1165,7 +1165,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429, 4426 },
+            ["Füße"]     = { 4429 },
         },
         bestGems = {
             meta      = { 76888, 95345 },

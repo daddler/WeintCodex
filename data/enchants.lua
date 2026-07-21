@@ -147,20 +147,23 @@ WeintCodex_Enchants = {
     --------------------------------------------------
 
     [4425] = { name = "Verschwimmen",                  slot = "Füße", stats = { agility = 140 } },  -- WoWHead: "Stiefel - Verschwimmen" (item 74717, Blurred Speed)
-    [4426] = { name = "Pandarenschritt",               slot = "Füße", stats = { mastery = 140 } },
+    -- Korrigiert (User-Bericht per In-Game-Tooltip, Item "Sporen des
+    -- Wolfsreiters"/105033): 4426 stand bisher fälschlich als
+    -- "Pandarenschritt" (Meisterschaft). Der Live-Link des Items trägt
+    -- diese ID tatsächlich für eine mit "Großes Tempo" (Haste) verzauberte
+    -- Stiefel - selbes Tempo-Tier wie 74715. Bestätigt auch durch bereits
+    -- bestehende Empfehlungslisten in spec_profiles.lua, die 4426 an
+    -- mehreren Stellen bereits als Tempo-Alternative zu 74715 führten.
+    [4426] = { name = "Großes Tempo",                  slot = "Füße", stats = { haste = 175 }, verify = true },
     [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
-    -- Korrigiert (User-Bericht per In-Game-Tooltip): 4429 wurde bisher
-    -- als "Großes Tempo" (Haste) geführt, ist laut Tooltip tatsächlich
-    -- "Pandarenpfoten" (Meisterschaft + geringe Bewegungsgeschwindigkeit)
-    -- - vermutlich eine zweite, spätere Enchant-ID für denselben Effekt
-    -- wie 4426 (Pandarenschritt). Meisterschaftswert vom bisherigen
-    -- (falschen) Haste-Tier übernommen und noch nicht exakt bestätigt.
+    -- "Pandarenpfoten" (Meisterschaft + geringe Bewegungsgeschwindigkeit).
     [4429] = { name = "Pandarenpfoten",                slot = "Füße", stats = { mastery = 175 }, verify = true },
-    -- Boots-Tempo (bestätigt via Nutzer/Wowhead). Schlüssel = Item-ID
-    -- (74715); Bewertung über Name-Abgleich ("Verzaubert: Großes Tempo").
+    -- Boots-Tempo (bestätigt via Nutzer/Wowhead), selber Effekt wie 4426.
+    -- Schlüssel = Item-ID (74715); Bewertung über Name-Abgleich
+    -- ("Verzaubert: Großes Tempo").
     [74715] = { name = "Großes Tempo",                 slot = "Füße", stats = { haste = 175 }, verify = true },
     -- ACHTUNG: Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
-    -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenschritt) - kein
+    -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenpfoten) - kein
     -- separates reines "Beweglichkeit"-Enchant für Füße. User-Bericht
     -- legt nahe, dass diese ID tatsächlich die Hände-Tempo-Verzauberung
     -- ist (zeigt sich bei Handschuhen mit +170 Tempo fälschlich als
