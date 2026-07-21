@@ -71,10 +71,14 @@ WeintCodex_Enchants = {
     -- ermittelt, kann sie hier als eigene Einträge ergänzen.
     --------------------------------------------------
 
+    -- ACHTUNG: 4804/4806 waren vertauscht (Live-Client bestätigt per
+    -- /wc vz: ID 4806 = "+200 Intelligenz und +100 krit." = Kranichschwinge,
+    -- nicht Tigerklaue) — am 2026-07-21 korrigiert, siehe auch die
+    -- entsprechend angepassten Empfehlungen in spec_profiles.lua.
     [4803] = { name = "Große Inschrift des Tigerzahns",      slot = "Schultern", stats = { strength = 200, crit = 100 } },
-    [4804] = { name = "Große Inschrift der Kranichschwinge", slot = "Schultern", stats = { intellect = 200, crit = 100 } },
+    [4804] = { name = "Große Inschrift der Tigerklaue",      slot = "Schultern", stats = { agility = 200, crit = 100 } },
     [4805] = { name = "Große Inschrift des Ochsenhorns",     slot = "Schultern", stats = { stamina = 300, dodge = 100 } },
-    [4806] = { name = "Große Inschrift der Tigerklaue",      slot = "Schultern", stats = { agility = 200, crit = 100 } },
+    [4806] = { name = "Große Inschrift der Kranichschwinge", slot = "Schultern", stats = { intellect = 200, crit = 100 } },
 
     --------------------------------------------------
     -- BRUST

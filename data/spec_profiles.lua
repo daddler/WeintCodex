@@ -145,7 +145,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -253,7 +253,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4699, 4700, 4443 },  -- Zielfernrohre!
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
@@ -286,7 +286,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4699, 4700, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
@@ -319,7 +319,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4699, 4700, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
@@ -356,7 +356,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
@@ -389,7 +389,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
@@ -422,7 +422,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
@@ -456,7 +456,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -486,7 +486,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -518,7 +518,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -660,7 +660,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -693,7 +693,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
@@ -723,7 +723,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -759,7 +759,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -791,7 +791,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -823,7 +823,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -859,7 +859,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -891,7 +891,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -923,7 +923,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -960,7 +960,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4805, 4806 },
+            Schultern    = { 4805, 4804 },
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
             Handgelenke  = { 4416 },
@@ -990,7 +990,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -1023,7 +1023,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
@@ -1059,7 +1059,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -1094,7 +1094,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806 },
+            Schultern    = { 4804 },
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
@@ -1129,7 +1129,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4805, 4806 },
+            Schultern    = { 4805, 4804 },
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
             Handgelenke  = { 4416 },
@@ -1159,7 +1159,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Schultern    = { 4804 },
+            Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
@@ -1304,7 +1304,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806, 4805 },
+            Schultern    = { 4804, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
@@ -1337,7 +1337,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
-            Schultern    = { 4806, 4805 },
+            Schultern    = { 4804, 4805 },
             Brust        = { 4420, 4419 },        -- Überragende Ausdauer
             Umhang       = { 74711 },             -- Großer Schutz
             Handgelenke  = { 4416 },
