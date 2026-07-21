@@ -1002,14 +1002,15 @@ local function ScanCharacter()
                     local tooltipName = GetEquippedEnchantText(slotDef.id, enchId, link)
                     local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile, tooltipName)
                     scan.enchants.rows[#scan.enchants.rows + 1] = {
-                        slotId    = slotDef.id,
-                        slotName  = slotDef.name,
-                        enchSlot  = slotDef.enchSlot,
-                        itemName  = itemName,
-                        enchId    = enchId,
-                        status    = status,
-                        bestList  = bestList,
-                        recId     = bestList and bestList[1] or nil,
+                        slotId       = slotDef.id,
+                        slotName     = slotDef.name,
+                        enchSlot     = slotDef.enchSlot,
+                        itemName     = itemName,
+                        enchId       = enchId,
+                        tooltipName  = tooltipName,
+                        status       = status,
+                        bestList     = bestList,
+                        recId        = bestList and bestList[1] or nil,
                     }
                 end
             end
@@ -1621,7 +1622,11 @@ function ShowEnchants()
         elseif row.status == "neutral" and not row.enchId then
             curLbl:SetText("|cff6B6259— (keine Empfehlung für diese Spec)|r")
         else
-            local n = GetEnchantDisplayName(row.enchId) or "—"
+            -- Offizieller Live-Tooltip-Name hat Vorrang vor der DB (siehe
+            -- GetEquippedEnchantText) — sonst zeigen wir bei falsch
+            -- zugeordneten IDs eine andere Verzauberung an als die, die
+            -- tatsächlich angelegt ist.
+            local n = row.tooltipName or GetEnchantDisplayName(row.enchId) or "—"
             if row.status == "overcap" then
                 curLbl:SetText(n .. " |cffcc88ff(Stat über Cap!)|r")
             else
@@ -1634,7 +1639,7 @@ function ShowEnchants()
             -- Erste auflösbare Empfehlung wählen, die NICHT namensgleich
             -- mit der bereits angelegten Verzauberung ist. Unauflösbare
             -- IDs ("Unbekannt (ID …)") werden übersprungen.
-            local curName = row.enchId and GetEnchantDisplayName(row.enchId)
+            local curName = row.tooltipName or (row.enchId and GetEnchantDisplayName(row.enchId))
             local recName = FirstResolvableName(
                 row.bestList or { row.recId }, GetEnchantDisplayName, curName)
             if recName then
@@ -2367,7 +2372,7 @@ function ShowWerteverteilung()
                     if w.art == "Stein" then
                         nm = GetGemDisplayName(w.row.gemId)
                     else
-                        nm = GetEnchantDisplayName(w.row.enchId)
+                        nm = w.row.tooltipName or GetEnchantDisplayName(w.row.enchId)
                     end
                     src:SetText(string.format("|cffcc88ff> %s: %s (%s, +%d) austauschen|r",
                         w.row.slotName or "?", nm or "?", w.art, w.value))
