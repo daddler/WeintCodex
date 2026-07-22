@@ -48,6 +48,7 @@ modules/raids.lua
 modules/dialog.lua
 modules/companion.lua
 modules/materials.lua
+modules/loot.lua
 modules/calendar.lua
 modules/weakauras.lua
 modules/sync.lua
