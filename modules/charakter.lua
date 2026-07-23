@@ -2776,6 +2776,16 @@ function ShowTwinkverwaltung()
                         level = tostring(level or 0),
                     }
                     saved[shortName].selected = self:GetChecked()
+
+                    -- Sofort ans Companion melden statt erst beim naechsten
+                    -- PLAYER_LOGIN (siehe core/main.lua): ReportCharacter()
+                    -- liest ohnehin die komplette aktuelle Auswahl neu ein,
+                    -- ein Aufruf hier verhindert nur, dass eine frisch
+                    -- angehakte Auswahl einen ganzen Relog lang unversendet
+                    -- in den SavedVariables liegen bleibt.
+                    if WeintCodex.Companion and WeintCodex.Companion.ReportCharacter then
+                        WeintCodex.Companion.ReportCharacter()
+                    end
                 end)
 
                 local nameLbl = row:CreateFontString(nil, "OVERLAY")
