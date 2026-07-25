@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "0.9.9.27"
+WeintCodex.Version = "0.9.9.28"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -56,6 +56,13 @@ local function OnEvent(self, event, addonName)
         -- enchants.lua / gems.lua existiert (Drift-Schutz).
         if WeintCodex_ValidateSpecData then
             WeintCodex_ValidateSpecData()
+        end
+
+        -- Dasselbe für die BiS-Listen: warnt, falls ein Eintrag einen
+        -- Boss- oder Slot-Namen nutzt, den es nicht gibt (Tippfehler
+        -- würden das Item sonst still nirgends anzeigen).
+        if WeintCodex_ValidateBiSData then
+            WeintCodex_ValidateBiSData()
         end
 
         return

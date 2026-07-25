@@ -512,6 +512,139 @@ local function AnnounceBossTips(bossName, roleKey)
 end
 
 --------------------------------------------------
+-- Bossdaten auflösen
+--
+-- Ein per Bot importierter Guide ersetzt das komplette Boss-Objekt
+-- (siehe sync.lua) - deshalb wird er nur bevorzugt, wenn er die
+-- angefragte Rolle auch wirklich enthält.
+--------------------------------------------------
+
+local function ResolveBossData(bossName, roleKey)
+    local data = WeintCodex_BossData and WeintCodex_BossData[bossName]
+
+    local savedData = WeintCodex.SavedData and WeintCodex.SavedData.bossData
+    if savedData and savedData[bossName] and savedData[bossName][roleKey] then
+        data = savedData[bossName]
+    end
+
+    return data
+end
+
+--------------------------------------------------
+-- BiS-Liste für den aktuellen Boss
+--
+-- Liefert die Blockdaten für den itemlist-Block des Inspectors:
+-- Überschrift, Einträge und den passenden Leertext. Die eigentliche
+-- Logik (Spec, Besitzprüfung) steckt in modules/bis.lua.
+--------------------------------------------------
+
+local function BuildBiSSection(bossName)
+    local header = "BiS-Liste"
+    local items  = {}
+    local empty  = "BiS-Modul nicht geladen."
+
+    if not WeintCodex.BiS then
+        return header, items, empty
+    end
+
+    local specKey, specDisplay = WeintCodex.BiS.GetSpecKey()
+
+    if not specKey then
+        return header, items, "Spec nicht erkannt."
+    end
+
+    if specDisplay then
+        header = "BiS · " .. specDisplay
+    end
+
+    local entries, hasSpecData = WeintCodex.BiS.GetForBoss(bossName, specKey)
+
+    if #entries == 0 then
+        if hasSpecData then
+            empty = "Kein BiS-Item bei diesem Boss."
+        else
+            empty = "Keine BiS-Daten für diese Spec hinterlegt."
+        end
+        return header, items, empty
+    end
+
+    for _, entry in ipairs(entries) do
+        local sub = entry.slot or ""
+
+        if entry.note and entry.note ~= "" then
+            sub = sub .. " · " .. entry.note
+        end
+
+        -- Andere Schwierigkeitsstufe angelegt: man hat das Item im
+        -- Prinzip, das Upgrade lohnt sich aber noch.
+        if entry.state == "variant" then
+            sub = sub .. " · andere Stufe angelegt"
+        end
+
+        items[#items + 1] = {
+            id       = entry.id,
+            sublabel = sub,
+            state    = entry.state,
+        }
+    end
+
+    return header, items, empty
+end
+
+--------------------------------------------------
+-- Inspector (rechte Spalte) aufbauen
+--
+-- Getrennt von ShowRoleTips, damit die Spalte auch allein neu gebaut
+-- werden kann - z.B. wenn ein BiS-Item an- oder abgelegt wurde.
+--------------------------------------------------
+
+local function BuildInspector(data, roleKey)
+    local kurzList  = data and data.kurz and data.kurz[roleKey]
+    local kurzItems = {}
+    if kurzList then
+        for _, text in ipairs(kurzList) do
+            kurzItems[#kurzItems + 1] = { label = text }
+        end
+    end
+    if #kurzItems == 0 then
+        kurzItems[1] = { label = "Keine Kurzfassung hinterlegt.", labelColor = "textFaint" }
+    end
+
+    -- Lokale Kopie: die Closures unten dürfen nicht auf einen späteren
+    -- Bosswechsel zeigen.
+    local bossForNotes = selectedBoss
+
+    local bisHeader, bisItems, bisEmpty = BuildBiSSection(bossForNotes)
+
+    WeintCodex.Navigation.SetInspector({
+        { type = "header", text = "Kurz & Knapp" },
+        { type = "checklist", items = kurzItems },
+        { type = "divider" },
+        { type = "header", text = "Notizen" },
+        { type = "notes", height = 110,
+            get = function()
+                return WeintCodex.SavedData and WeintCodex.SavedData.bossNotes
+                    and WeintCodex.SavedData.bossNotes[bossForNotes] or ""
+            end,
+            set = function(text)
+                if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
+                if not WeintCodex.SavedData.bossNotes then WeintCodex.SavedData.bossNotes = {} end
+                WeintCodex.SavedData.bossNotes[bossForNotes] = text
+            end,
+        },
+        { type = "divider" },
+        { type = "header", text = bisHeader },
+        -- "fill" nimmt den Restplatz; reserveBelow hält den Ansage-Button
+        -- frei, der als letzter Block folgt.
+        { type = "itemlist", height = "fill", reserveBelow = 48, minHeight = 90,
+            items = bisItems, empty = bisEmpty },
+        { type = "button", style = "primary", label = "Im Raid ansagen", onClick = function()
+            AnnounceBossTips(bossForNotes, roleKey)
+        end },
+    })
+end
+
+--------------------------------------------------
 -- ShowRoleTips
 --------------------------------------------------
 
@@ -522,11 +655,7 @@ function ShowRoleTips(roleKey)
 
     UpdateBodyWidth(f)
 
-    local data = WeintCodex_BossData and WeintCodex_BossData[selectedBoss]
-    local savedData = WeintCodex.SavedData and WeintCodex.SavedData.bossData
-    if savedData and savedData[selectedBoss] and savedData[selectedBoss][roleKey] then
-        data = savedData[selectedBoss]
-    end
+    local data = ResolveBossData(selectedBoss, roleKey)
 
     -- Rollen-Button-Highlight
     for _, rb in ipairs(f.RoleBtns) do
@@ -564,43 +693,23 @@ function ShowRoleTips(roleKey)
     local abilities = data and data.abilities
     BuildAbilityRows(f, abilities)
 
-    -- ------------------------------------------------
-    -- Inspector: Kurz & Knapp + Notizen + Ansage
-    -- ------------------------------------------------
+    -- Inspector: Kurz & Knapp + Notizen + BiS-Liste + Ansage
+    BuildInspector(data, roleKey)
+end
 
-    local kurzList  = data and data.kurz and data.kurz[roleKey]
-    local kurzItems = {}
-    if kurzList then
-        for _, text in ipairs(kurzList) do
-            kurzItems[#kurzItems + 1] = { label = text }
-        end
-    end
-    if #kurzItems == 0 then
-        kurzItems[1] = { label = "Keine Kurzfassung hinterlegt.", labelColor = "textFaint" }
-    end
+--------------------------------------------------
+-- Nur die rechte Spalte neu aufbauen
+--
+-- Aufgerufen aus modules/bis.lua, wenn sich Ausrüstung oder Spec
+-- ändert: die Haken in der BiS-Liste sollen sofort umspringen, ohne
+-- Guide-Text und Fähigkeitenliste neu zu bauen.
+--------------------------------------------------
 
-    local bossForNotes = selectedBoss
+function WeintCodex.BossGuides.RefreshInspector()
+    if not guideFrame or not guideFrame:IsShown() then return end
+    if not selectedBoss or not selectedRole then return end
 
-    WeintCodex.Navigation.SetInspector({
-        { type = "header", text = "Kurz & Knapp" },
-        { type = "checklist", items = kurzItems },
-        { type = "divider" },
-        { type = "header", text = "Notizen" },
-        { type = "notes", height = 110,
-            get = function()
-                return WeintCodex.SavedData and WeintCodex.SavedData.bossNotes
-                    and WeintCodex.SavedData.bossNotes[bossForNotes] or ""
-            end,
-            set = function(text)
-                if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
-                if not WeintCodex.SavedData.bossNotes then WeintCodex.SavedData.bossNotes = {} end
-                WeintCodex.SavedData.bossNotes[bossForNotes] = text
-            end,
-        },
-        { type = "button", style = "primary", label = "Im Raid ansagen", onClick = function()
-            AnnounceBossTips(bossForNotes, roleKey)
-        end },
-    })
+    BuildInspector(ResolveBossData(selectedBoss, selectedRole), selectedRole)
 end
 
 --------------------------------------------------

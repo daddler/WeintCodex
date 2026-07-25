@@ -1453,6 +1453,14 @@ end
 -- Für andere Module (z.B. Companion-Export) verfügbar machen
 WeintCodex.Charakter.Scan = ScanCharacter
 
+-- Nur den Profil-Schlüssel (z.B. "PALADIN_RETRIBUTION") plus den
+-- lesbaren Spec-Namen. Für Module wie modules/bis.lua, die die Spec
+-- brauchen, aber keinen vollen Ausrüstungs-Scan auslösen wollen.
+function WeintCodex.Charakter.GetProfileKey()
+    local _, profileKey, _, specDisplay = GetCurrentSpecProfile()
+    return profileKey, specDisplay
+end
+
 --------------------------------------------------
 -- /wc vz — DATEN-DUMP FÜR DIE PFLEGE DER DATENBANK
 -- Gibt für jedes angelegte Item Verzauberungs-ID +

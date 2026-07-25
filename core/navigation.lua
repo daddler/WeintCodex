@@ -558,7 +558,221 @@ local function InspectorNotes(parent, y, opts)
     return y - h - 6
 end
 
--- blocks: Liste von { type = "header"|"rows"|"list"|"checklist"|"card"|"notes"|"button"|"divider"|"spacer", ... }
+--------------------------------------------------
+-- Item-Liste mit eigenem Scrollbereich
+--
+-- Der Inspector selbst kann nicht scrollen: SetInspector setzt alle
+-- Bloecke absolut untereinander, was unten rausfaellt ist weg. Eine
+-- Liste unbekannter Laenge braucht deshalb ihren eigenen Scrollbereich.
+--
+-- opts:
+--   height       Zahl, oder "fill" = Restplatz bis zum unteren Rand
+--   reserveBelow Pixel, die "fill" fuer nachfolgende Bloecke freilaesst
+--   minHeight    Untergrenze fuer "fill" (Default 100)
+--   empty        Text, wenn items leer ist
+--   items        { { id, sublabel, state = "have"|"variant"|"open" }, ... }
+--
+-- Der Anzeigename kommt aus GetItemInfo, nicht vom Aufrufer - damit er
+-- zur Client-Sprache passt (gleiche Doktrin wie WeintCodex_GetGemName).
+--------------------------------------------------
+
+local ITEM_ROW_H     = 30
+local ITEM_SCROLLBAR = 26
+
+-- Statusmarker rechts in der Zeile. Bewusst dieselben Texturen wie das
+-- Status-System der Charakterseite, damit "erledigt" ueberall gleich
+-- aussieht. "open" bekommt einen gedimmten Punkt statt eines roten
+-- Kreuzes - ein fehlendes BiS-Item ist kein Fehler.
+local ITEM_STATE = {
+    have    = { icon = "Interface\\RaidFrame\\ReadyCheck-Ready",       size = 16, alpha = 1.00 },
+    variant = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 16, alpha = 1.00 },
+    open    = { icon = "Interface\\Buttons\\UI-MinusButton-UP",        size = 12, alpha = 0.35 },
+}
+
+-- Zeilen, deren Item beim Rendern noch nicht im Client-Cache lag.
+-- itemID -> Liste von Zeilen, die nachgezogen werden muessen.
+local pendingItemRows = {}
+
+local function ApplyItemDisplay(row)
+    local itemId = row._itemID
+    if not itemId then return true end
+
+    local name, link, quality, _, _, _, _, _, _, texture = GetItemInfo(itemId)
+
+    if not texture and GetItemIcon then
+        texture = GetItemIcon(itemId)
+    end
+    row._icon:SetTexture(texture or "Interface\\Icons\\INV_Misc_QuestionMark")
+
+    if name then
+        row._link = link
+        row._name:SetText(name)
+
+        local r, g, b = C.textNormal[1], C.textNormal[2], C.textNormal[3]
+        if quality and GetItemQualityColor then
+            local qr, qg, qb = GetItemQualityColor(quality)
+            if qr then r, g, b = qr, qg, qb end
+        end
+        row._name:SetTextColor(r, g, b)
+        return true
+    end
+
+    -- Noch nicht im Cache: Platzhalter zeigen, Nachziehen abwarten
+    row._name:SetText("Item #" .. itemId)
+    row._name:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+    return false
+end
+
+local itemInfoWatcher = CreateFrame("Frame")
+itemInfoWatcher:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+itemInfoWatcher:SetScript("OnEvent", function(_, _, itemId)
+    local rows = itemId and pendingItemRows[itemId]
+    if not rows then return end
+
+    pendingItemRows[itemId] = nil
+    for _, row in ipairs(rows) do
+        -- Zeilen aus einem inzwischen ersetzten Inspector einfach
+        -- ueberspringen (ClearInspector versteckt sie nur).
+        if row._itemID == itemId and row:IsShown() then
+            ApplyItemDisplay(row)
+        end
+    end
+end)
+
+local function CreateItemRow(parent, item, width, offsetY)
+    local row = CreateFrame("Button", nil, parent)
+    row:SetSize(width, ITEM_ROW_H)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, offsetY)
+    row._itemID = item.id
+
+    local bg = WeintCodex.SetSolidBg(row, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+    WeintCodex.DrawSlimBorder(row, "hairline")
+    row._bg = bg
+
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("LEFT", row, "LEFT", 5, 0)
+    row._icon = icon
+
+    local state  = ITEM_STATE[item.state] or ITEM_STATE.open
+    local marker = row:CreateTexture(nil, "OVERLAY")
+    marker:SetSize(state.size, state.size)
+    marker:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    marker:SetTexture(state.icon)
+    marker:SetAlpha(state.alpha)
+
+    local hasSub  = item.sublabel and item.sublabel ~= ""
+    local nameTop = hasSub and -5 or -9
+
+    local name = row:CreateFontString(nil, "OVERLAY")
+    name:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    name:SetPoint("TOPLEFT",  row, "TOPLEFT",  30, nameTop)
+    name:SetPoint("TOPRIGHT", row, "TOPRIGHT", -(state.size + 12), nameTop)
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
+    row._name = name
+
+    if hasSub then
+        local sub = row:CreateFontString(nil, "OVERLAY")
+        sub:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+        sub:SetPoint("TOPLEFT",  row, "TOPLEFT",  30, -18)
+        sub:SetPoint("TOPRIGHT", row, "TOPRIGHT", -(state.size + 12), -18)
+        sub:SetJustifyH("LEFT")
+        sub:SetWordWrap(false)
+        sub:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        sub:SetText(item.sublabel)
+    end
+
+    if not ApplyItemDisplay(row) then
+        pendingItemRows[item.id] = pendingItemRows[item.id] or {}
+        table.insert(pendingItemRows[item.id], row)
+    end
+
+    row:SetScript("OnEnter", function(self)
+        if self._bg then
+            self._bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+        end
+
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        -- SetItemByID gibt es nicht in jedem Client - SetHyperlink schon.
+        local ok = pcall(GameTooltip.SetItemByID, GameTooltip, self._itemID)
+        if not ok then
+            GameTooltip:SetHyperlink("item:" .. self._itemID)
+        end
+        GameTooltip:Show()
+    end)
+
+    row:SetScript("OnLeave", function(self)
+        if self._bg then
+            self._bg:SetColorTexture(C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
+        end
+        GameTooltip:Hide()
+    end)
+
+    -- Shift-Klick verlinkt ins Chatfenster, Strg-Klick oeffnet die
+    -- Anprobe - HandleModifiedItemClick kennt beide Faelle.
+    row:SetScript("OnClick", function(self)
+        if self._link and HandleModifiedItemClick then
+            HandleModifiedItemClick(self._link)
+        end
+    end)
+
+    return row
+end
+
+local function InspectorItemList(parent, y, opts)
+    local h
+
+    if opts.height == "fill" then
+        local reserve = opts.reserveBelow or 0
+        h = parent:GetHeight() + y - reserve - 20
+        h = math.max(opts.minHeight or 100, h)
+    else
+        h = opts.height or 160
+    end
+
+    local container = CreateFrame("Frame", nil, parent)
+    container:SetHeight(h)
+    container:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    container:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    table.insert(inspectorWidgets, container)
+
+    local items = opts.items or {}
+
+    if #items == 0 then
+        local empty = container:CreateFontString(nil, "OVERLAY")
+        empty:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+        empty:SetPoint("TOPLEFT",  container, "TOPLEFT",  0, -2)
+        empty:SetPoint("TOPRIGHT", container, "TOPRIGHT", 0, -2)
+        empty:SetJustifyH("LEFT")
+        empty:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        empty:SetText(opts.empty or "Keine Einträge.")
+
+        -- Ohne Inhalt nur so viel Platz belegen, wie der Hinweis braucht.
+        local emptyH = math.max(empty:GetStringHeight(), 14)
+        container:SetHeight(emptyH)
+        return y - emptyH - 6
+    end
+
+    local scroll = CreateFrame("ScrollFrame", nil, container, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT",     container, "TOPLEFT",     0, 0)
+    scroll:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -ITEM_SCROLLBAR, 0)
+
+    local rowW  = INSPECTOR_CONTENT_W - ITEM_SCROLLBAR
+    local inner = CreateFrame("Frame", nil, scroll)
+    inner:SetSize(rowW, #items * ITEM_ROW_H)
+    scroll:SetScrollChild(inner)
+
+    local rowY = 0
+    for _, item in ipairs(items) do
+        CreateItemRow(inner, item, rowW, rowY)
+        rowY = rowY - ITEM_ROW_H
+    end
+
+    return y - h - 6
+end
+
+-- blocks: Liste von { type = "header"|"rows"|"list"|"checklist"|"card"|"notes"|"button"|"itemlist"|"divider"|"spacer", ... }
 function WeintCodex.Navigation.SetInspector(blocks)
     WeintCodex.Navigation.ClearInspector()
     local parent = WeintCodex.Inspector
@@ -583,6 +797,8 @@ function WeintCodex.Navigation.SetInspector(blocks)
             y = InspectorCard(parent, y, block)
         elseif block.type == "notes" then
             y = InspectorNotes(parent, y, block)
+        elseif block.type == "itemlist" then
+            y = InspectorItemList(parent, y, block)
         elseif block.type == "button" then
             y = InspectorButton(parent, y, block)
         elseif block.type == "divider" then
