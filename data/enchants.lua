@@ -123,7 +123,8 @@ WeintCodex_Enchants = {
     -- Stärke" zeigte sich unter ID 4412 als "Unbekannte Verzauberung",
     -- während der Nutzer die Verzauberung tatsächlich unter ID 4415
     -- trägt. 4412 war also die falsche ID und wurde ersetzt.
-    [4415] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 170 } },
+    -- Wert korrigiert 2026-07-25: Live-Tooltip zeigt +180 Stärke (nicht 170).
+    [4415] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 180 } },
     [4414] = { name = "Erstklassige Intelligenz", slot = "Handgelenke", stats = { intellect = 180 } },  -- WoWHead: "Armschiene - Erstklassige Intelligenz" (item 74703)
     [4416] = { name = "Große Beweglichkeit",     slot = "Handgelenke", stats = { agility = 170 } },
 
