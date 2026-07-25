@@ -501,6 +501,8 @@ local function RefreshRaidDisplay(raidData)
                     originalName = p.originalName,
                     currentName  = p.name,
                     refresh = function()
+                        -- Override auf p.name anwenden, bevor neu gerendert wird
+                        WeintCodex.Raids.ResolveNames(raidData)
                         RefreshRaidDisplay(raidData)
                     end,
                 })
