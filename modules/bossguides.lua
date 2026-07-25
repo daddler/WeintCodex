@@ -429,6 +429,13 @@ local function FormatRelativeTime(timestamp)
     end
 end
 
+-- Prozent mit einer Nachkommastelle, deutsches Dezimalkomma (die
+-- gesamte In-Game-Oberflaeche ist deutsch). Klammern noetig: gsub gibt
+-- zwei Werte zurueck, die sonst in die Konkatenation laufen.
+local function FormatPct1(value)
+    return (string.format("%.1f", value):gsub("%.", ",")) .. "%"
+end
+
 local function BuildBossStatus(bossIndex)
     local et = WeintCodex.EncounterTracking
     local status = et and et.GetStatus(INSTANCE_NAME, bossIndex)
@@ -438,12 +445,23 @@ local function BuildBossStatus(bossIndex)
         return { text = rel and ("Cleared · " .. rel) or "Cleared", color = "green" }
     end
 
+    -- Offener Boss: Wipes und bester Versuch (niedrigste Boss-Rest-HP)
+    -- als eine Zeile, jeder Teil nur wenn vorhanden - ein Platzhalter bei
+    -- jedem unberuehrten Boss waere nur Rauschen.
+    local parts = { "Offen" }
+
     if status and status.wipes and status.wipes > 0 then
-        local wipes = status.wipes
-        return { text = "Offen · " .. wipes .. " Wipe" .. (wipes == 1 and "" or "s"), color = "gold" }
+        parts[#parts + 1] = status.wipes .. " Wipe" .. (status.wipes == 1 and "" or "s")
     end
 
-    return { text = "Offen", color = "textFaint" }
+    if status and type(status.bestTry) == "number" then
+        parts[#parts + 1] = "Best " .. FormatPct1(status.bestTry)
+    end
+
+    return {
+        text  = table.concat(parts, " · "),
+        color = (#parts > 1) and "gold" or "textFaint",
+    }
 end
 
 local function UpdateProgressHeader(f)

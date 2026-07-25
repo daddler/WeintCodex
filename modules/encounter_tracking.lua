@@ -31,6 +31,10 @@ local function GetInstanceStore(instanceName)
     if not sd then return nil end
     sd.encounterProgress = sd.encounterProgress or {}
     sd.encounterProgress[instanceName] = sd.encounterProgress[instanceName] or { resetStamp = 0, bosses = {} }
+    -- bestTries liegt bewusst NEBEN bosses: EnsureFreshReset leert nur
+    -- store.bosses, der beste Versuch soll den Wochenreset ueberleben.
+    -- Lazy angelegt, damit alte SavedVariables ohne den Zweig migrieren.
+    sd.encounterProgress[instanceName].bestTries = sd.encounterProgress[instanceName].bestTries or {}
     return sd.encounterProgress[instanceName]
 end
 
@@ -273,7 +277,79 @@ end
 
 TryRegisterEvent(trackerFrame, "PLAYER_ENTERING_WORLD")
 TryRegisterEvent(trackerFrame, "UPDATE_INSTANCE_INFO")
+TryRegisterEvent(trackerFrame, "ENCOUNTER_START")
 TryRegisterEvent(trackerFrame, "ENCOUNTER_END")
+
+-- --------------------------------------------------
+-- c) Best Try: niedrigste Boss-Rest-HP eines Versuchs
+--
+-- Waehrend eines Encounters werden die Boss-Units gedrosselt abgetastet
+-- und das Minimum gemerkt. Beim Wipe landet dieses Minimum als "bester
+-- Versuch" in store.bestTries. Bewusst ein gedrosselter OnUpdate statt
+-- C_Timer.NewTicker/UNIT_HEALTH_FREQUENT: keine API-Abhaengigkeit, die
+-- hier nicht gegen einen echten Client verifiziert werden kann.
+-- --------------------------------------------------
+
+local BOSS_UNITS       = { "boss1", "boss2", "boss3", "boss4", "boss5" }
+local SAMPLE_INTERVAL  = 0.5   -- Sekunden zwischen zwei Messungen
+local BOSSLESS_TIMEOUT = 20    -- so lange ohne Bossunit -> Tracking beenden
+
+-- Aggregiert ueber ALLE gerade existierenden Boss-Units (Summe Leben /
+-- Summe Maximalleben) statt nur boss1 - sonst waeren Rats-Encounter
+-- (Rat der Schwarzfaust, Paragons) nicht sinnvoll messbar.
+-- Bekannte Ungenauigkeit: taucht mitten im Kampf eine zusaetzliche Unit
+-- mit vollem Leben auf, springt der Aggregatwert hoch. Da nur das
+-- Minimum des Laufs zaehlt, schmeichelt das dem Ergebnis leicht,
+-- verfaelscht es aber nie nach oben.
+local function SampleBossHealthPct()
+    local cur, max = 0, 0
+    for _, unit in ipairs(BOSS_UNITS) do
+        if SafeCall(UnitExists, unit) then
+            local h  = SafeCall(UnitHealth, unit)
+            local hm = SafeCall(UnitHealthMax, unit)
+            if type(h) == "number" and type(hm) == "number" and hm > 0 then
+                cur = cur + h
+                max = max + hm
+            end
+        end
+    end
+    if max <= 0 then return nil end   -- keine Bossunit sichtbar: Sample verwerfen
+    return (cur / max) * 100
+end
+
+local trackRun = nil   -- { best, accum, sinceBoss }
+
+local function StopHealthTracking()
+    trackRun = nil
+    trackerFrame:SetScript("OnUpdate", nil)
+end
+
+local function StartHealthTracking()
+    trackRun = { best = nil, accum = 0, sinceBoss = 0 }
+    trackerFrame:SetScript("OnUpdate", function(_, elapsed)
+        pcall(function()
+            local run = trackRun
+            if not run then return end
+
+            run.accum = run.accum + elapsed
+            if run.accum < SAMPLE_INTERVAL then return end
+            run.accum = 0
+
+            local pct = SampleBossHealthPct()
+            if pct then
+                run.sinceBoss = 0
+                if not run.best or pct < run.best then run.best = pct end
+            else
+                -- Watchdog: falls ENCOUNTER_END nie kommt (Disconnect,
+                -- Zonenwechsel), darf die Schleife nicht ewig weiterlaufen.
+                run.sinceBoss = run.sinceBoss + SAMPLE_INTERVAL
+                if run.sinceBoss >= BOSSLESS_TIMEOUT then
+                    StopHealthTracking()
+                end
+            end
+        end)
+    end)
+end
 
 trackerFrame:SetScript("OnEvent", function(_, event, ...)
     -- Vararg vor dem pcall in Locals kopieren: "..." ist innerhalb der
@@ -283,11 +359,24 @@ trackerFrame:SetScript("OnEvent", function(_, event, ...)
 
     local ok = pcall(function()
         if event == "PLAYER_ENTERING_WORLD" then
+            -- Zonenwechsel/Geistheiler: laufendes HP-Tracking beenden,
+            -- damit kein State ueber Encounter hinweg leckt.
+            StopHealthTracking()
             WeintCodex.EncounterTracking.RefreshAll()
             RequestLockoutUpdate()
 
         elseif event == "UPDATE_INSTANCE_INFO" then
             WeintCodex.EncounterTracking.RefreshAll()
+
+        elseif event == "ENCOUNTER_START" then
+            -- Gleiche Zuordnungsregel wie beim Wipe unten: nur messen,
+            -- wenn der Boss auch wirklich der im Bossguide gewaehlte ist.
+            StopHealthTracking()
+            if activeContext
+                and type(encounterName) == "string"
+                and encounterName == activeContext.bossName then
+                StartHealthTracking()
+            end
 
         elseif event == "ENCOUNTER_END" then
             -- success kommt je nach Client als 1 oder als true - beides
@@ -305,13 +394,30 @@ trackerFrame:SetScript("OnEvent", function(_, event, ...)
                     if killed then
                         entry.cleared   = true
                         entry.clearedAt = time()
+                        -- Bewusst KEIN bestTry bei einem Kill: "Best 0,0%"
+                        -- waere als Sidebar-Text sinnlos, und der letzte
+                        -- echte Progress-Wert bleibt so ueber den Reset
+                        -- hinaus als Kontext erhalten.
                     else
                         entry.wipes = (entry.wipes or 0) + 1
+
+                        local best = trackRun and trackRun.best
+                        if type(best) == "number" then
+                            store.bestTries = store.bestTries or {}
+                            local prev = store.bestTries[activeContext.bossIndex]
+                            if type(prev) ~= "number" or best < prev then
+                                store.bestTries[activeContext.bossIndex] = best
+                            end
+                        end
                     end
                     store.bosses[activeContext.bossIndex] = entry
                     NotifyChanged(activeContext.instanceName)
                 end
             end
+
+            -- Immer beenden, auch wenn activeContext nicht passte - sonst
+            -- laeuft die OnUpdate-Schleife nach dem Kampf weiter.
+            StopHealthTracking()
 
             -- Unabhaengig von der Wipe-Zuordnung: den Kill ueber die
             -- Lockout-API nachziehen (funktioniert auch ohne offene UI und
@@ -336,24 +442,30 @@ end)
 -- Oeffentliche Abfrage
 -- --------------------------------------------------
 
--- Gibt { cleared, wipes, clearedAt } fuer instanceName/bossIndex zurueck.
--- Fehlt jegliche Information, ist cleared=false und wipes=0 (neutraler
--- "Offen"-Zustand, nie geraten).
+-- Gibt { cleared, wipes, clearedAt, bestTry } fuer instanceName/bossIndex
+-- zurueck. Fehlt jegliche Information, ist cleared=false, wipes=0 und
+-- bestTry=nil (neutraler "Offen"-Zustand, nie geraten).
 function WeintCodex.EncounterTracking.GetStatus(instanceName, bossIndex)
     local store = GetInstanceStore(instanceName)
     if not store then
-        return { cleared = false, wipes = 0, clearedAt = nil }
+        return { cleared = false, wipes = 0, clearedAt = nil, bestTry = nil }
     end
     EnsureFreshReset(store)
 
+    -- VOR dem entry-Check lesen: nach dem Wochenreset ist store.bosses
+    -- leer, der Best Try aus den Vorwochen soll aber weiter angezeigt
+    -- werden - genau dafuer liegt er ausserhalb von store.bosses.
+    local bestTry = store.bestTries and store.bestTries[bossIndex]
+
     local entry = store.bosses[bossIndex]
     if not entry then
-        return { cleared = false, wipes = 0, clearedAt = nil }
+        return { cleared = false, wipes = 0, clearedAt = nil, bestTry = bestTry }
     end
 
     return {
         cleared   = entry.cleared == true,
         wipes     = entry.wipes or 0,
         clearedAt = entry.clearedAt,
+        bestTry   = bestTry,
     }
 end
