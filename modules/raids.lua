@@ -127,12 +127,16 @@ StaticPopupDialogs["WEINTCODEX_EDIT_ROSTER_NAME"] = {
     maxLetters = 48,
     OnShow = function(self, data)
         if data and data.originalName then
-            self.editBox:SetText(data.currentName or data.originalName)
-            self.editBox:HighlightText()
+            local eb = self.EditBox or self.editBox  -- MoP Classic: "EditBox" (Großschreibung)
+            if eb then
+                eb:SetText(data.currentName or data.originalName)
+                eb:HighlightText()
+            end
         end
     end,
     OnAccept = function(self, data)
-        local newName = self.editBox:GetText():match("^%s*(.-)%s*$")
+        local eb = self.EditBox or self.editBox
+        local newName = eb and eb:GetText():match("^%s*(.-)%s*$") or ""
         if newName ~= "" and data and data.originalName then
             WeintCodex.SavedData = WeintCodex.SavedData or {}
             WeintCodex.SavedData.rosterNameOverrides =
