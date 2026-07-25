@@ -756,9 +756,14 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
     return info
 end
 
--- Stimmen die Stats eines DB-Eintrags exakt mit dem überein, was im
--- Tooltip steht? (Exakter Wertvergleich, damit eine versehentlich
--- eingelesene Fremdzeile nie zu einer "Korrektur" führt.)
+-- Prüft, ob alle gescannten Stats im DB-Eintrag vorhanden sind
+-- (Subset-Matching). Der Client zeigt bei mehrteiligen Enchants
+-- manchmal nicht alle Stats mit erkanntem Keyword an (z.B. fehlt
+-- "kritischer Trefferwert" → "crit" im ParseAllStats-Output, weil
+-- der Client die Kurzform nutzt). Deshalb: DB darf MEHR Stats haben
+-- als der Scan, solange alle gescannten Stats wertgenau passen.
+-- Reine Wertprüfung verhindert, dass ein zufällig passender Schlüssel
+-- mit anderem Wert (z.B. strength=180 vs. DB strength=170) als Match gilt.
 local function StatsMatch(dbStats, scanned)
     if not (dbStats and scanned) then return false end
     local n = 0
@@ -766,10 +771,7 @@ local function StatsMatch(dbStats, scanned)
         if dbStats[key] ~= value then return false end
         n = n + 1
     end
-    if n == 0 then return false end
-    local m = 0
-    for _ in pairs(dbStats) do m = m + 1 end
-    return m == n
+    return n > 0
 end
 
 local function FindEnchantByName(enchSlot, name)
