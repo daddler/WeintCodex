@@ -284,6 +284,18 @@ function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
     end
 end
 
+-- Aktualisiert nur die Status-Subline eines bereits gebauten Eintrags
+-- (z.B. Boss-Kill waehrend des Raids), ohne die Sidebar neu aufzubauen -
+-- der aktuell angeklickte Eintrag bleibt dadurch markiert.
+-- index bezieht sich auf die Reihenfolge der Nicht-Gruppen-Eintraege.
+function WeintCodex.Navigation.UpdateSidebarStatus(index, status)
+    local btn = sidebarItems[index]
+    if not (btn and btn._statusLbl and status) then return end
+    local sc = C[status.color or "textFaint"] or C.textFaint
+    btn._statusLbl:SetTextColor(sc[1], sc[2], sc[3])
+    btn._statusLbl:SetText(status.text or "")
+end
+
 -- Activate first sidebar item automatically
 function WeintCodex.Navigation.ActivateFirst()
     if sidebarItems[1] then

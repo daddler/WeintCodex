@@ -12,9 +12,13 @@
 --   }
 --
 -- HINWEIS ZU NAMEN: Für ANGELEGTE Verzauberungen liest das
--- Charakter-Modul den Namen direkt aus dem Item-Tooltip
--- ("Verzaubert: ...") — das ist immer die offizielle deutsche
--- Lokalisierung. Die Namen hier werden für EMPFEHLUNGEN genutzt.
+-- Charakter-Modul die Verzauberung direkt aus dem Item-Tooltip
+-- ("Verzaubert: ..." bzw. die grüne Effektzeile "+170 ...") — das
+-- ist immer die offizielle deutsche Lokalisierung. Widerspricht der
+-- Tooltip dem Eintrag hier, gewinnt der Tooltip: das Modul sucht dann
+-- den Eintrag desselben Slots mit exakt passendem Stat+Wert und rechnet
+-- ab da mit dem (siehe ResolveEnchant in modules/charakter.lua). Die
+-- Namen hier werden für EMPFEHLUNGEN genutzt.
 --
 -- DATENPFLEGE: In-game "/wc vz" eingeben — das druckt für jedes
 -- angelegte Teil die Verzauberungs-ID + den offiziellen Namen und
@@ -165,11 +169,16 @@ WeintCodex_Enchants = {
     -- ACHTUNG: Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
     -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenpfoten) - kein
     -- separates reines "Beweglichkeit"-Enchant für Füße. User-Bericht
-    -- legt nahe, dass diese ID tatsächlich die Hände-Tempo-Verzauberung
-    -- ist (zeigt sich bei Handschuhen mit +170 Tempo fälschlich als
-    -- "Große Beweglichkeit") - vermutlich eine zweite Enchant-ID für
-    -- denselben Effekt wie 4433 (Hände - Großes Tempo). Slot/Name/Stat
-    -- entsprechend umgestellt, noch per /wc vz final zu bestätigen.
+    -- legte nahe, dass diese ID tatsächlich die Hände-Tempo-Verzauberung
+    -- ist - vermutlich eine zweite Enchant-ID für denselben Effekt wie
+    -- 4433 (Hände - Großes Tempo). Slot/Name/Stat entsprechend umgestellt.
+    --
+    -- WEITERHIN UNBESTÄTIGT: Ein zweiter Nutzerbericht (Handschuhe mit
+    -- "Überragender Meisterschaft" wurden als "Großes Tempo" angezeigt)
+    -- spricht dagegen - es könnte in Wahrheit die Meisterschafts-ID sein.
+    -- Bis das per /wc vz geklärt ist, greift die Laufzeit-Korrektur in
+    -- modules/charakter.lua: dort gewinnt der Item-Tooltip (Stat + Wert)
+    -- gegen diese Tabelle, ein Konflikt wird in der Liste markiert.
     [4430] = { name = "Großes Tempo",                  slot = "Hände", stats = { haste = 170 }, verify = true },
 
 }

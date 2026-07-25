@@ -142,6 +142,11 @@ WeintCodex._enchantTooltipCache = WeintCodex._enchantTooltipCache or {}
 -- aktive Seite automatisch neu gescannt.
 local pendingItemInfoIds = {}
 
+-- Einmal pro Session auf einen Konflikt zwischen Item-Tooltip und
+-- data/enchants.lua hinweisen (siehe ResolveEnchant) - der Dump liefert
+-- die Daten, mit denen sich die betroffene ID korrigieren lässt.
+local enchantMismatchHinted = false
+
 local function GetEnchantDisplayName(enchantId)
     if not enchantId then return nil end
     if WeintCodex._enchantDbNameCache[enchantId] then
@@ -191,11 +196,12 @@ local function FirstResolvableName(list, resolver, curName)
 end
 
 --------------------------------------------------
--- Verzauberungsname direkt vom Item-Tooltip lesen.
--- Der Client liefert die offizielle deutsche
--- Lokalisierung ("Verzaubert: <Name>") — damit sind
--- die Namen angelegter Verzauberungen immer korrekt,
--- unabhängig von unserer Datenbank.
+-- Verzauberung direkt vom Item-Tooltip lesen.
+-- Der Client ist die einzige verlässliche Quelle für
+-- das, was tatsächlich auf dem Item liegt — unsere
+-- ID-Tabelle in data/enchants.lua kann falsch sein.
+-- (Der eigentliche Scan steht weiter unten bei
+--  ScanEquippedEnchant, er braucht ParseStatText.)
 --------------------------------------------------
 
 local ENCHANT_LINE_PATTERN
@@ -204,38 +210,6 @@ do
     local raw = _G.ENCHANTED_TOOLTIP_LINE or "Verzaubert: %s"
     ENCHANT_LINE_PATTERN = "^" .. raw:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
                                     :gsub("%%%%s", "(.+)")
-end
-
-local function GetEquippedEnchantText(slotId, enchantId, link)
-    if not enchantId then return nil end
-    if WeintCodex._enchantTooltipCache[enchantId] then
-        return WeintCodex._enchantTooltipCache[enchantId]
-    end
-    scanTip:ClearLines()
-    scanTip:SetInventoryItem("player", slotId)
-    local n = scanTip:NumLines() or 0
-    for i = 2, n do
-        local line = _G["WeintCodexScanTipTextLeft" .. i]
-        local txt = line and line:GetText()
-        if txt then
-            local name = txt:match(ENCHANT_LINE_PATTERN)
-            if name and name ~= "" then
-                WeintCodex._enchantTooltipCache[enchantId] = name
-                return name
-            end
-        end
-    end
-
-    -- Scan lieferte keine Verzauberungszeile. Wenn die BASIS-Itemdaten
-    -- selbst noch nicht im Client-Cache liegen (GetItemInfo == nil), ist
-    -- der Tooltip nur unvollständig ("Wird abgerufen...") — das ist die
-    -- Ursache, nicht ein falscher/fehlender DB-Eintrag. Für diese Item-ID
-    -- auf Nachlieferung warten (GET_ITEM_INFO_RECEIVED, s.u.).
-    local itemId = link and tonumber(link:match("item:(%d+):"))
-    if itemId and not GetItemInfo(itemId) then
-        pendingItemInfoIds[itemId] = true
-    end
-    return nil
 end
 
 local function ClearCharakterCache()
@@ -558,17 +532,43 @@ local STAT_KEYWORDS = {
     { "stärke",                   "strength" },
 }
 
+local function MatchStatKeyword(text)
+    if not text then return nil end
+    local lower = text:lower()
+    for _, entry in ipairs(STAT_KEYWORDS) do
+        if lower:find(entry[1], 1, true) then
+            return entry[2]
+        end
+    end
+    return nil
+end
+
 local function ParseStatText(text)
     if not text then return nil end
     local value = tonumber(text:match("(%d+)"))
     if not value then return nil end
-    local lower = text:lower()
-    for _, entry in ipairs(STAT_KEYWORDS) do
-        if lower:find(entry[1], 1, true) then
-            return entry[2], value
+    local stat = MatchStatKeyword(text)
+    if not stat then return nil end
+    return stat, value
+end
+
+-- Alle "+<Wert> <Stat>"-Paare einer Zeile einsammeln. Verzauberungen mit
+-- zwei Stats ("+285 Beweglichkeit und +165 kritische Trefferwertung",
+-- Beinrüstungen) würden mit ParseStatText sonst falsch zusammengesetzt
+-- (erster Wert + zuletzt gefundenes Schlüsselwort).
+local function ParseAllStats(text)
+    if not text then return nil end
+    local stats, count = {}, 0
+    for value, label in text:gmatch("%+(%d+)%s*([^%+]+)") do
+        local key = MatchStatKeyword(label)
+        local num = tonumber(value)
+        if key and num then
+            stats[key] = (stats[key] or 0) + num
+            count = count + 1
         end
     end
-    return nil
+    if count == 0 then return nil end
+    return stats
 end
 
 -- Gibt zurück: bonus = { stat=<key>, value=<num> } | nil, sowie den
@@ -590,6 +590,210 @@ local function ScanSocketBonus(slotId)
         end
     end
     return nil
+end
+
+--------------------------------------------------
+-- ANGELEGTE VERZAUBERUNG IDENTIFIZIEREN
+--
+-- Der Item-Tooltip ist die Wahrheit, nicht unsere ID-Tabelle. Zwei
+-- Erkennungswege, weil der Client die Verzauberung je nach Build als
+-- Namenszeile ODER als reine Effektzeile ausgibt:
+--
+--   A) "Verzaubert: <Name>"  (ENCHANT_LINE_PATTERN)
+--   B) erste GRÜNE Zeile, die wie eine Verzauberung aussieht
+--      ("+170 Meisterschaftswertung" bzw. ein Proc-Name aus der DB)
+--
+-- Aus dem gefundenen Text werden Stat + Wert geparst. Widerspricht das
+-- dem DB-Eintrag der Verzauberungs-ID, gewinnt der Client: wir suchen
+-- den Eintrag desselben Slots, der exakt zu Stat+Wert passt, und rechnen
+-- ab da mit dem. Damit zeigt die Liste auch bei falsch zugeordneten IDs
+-- die richtige Verzauberung an.
+--------------------------------------------------
+
+local function IsGreenLine(line)
+    if not (line and line.GetTextColor) then return false end
+    local ok, r, g, b = pcall(line.GetTextColor, line)
+    if not ok or type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then
+        return false
+    end
+    return r < 0.25 and g > 0.75 and b < 0.25
+end
+
+-- Grüne Zeile plausibilisieren, damit nicht z.B. eine Sockel-/Setbonus-
+-- Zeile als Verzauberung durchgeht.
+local function LooksLikeEnchantText(text, enchSlot)
+    if text:find("^%s*%+%d") then return true end
+    if not WeintCodex_Enchants then return false end
+    local lower = text:lower()
+    for _, db in pairs(WeintCodex_Enchants) do
+        if db.name and (not enchSlot or db.slot == enchSlot)
+           and lower == db.name:lower() then
+            return true
+        end
+    end
+    return false
+end
+
+-- Liefert { name = <Tooltiptext>, stats = { key = value } | nil } oder nil,
+-- wenn im Tooltip keine Verzauberungszeile gefunden wurde.
+local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
+    if not enchantId then return nil end
+    local cached = WeintCodex._enchantTooltipCache[enchantId]
+    if cached then return cached end
+
+    scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+    scanTip:ClearLines()
+    scanTip:SetInventoryItem("player", slotId)
+    local n = scanTip:NumLines() or 0
+
+    local found = nil
+
+    -- Weg A zuerst über alle Zeilen (eindeutig, hat Vorrang)
+    for i = 2, n do
+        local line = _G["WeintCodexScanTipTextLeft" .. i]
+        local txt  = line and line:GetText()
+        if txt then
+            local name = txt:match(ENCHANT_LINE_PATTERN)
+            if name and name ~= "" then
+                found = name
+                break
+            end
+        end
+    end
+
+    -- Weg B: erste grüne, plausible Zeile
+    if not found then
+        for i = 2, n do
+            local line = _G["WeintCodexScanTipTextLeft" .. i]
+            local txt  = line and line:GetText()
+            if txt and txt ~= ""
+               and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
+               and IsGreenLine(line)
+               and LooksLikeEnchantText(txt, enchSlot) then
+                found = txt
+                break
+            end
+        end
+    end
+
+    if not found then
+        -- Scan lieferte keine Verzauberungszeile. Wenn die BASIS-Itemdaten
+        -- selbst noch nicht im Client-Cache liegen (GetItemInfo == nil), ist
+        -- der Tooltip nur unvollständig ("Wird abgerufen...") — das ist die
+        -- Ursache, nicht ein falscher/fehlender DB-Eintrag. Für diese Item-ID
+        -- auf Nachlieferung warten (GET_ITEM_INFO_RECEIVED, s.u.).
+        local itemId = link and tonumber(link:match("item:(%d+):"))
+        if itemId and not GetItemInfo(itemId) then
+            pendingItemInfoIds[itemId] = true
+        end
+        return nil
+    end
+
+    local info = { name = found, stats = ParseAllStats(found) }
+    WeintCodex._enchantTooltipCache[enchantId] = info
+    return info
+end
+
+-- Stimmen die Stats eines DB-Eintrags exakt mit dem überein, was im
+-- Tooltip steht? (Exakter Wertvergleich, damit eine versehentlich
+-- eingelesene Fremdzeile nie zu einer "Korrektur" führt.)
+local function StatsMatch(dbStats, scanned)
+    if not (dbStats and scanned) then return false end
+    local n = 0
+    for key, value in pairs(scanned) do
+        if dbStats[key] ~= value then return false end
+        n = n + 1
+    end
+    if n == 0 then return false end
+    local m = 0
+    for _ in pairs(dbStats) do m = m + 1 end
+    return m == n
+end
+
+local function FindEnchantByName(enchSlot, name)
+    if not (WeintCodex_Enchants and name) then return nil end
+    local lower = name:lower()
+    for id, db in pairs(WeintCodex_Enchants) do
+        if db.name and db.name:lower() == lower
+           and (not enchSlot or db.slot == enchSlot) then
+            return id, db
+        end
+    end
+    return nil
+end
+
+-- Sucht den Verzauberungseintrag desselben Slots, der zu den gescannten
+-- Stats passt. Mehrdeutig (mehrere Treffer mit unterschiedlichem Namen)
+-- => nil, dann lieber nichts korrigieren.
+local function FindEnchantByStats(enchSlot, scanned)
+    if not (WeintCodex_Enchants and enchSlot and scanned) then return nil end
+    local foundId, foundDb = nil, nil
+    for id, db in pairs(WeintCodex_Enchants) do
+        if db.slot == enchSlot and StatsMatch(db.stats, scanned) then
+            if foundDb and (foundDb.name or "") ~= (db.name or "") then
+                return nil
+            end
+            foundId, foundDb = foundId or id, foundDb or db
+        end
+    end
+    return foundId, foundDb
+end
+
+-- Ergebnis:
+--   id          effektive Verzauberungs-ID (ggf. korrigiert)
+--   name        anzuzeigender Name
+--   stats       Stats der Verzauberung (Tooltip bevorzugt)
+--   mismatch    Tooltip und DB widersprechen sich
+--   corrected   ID wurde über Slot+Stats ersetzt
+--   unverified  kein Live-Scan möglich (Name stammt ungeprüft aus der DB)
+local function ResolveEnchant(slotId, enchId, link, enchSlot)
+    if not enchId then return nil end
+
+    local scan = ScanEquippedEnchant(slotId, enchId, link, enchSlot)
+    local db   = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
+    local res  = { id = enchId }
+
+    if not scan then
+        res.name       = (db and db.name) or GetEnchantDisplayName(enchId)
+        res.stats      = db and db.stats or nil
+        res.unverified = true
+        return res
+    end
+
+    res.tooltipName = scan.name
+    local scanned   = scan.stats
+
+    -- 1) DB deckt sich mit dem Tooltip: gleicher Name (der Client gibt je
+    --    nach Build den Namen aus) oder exakt gleiche Stats.
+    if db then
+        local sameName = db.name and db.name:lower() == scan.name:lower()
+        if sameName or (scanned and db.stats and StatsMatch(db.stats, scanned)) then
+            res.name  = db.name or scan.name
+            res.stats = db.stats or scanned
+            return res
+        end
+    end
+
+    -- 2) Widerspruch oder unbekannte ID: den passenden Eintrag über den
+    --    Client-Namen bzw. Slot + Stats suchen.
+    local corrId, corrDb = FindEnchantByName(enchSlot, scan.name)
+    if not corrDb and scanned then
+        corrId, corrDb = FindEnchantByStats(enchSlot, scanned)
+    end
+    if corrDb then
+        res.id        = corrId
+        res.name      = corrDb.name
+        res.stats     = corrDb.stats or scanned
+        res.corrected = (corrId ~= enchId)
+        res.mismatch  = (db ~= nil) and res.corrected or false
+        return res
+    end
+
+    -- 3) Nichts Passendes gefunden: ehrlich den Tooltip-Text zeigen
+    res.name     = scan.name
+    res.stats    = scanned
+    res.mismatch = (db ~= nil)
+    return res
 end
 
 --------------------------------------------------
@@ -997,17 +1201,34 @@ local function ScanCharacter()
             if slotDef.enchSlot then
                 local skip = slotDef.nurWaffe and not IsWeaponLink(link)
                 if not skip then
-                    -- Offizieller deutscher Name vom Tooltip (landet im
-                    -- Cache und dient dem Namensabgleich bei der Bewertung)
-                    local tooltipName = GetEquippedEnchantText(slotDef.id, enchId, link)
-                    local status, bestList = EvaluateEnchant(enchId, slotDef.enchSlot, profile, tooltipName)
+                    -- Angelegte Verzauberung über den Item-Tooltip
+                    -- identifizieren (siehe ResolveEnchant): liefert Name,
+                    -- Stats und ggf. eine korrigierte ID, falls unsere
+                    -- Tabelle der ID etwas anderes zuordnet als der Client.
+                    local res = ResolveEnchant(slotDef.id, enchId, link, slotDef.enchSlot)
+                    local effId = (res and res.id) or enchId
+
+                    if res and res.mismatch and not enchantMismatchHinted then
+                        enchantMismatchHinted = true
+                        print(WeintCodex.ColorText("danger", "[WeintCodex]")
+                            .. " Verzauberungs-ID " .. tostring(enchId) .. " (" .. slotDef.name
+                            .. ") passt nicht zur Datenbank - angezeigt wird der Wert aus dem"
+                            .. " Item-Tooltip. Bitte einmal |cffC8763A/wc vz|r ausführen und die"
+                            .. " Ausgabe melden.")
+                    end
+                    local status, bestList =
+                        EvaluateEnchant(effId, slotDef.enchSlot, profile, res and res.name)
                     scan.enchants.rows[#scan.enchants.rows + 1] = {
                         slotId       = slotDef.id,
                         slotName     = slotDef.name,
                         enchSlot     = slotDef.enchSlot,
                         itemName     = itemName,
                         enchId       = enchId,
-                        tooltipName  = tooltipName,
+                        effId        = effId,
+                        displayName  = res and res.name,
+                        enchStats    = res and res.stats,
+                        mismatch     = res and res.mismatch,
+                        unverified   = res and res.unverified,
                         status       = status,
                         bestList     = bestList,
                         recId        = bestList and bestList[1] or nil,
@@ -1067,9 +1288,16 @@ local function ScanCharacter()
                 end
             end
             for _, row in ipairs(scan.enchants.rows) do
-                local db = row.enchId and WeintCodex_Enchants
-                           and WeintCodex_Enchants[row.enchId]
-                local v = db and db.stats and db.stats[cs.stat]
+                -- enchStats stammt aus dem Tooltip bzw. dem korrigierten
+                -- DB-Eintrag — sonst würden bei falsch zugeordneten IDs die
+                -- Stats einer ganz anderen Verzauberung gegen den Cap laufen.
+                local stats = row.enchStats
+                if not stats then
+                    local db = row.effId and WeintCodex_Enchants
+                               and WeintCodex_Enchants[row.effId]
+                    stats = db and db.stats
+                end
+                local v = stats and stats[cs.stat]
                 if v and v > 0 and row.status ~= "overcap" then
                     cands[#cands + 1] = { row = row, value = v, art = "Verzauberung" }
                 end
@@ -1242,8 +1470,9 @@ function WeintCodex.Charakter.DumpEnchants()
             local enchId, gems = ParseItemLink(link)
             if enchId then
                 any = true
-                local tt = GetEquippedEnchantText(slotDef.id, enchId, link)
-                local db = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
+                local scan = ScanEquippedEnchant(slotDef.id, enchId, link, slotDef.enchSlot)
+                local tt   = scan and scan.name
+                local db   = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
                 local marker = ""
                 if not tt and db then
                     -- Live-Tooltip-Scan lieferte keinen Namen — der unten
@@ -1256,8 +1485,22 @@ function WeintCodex.Charakter.DumpEnchants()
                 elseif tt and db.name and tt:lower() ~= db.name:lower() then
                     marker = "  |cffFFBB22(DB-Name: " .. db.name .. ")|r"
                 end
-                print(string.format("  %s: VZ-ID %d = %s%s",
-                    slotDef.name, enchId, tt or (db and db.name) or "?", marker))
+
+                -- Gescannte Stats mit ausgeben: damit lässt sich eine falsch
+                -- zugeordnete ID auch dann eindeutig korrigieren, wenn der
+                -- Client nur die Effektzeile ("+170 ...") liefert.
+                local statStr = ""
+                if scan and scan.stats then
+                    local parts = {}
+                    for key, value in pairs(scan.stats) do
+                        parts[#parts + 1] = key .. "=" .. value
+                    end
+                    table.sort(parts)
+                    statStr = "  |cff6B6259[" .. table.concat(parts, ", ") .. "]|r"
+                end
+
+                print(string.format("  %s: VZ-ID %d = %s%s%s",
+                    slotDef.name, enchId, tt or (db and db.name) or "?", statStr, marker))
             end
             for g = 1, 4 do
                 if gems[g] then
@@ -1622,13 +1865,21 @@ function ShowEnchants()
         elseif row.status == "neutral" and not row.enchId then
             curLbl:SetText("|cff6B6259— (keine Empfehlung für diese Spec)|r")
         else
-            -- Offizieller Live-Tooltip-Name hat Vorrang vor der DB (siehe
-            -- GetEquippedEnchantText) — sonst zeigen wir bei falsch
+            -- Was der Client sagt, hat Vorrang vor unserer ID-Tabelle
+            -- (siehe ResolveEnchant) — sonst zeigen wir bei falsch
             -- zugeordneten IDs eine andere Verzauberung an als die, die
             -- tatsächlich angelegt ist.
-            local n = row.tooltipName or GetEnchantDisplayName(row.enchId) or "—"
+            local n = row.displayName or GetEnchantDisplayName(row.enchId) or "—"
             if row.status == "overcap" then
                 curLbl:SetText(n .. " |cffcc88ff(Stat über Cap!)|r")
+            elseif row.unverified then
+                -- Item war beim Scan noch nicht im Client-Cache: Name
+                -- stammt ungeprüft aus der DB (Neuscan läuft automatisch,
+                -- sobald der Client die Itemdaten nachliefert).
+                curLbl:SetText(n .. " |cff6B6259(?)|r")
+            elseif row.mismatch then
+                curLbl:SetText(n .. " |cffFFBB22(ID " .. tostring(row.enchId)
+                    .. " abweichend – /wc vz)|r")
             else
                 curLbl:SetText(n)
             end
@@ -1639,7 +1890,7 @@ function ShowEnchants()
             -- Erste auflösbare Empfehlung wählen, die NICHT namensgleich
             -- mit der bereits angelegten Verzauberung ist. Unauflösbare
             -- IDs ("Unbekannt (ID …)") werden übersprungen.
-            local curName = row.tooltipName or (row.enchId and GetEnchantDisplayName(row.enchId))
+            local curName = row.displayName or (row.enchId and GetEnchantDisplayName(row.enchId))
             local recName = FirstResolvableName(
                 row.bestList or { row.recId }, GetEnchantDisplayName, curName)
             if recName then
@@ -2372,7 +2623,7 @@ function ShowWerteverteilung()
                     if w.art == "Stein" then
                         nm = GetGemDisplayName(w.row.gemId)
                     else
-                        nm = w.row.tooltipName or GetEnchantDisplayName(w.row.enchId)
+                        nm = w.row.displayName or GetEnchantDisplayName(w.row.enchId)
                     end
                     src:SetText(string.format("|cffcc88ff> %s: %s (%s, +%d) austauschen|r",
                         w.row.slotName or "?", nm or "?", w.art, w.value))

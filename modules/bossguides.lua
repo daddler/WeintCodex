@@ -19,6 +19,13 @@ local guideFrame    = nil
 local INSTANCE_NAME  = "Schlacht um Orgrimmar"
 local INSTANCE_MATCH = "Orgrimmar"
 
+-- Instanz beim Tracking anmelden, damit der Lockout-Import auch ohne
+-- geoeffnetes WeintCodex-Fenster laeuft (Login, Betreten der Instanz,
+-- Bosskill). Ladereihenfolge laut .toc: encounter_tracking vor bossguides.
+if WeintCodex.EncounterTracking and WeintCodex.EncounterTracking.RegisterInstance then
+    WeintCodex.EncounterTracking.RegisterInstance(INSTANCE_NAME, INSTANCE_MATCH)
+end
+
 --------------------------------------------------
 -- Boss-Reihenfolge SoO
 --------------------------------------------------
@@ -636,6 +643,34 @@ local function ShowBoss(bossName)
     selectedRole = nil
     local autoRole = GetPlayerRole()
     ShowRoleTips(autoRole or "tank")
+
+    -- Header-Fortschritt mitziehen: Show() baut ihn nur einmal beim
+    -- Betreten des Tabs, ein Bosswechsel/Kill danach sonst nicht.
+    UpdateProgressHeader(f)
+end
+
+--------------------------------------------------
+-- Fortschritt aktualisieren, ohne die Seite neu aufzubauen
+-- (Hook aus modules/encounter_tracking.lua).
+--------------------------------------------------
+
+function WeintCodex.BossGuides.RefreshProgress()
+    -- Nur wenn der Bossguide-Tab wirklich sichtbar ist - sonst wuerden
+    -- wir in die Sidebar eines fremden Tabs schreiben.
+    if not (guideFrame and guideFrame:IsVisible()) then return end
+
+    if WeintCodex.Navigation and WeintCodex.Navigation.UpdateSidebarStatus then
+        for i = 1, #bossOrder do
+            WeintCodex.Navigation.UpdateSidebarStatus(i, BuildBossStatus(i))
+        end
+    end
+    UpdateProgressHeader(guideFrame)
+end
+
+if WeintCodex.EncounterTracking then
+    WeintCodex.EncounterTracking.onChanged = function()
+        WeintCodex.BossGuides.RefreshProgress()
+    end
 end
 
 --------------------------------------------------
