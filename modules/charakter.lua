@@ -661,8 +661,26 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
         end
     end
 
-    -- Weg B: erste grüne, plausible Zeile
+    -- Weg B: erste grüne, plausible Zeile.
+    --
+    -- WICHTIG: Item-Sekundärwerte (Trefferwert, Ausweichen, Parieren …)
+    -- sind in MoP ebenfalls grüne "+Zahl"-Zeilen und kommen IM TOOLTIP
+    -- VOR der eigentlichen Verzauberungszeile. Ohne weitere Prüfung würde
+    -- Weg B immer den falschen Item-Stat einlesen.
+    --
+    -- Validierungslogik:
+    --   • DB-Eintrag mit stats  → Zeile muss mindestens einen Stat-Schlüssel
+    --                             mit den DB-Stats teilen (z.B. beide "crit").
+    --                             Item-Stats mit völlig anderem Schlüssel (z.B.
+    --                             "hit" statt "strength"+"crit") werden verworfen.
+    --   • DB-Eintrag ohne stats → "+Zahl"-Zeilen werden verworfen (wären bei
+    --                             reinen Proc-Verzauberungen falsch); nur Zeilen
+    --                             ohne Zahlenwert (Proc-Name o.ä.) werden akzeptiert.
+    --   • Kein DB-Eintrag       → Erste plausible Zeile (unverändertes Fallback).
     if not found then
+        local db      = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
+        local dbStats = db and db.stats
+
         for i = 2, n do
             local line = _G["WeintCodexScanTipTextLeft" .. i]
             local txt  = line and line:GetText()
@@ -670,8 +688,37 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
                and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
                and IsGreenLine(line)
                and LooksLikeEnchantText(txt, enchSlot) then
-                found = txt
-                break
+
+                if not db then
+                    -- Kein DB-Eintrag: ersten plausiblen Treffer nehmen.
+                    found = txt
+                    break
+                end
+
+                local scanned = ParseAllStats(txt)
+
+                if not scanned then
+                    -- Zeile hat kein "+Zahl"-Muster (Proc-Name o.ä.) → sicher.
+                    found = txt
+                    break
+                end
+
+                if dbStats then
+                    -- Stat-Überlapp prüfen: mindestens ein gemeinsamer Schlüssel.
+                    local anyMatch = false
+                    for k in pairs(scanned) do
+                        if dbStats[k] then anyMatch = true; break end
+                    end
+                    if anyMatch then
+                        found = txt
+                        break
+                    end
+                    -- Kein Überlapp → Item-Sekundärwert, überspringen.
+                end
+                -- DB-Eintrag ohne stats (z.B. isDkRune / Proc-Enchants):
+                -- "+Zahl"-Zeile nicht blind akzeptieren – weitersuchen,
+                -- kein found setzen. Falls gar nichts passt, bleibt found=nil
+                -- → unverified, DB-Name wird mit "(?)" angezeigt.
             end
         end
     end
