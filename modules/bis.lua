@@ -190,16 +190,34 @@ end
 --   hasSpecData  true, wenn für diese Spec überhaupt BiS-Daten
 --                gepflegt sind - damit die UI "keine Daten gepflegt"
 --                von "hier droppt nichts für dich" unterscheiden kann
+--
+-- Tanks im Offensiv-Spielstil führen ein eigenes Profil (z.B.
+-- "WARRIOR_PROTECTION_OFFENSIVE", siehe charakter.lua/spec_profiles.lua),
+-- tragen aber dieselbe Ausrüstung wie im Def-Stil - data/bis.lua pflegt
+-- deshalb bewusst keine eigene Liste dafür. Ohne Fallback würde die
+-- Inspector-Sektion für diese Spieler fälschlich "keine Daten" zeigen,
+-- obwohl die Basis-Spec eine volle Liste hat.
 --------------------------------------------------
+
+local function ResolveDataKey(specKey)
+    if WeintCodex_BiS and WeintCodex_BiS[specKey] then return specKey end
+
+    local baseKey = specKey and specKey:match("^(.+)_OFFENSIVE$")
+    if baseKey and WeintCodex_BiS and WeintCodex_BiS[baseKey] then return baseKey end
+
+    return specKey
+end
 
 function WeintCodex.BiS.GetForBoss(bossName, specKey)
     if not bossName or not specKey then return {}, false end
 
-    local specEntries = WeintCodex_BiS and WeintCodex_BiS[specKey]
+    local dataKey = ResolveDataKey(specKey)
+
+    local specEntries = WeintCodex_BiS and WeintCodex_BiS[dataKey]
     local hasSpecData = type(specEntries) == "table" and #specEntries > 0
 
     local forBoss = GetBossIndex()[bossName]
-    local raw = forBoss and forBoss[specKey]
+    local raw = forBoss and forBoss[dataKey]
     if not raw or #raw == 0 then return {}, hasSpecData end
 
     local equipped = BuildEquippedIndex()
