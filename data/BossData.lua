@@ -2,6 +2,16 @@
 -- WeintCodex :: BossData
 -- Standard-Daten (werden durch Import ergänzt)
 -- Enthält: tips (tank/healer/dps), abilities, quote, kurz
+--
+-- Optionales Feld "positioning" zeigt im Boss-Guide einen Aufstellungs-
+-- Abschnitt zwischen den Rollen-Tipps und den Fähigkeiten an (siehe
+-- modules/bossguides.lua, BuildPositioningSection). Fehlt es, bleibt der
+-- Abschnitt für den Boss einfach ausgeblendet:
+--   positioning = {
+--       image  = "Media/Bosses/Positioning/<slug>.tga",
+--       width  = 1024,  -- optional, Quellpixelbreite fürs Seitenverhältnis
+--       height = 576,   -- optional, Quellpixelhöhe
+--   },
 --------------------------------------------------
 
 WeintCodex_BossData = {
