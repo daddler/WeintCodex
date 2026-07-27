@@ -27,6 +27,12 @@ WeintCodex_BossData = {
         quote    = "Verderbnis kann nur durch Läuterung überwunden werden.",
         portrait = "Media/Bosses/immerseus.tga",
 
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/immerseus.tga", width = 1350, height = 864 },
+            },
+        },
+
         tank = {
             "Tankwechsel nach jedem Ätzenden Schlag.",
             "Immerseus immer vom Raid wegdrehen.",
@@ -146,6 +152,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Drei Beschützer. Ein Wille. Unterschätzt niemals die Macht der Verzweiflung.",
         portrait = "Media/Bosses/beschuetzer.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/beschuetzer.tga", width = 1351, height = 866 },
+            },
+        },
 
         tank = {
             "Rook immer vom Raid wegdrehen.",
@@ -290,6 +302,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Nur wer seine Verderbnis überwindet, kann die Wahrheit erkennen.",
         portrait = "Media/Bosses/norushen.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/norushen.tga", width = 1351, height = 864 },
+            },
+        },
 
         tank = {
             "Tankwechsel bei ca 4 Stapeln von Selbstzweifel.",
@@ -489,6 +507,12 @@ WeintCodex_BossData = {
         quote    = "Stolz ist die letzte Schwäche der Sterblichen.",
         portrait = "Media/Bosses/sha-des-stolzes.tga",
 
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/sha-des-stolzes.tga", width = 1349, height = 863 },
+            },
+        },
+
         tank = {
             "Tankwechsel bei 1 Stapel Verletzter Stolz.",
             "Boss niemals ohne Nahkampfziel lassen.",
@@ -670,6 +694,13 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Lasst den Himmel brennen!",
         portrait = "Media/Bosses/galakras.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/galakras.tga",   width = 1349, height = 867 },
+                { image = "Media/Bosses/Positioning/galakras_2.tga", width = 1352, height = 866 },
+            },
+        },
 
         tank = {
             "Knochenbrecher priorisieren und kontrollieren.",
@@ -853,6 +884,12 @@ WeintCodex_BossData = {
         quote    = "Die Kriegsmaschine der Kor'kron kennt keine Gnade.",
         portrait = "Media/Bosses/eiserner-koloss.tga",
 
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/eiserner-koloss.tga", width = 1351, height = 866 },
+            },
+        },
+
         tank = {
             "Tankwechsel bei 2-3 Stapeln von Rüstungsschmelze.",
             "Boss immer vom Raid wegdrehen.",
@@ -1000,6 +1037,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Die Elemente selbst wurden von der Verderbnis verschlungen.",
         portrait = "Media/Bosses/schamanen.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/schamanen.tga", width = 1352, height = 867 },
+            },
+        },
 
         tank = {
             "Tankwechsel bei 5 Stapeln von Froststurmschlag.",
@@ -1184,6 +1227,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Ein wahrer Soldat kämpft bis zum letzten Atemzug.",
         portrait = "Media/Bosses/general-nazgrim.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/general-nazgrim.tga", width = 1352, height = 865 },
+            },
+        },
 
         tank = {
             "Tankwechsel bei 3-4 Stapeln von Zerreißender Schlag.",
@@ -1371,6 +1420,12 @@ WeintCodex_BossData = {
         quote    = "Y'Shaarjs Macht fließt durch mich.",
         portrait = "Media/Bosses/malkorok.tga",
 
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/malkorok.tga", width = 1350, height = 865 },
+            },
+        },
+
         tank = {
             "Tankwechsel direkt nach Fataler Stoß.",
             "Boss frontal vom Raid wegdrehen.",
@@ -1513,6 +1568,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Die größten Gefahren Pandarias lagen nicht immer auf dem Schlachtfeld.",
         portrait = "Media/Bosses/pandaria.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/pandaria.tga", width = 1350, height = 863 },
+            },
+        },
 
         tank = {
             "Nicht zu viele Kisten gleichzeitig öffnen.",
@@ -1725,6 +1786,12 @@ WeintCodex_BossData = {
         quote    = "Die Jagd beginnt.",
         portrait = "Media/Bosses/thok.tga",
 
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/thok.tga", width = 1350, height = 864 },
+            },
+        },
+
         tank = {
             "Tankwechsel bei 2-3 Atem-Stacks.",
             "Boss frontal vom Raid wegdrehen.",
@@ -1901,6 +1968,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Perfektion entsteht durch Feuer, Stahl und Explosionen.",
         portrait = "Media/Bosses/russschmied.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/russschmied.tga", width = 1349, height = 864 },
+            },
+        },
 
         tank = {
             "Tankwechsel bei 3-4 Stapeln von Elektrostatische Aufladung.",
@@ -2083,6 +2156,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Die Stärksten der Klaxxi haben sich gegen Pandaria gewandt.",
         portrait = "Media/Bosses/klaxxi.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/klaxxi.tga", width = 1352, height = 865 },
+            },
+        },
 
         tank = {
             "Tankwechsel bei gefährlichen Debuff-Kombinationen.",
@@ -2353,6 +2432,12 @@ WeintCodex_BossData = {
         instance = "Schlacht um Orgrimmar",
         quote    = "Ich werde die wahre Horde erschaffen!",
         portrait = "Media/Bosses/garrosh.tga",
+
+        positioning = {
+            images = {
+                { image = "Media/Bosses/Positioning/garrosh.tga", width = 1352, height = 863 },
+            },
+        },
 
         tank = {
             "Tankwechsel bei 3-4 Stapeln von Verzweiflung.",
