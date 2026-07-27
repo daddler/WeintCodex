@@ -14,9 +14,11 @@ core/main.lua
 core/ui.lua
 core/navigation.lua
 core/minimap.lua
+core/onboarding.lua
 
 data/BossData.lua
 data/bis.lua
+data/changelog.lua
 data/enchants.lua
 data/spec_profiles.lua
 data/gems.lua

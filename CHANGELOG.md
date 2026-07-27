@@ -9,6 +9,8 @@ Erster offizieller Release. Funktional identisch zu 0.9.9.38 – der Versionsspr
 ### Neu
 - README.md mit Funktionsübersicht, Ökosystem-Erklärung (Companion/Bot) und Installationsanleitung
 - CHANGELOG.md (dieses Dokument)
+- Addon-Tour beim ersten Start: kurzer, mehrseitiger Rundgang durch alle Bereiche (Charakter, Bossguides, Raids, Materialien, Kalender, WeakAuras, Import)
+- Update-Popup, das bei neuen Versionen automatisch anzeigt, was sich geändert hat (`/wc tour` zeigt die Tour jederzeit erneut)
 
 ### Intern
 - CLAUDE.md-Versionsreferenz aktualisiert

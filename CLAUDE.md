@@ -55,6 +55,12 @@ The addon and WeintCompanion communicate only through two Lua tables in the shar
 
 A second, independent channel: the Discord bot generates a `WCIMPORT:<TYPE>:<payload>` string via bot slash commands (`/export boss|raidwed|raidthu|mat|wa`), which the player pastes into the in-game Import dialog (`/wc import`, or `WeintCodex.Sync.QuickImport(str)`). Each `<TYPE>` (`BOSS`, `RAIDWED`/`RAIDTHU`/legacy `RAID`, `MAT`, `WA`) has its own hand-rolled colon/pipe/comma-delimited parser in `sync.lua` (`ParseBossImport`, `ParseRaidImport`, `ParseMatImport`, `ParseWAImport`) — these are position-based string formats, not JSON, so field order matters and is documented in the file header comment. `ProcessImport` dispatches by type tag and writes results straight into `WeintCodex.SavedData`, then calls the owning module's `Refresh`/`ResolveNames`/`RefreshDay` to update the UI.
 
+### Onboarding-Tour & Update-Changelog (`core/onboarding.lua` + `data/changelog.lua`)
+
+`core/onboarding.lua` zeigt neuen Nutzern beim allerersten Login eine mehrseitige Feature-Tour (eine Seite pro Navigations-Tab) und bestehenden Nutzern nach einem Versionswechsel ein Popup mit dem, was sich geändert hat. Beide Modi teilen sich dasselbe Overlay-Fenster über `WeintCodex.MainFrame` (analog zu `modules/dialog.lua`). Getrackt wird das über `WeintCodex.SavedData.onboarding.lastSeenVersion`: `nil` → volle Tour, abweichend von `WeintCodex.Version` → Changelog-Popup mit allen Einträgen aus `data/changelog.lua` seit der zuletzt gesehenen Version, gleich → nichts. Aufgerufen wird `WeintCodex.Onboarding.Check()` aus dem `PLAYER_LOGIN`-Handler in `core/main.lua`; `/wc tour` ruft die Tour manuell erneut auf (zum Testen).
+
+`data/changelog.lua` (`WeintCodex_ChangelogData`, neueste Version zuerst) ist eine separate, laufzeit-lesbare Kurzfassung von `CHANGELOG.md` – beide müssen bei jedem Release von Hand gepflegt werden, das eine ersetzt das andere nicht.
+
 ### Libraries
 
 `libs/` vendors `LibStub`, `CallbackHandler-1.0`, `LibDataBroker-1.1`, `LibDBIcon-1.0` — standard WoW addon ecosystem libraries, used only for the minimap button/data-broker integration in `core/minimap.lua`. Don't hand-edit vendored library code; replace the file wholesale if it needs updating.

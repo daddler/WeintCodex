@@ -22,6 +22,14 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
+    -- Addon-Tour manuell erneut aufrufen (z.B. zum Testen)
+    if cmd == "tour" then
+        if WeintCodex.Onboarding and WeintCodex.Onboarding.ShowTour then
+            WeintCodex.Onboarding.ShowTour()
+        end
+        return
+    end
+
     if WeintCodex.MainFrame:IsShown() then
         WeintCodex.MainFrame:Hide()
     else
@@ -63,6 +71,13 @@ local function OnEvent(self, event, addonName)
         -- würden das Item sonst still nirgends anzeigen).
         if WeintCodex_ValidateBiSData then
             WeintCodex_ValidateBiSData()
+        end
+
+        -- Erststart-Tour bzw. Update-Changelog-Popup (core/onboarding.lua):
+        -- zeigt neuen Nutzern eine kurze Feature-Tour, bestehenden Nutzern
+        -- nach einem Versionswechsel, was sich geaendert hat.
+        if WeintCodex.Onboarding and WeintCodex.Onboarding.Check then
+            WeintCodex.Onboarding.Check()
         end
 
         return
