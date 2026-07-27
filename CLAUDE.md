@@ -14,7 +14,7 @@ Comments and in-game UI text are in German; Lua identifiers are in English/mixed
 
 ## Working with this codebase
 
-There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `0.9.9.26` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
+There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `0.9.9.35` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
 
 ### Releases
 
@@ -36,7 +36,11 @@ Everything hangs off the global `WeintCodex` table. Each module does `WeintCodex
 
 ### Data vs. logic split
 
-`data/` holds static reference tables (`BossData.lua`, `spec_profiles.lua`, `enchants.lua`, `gems.lua`, `gem_stats.lua`, `data/weakauras/*.lua` per class) that `modules/` consumes. `main.lua` calls `WeintCodex_ValidateSpecData()` on login as a drift guard — if `spec_profiles.lua` references an enchant/gem ID that no longer exists in `enchants.lua`/`gems.lua`, it warns. Keep IDs in these three files consistent when editing gear/spec data.
+`data/` holds static reference tables (`BossData.lua`, `bis.lua`, `spec_profiles.lua`, `enchants.lua`, `gems.lua`, `gem_stats.lua`, `data/weakauras/*.lua` per class) that `modules/` consumes. `main.lua` calls `WeintCodex_ValidateSpecData()` and `WeintCodex_ValidateBiSData()` on login as drift guards — if `spec_profiles.lua` references an enchant/gem ID that no longer exists in `enchants.lua`/`gems.lua`, or `bis.lua` references a boss/slot name that doesn't exist, it warns. Keep IDs and names in these files consistent when editing gear/spec/BiS data.
+
+### BiS lists (`data/bis.lua` + `modules/bis.lua`)
+
+`data/bis.lua` holds `WeintCodex_BiS`, a per-spec table (keys match `WeintCodex_SpecProfiles` in `spec_profiles.lua`, e.g. `WARRIOR_ARMS`) of `{ id, slot, boss, variants?, note? }` entries — item name is deliberately not stored, it's resolved at runtime via `GetItemInfo` so it always matches the client's language (same doctrine as `WeintCodex_GetGemName` in `gems.lua`). `modules/bis.lua` builds a boss→spec index from that once and exposes `WeintCodex.BiS.GetForBoss(bossName, specKey)`, which checks only *equipped* gear (no bag/bank scan) and classifies each entry `have`/`variant`/`open`. Tank specs playing offensive stance (`*_OFFENSIVE` profile keys) have no data of their own — `GetForBoss` falls back to the base spec key since gear is identical between styles. `modules/bossguides.lua` renders the result as a scrollable `itemlist` block (`core/navigation.lua`) in the Inspector, under the boss notes.
 
 ### Companion bridge (bidirectional sync)
 
