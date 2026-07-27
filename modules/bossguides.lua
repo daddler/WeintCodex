@@ -253,15 +253,9 @@ local function CreateGuideFrame()
     posLine:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
     f.PosLine = posLine
 
-    local posImageBox = CreateFrame("Frame", nil, bodyChild)
-    WeintCodex.SetSolidBg(posImageBox, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
-    WeintCodex.DrawSlimBorder(posImageBox, "hairline")
-    f.PosImageBox = posImageBox
-
-    local posImageTexture = posImageBox:CreateTexture(nil, "ARTWORK")
-    posImageTexture:SetAllPoints(posImageBox)
-    posImageTexture:SetTexCoord(0, 1, 0, 1)
-    f.PosImageTexture = posImageTexture
+    -- Die Vorschaubilder selbst (f.PosImageBoxes) werden dynamisch in
+    -- BuildPositioningSection() erzeugt, da ein Boss ein oder mehrere
+    -- Bilder haben kann (z.B. Galakras: zwei Phasen).
 
     -- FÄHIGKEITEN section header
     local abilHeader = bodyChild:CreateFontString(nil, "OVERLAY")
@@ -365,15 +359,15 @@ local function CreatePositioningLightbox()
     positioningImageTexture:SetTexCoord(0, 1, 0, 1)
 end
 
-local function ShowPositioningLightbox(positioning)
-    if not positioning or not positioning.image then return end
+local function ShowPositioningLightbox(img)
+    if not img or not img.image then return end
 
     CreatePositioningLightbox()
     if not positioningOverlay then return end
 
     local aspect = DEFAULT_POS_ASPECT
-    if positioning.width and positioning.height and positioning.width > 0 then
-        aspect = positioning.height / positioning.width
+    if img.width and img.height and img.width > 0 then
+        aspect = img.height / img.width
     end
 
     local maxW = WeintCodex.ContentPanel:GetWidth() * 0.8
@@ -386,26 +380,37 @@ local function ShowPositioningLightbox(positioning)
     end
 
     positioningImageBox:SetSize(math.floor(imgW), math.floor(imgH))
-    positioningImageTexture:SetTexture("Interface\\AddOns\\WeintCodex\\" .. positioning.image)
+    positioningImageTexture:SetTexture("Interface\\AddOns\\WeintCodex\\" .. img.image)
 
     positioningOverlay:Show()
 end
 
 --------------------------------------------------
--- AUFSTELLUNG-Abschnitt (Positionierungsbild) aufbauen
+-- AUFSTELLUNG-Abschnitt (Positionierungsbilder) aufbauen
 --
--- Optional - fehlt bei einem Boss das "positioning"-Feld, wird der
--- komplette Abschnitt versteckt und offY unveraendert zurueckgegeben,
--- damit die Faehigkeiten-Liste direkt danach nahtlos anschliesst.
+-- Optional - fehlt bei einem Boss "positioning.images" (bzw. ist leer),
+-- wird der komplette Abschnitt versteckt und offY unveraendert
+-- zurueckgegeben, damit die Faehigkeiten-Liste direkt danach nahtlos
+-- anschliesst. Ein Boss kann mehrere Bilder haben (z.B. Galakras: zwei
+-- Phasen) - die Vorschaubilder teilen sich dann eine Zeile mit fester
+-- Gesamtbreite POS_ROW_W, jedes einzeln klickbar fuer die Grossansicht.
 --------------------------------------------------
 
-local POS_THUMB_W = 280
+local POS_ROW_W = 280
+local POS_GAP   = 8
+
+local activePosImageBoxes = {}
 
 local function BuildPositioningSection(f, positioning, offY)
-    if not positioning or not positioning.image then
+    for _, box in ipairs(activePosImageBoxes) do
+        box:Hide()
+    end
+    wipe(activePosImageBoxes)
+
+    local images = positioning and positioning.images
+    if not images or #images == 0 then
         f.PosHeader:Hide()
         f.PosLine:Hide()
-        f.PosImageBox:Hide()
         return offY
     end
 
@@ -413,41 +418,55 @@ local function BuildPositioningSection(f, positioning, offY)
 
     f.PosHeader:Show()
     f.PosLine:Show()
-    f.PosImageBox:Show()
 
     f.PosHeader:SetPoint("TOPLEFT", lc, "TOPLEFT", 20, offY)
     f.PosLine:SetPoint("TOPLEFT",  lc, "TOPLEFT",  20, offY - 16)
     f.PosLine:SetPoint("TOPRIGHT", lc, "TOPRIGHT", -20, offY - 16)
 
-    local aspect = DEFAULT_POS_ASPECT
-    if positioning.width and positioning.height and positioning.width > 0 then
-        aspect = positioning.height / positioning.width
+    local n      = #images
+    local thumbW = (POS_ROW_W - POS_GAP * (n - 1)) / n
+    local thumbX = 20
+    local rowH   = 0
+
+    for _, img in ipairs(images) do
+        local aspect = DEFAULT_POS_ASPECT
+        if img.width and img.height and img.width > 0 then
+            aspect = img.height / img.width
+        end
+        local thumbH = math.floor(thumbW * aspect)
+        rowH = math.max(rowH, thumbH)
+
+        local box = CreateFrame("Frame", nil, lc)
+        WeintCodex.SetSolidBg(box, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+        WeintCodex.DrawSlimBorder(box, "hairline")
+        box:SetPoint("TOPLEFT", lc, "TOPLEFT", thumbX, offY - 24)
+        box:SetSize(thumbW, thumbH)
+
+        local tex = box:CreateTexture(nil, "ARTWORK")
+        tex:SetAllPoints(box)
+        tex:SetTexCoord(0, 1, 0, 1)
+        tex:SetTexture("Interface\\AddOns\\WeintCodex\\" .. img.image)
+
+        box:EnableMouse(true)
+        box:SetScript("OnEnter", function(self)
+            WeintCodex.DrawBorder(self, C.purple[1], C.purple[2], C.purple[3], 0.85, 1)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Klicken zum Vergrößern")
+            GameTooltip:Show()
+        end)
+        box:SetScript("OnLeave", function(self)
+            WeintCodex.DrawSlimBorder(self, "hairline")
+            GameTooltip:Hide()
+        end)
+        box:SetScript("OnMouseUp", function()
+            ShowPositioningLightbox(img)
+        end)
+
+        table.insert(activePosImageBoxes, box)
+        thumbX = thumbX + thumbW + POS_GAP
     end
 
-    local imgW = POS_THUMB_W
-    local imgH = math.floor(imgW * aspect)
-
-    f.PosImageBox:ClearAllPoints()
-    f.PosImageBox:SetPoint("TOPLEFT", lc, "TOPLEFT", 20, offY - 24)
-    f.PosImageBox:SetSize(imgW, imgH)
-    f.PosImageTexture:SetTexture("Interface\\AddOns\\WeintCodex\\" .. positioning.image)
-
-    f.PosImageBox:EnableMouse(true)
-    f.PosImageBox:SetScript("OnEnter", function(self)
-        WeintCodex.DrawBorder(self, C.purple[1], C.purple[2], C.purple[3], 0.85, 1)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Klicken zum Vergrößern")
-        GameTooltip:Show()
-    end)
-    f.PosImageBox:SetScript("OnLeave", function(self)
-        WeintCodex.DrawSlimBorder(self, "hairline")
-        GameTooltip:Hide()
-    end)
-    f.PosImageBox:SetScript("OnMouseUp", function()
-        ShowPositioningLightbox(positioning)
-    end)
-
-    return offY - (24 + imgH + 24)
+    return offY - (24 + rowH + 24)
 end
 
 --------------------------------------------------

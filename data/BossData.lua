@@ -5,13 +5,19 @@
 --
 -- Optionales Feld "positioning" zeigt im Boss-Guide einen Aufstellungs-
 -- Abschnitt zwischen den Rollen-Tipps und den Fähigkeiten an (siehe
--- modules/bossguides.lua, BuildPositioningSection). Fehlt es, bleibt der
--- Abschnitt für den Boss einfach ausgeblendet:
+-- modules/bossguides.lua, BuildPositioningSection). Fehlt es bzw. ist
+-- "images" leer, bleibt der Abschnitt für den Boss einfach ausgeblendet.
+-- "images" ist eine Liste - normalerweise ein Eintrag, bei mehreren
+-- Phasen/Aufstellungen (z.B. Galakras) auch mehrere; jedes Bild bekommt
+-- ein eigenes klickbares Vorschaubild:
 --   positioning = {
---       image  = "Media/Bosses/Positioning/<slug>.tga",
---       width  = 1024,  -- optional, Quellpixelbreite fürs Seitenverhältnis
---       height = 576,   -- optional, Quellpixelhöhe
+--       images = {
+--           { image = "Media/Bosses/Positioning/<slug>.tga", width = 1024, height = 576 },
+--           -- optional weitere Bilder, z.B. andere Phase:
+--           -- { image = "Media/Bosses/Positioning/<slug>_2.tga", width = 1024, height = 576 },
+--       },
 --   },
+-- width/height sind je Bild optional (Quellpixelmaße fürs Seitenverhältnis).
 --------------------------------------------------
 
 WeintCodex_BossData = {
