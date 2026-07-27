@@ -85,24 +85,28 @@
 --
 -- Mehrere Encounter haben benannte Unterbosse (z.B. droppt "General
 -- Nazgrim" nichts selbst - der Kampf heißt so, die NPCs sind Sun
--- Zartherz/Rook Steinzeh/Skeer der Blutsucher etc.). Solche Quellen
--- wurden beim Eintragen auf den Encounter-Namen konsolidiert:
---   Sun Zartherz, Rook Steinzeh, Skeer der Blutsucher,
---     "The Fallen Protectors"          -> Die gefallenen Beschützer
+-- Zartherz/Rook Steinzeh etc.). Solche Quellen wurden beim Eintragen
+-- auf den Encounter-Namen konsolidiert:
+--   Sun Zartherz, Rook Steinzeh, "The Fallen Protectors"
+--                                       -> Die gefallenen Beschützer
 --   Erdbrecher Haromm, Wellenbinderin Kardris, "Kor'kron Dark Shaman"
 --                                       -> Dunkelschamanen
---   Kil'ruk der Windschnitter, "Paragons of the Klaxxi"
---                                       -> Die Getreuen der Klaxxi
 --   Amalgam der Verderbnis (Phase von Norushen selbst)
 --                                       -> Norushen
+--
+-- "Die Getreuen der Klaxxi" (engl. "Paragons of the Klaxxi") hat NEUN
+-- benannte Unterbosse - jeder davon zählt zu diesem einen Encounter,
+-- nicht zu "Die gefallenen Beschützer":
+--   Skeer der Blutsucher, Hisek der Schwarmwächter,
+--   Ka'roz die Heuschrecke, Korven der Erste, Kaz'tik der Manipulator,
+--   Xaril der Vergiftete Geist, Rik'kal der Sezierer,
+--   Iyyokuk der Wache, Kil'ruk der Windschnitter
+--                                       -> Die Getreuen der Klaxxi
 --
 -- Items ohne konkreten SoO-Boss (Legendäre Questreihe, Zeitlose Insel,
 -- Thron des Donners, Tortos) und Einträge ohne verifizierte Item-ID
 -- wurden nicht übernommen - sie können in keiner Bossguide-Seite
--- auftauchen bzw. verletzen den Pflichtfeld-Vertrag oben. Das betrifft
--- u.a. praktisch die komplette Liste von DRUID_BALANCE (dort war jede
--- Quelle im Ausgangsmaterial nur generisch "Schlacht um Orgrimmar"
--- ohne konkreten Boss) - die Spec bleibt deshalb absichtlich leer.
+-- auftauchen bzw. verletzen den Pflichtfeld-Vertrag oben.
 --------------------------------------------------
 
 WeintCodex_BiS = {
@@ -154,11 +158,11 @@ WeintCodex_BiS = {
         { slot = "Handgelenke", boss = "Malkorok",                        id = 103742 },
         { slot = "Hände",       boss = "General Nazgrim",                 id = 99202 },
         { slot = "Taille",      boss = "Die Schätze Pandarias",           id = 103933 },
-        { slot = "Beine",       boss = "Die gefallenen Beschützer",       id = 99195 },
+        { slot = "Beine",       boss = "Die Getreuen der Klaxxi",         id = 99195 },
         { slot = "Füße",        boss = "Immerseus",                       id = 103744 },
         { slot = "Finger",      boss = "Galakras",                        id = 103894 },
         { slot = "Finger",      boss = "Dunkelschamanen",                 id = 103895 },
-        { slot = "Schmuck",     boss = "Die gefallenen Beschützer",       id = 105632 },
+        { slot = "Schmuck",     boss = "Die Getreuen der Klaxxi",         id = 105632 },
         { slot = "Schmuck",     boss = "Malkorok",                        id = 105568 },
         { slot = "Haupthand",   boss = "Dunkelschamanen",                 id = 103926 },
         { slot = "Nebenhand",   boss = "Sha des Stolzes",                 id = 103870 },
@@ -286,7 +290,7 @@ WeintCodex_BiS = {
         { slot = "Taille",      boss = "Dunkelschamanen",                 id = 103927 },
         { slot = "Beine",       boss = "Dunkelschamanen",                 id = 105031 },
         { slot = "Füße",        boss = "Galakras",                        id = 103778 },
-        { slot = "Finger",      boss = "Die gefallenen Beschützer",       id = 103844 },
+        { slot = "Finger",      boss = "Die Getreuen der Klaxxi",         id = 103844 },
         { slot = "Finger",      boss = "Malkorok",                        id = 105558 },
         { slot = "Schmuck",     boss = "Dunkelschamanen",                 id = 105278 },
         { slot = "Schmuck",     boss = "Sha des Stolzes",                 id = 102292 },
@@ -303,7 +307,7 @@ WeintCodex_BiS = {
         { slot = "Handgelenke", boss = "Belagerungsingenieur Rußschmied", id = 104620 },
         { slot = "Taille",      boss = "Dunkelschamanen",                 id = 103927 },
         { slot = "Füße",        boss = "Die Schätze Pandarias",           id = 105084 },
-        { slot = "Finger",      boss = "Die gefallenen Beschützer",       id = 103844 },
+        { slot = "Finger",      boss = "Die Getreuen der Klaxxi",         id = 103844 },
         { slot = "Finger",      boss = "Galakras",                        id = 105483 },
         { slot = "Schmuck",     boss = "Sha des Stolzes",                 id = 102292 },
         { slot = "Schmuck",     boss = "Dunkelschamanen",                 id = 105278 },
@@ -322,7 +326,7 @@ WeintCodex_BiS = {
         { slot = "Beine",       boss = "Dunkelschamanen",                 id = 105031 },
         { slot = "Füße",        boss = "Die Schätze Pandarias",           id = 105084 },
         { slot = "Finger",      boss = "Norushen",                        id = 104953 },
-        { slot = "Finger",      boss = "Die gefallenen Beschützer",       id = 103844 },
+        { slot = "Finger",      boss = "Die Getreuen der Klaxxi",         id = 103844 },
         { slot = "Schmuck",     boss = "Dunkelschamanen",                 id = 105278 },
         { slot = "Schmuck",     boss = "Sha des Stolzes",                 id = 102292 },
         { slot = "Haupthand",   boss = "Thok der Blutdürstige",           id = 103828 },
@@ -359,7 +363,7 @@ WeintCodex_BiS = {
         { slot = "Handgelenke", boss = "Die gefallenen Beschützer",       id = 104446 },
         { slot = "Hände",       boss = "General Nazgrim",                 id = 99365 },
         { slot = "Taille",      boss = "Norushen",                        id = 104467 },
-        { slot = "Beine",       boss = "Die gefallenen Beschützer",       id = 99367 },
+        { slot = "Beine",       boss = "Die Getreuen der Klaxxi",         id = 99367 },
         { slot = "Füße",        boss = "Galakras",                        id = 103902 },
         { slot = "Finger",      boss = "Malkorok",                        id = 104578 },
         { slot = "Finger",      boss = "Immerseus",                       id = 104925 },
@@ -398,11 +402,11 @@ WeintCodex_BiS = {
         { slot = "Handgelenke", boss = "Malkorok",                        id = 104568 },
         { slot = "Hände",       boss = "General Nazgrim",                 id = 99189 },
         { slot = "Taille",      boss = "Die Schätze Pandarias",           id = 103933 },
-        { slot = "Beine",       boss = "Die gefallenen Beschützer",       id = 99191 },
+        { slot = "Beine",       boss = "Die Getreuen der Klaxxi",         id = 99191 },
         { slot = "Füße",        boss = "Immerseus",                       id = 104418 },
         { slot = "Finger",      boss = "Galakras",                        id = 104994 },
         { slot = "Finger",      boss = "Belagerungsingenieur Rußschmied", id = 104873 },
-        { slot = "Schmuck",     boss = "Die gefallenen Beschützer",       id = 105383 },
+        { slot = "Schmuck",     boss = "Die Getreuen der Klaxxi",         id = 105383 },
         { slot = "Schmuck",     boss = "Malkorok",                        id = 104572 },
         { slot = "Haupthand",   boss = "Garrosh Höllschrei",              id = 105644 },
     },
@@ -420,7 +424,7 @@ WeintCodex_BiS = {
         { slot = "Finger",      boss = "Thok der Blutdürstige",           id = 105362 },
         { slot = "Finger",      boss = "Dunkelschamanen",                 id = 105534 },
         { slot = "Schmuck",     boss = "Thok der Blutdürstige",           id = 105360 },
-        { slot = "Schmuck",     boss = "Die gefallenen Beschützer",       id = 105383 },
+        { slot = "Schmuck",     boss = "Die Getreuen der Klaxxi",         id = 105383 },
         { slot = "Haupthand",   boss = "Belagerungsingenieur Rußschmied", id = 105123 },
         { slot = "Nebenhand",   boss = "Belagerungsingenieur Rußschmied", id = 105123 },
     },
@@ -676,10 +680,23 @@ WeintCodex_BiS = {
     -- DRUIDE
     --------------------------------------------------
 
-    -- Absichtlich leer: im Ausgangsmaterial war für diese Spec bei
-    -- praktisch jedem Slot nur "Schlacht um Orgrimmar" als Quelle
-    -- angegeben, ohne konkreten Boss. Siehe Kommentar am Dateianfang.
-    DRUID_BALANCE = {},
+    DRUID_BALANCE = {
+        { slot = "Kopf",        boss = "Dunkelschamanen",                 id = 104546 },
+        { slot = "Hals",        boss = "Sha des Stolzes",                 id = 104726 },
+        { slot = "Schultern",   boss = "Belagerungsingenieur Rußschmied", id = 99169 },
+        { slot = "Brust",       boss = "Sha des Stolzes",                 id = 99177 },
+        { slot = "Handgelenke", boss = "Immerseus",                       id = 104927 },
+        { slot = "Hände",       boss = "General Nazgrim",                 id = 99174 },
+        { slot = "Taille",      boss = "Garrosh Höllschrei",              id = 104655 },
+        { slot = "Beine",       boss = "Die Getreuen der Klaxxi",         id = 99176 },
+        { slot = "Füße",        boss = "Malkorok",                        id = 105327 },
+        { slot = "Finger",      boss = "Eisener Koloss",                  id = 103773 },
+        { slot = "Finger",      boss = "Thok der Blutdürstige",           id = 104610 },
+        { slot = "Schmuck",     boss = "Immerseus",                       id = 104924 },
+        { slot = "Schmuck",     boss = "Dunkelschamanen",                 id = 102300 },
+        { slot = "Haupthand",   boss = "Die Getreuen der Klaxxi",         id = 105378 },
+        { slot = "Nebenhand",   boss = "Garrosh Höllschrei",              id = 105401 },
+    },
 
     DRUID_FERAL = {
         { slot = "Kopf",        boss = "Thok der Blutdürstige",           id = 99182 },
@@ -705,7 +722,7 @@ WeintCodex_BiS = {
         { slot = "Handgelenke", boss = "Eisener Koloss",                  id = 103909 },
         { slot = "Hände",       boss = "General Nazgrim",                 id = 99623 },
         { slot = "Taille",      boss = "Dunkelschamanen",                 id = 104532 },
-        { slot = "Beine",       boss = "Die gefallenen Beschützer",       id = 98981 },
+        { slot = "Beine",       boss = "Die Getreuen der Klaxxi",         id = 98981 },
         { slot = "Füße",        boss = "Galakras",                        id = 103778 },
         { slot = "Finger",      boss = "Norushen",                        id = 104953 },
         { slot = "Finger",      boss = "Galakras",                        id = 104985 },
