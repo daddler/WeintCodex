@@ -11,6 +11,7 @@
 -- Phasen/Aufstellungen (z.B. Galakras) auch mehrere; jedes Bild bekommt
 -- ein eigenes klickbares Vorschaubild:
 --   positioning = {
+--       text = "Kurze Erklärung der Aufstellung (wie im Discord-Bot).",
 --       images = {
 --           { image = "Media/Bosses/Positioning/<slug>.tga", width = 1024, height = 576 },
 --           -- optional weitere Bilder, z.B. andere Phase:
@@ -18,6 +19,8 @@
 --       },
 --   },
 -- width/height sind je Bild optional (Quellpixelmaße fürs Seitenverhältnis).
+-- "text" ist optional und übernimmt den Positionierungssatz aus dem
+-- Discord-Bot (WeintCodex-Bot, bosses/*.json -> strategy_images[].description).
 --------------------------------------------------
 
 WeintCodex_BossData = {
@@ -28,6 +31,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/immerseus.tga",
 
         positioning = {
+            text = "Der Raid verteilt sich kreisförmig um Immerseus, um Wasserbahnen und Sha-Tropfen effizient zu kontrollieren.",
             images = {
                 { image = "Media/Bosses/Positioning/immerseus.tga", width = 1350, height = 864 },
             },
@@ -154,6 +158,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/beschuetzer.tga",
 
         positioning = {
+            text = "Der Raid verteilt sich halbkreisförmig. Tanks vorne, Nahkämpfer mittig, Fernkämpfer und Heiler locker verteilt.",
             images = {
                 { image = "Media/Bosses/Positioning/beschuetzer.tga", width = 1351, height = 866 },
             },
@@ -304,6 +309,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/norushen.tga",
 
         positioning = {
+            text = "Tanks links, Nahkämpfer hinter dem Boss und Heiler/Fernkämpfer rechts gestackt positionieren, dabei Blinder Hass ausweichen und Laufwege für Verderbnis-Kugeln freihalten.",
             images = {
                 { image = "Media/Bosses/Positioning/norushen.tga", width = 1351, height = 864 },
             },
@@ -508,6 +514,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/sha-des-stolzes.tga",
 
         positioning = {
+            text = "Tanks in Richtung des Eingangs, der Rest hinter dem Boss, dabei Projektionen schnell verlassen und genügend Platz für Manifestationen des Stolzes freihalten.",
             images = {
                 { image = "Media/Bosses/Positioning/sha-des-stolzes.tga", width = 1349, height = 863 },
             },
@@ -696,6 +703,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/galakras.tga",
 
         positioning = {
+            text = "Tanks vorne an den Adds positionieren, Nahkämpfer mittig stacken und Heiler/Fernkämpfer leicht verteilt dahinter stehen, während die eingeteilten Gruppen kontrolliert die Türme übernehmen.",
             images = {
                 { image = "Media/Bosses/Positioning/galakras.tga",   width = 1349, height = 867 },
                 { image = "Media/Bosses/Positioning/galakras_2.tga", width = 1352, height = 866 },
@@ -885,6 +893,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/eiserner-koloss.tga",
 
         positioning = {
+            text = "Tank hält den Boss seitlich vom Raid weg, Nahkämpfer stacken hinter dem Boss und Heiler/Fernkämpfer stehen leicht verteilt mit genügend Abstand für Minen, Bohrer und Flächenschaden.",
             images = {
                 { image = "Media/Bosses/Positioning/eiserner-koloss.tga", width = 1351, height = 866 },
             },
@@ -1039,6 +1048,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/schamanen.tga",
 
         positioning = {
+            text = "Die Tanks trennen die Schamanen voneinander, Nahkämpfer stacken hinter dem aktiven Ziel und Heiler/Fernkämpfer stehen verteilt, um Giftflächen, Aschewände und fallende Foulströme sauber auszuspielen.",
             images = {
                 { image = "Media/Bosses/Positioning/schamanen.tga", width = 1352, height = 867 },
             },
@@ -1229,6 +1239,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/general-nazgrim.tga",
 
         positioning = {
+            text = "Tank hält Nazgrim frontal vom Raid weg, Nahkämpfer stacken hinter dem Boss und Heiler/Fernkämpfer stehen leicht verteilt, um Banner, Schockwellen und Add-Mechaniken kontrolliert zu spielen.",
             images = {
                 { image = "Media/Bosses/Positioning/general-nazgrim.tga", width = 1352, height = 865 },
             },
@@ -1421,6 +1432,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/malkorok.tga",
 
         positioning = {
+            text = "Der Raid verteilt sich locker um Malkorok, während Tanks den Boss frontal vom Raid weg halten und Nahkämpfer hinter dem Boss stehen, um Verdrängte Energie und Implodierende Energie kontrolliert zu spielen.",
             images = {
                 { image = "Media/Bosses/Positioning/malkorok.tga", width = 1350, height = 865 },
             },
@@ -1570,6 +1582,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/pandaria.tga",
 
         positioning = {
+            text = "Der Raid teilt sich in zwei Gruppen auf beide Seiten der Halle auf, während Tanks und Nahkämpfer die Kisten kontrollieren und Fernkämpfer/Heiler verteilt hinter den Gruppen stehen, um die Räume parallel effizient zu säubern.",
             images = {
                 { image = "Media/Bosses/Positioning/pandaria.tga", width = 1350, height = 863 },
             },
@@ -1787,6 +1800,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/thok.tga",
 
         positioning = {
+            text = "Der Raid stackt eng an der Flanke von Thok, während ein Tank immer vor dem Boss steht und der freie Bereich des Raumes für Kiten, Ausweichen und spätere Fixate-Phasen offen bleibt.",
             images = {
                 { image = "Media/Bosses/Positioning/thok.tga", width = 1350, height = 864 },
             },
@@ -1970,6 +1984,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/russschmied.tga",
 
         positioning = {
+            text = "Tanks halten den Belagerungsingenieur am Rand der Plattform, während Nahkämpfer hinter dem Boss stacken und Fernkämpfer/Heiler verteilt stehen, um Waffenmechaniken und Bodenflächen kontrolliert auszuweichen.",
             images = {
                 { image = "Media/Bosses/Positioning/russschmied.tga", width = 1349, height = 864 },
             },
@@ -2158,6 +2173,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/klaxxi.tga",
 
         positioning = {
+            text = "Die Tanks positionieren die aktiven Klaxxi zentral, während Nahkämpfer hinter den Bossen stacken und Fernkämpfer/Heiler verteilt um die Plattform stehen, um Fähigkeiten, Kettenmechaniken und Projektilen kontrolliert auszuweichen.",
             images = {
                 { image = "Media/Bosses/Positioning/klaxxi.tga", width = 1352, height = 865 },
             },
@@ -2434,6 +2450,7 @@ WeintCodex_BossData = {
         portrait = "Media/Bosses/garrosh.tga",
 
         positioning = {
+            text = "Der Tank hält Garrosh zentral, Nahkämpfer stacken hinter dem Boss und Heiler/Fernkämpfer stehen bei den Marks um die Entweihung gemeinsam kontrollieren zu können.",
             images = {
                 { image = "Media/Bosses/Positioning/garrosh.tga", width = 1352, height = 863 },
             },

@@ -253,6 +253,15 @@ local function CreateGuideFrame()
     posLine:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
     f.PosLine = posLine
 
+    -- Erklaerungstext zur Aufstellung (positioning.text in BossData.lua),
+    -- steht zwischen PosLine und den Vorschaubildern.
+    local posText = bodyChild:CreateFontString(nil, "OVERLAY")
+    posText:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    posText:SetJustifyH("LEFT")
+    posText:SetSpacing(4)
+    posText:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+    f.PosText = posText
+
     -- Die Vorschaubilder selbst (f.PosImageBoxes) werden dynamisch in
     -- BuildPositioningSection() erzeugt, da ein Boss ein oder mehrere
     -- Bilder haben kann (z.B. Galakras: zwei Phasen).
@@ -411,6 +420,7 @@ local function BuildPositioningSection(f, positioning, offY)
     if not images or #images == 0 then
         f.PosHeader:Hide()
         f.PosLine:Hide()
+        f.PosText:Hide()
         return offY
     end
 
@@ -422,6 +432,18 @@ local function BuildPositioningSection(f, positioning, offY)
     f.PosHeader:SetPoint("TOPLEFT", lc, "TOPLEFT", 20, offY)
     f.PosLine:SetPoint("TOPLEFT",  lc, "TOPLEFT",  20, offY - 16)
     f.PosLine:SetPoint("TOPRIGHT", lc, "TOPRIGHT", -20, offY - 16)
+
+    local imagesOffY = offY - 24
+    if positioning.text and positioning.text ~= "" then
+        f.PosText:Show()
+        f.PosText:ClearAllPoints()
+        f.PosText:SetPoint("TOPLEFT", lc, "TOPLEFT", 20, imagesOffY)
+        f.PosText:SetWidth(lc:GetWidth() - 40)
+        f.PosText:SetText(positioning.text)
+        imagesOffY = imagesOffY - f.PosText:GetStringHeight() - 12
+    else
+        f.PosText:Hide()
+    end
 
     local n      = #images
     local thumbW = (POS_ROW_W - POS_GAP * (n - 1)) / n
@@ -439,7 +461,7 @@ local function BuildPositioningSection(f, positioning, offY)
         local box = CreateFrame("Frame", nil, lc)
         WeintCodex.SetSolidBg(box, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
         WeintCodex.DrawSlimBorder(box, "hairline")
-        box:SetPoint("TOPLEFT", lc, "TOPLEFT", thumbX, offY - 24)
+        box:SetPoint("TOPLEFT", lc, "TOPLEFT", thumbX, imagesOffY)
         box:SetSize(thumbW, thumbH)
 
         local tex = box:CreateTexture(nil, "ARTWORK")
@@ -466,7 +488,7 @@ local function BuildPositioningSection(f, positioning, offY)
         thumbX = thumbX + thumbW + POS_GAP
     end
 
-    return offY - (24 + rowH + 24)
+    return imagesOffY - (rowH + 24)
 end
 
 --------------------------------------------------
