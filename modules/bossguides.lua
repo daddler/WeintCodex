@@ -324,6 +324,74 @@ local function UpdateBodyWidth(f)
 end
 
 --------------------------------------------------
+-- Aufstellungsbild gross anzeigen (Lightbox)
+--
+-- Abgedunkelter Overlay ueber dem ContentPanel, analog zum Sync-Reload-
+-- Overlay in modules/dialog.lua (Create()/Show()) - hier mit Bild statt
+-- Text/Buttons. An ContentPanel statt MainFrame geparkt, damit der
+-- bestehende Tab-Wechsel-Cleanup (ClearContentPanel() in
+-- core/navigation.lua) ihn automatisch mit ausblendet, ohne dass
+-- navigation.lua etwas von dieser Lightbox wissen muss. Wird einmalig
+-- gebaut und danach nur noch mit neuer Textur/Groesse wiederverwendet.
+--------------------------------------------------
+
+local DEFAULT_POS_ASPECT = 9 / 16
+
+local positioningOverlay, positioningImageBox, positioningImageTexture
+
+local function CreatePositioningLightbox()
+    if positioningOverlay then return end
+
+    local parent = WeintCodex.ContentPanel
+    if not parent then return end
+
+    positioningOverlay = CreateFrame("Frame", nil, parent)
+    positioningOverlay:SetAllPoints(parent)
+    positioningOverlay:SetFrameLevel(parent:GetFrameLevel() + 100)
+    positioningOverlay:EnableMouse(true)
+    WeintCodex.SetSolidBg(positioningOverlay, 0, 0, 0, 0.75)
+    positioningOverlay:Hide()
+    positioningOverlay:SetScript("OnMouseUp", function() positioningOverlay:Hide() end)
+
+    positioningImageBox = CreateFrame("Frame", nil, positioningOverlay)
+    positioningImageBox:SetPoint("CENTER")
+    WeintCodex.SetSolidBg(positioningImageBox, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+    WeintCodex.DrawSlimBorder(positioningImageBox, "hairline")
+    positioningImageBox:EnableMouse(true)
+    positioningImageBox:SetScript("OnMouseUp", function() end)
+
+    positioningImageTexture = positioningImageBox:CreateTexture(nil, "ARTWORK")
+    positioningImageTexture:SetAllPoints(positioningImageBox)
+    positioningImageTexture:SetTexCoord(0, 1, 0, 1)
+end
+
+local function ShowPositioningLightbox(positioning)
+    if not positioning or not positioning.image then return end
+
+    CreatePositioningLightbox()
+    if not positioningOverlay then return end
+
+    local aspect = DEFAULT_POS_ASPECT
+    if positioning.width and positioning.height and positioning.width > 0 then
+        aspect = positioning.height / positioning.width
+    end
+
+    local maxW = WeintCodex.ContentPanel:GetWidth() * 0.8
+    local maxH = WeintCodex.ContentPanel:GetHeight() * 0.8
+
+    local imgW, imgH = maxW, maxW * aspect
+    if imgH > maxH then
+        imgH = maxH
+        imgW = imgH / aspect
+    end
+
+    positioningImageBox:SetSize(math.floor(imgW), math.floor(imgH))
+    positioningImageTexture:SetTexture("Interface\\AddOns\\WeintCodex\\" .. positioning.image)
+
+    positioningOverlay:Show()
+end
+
+--------------------------------------------------
 -- AUFSTELLUNG-Abschnitt (Positionierungsbild) aufbauen
 --
 -- Optional - fehlt bei einem Boss das "positioning"-Feld, wird der
@@ -331,9 +399,9 @@ end
 -- damit die Faehigkeiten-Liste direkt danach nahtlos anschliesst.
 --------------------------------------------------
 
-local DEFAULT_POS_ASPECT = 9 / 16
+local POS_THUMB_W = 280
 
-local function BuildPositioningSection(f, bodyW, positioning, offY)
+local function BuildPositioningSection(f, positioning, offY)
     if not positioning or not positioning.image then
         f.PosHeader:Hide()
         f.PosLine:Hide()
@@ -356,13 +424,28 @@ local function BuildPositioningSection(f, bodyW, positioning, offY)
         aspect = positioning.height / positioning.width
     end
 
-    local imgW = bodyW - 40
+    local imgW = POS_THUMB_W
     local imgH = math.floor(imgW * aspect)
 
     f.PosImageBox:ClearAllPoints()
     f.PosImageBox:SetPoint("TOPLEFT", lc, "TOPLEFT", 20, offY - 24)
     f.PosImageBox:SetSize(imgW, imgH)
     f.PosImageTexture:SetTexture("Interface\\AddOns\\WeintCodex\\" .. positioning.image)
+
+    f.PosImageBox:EnableMouse(true)
+    f.PosImageBox:SetScript("OnEnter", function(self)
+        WeintCodex.DrawBorder(self, C.purple[1], C.purple[2], C.purple[3], 0.85, 1)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Klicken zum Vergrößern")
+        GameTooltip:Show()
+    end)
+    f.PosImageBox:SetScript("OnLeave", function(self)
+        WeintCodex.DrawSlimBorder(self, "hairline")
+        GameTooltip:Hide()
+    end)
+    f.PosImageBox:SetScript("OnMouseUp", function()
+        ShowPositioningLightbox(positioning)
+    end)
 
     return offY - (24 + imgH + 24)
 end
@@ -373,7 +456,7 @@ end
 
 local activeAbilRows = {}
 
-local function BuildAbilityRows(f, abilities, positioning, bodyW)
+local function BuildAbilityRows(f, abilities, positioning)
     for _, row in ipairs(activeAbilRows) do
         row:Hide()
     end
@@ -382,7 +465,7 @@ local function BuildAbilityRows(f, abilities, positioning, bodyW)
     local lc   = f.LeftChild
     local tipH = math.max(f.TipText:GetStringHeight(), 24)
 
-    local abilOffY = BuildPositioningSection(f, bodyW, positioning, -(40 + tipH + 24))
+    local abilOffY = BuildPositioningSection(f, positioning, -(40 + tipH + 24))
     f.AbilHeader:SetPoint("TOPLEFT", lc, "TOPLEFT", 20, abilOffY)
     f.AbilLine:SetPoint("TOPLEFT",  lc, "TOPLEFT",  20, abilOffY - 16)
     f.AbilLine:SetPoint("TOPRIGHT", lc, "TOPRIGHT", -20, abilOffY - 16)
@@ -737,7 +820,7 @@ function ShowRoleTips(roleKey)
     local f = guideFrame
     if not f then return end
 
-    local bodyW = UpdateBodyWidth(f)
+    UpdateBodyWidth(f)
 
     local data = ResolveBossData(selectedBoss, roleKey)
 
@@ -776,7 +859,7 @@ function ShowRoleTips(roleKey)
 
     local abilities  = data and data.abilities
     local positioning = data and data.positioning
-    BuildAbilityRows(f, abilities, positioning, bodyW)
+    BuildAbilityRows(f, abilities, positioning)
 
     -- Inspector: Kurz & Knapp + Notizen + BiS-Liste + Ansage
     BuildInspector(data, roleKey)
@@ -804,6 +887,8 @@ end
 local function ShowBoss(bossName)
     selectedBoss = bossName
     local f = CreateGuideFrame()
+
+    if positioningOverlay then positioningOverlay:Hide() end
 
     local data = WeintCodex_BossData and WeintCodex_BossData[bossName]
 
