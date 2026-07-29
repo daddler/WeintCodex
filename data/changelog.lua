@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.0.0.3",
+        date    = "29.07.2026",
+        notes   = {
+            "Konsolidierungs-Release: alle bisherigen Aenderungen sind jetzt final auf main.",
+            "Keine neuen Features gegenueber 1.0.0.0 - reiner Versions- und Release-Abschluss.",
+        },
+    },
+    {
         version = "1.0.0.0",
         date    = "27.07.2026",
         notes   = {
