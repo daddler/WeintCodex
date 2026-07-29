@@ -1614,37 +1614,27 @@ local function ScanCharacter()
 
     local overStats = {}
     for _, cs in ipairs(capStates) do
-        if cs.overPct > 0.25 then
+        -- spiritZaehlt-Caps (Willenskraft zählt für einige Caster als
+        -- Zaubertreffer) bewusst NICHT hier behandeln: Ausprobiert und
+        -- wieder verworfen (Nutzer-Feedback). Der richtige Hebel gegen
+        -- einen übervollen Zaubertreffer-Cap ist UMSCHMIEDEN
+        -- (Trefferwertung von einem Ausrüstungsteil weg-reforgen), nicht
+        -- ein schwächerer Stein oder Sockel-Neubestückung. Würden wir
+        -- "hit" hier trotzdem blocken, träfe das nicht nur Willenskraft,
+        -- sondern auch die eigentlich gewünschten Tempo+Willenskraft-
+        -- Hybriden (z.B. Geladener Dioptas) — die sollen für Blau/Lila/Grün
+        -- unabhängig vom Cap-Stand die Empfehlung bleiben.
+        if cs.overPct > 0.25 and not cs.spiritZaehlt then
             overStats[cs.stat] = true
-
-            -- Manche Caps werden über einen ZWEITEN Stat mitgefüllt (bisher
-            -- nur Willenskraft -> Zaubertreffer, cap.spiritZaehlt): der
-            -- Charakterbogen zählt ihn bereits in cs.current mit (siehe
-            -- GetSpellHitModifier), aber ein reiner Willenskraft-Stein trägt
-            -- danach GENAUSO zum Überlauf bei wie ein Treffer-Stein — nur
-            -- unter einem anderen Stat-Schlüssel. Ohne diesen Alias blieb
-            -- "Willenskraft" für Eulen-Druiden auch am Cap uneingeschränkt
-            -- empfehlbar (gemeldet: Sockel & Edelsteine, Balance-Druide).
-            local aliasStat = cs.spiritZaehlt and cs.stat ~= "spirit" and "spirit" or nil
-            if aliasStat then overStats[aliasStat] = true end
 
             local budget = cs.overRating
             local cands = {}
 
-            -- Wert einer Zeile gegen DIESEN Cap: Hauptstat + Alias-Stat
-            -- addiert (ein Hybridstein mit beiden zählt für beide Anteile).
-            local function CapValue(stats)
-                if not stats then return 0 end
-                local v = stats[cs.stat] or 0
-                if aliasStat then v = v + (stats[aliasStat] or 0) end
-                return v
-            end
-
             for _, row in ipairs(scan.gems.rows) do
                 local st = row.gemId and WeintCodex_GemStats
                            and WeintCodex_GemStats[row.gemId]
-                local v = CapValue(st)
-                if v > 0 and row.status ~= "overcap" then
+                local v = st and st[cs.stat]
+                if v and v > 0 and row.status ~= "overcap" then
                     cands[#cands + 1] = { row = row, value = v, art = "Stein" }
                 end
             end
@@ -1658,8 +1648,8 @@ local function ScanCharacter()
                                and WeintCodex_Enchants[row.effId]
                     stats = db and db.stats
                 end
-                local v = CapValue(stats)
-                if v > 0 and row.status ~= "overcap" then
+                local v = stats and stats[cs.stat]
+                if v and v > 0 and row.status ~= "overcap" then
                     cands[#cands + 1] = { row = row, value = v, art = "Verzauberung" }
                 end
             end

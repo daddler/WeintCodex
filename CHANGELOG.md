@@ -14,7 +14,7 @@ Sammelfix für gemeldete Fehlempfehlungen auf den Charakter-Seiten „Verzauberu
 - Eingesetzte Steine wurden gegen die Liste ihrer *eigenen* Steinfarbe bewertet statt gegen das, was in diesem Sockel richtig wäre
 - Die echte Sockelreihenfolge wird aus dem Item-Tooltip gelesen; bei Items mit gemischten Sockelfarben saß der Stein bisher unter der falschen Sockelfarbe
 - Zahnrad-Sockel (Ingenieurskunst) werden als eigene Sockelfarbe erkannt statt als Zusatzsockel
-- Willenskraft-Steine wurden für Eulen-Druiden, Schatten-Priester und Elementar-Schamanen weiter empfohlen, obwohl der Zaubertreffer-Cap (Willenskraft zählt mit) längst erreicht war: Der Cap-Filter kannte nur den Stat „Trefferwertung", nicht seinen Willenskraft-Alias, und gab pro Farbliste einzeln auf statt über alle passenden Farben hinweg nach einer cap-freien Alternative zu suchen
+- Für Eulen-Druiden, Schatten-Priester und Elementar-Schamanen wurde bisher der falsche Stein aus der falschen Farbliste empfohlen (nur die reine Sockelfarb-Liste wurde durchsucht, Mischfarben-Listen mit besseren Kandidaten nicht) — jetzt wird über alle passenden Farben hinweg verglichen. Willenskraft/Tempo-Hybride wie „Geladener Dioptas" bleiben bewusst die Empfehlung, auch wenn der Zaubertreffer-Cap durch Willenskraft bereits erreicht ist — der Überschuss gehört ins Umschmieden, nicht in einen schwächeren Stein
 
 ### Geändert
 - Off-Color-Empfehlungen sind jetzt als solche markiert. In WoW passt jeder Stein in jeden Sockel (außer Meta) – die Farbe entscheidet nur, ob der Sockelbonus zählt, und der braucht *alle* Sockel passend. Schlägt ein stärkerer Stein den Bonus, steht das mit Zahlen da, statt wie ein Fehler auszusehen
