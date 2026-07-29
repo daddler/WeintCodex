@@ -112,8 +112,18 @@ end
 
 TryRegisterEvent(lootFrame, "CHAT_MSG_LOOT")
 
+-- Weltbosse (Sha of Anger, Galleon, ...) laufen im 25er-Raidverband, aber
+-- in der offenen Welt - IsInRaid() waere hier true, obwohl es kein
+-- Raidloot im eigentlichen Sinn ist. Nur instanceType == "raid" (also
+-- eine wirklich instanzierte Raid-Instanz) soll gescannt werden.
+local function IsInRaidInstance()
+    local inInstance, instanceType = IsInInstance()
+    return inInstance and instanceType == "raid"
+end
+
 lootFrame:SetScript("OnEvent", function(_, event, message)
     if type(message) ~= "string" then return end
+    if not IsInRaidInstance() then return end
 
     for _, entry in ipairs(PATTERNS) do
 
