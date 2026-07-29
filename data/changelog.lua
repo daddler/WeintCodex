@@ -14,6 +14,7 @@ WeintCodex_ChangelogData = {
             "Sockel: Die Bonus-Rechnung kennt jetzt Mischfarben (Lila/Orange passen in Rot, Gruen/Lila in Blau) und beruecksichtigt Treffer-/Waffenkunde-Caps - Sockelboni wurden dadurch bisher zu oft verworfen.",
             "Sockel: Bewusst farblich unpassende Empfehlungen sind als (Off-Color) markiert. Jeder Stein passt in jeden Sockel; nur der Sockelbonus verlangt, dass ALLE Sockel farblich passen.",
             "Sockel: Echte Sockelreihenfolge aus dem Item-Tooltip - bei gemischtfarbigen Items stand der Stein bisher unter der falschen Sockelfarbe.",
+            "Sockel: Eulen-Druiden, Schatten-Priester und Elementar-Schamanen am Zaubertreffer-Cap bekommen keine Willenskraft-Steine mehr vorgeschlagen, die den Cap nur sprengen wuerden.",
         },
     },
     {

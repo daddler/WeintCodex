@@ -537,7 +537,15 @@ WeintCodex_SpecProfiles = {
             blau      = { 76682, 76636, 76638 },
             orange    = { 76668, 76660 },
             lila      = { 76686, 76682 },
-            ["grün"]  = { 76651, 76642 },
+            -- 76652/76656 ergänzt: Beide Grün-Kandidaten hiervor sind
+            -- Tempo-Hybride mit Treffer ODER Willenskraft. Steht der
+            -- Zaubertreffer-Cap (Willenskraft zählt mit, s.u.), sind BEIDE
+            -- geblockt und es gäbe sonst gar keinen cap-freien Grün-Stein
+            -- mehr — der Willenskraft-Stein würde trotz Cap weiterempfohlen
+            -- (Nutzer-Bericht 07/2026, betraf den baugleichen Fall bei
+            -- DRUID_BALANCE). Kritischer Trefferwert vor Meisterschaft,
+            -- passend zur Prioritätsreihenfolge oben.
+            ["grün"]  = { 76651, 76642, 76652, 76656 },
             prismatic = { 76694, 83150 },
         },
         gemNote = "Intelligenz > Tempo (unser bester Stat) > Krit ≈ Meisterschaft. 15% Zaubertreffer — Willenskraft zählt dank Zwielichtgleichgewicht als Treffer!",
@@ -679,7 +687,13 @@ WeintCodex_SpecProfiles = {
             blau      = { 76682, 76636, 76638 },
             orange    = { 76672, 76668 },
             lila      = { 76682, 76686 },
-            ["grün"]  = { 76645, 76642 },
+            -- 76656/76652 ergänzt: Beide Kandidaten hiervor tragen
+            -- Willenskraft ODER Treffer. Steht der Zaubertreffer-Cap
+            -- (Willenskraft zählt mit, s.u.), sind BEIDE geblockt und ohne
+            -- Alternative würde weiter ein reiner Willenskraft-Stein
+            -- empfohlen (Nutzer-Bericht 07/2026, DRUID_BALANCE). Meisterschaft
+            -- vor Krit, passend zur Prioritätsreihenfolge oben.
+            ["grün"]  = { 76645, 76642, 76656, 76652 },
             prismatic = { 76694, 83150 },
         },
         gemNote = "Intelligenz > Meisterschaft (wirkt wie Tempo) > Tempo > Krit. 15% Zaubertreffer Pflicht — Willenskraft zählt dank Elementarpräzision als Treffer.",
@@ -1078,7 +1092,14 @@ WeintCodex_SpecProfiles = {
             blau      = { 76682, 76636, 76638 },
             orange    = { 76668, 76660 },
             lila      = { 76686, 76682 },         -- Geläuterter Kunzit
-            ["grün"]  = { 76651, 76642 },         -- Geladener Dioptas (Tempo+Willenskraft)
+            -- 76652/76656 ergänzt (Nutzer-Bericht 07/2026): Beide
+            -- Grün-Kandidaten davor tragen Tempo+Willenskraft bzw.
+            -- Tempo+Treffer. Steht der Zaubertreffer-Cap (Willenskraft
+            -- zählt mit, s.u.), sind BEIDE geblockt — ohne Alternative
+            -- wurde dann weiterhin ein reiner Willenskraft-Stein
+            -- empfohlen, obwohl der Cap längst erreicht war. Krit vor
+            -- Meisterschaft, passend zur Prioritätsreihenfolge oben.
+            ["grün"]  = { 76651, 76642, 76652, 76656 },  -- + Gezackter/Imposanter Dioptas als cap-freie Alternative
             prismatic = { 76694, 83150 },
         },
         gemNote = "Intelligenz > Tempo (Breakpoints, Softcap 24,22%) > Krit > Meisterschaft (schwächster Stat). Willenskraft zählt als Zaubertreffer (15% Cap).",

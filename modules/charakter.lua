@@ -1189,36 +1189,44 @@ end
 -- Meta ist in beiden Modi hart: nur Meta-Steine, nur in Meta-Sockeln.
 --------------------------------------------------
 
--- Erster Stein der Liste, dessen Farbe in den Sockel passt und der keinen
--- bereits übercappten Stat liefert. Ohne Treffer: ohne die Cap-Bedingung
--- erneut versuchen (lieber ein Vorschlag als gar keiner).
-local function FirstUsableGem(list, socketColor, overStats, requireFit)
+-- Erster Stein der Liste, dessen Farbe (falls verlangt) in den Sockel
+-- passt. applyOverStats steuert NUR, ob der Cap-Block für DIESEN Aufruf
+-- geprüft wird — ob überhaupt auf ungeprüfte Kandidaten zurückgefallen
+-- wird, entscheidet ausschließlich der Aufrufer (BestGemForSocket).
+--
+-- Wichtig, warum das nicht mehr hier drin passiert: Ein früherer Fallback
+-- "kein Kandidat dieser Liste unter dem Cap? Dann diese Liste ignoriert
+-- den Cap" gab pro Farbliste einzeln auf. Bei Caster-Specs bestehen
+-- Blau/Lila/Grün fast nur aus Intellekt-Hybriden mit Treffer ODER
+-- Willenskraft — bei "Willenskraft zählt als Zaubertreffer" (siehe
+-- spiritZaehlt) waren dann ALLE Listen einzeln "voll gecappt" und jede
+-- gab für sich genommen sofort den Cap auf, obwohl über die Listen
+-- hinweg gar keine Notwendigkeit dazu bestand. Genau das fuehrte dazu,
+-- dass einer Eule am Zaubertreffer-Cap weiterhin ein reiner
+-- Willenskraft-Stein vorgeschlagen wurde.
+local function FirstUsableGem(list, socketColor, overStats, requireFit, applyOverStats)
     if not list then return nil end
     local gemStats = WeintCodex_GemStats or {}
     local gemData  = WeintCodex_Gems or {}
 
-    local function Pick(applyOverStats)
-        for _, id in ipairs(list) do
-            local gd = gemData[id]
-            local st = gemStats[id]
-            -- Gegen die TATSÄCHLICHE Steinfarbe prüfen, nicht gegen den
-            -- Listenschlüssel: nur sie entscheidet über den Sockelbonus.
-            local fits = (not requireFit)
-                         or GemFitsSocket(gd and gd.color, socketColor)
-            if st and fits then
-                local blocked = false
-                if applyOverStats and overStats then
-                    for stat in pairs(overStats) do
-                        if st[stat] then blocked = true; break end
-                    end
+    for _, id in ipairs(list) do
+        local gd = gemData[id]
+        local st = gemStats[id]
+        -- Gegen die TATSÄCHLICHE Steinfarbe prüfen, nicht gegen den
+        -- Listenschlüssel: nur sie entscheidet über den Sockelbonus.
+        local fits = (not requireFit)
+                     or GemFitsSocket(gd and gd.color, socketColor)
+        if st and fits then
+            local blocked = false
+            if applyOverStats and overStats then
+                for stat in pairs(overStats) do
+                    if st[stat] then blocked = true; break end
                 end
-                if not blocked then return id end
             end
+            if not blocked then return id end
         end
-        return nil
     end
-
-    return Pick(true) or (overStats and Pick(false)) or nil
+    return nil
 end
 
 local function BestGemForSocket(socketColor, profile, overStats, requireFit)
@@ -1233,7 +1241,8 @@ local function BestGemForSocket(socketColor, profile, overStats, requireFit)
 
     -- Meta: eigene Welt, kein normaler Stein passt hinein.
     if socketColor == "meta" then
-        local id = FirstUsableGem(bg.meta, "meta", overStats, false)
+        local id = FirstUsableGem(bg.meta, "meta", overStats, false, true)
+                   or FirstUsableGem(bg.meta, "meta", overStats, false, false)
         return id, Score(id)
     end
 
@@ -1241,33 +1250,47 @@ local function BestGemForSocket(socketColor, profile, overStats, requireFit)
     -- also gilt hier immer der Universalstein. Dasselbe gilt für die
     -- Strategie IGNORE.
     if not requireFit or socketColor == "prismatic" or socketColor == "cogwheel" then
-        local id = FirstUsableGem(bg.prismatic, socketColor, overStats, false)
-                   or FirstUsableGem(bg[socketColor], socketColor, overStats, false)
+        local id = FirstUsableGem(bg.prismatic, socketColor, overStats, false, true)
+                   or FirstUsableGem(bg[socketColor], socketColor, overStats, false, true)
+                   or FirstUsableGem(bg.prismatic, socketColor, overStats, false, false)
+                   or FirstUsableGem(bg[socketColor], socketColor, overStats, false, false)
         return id, Score(id)
     end
 
-    -- MATCH: aus jeder farblich in Frage kommenden Liste den ersten
-    -- brauchbaren Stein holen, dann den stärksten davon nehmen.
-    local bestId, bestScore = nil, nil
-    for color, list in pairs(bg) do
-        if color ~= "meta" and color ~= "prismatic"
-           and GEM_FITS_SOCKET[socketColor] and GEM_FITS_SOCKET[socketColor][color] then
-            local id = FirstUsableGem(list, socketColor, overStats, true)
-            if id then
-                local sc = Score(id)
-                -- Gleichstand deterministisch auflösen (pairs über bestGems
-                -- hat keine garantierte Reihenfolge).
-                if not bestScore or sc > bestScore
-                   or (sc == bestScore and id < bestId) then
-                    bestId, bestScore = id, sc
+    -- MATCH: über ALLE farblich passenden Listen hinweg den stärksten
+    -- Kandidaten suchen, der den Cap noch respektiert. Erst wenn WIRKLICH
+    -- keine einzige passende Liste einen cap-freien Kandidaten hat, ein
+    -- zweiter Durchlauf ohne Cap-Rücksicht (besser ein Vorschlag als
+    -- keiner) — siehe Kommentar an FirstUsableGem oben.
+    local function BestAcrossLists(applyOverStats)
+        local bestId, bestScore = nil, nil
+        for color, list in pairs(bg) do
+            if color ~= "meta" and color ~= "prismatic"
+               and GEM_FITS_SOCKET[socketColor] and GEM_FITS_SOCKET[socketColor][color] then
+                local id = FirstUsableGem(list, socketColor, overStats, true, applyOverStats)
+                if id then
+                    local sc = Score(id)
+                    -- Gleichstand deterministisch auflösen (pairs über
+                    -- bestGems hat keine garantierte Reihenfolge).
+                    if not bestScore or sc > bestScore
+                       or (sc == bestScore and id < bestId) then
+                        bestId, bestScore = id, sc
+                    end
                 end
             end
         end
+        return bestId, bestScore
+    end
+
+    local bestId, bestScore = BestAcrossLists(true)
+    if not bestId then
+        bestId, bestScore = BestAcrossLists(false)
     end
 
     if not bestId then
         -- Keine farblich passende Empfehlung gepflegt: Universalstein.
-        bestId = FirstUsableGem(bg.prismatic, socketColor, overStats, false)
+        bestId = FirstUsableGem(bg.prismatic, socketColor, overStats, false, true)
+                 or FirstUsableGem(bg.prismatic, socketColor, overStats, false, false)
         bestScore = Score(bestId)
     end
     return bestId, bestScore or 0
@@ -1594,14 +1617,34 @@ local function ScanCharacter()
         if cs.overPct > 0.25 then
             overStats[cs.stat] = true
 
+            -- Manche Caps werden über einen ZWEITEN Stat mitgefüllt (bisher
+            -- nur Willenskraft -> Zaubertreffer, cap.spiritZaehlt): der
+            -- Charakterbogen zählt ihn bereits in cs.current mit (siehe
+            -- GetSpellHitModifier), aber ein reiner Willenskraft-Stein trägt
+            -- danach GENAUSO zum Überlauf bei wie ein Treffer-Stein — nur
+            -- unter einem anderen Stat-Schlüssel. Ohne diesen Alias blieb
+            -- "Willenskraft" für Eulen-Druiden auch am Cap uneingeschränkt
+            -- empfehlbar (gemeldet: Sockel & Edelsteine, Balance-Druide).
+            local aliasStat = cs.spiritZaehlt and cs.stat ~= "spirit" and "spirit" or nil
+            if aliasStat then overStats[aliasStat] = true end
+
             local budget = cs.overRating
             local cands = {}
+
+            -- Wert einer Zeile gegen DIESEN Cap: Hauptstat + Alias-Stat
+            -- addiert (ein Hybridstein mit beiden zählt für beide Anteile).
+            local function CapValue(stats)
+                if not stats then return 0 end
+                local v = stats[cs.stat] or 0
+                if aliasStat then v = v + (stats[aliasStat] or 0) end
+                return v
+            end
 
             for _, row in ipairs(scan.gems.rows) do
                 local st = row.gemId and WeintCodex_GemStats
                            and WeintCodex_GemStats[row.gemId]
-                local v = st and st[cs.stat]
-                if v and v > 0 and row.status ~= "overcap" then
+                local v = CapValue(st)
+                if v > 0 and row.status ~= "overcap" then
                     cands[#cands + 1] = { row = row, value = v, art = "Stein" }
                 end
             end
@@ -1615,8 +1658,8 @@ local function ScanCharacter()
                                and WeintCodex_Enchants[row.effId]
                     stats = db and db.stats
                 end
-                local v = stats and stats[cs.stat]
-                if v and v > 0 and row.status ~= "overcap" then
+                local v = CapValue(stats)
+                if v > 0 and row.status ~= "overcap" then
                     cands[#cands + 1] = { row = row, value = v, art = "Verzauberung" }
                 end
             end
