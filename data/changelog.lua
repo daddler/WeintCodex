@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.0.0.2",
+        date    = "29.07.2026",
+        notes   = {
+            "Verzauberungen: Angelegte Verzauberungen werden jetzt zuverlaessig am Item-Tooltip erkannt. Bisher konnte eine falsch zugeordnete Verzauberungs-ID dazu fuehren, dass die falsche Verzauberung angezeigt und ausgerechnet die empfohlen wurde, die schon drauf ist.",
+            "Sockel: Die Bonus-Rechnung kennt jetzt Mischfarben (Lila/Orange passen in Rot, Gruen/Lila in Blau) und beruecksichtigt Treffer-/Waffenkunde-Caps - Sockelboni wurden dadurch bisher zu oft verworfen.",
+            "Sockel: Bewusst farblich unpassende Empfehlungen sind als (Off-Color) markiert. Jeder Stein passt in jeden Sockel; nur der Sockelbonus verlangt, dass ALLE Sockel farblich passen.",
+            "Sockel: Echte Sockelreihenfolge aus dem Item-Tooltip - bei gemischtfarbigen Items stand der Stein bisher unter der falschen Sockelfarbe.",
+        },
+    },
+    {
         version = "1.0.0.0",
         date    = "27.07.2026",
         notes   = {

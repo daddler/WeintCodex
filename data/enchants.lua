@@ -133,7 +133,18 @@ WeintCodex_Enchants = {
     --------------------------------------------------
 
     [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
-    [4432] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
+    -- OFFEN (Nutzer-Screenshot 07/2026, Furor-Krieger): Handschuhe mit
+    -- Link-Enchant-ID 4432 zeigten im Live-Tooltip "+170 Stärke", also
+    -- Erstklassige Stärke — 4432 und 4434 sind demnach vertauscht.
+    -- Bewusst NICHT getauscht: belegt ist nur, dass 4432 Stärke liefert,
+    -- nicht welche ID die Meisterschafts-Verzauberung trägt. Ein Tausch
+    -- würde die (namentlich korrekte) Empfehlung für Schutz-Krieger
+    -- kaputtmachen. Die Laufzeitkorrektur in modules/charakter.lua
+    -- (ResolveEnchant -> FindEnchantByStats) erkennt den Fall jetzt
+    -- zuverlässig und zeigt den richtigen Namen an; sie meldet die
+    -- Abweichung zusätzlich mit dem Hinweis auf "/wc vz". Sobald diese
+    -- Ausgabe vorliegt, hier zeilengenau korrigieren.
+    [4432] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 }, verify = true },
     [4433] = { name = "Großes Tempo",              slot = "Hände", stats = { haste = 170 } },  -- WoWHead: "Handschuhe - Großes Tempo" (item 74719)
     [4434] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },  -- WoWHead: "Handschuhe - Erstklassige Stärke" (item 74721)
 

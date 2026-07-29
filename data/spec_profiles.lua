@@ -227,10 +227,14 @@ WeintCodex_SpecProfiles = {
             meta      = { 76886, 95346 },
             rot       = { 76667, 76693, 76696 },  -- Tückischer (Waffk.+Tempo, match); Präziser (Waffk.-Cap); Klobiger
             gelb      = { 76699, 76700 },         -- Spiegelnder (Tempo <50%); Frakturierter (Meister >50%)
-            blau      = { 76684, 76636 },         -- Geätzter (Str+Treffer); Massiver (Treffer-Cap)
+            blau      = { 76684, 76636, 76654 },  -- Geätzter (Str+Treffer); Massiver (Treffer-Cap); Kraftvoller (Tempo+Ausd., wenn Treffer gecappt)
             orange    = { 76667, 76671 },         -- Tückischer (Waffk.+Tempo); Schneidender (Waffk.+Meister)
             lila      = { 76684 },                -- Geätzter Kunzit
-            ["grün"]  = { 76642, 76643 },         -- Blitzender (Tempo+Treffer); Mentors (Treffer+Meister)
+            -- 76654 ergänzt: Blau/Gelb-passender Tempo-Stein OHNE Treffer.
+            -- Alle bisherigen Blau-/Grün-Kandidaten waren treffer-lastig und
+            -- damit wertlos, sobald der 7,5%-Cap steht — dann gab es für
+            -- blaue Sockel gar keinen brauchbaren farbpassenden Stein mehr.
+            ["grün"]  = { 76642, 76643, 76654 },  -- Blitzender (Tempo+Treffer); Mentors (Treffer+Meister); Kraftvoller (Tempo+Ausdauer)
             prismatic = { 76699, 76700 },         -- Tempo universell (bis 50%, dann Meister)
         },
         gemNote = "Tempo bis 50% (Spiegelnder Goldberyll), danach Meisterschaft. Erst 7,5% Treffer/Waffenkunde. Sockelboni matchen (Hybride Tückischer/Blitzender).",
@@ -1366,6 +1370,14 @@ WeintCodex_SpecProfiles = {
 -- Verzauberungs-/Stein-ID auch in enchants.lua / gems.lua existiert.
 -- Verhindert, dass gelöschte/umbenannte IDs (wie früher 4412)
 -- unbemerkt als "Unbekannt (ID …)" in Empfehlungen auftauchen.
+--
+-- Steine werden zusätzlich gegen gem_stats.lua geprüft: die
+-- Empfehlungs-Engine wählt inzwischen den bestbewerteten Stein aus
+-- allen bestGems-Listen einer Spec (BestGemForSocket in
+-- modules/charakter.lua). Ein Stein ohne Eintrag in gem_stats.lua
+-- bewertet dabei still mit 0 und würde nie empfohlen — ohne dass
+-- irgendwo etwas auffällt.
+--
 -- Wird von core/main.lua bei PLAYER_LOGIN aufgerufen, wenn alle
 -- Datentabellen geladen sind. Gibt nur bei Problemen etwas aus.
 --------------------------------------------------
@@ -1373,6 +1385,7 @@ WeintCodex_SpecProfiles = {
 function WeintCodex_ValidateSpecData()
     local enchants = WeintCodex_Enchants or {}
     local gems     = WeintCodex_Gems or {}
+    local gemStats = WeintCodex_GemStats or {}
     local problems = {}
 
     for specKey, profile in pairs(WeintCodex_SpecProfiles) do
@@ -1393,6 +1406,12 @@ function WeintCodex_ValidateSpecData()
                     if not gems[id] then
                         problems[#problems + 1] = string.format(
                             "%s / Sockel %s: Stein-ID %d fehlt in gems.lua",
+                            specKey, tostring(color), id)
+                    end
+                    if not gemStats[id] then
+                        problems[#problems + 1] = string.format(
+                            "%s / Sockel %s: Stein-ID %d fehlt in gem_stats.lua"
+                            .. " (bewertet sonst still mit 0)",
                             specKey, tostring(color), id)
                     end
                 end
