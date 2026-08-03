@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.0.0.4",
+        date    = "03.08.2026",
+        notes   = {
+            "BiS-Daten korrigiert: Fuesse fuer Schutz-Paladin, Schutz-Krieger und Blut-Todesritter droppen bei den Dunkelschamanen (Sporen des Wolfsreiters), nicht bei den Schaetzen Pandarias bzw. Immerseus.",
+        },
+    },
+    {
         version = "1.0.0.3",
         date    = "29.07.2026",
         notes   = {
