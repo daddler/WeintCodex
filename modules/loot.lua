@@ -9,6 +9,11 @@
 -- an die gesamte Gruppe/den Raid gesendet, nicht nur an den Empfaenger -
 -- es reicht, dass der Companion-Nutzer selbst im Raid ist.
 --
+-- Das Logging ist bewusst eng eingegrenzt (siehe IsTrackingActive): nur
+-- innerhalb einer Raidinstanz, nur in einer echten Raidgruppe und nur bei
+-- aktivem Meisterlooter. Dungeons, Szenarien, Worldbosse, Questbelohnungen
+-- und Solo-Loot gehen den Bot nichts an - dort wird nichts gemeldet.
+--
 -- Nur Gegenstaende ab episch (Qualitaet 4) werden gemeldet, sonst wuerde
 -- jeder Trash-Drop den #loot-Kanal fluten.
 --
@@ -56,6 +61,41 @@ for _, entry in ipairs(PATTERNS) do
 end
 
 --------------------------------------------------
+-- Gueltigkeitspruefung: Loot-Logging nur im Raid-Kontext
+--
+-- Alle drei Bedingungen muessen gleichzeitig erfuellt sein:
+--   1. Spieler ist in einer Raidgruppe (nicht Solo, nicht 5er-Party)
+--   2. Spieler steht in einer Raidinstanz (instanceType == "raid") -
+--      damit fallen Dungeons ("party"), Szenarien ("scenario"),
+--      Schlachtfelder ("pvp"/"arena") und Worldbosse (gar keine
+--      Instanz) automatisch raus
+--   3. Die Gruppe nutzt den Meisterlooter - nur dann wird Loot ueberhaupt
+--      manuell vergeben und ist damit protokollierenswert
+--------------------------------------------------
+
+local function GetLootMethodSafe()
+    if type(GetLootMethod) ~= "function" then return nil end
+
+    local ok, method = pcall(GetLootMethod)
+    if not ok then return nil end
+
+    return method
+end
+
+function WeintCodex.Loot.IsTrackingActive()
+    if type(IsInRaid) ~= "function" or not IsInRaid() then return false end
+
+    if type(IsInInstance) ~= "function" then return false end
+
+    local inInstance, instanceType = IsInInstance()
+    if not inInstance or instanceType ~= "raid" then return false end
+
+    if GetLootMethodSafe() ~= "master" then return false end
+
+    return true
+end
+
+--------------------------------------------------
 -- Item-Qualitaet pruefen (mit kurzem Retry, falls die Item-Info direkt
 -- nach dem Loot noch nicht im Client-Cache steht)
 --------------------------------------------------
@@ -67,7 +107,11 @@ local function ReportIfEpic(playerName, itemLink, quantity, attempt)
 
     if ok and type(quality) == "number" then
 
-        if quality >= MIN_QUALITY then
+        -- Erneute Pruefung: zwischen Loot-Meldung und aufgeloester Item-Info
+        -- koennen bis zu drei Sekunden liegen (Retry unten), in denen der
+        -- Spieler die Instanz verlassen oder der Raidleiter die Lootregel
+        -- umgestellt haben kann.
+        if quality >= MIN_QUALITY and WeintCodex.Loot.IsTrackingActive() then
             WeintCodex.Loot.Report(playerName, itemLink, quantity)
         end
 
@@ -114,6 +158,10 @@ TryRegisterEvent(lootFrame, "CHAT_MSG_LOOT")
 
 lootFrame:SetScript("OnEvent", function(_, event, message)
     if type(message) ~= "string" then return end
+
+    -- Vor dem teuren Pattern-Matching: gilt hier ueberhaupt geloggt zu
+    -- werden? (Raidgruppe + Raidinstanz + Meisterlooter)
+    if not WeintCodex.Loot.IsTrackingActive() then return end
 
     for _, entry in ipairs(PATTERNS) do
 

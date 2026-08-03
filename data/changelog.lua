@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.0.0.5",
+        date    = "03.08.2026",
+        notes   = {
+            "Loot-Logging greift jetzt nur noch dort, wo es hingehoert: in einer Raidinstanz, in einer Raidgruppe und nur bei aktiviertem Meisterlooter.",
+            "Dungeons, Szenarien, Worldbosse und Loot ausserhalb von Instanzen werden nicht mehr an den Discord-Bot gemeldet.",
+        },
+    },
+    {
         version = "1.0.0.4",
         date    = "03.08.2026",
         notes   = {
