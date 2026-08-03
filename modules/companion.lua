@@ -415,12 +415,14 @@ function WeintCodex.Companion.SendAcademyProgress()
 
     local parts = {}
 
+    -- Auch Charaktere mit leeren Listen melden: die Companion ersetzt
+    -- ihre Listen durch die hier gemeldeten. Wuerde ein leergeraeumter
+    -- Charakter weggelassen, bliebe der alte Stand auf dem Desktop
+    -- stehen und das Abwaehlen des letzten Hakens waere folgenlos.
     for _, character in ipairs(names) do
-        local done = JoinIds(store.completed[character])
-        local excl = JoinIds(store.excluded[character])
-        if done ~= "" or excl ~= "" then
-            parts[#parts + 1] = character .. "|" .. done .. "|" .. excl
-        end
+        parts[#parts + 1] = character
+            .. "|" .. JoinIds(store.completed[character])
+            .. "|" .. JoinIds(store.excluded[character])
     end
 
     if #parts == 0 then
