@@ -181,7 +181,7 @@ WeintCodex_BiS = {
         { slot = "Hände",       boss = "General Nazgrim",                 id = 99375 },
         { slot = "Taille",      boss = "Immerseus",                       id = 105427 },
         { slot = "Beine",       boss = "Die Getreuen der Klaxxi",         id = 99377 },
-        { slot = "Füße",        boss = "Die Schätze Pandarias",           id = 105600 },
+        { slot = "Füße",        boss = "Dunkelschamanen",                 id = 105600 },
         { slot = "Finger",      boss = "Thok der Blutdürstige",           id = 105606 },
         { slot = "Finger",      boss = "Immerseus",                       id = 105423 },
         { slot = "Schmuck",     boss = "General Nazgrim",                 id = 105549 },
