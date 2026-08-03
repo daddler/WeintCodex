@@ -44,6 +44,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4434 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
+            Ring         = { 84578 },
         },
         -- Krit ist der beste Sekundärstat -> überall Glatter Goldberyll.
         -- Sockelboni matchen, wenn sie sich lohnen: Rot -> Gravierter
@@ -80,6 +81,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4434 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
+            Ring         = { 84578 },
         },
         -- Krit überall; 1 Krit ~ 1,07 Stärke. Sockelboni matchen, wenn
         -- sie sich lohnen: Rot -> Gravierter Aragonit, Blau -> Stechender Dioptas.
@@ -108,6 +110,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },        -- Tanzender Stahl (Fallback: Koloss)
+            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
             Schultern    = { 4805 },
             Brust        = { 4420, 4419 },        -- Defensiv: Überragende Ausdauer
             Umhang       = { 74711 },             -- Großer Schutz (+200 Ausdauer)
@@ -115,6 +118,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4432, 4431 },        -- Defensiv: Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
             ["Füße"]     = { 4429 },              -- Pandarenpfoten
+            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Defensiv (Ausdauer-Fokus): Gediegener Chrysokoll überall.
         -- Sockelboni matchen, wenn lohnend: Rot -> Kunzit des Verteidigers,
@@ -145,6 +149,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -152,6 +157,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },              -- Pandarenpfoten
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95345 },         -- Brennender / Mutiger Bergkristall
@@ -178,6 +184,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4446, 4445 },        -- Flussgesang (River's Song)
+            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
             Schultern    = { 4805 },
             Brust        = { 4420, 4419 },        -- Überragende Ausdauer
             Umhang       = { 74711 },             -- Großer Schutz
@@ -185,6 +192,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4432, 4431 },        -- Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
             ["Füße"]     = { 4429 },              -- Pandarenpfoten
+            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Control-Tank: Waffenkunde-Hardcap (15%) + Treffer zuerst, dann
         -- Meisterschaft/Ausdauer. Sockelboni (Waffk./Treffer/Tempo/Ausdauer) matchen.
@@ -220,6 +228,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
+            Ring         = { 84578 },
         },
         -- Tempo bis 50% Gesamt-Tempo, danach Meisterschaft. Sockelboni
         -- lohnen fast immer (starke Tempo-/Meister-Hybride je Farbe).
@@ -260,6 +269,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -293,6 +303,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -326,6 +337,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -363,6 +375,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -396,6 +409,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -429,6 +443,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -456,6 +471,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -463,6 +479,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -486,6 +503,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -493,6 +511,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -518,6 +537,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -525,6 +545,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -564,6 +585,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4431 },        -- Großes Tempo
             Beine        = { 4823, 4824 },        -- Zornbalgbeinrüstung
             ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
+            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -597,6 +619,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
+            Ring         = { 84578 },
         },
         bestGems = {
             meta      = { 76886, 95346 },
@@ -630,6 +653,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4434, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
+            Ring         = { 84578 },
         },
         -- Ab ~ilvl 540 lohnt sich Krit mehr als reine Stärke-Sockelung.
         bestGems = {
@@ -660,6 +684,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -667,6 +692,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -700,6 +726,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -723,6 +750,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -730,6 +758,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -759,6 +788,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -766,6 +796,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -791,6 +822,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -798,6 +830,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -823,6 +856,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -830,6 +864,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -859,6 +894,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -866,6 +902,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -891,6 +928,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -898,6 +936,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -923,6 +962,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -930,6 +970,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -967,6 +1008,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824, 4822 },
             ["Füße"]     = { 4429, 4425, 4428 },
+            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -990,6 +1032,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -997,6 +1040,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 74715, 4429 },       -- Großes Tempo (Boots-Haste)
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -1030,6 +1074,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -1059,6 +1104,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -1066,6 +1112,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4432 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76885, 95347 },
@@ -1101,6 +1148,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 76884, 95346 },
@@ -1136,6 +1184,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824, 4822 },
             ["Füße"]     = { 4429, 4425, 4428 },
+            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 76895, 95344 },
@@ -1159,6 +1208,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
+            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
             Umhang       = { 4892 },
@@ -1166,6 +1216,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
+            Ring         = { 84576 },
         },
         bestGems = {
             meta      = { 76888, 95345 },
@@ -1198,6 +1249,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },
+            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },       -- Offensiv: Krit
@@ -1205,6 +1257,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431, 4434 },
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 74715, 4428 },       -- Offensiv: Großes Tempo (Boots-Haste)
+            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
         -- matchen, wenn sie sich lohnen (Rot -> Listiger Aragonit).
@@ -1233,6 +1286,7 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },
+            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4421 },
@@ -1240,6 +1294,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4431, 4434 },        -- Offensiv: Überragende Waffenkunde
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
+            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Waffenkunde-Hardcap + Treffer, dann Tempo/Krit (Rache-DPS).
         bestGems = {
@@ -1276,6 +1331,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4431 },        -- Großes Tempo
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
+            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 76886, 76895 },
@@ -1311,6 +1367,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4431 },
             Beine        = { 4822, 4824 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 76884, 76895 },
@@ -1344,6 +1401,7 @@ WeintCodex_SpecProfiles = {
             ["Hände"]    = { 4433, 4431 },
             Beine        = { 4822, 4824 },
             ["Füße"]     = { 4425, 4428 },
+            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 76884, 76895 },
