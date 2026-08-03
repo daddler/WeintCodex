@@ -17,6 +17,7 @@ local CATEGORY_LABEL = {
     boss     = "BOSS",
     enchant  = "VERZAUBERUNG",
     material = "MATERIAL",
+    lesson   = "LEKTION",
 }
 
 --------------------------------------------------
@@ -70,6 +71,25 @@ local function BuildIndex()
                     end,
                 }
             end
+        end
+    end
+
+    -- Academy-Lektionen (nur vorhanden, wenn WeintCompanion den Katalog
+    -- schon geliefert hat - siehe modules/companion.lua)
+    local academy = WeintCodex.SavedData and WeintCodex.SavedData.academy
+    local catalog = academy and academy.catalog
+    for _, lesson in ipairs(catalog and catalog.lessons or {}) do
+        if lesson.title then
+            index[#index + 1] = {
+                category = "lesson",
+                label    = lesson.title,
+                onClick  = function()
+                    WeintCodex.Navigation.SwitchTo("charakter")
+                    if WeintCodex.Academy and WeintCodex.Academy.ShowPlan then
+                        WeintCodex.Academy.ShowPlan()
+                    end
+                end,
+            }
         end
     end
 

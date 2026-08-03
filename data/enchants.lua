@@ -6,7 +6,7 @@
 -- Struktur:
 --   [enchantId] = {
 --       name  = "Deutscher Anzeigename",
---       slot  = "Waffe|Schultern|Brust|Umhang|Handgelenke|Hände|Beine|Füße",
+--       slot  = "Waffe|Nebenhand|Schultern|Brust|Umhang|Handgelenke|Hände|Beine|Füße|Ring",
 --       stats = { hit = 180, ... },  -- numerisch, für Cap-Check & Bewertung
 --       verify = true,               -- Name/ID noch in-game gegenprüfen (**)
 --   }
@@ -181,6 +181,51 @@ WeintCodex_Enchants = {
     -- modules/charakter.lua: dort gewinnt der Item-Tooltip (Stat + Wert)
     -- gegen diese Tabelle, ein Konflikt wird in der Liste markiert.
     [4430] = { name = "Großes Tempo",                  slot = "Hände", stats = { haste = 170 }, verify = true },
+
+    --------------------------------------------------
+    -- NEBENHAND (Schild UND Beihand-Gegenstand)
+    --
+    -- In MoP ist der Nebenhand-Slot für JEDEN Gegenstandstyp
+    -- verzauberbar, nicht nur fuer Waffen:
+    --   * "Nebenhand - Mächtige Intelligenz" passt laut Wowhead
+    --     ausdrücklich auf Schild UND "In Nebenhand gehalten"
+    --     (Zauberbuch/Kugel/Totem) - Zauber 104445, +165 Intelligenz.
+    --   * "Schild - Großes Parieren" passt nur auf Schilde
+    --     (Zauber 130758, +170 Parieren, 5.4-Neuzugang).
+    -- Ein reines Meisterschafts-/Ausdauer-Schildenchant auf MoP-Niveau
+    -- gibt es nicht - die alten WotLK/Cata-Formeln sind wertlos und
+    -- deshalb hier bewusst nicht hinterlegt.
+    --
+    -- SCHLÜSSEL: Fuer diese beiden ist die Link-Enchant-ID noch nicht
+    -- bestätigt; hinterlegt sind die Gegenstands-IDs der Verzauberungs-
+    -- rolle (74729 bzw. 89737), analog zu 74711/74715 weiter oben. Die
+    -- Bewertung läuft ohnehin über den Tooltip-/Namensabgleich in
+    -- ResolveEnchant, ein ID-Irrtum verfälscht die Anzeige also nicht.
+    -- Per "/wc vz" die echten IDs ermitteln und hier eintragen.
+    --------------------------------------------------
+
+    [74729] = { name = "Mächtige Intelligenz", slot = "Nebenhand", stats = { intellect = 165 }, verify = true },
+    [89737] = { name = "Großes Parieren",      slot = "Nebenhand", stats = { parry = 170 },    verify = true, nurSchild = true },
+
+    --------------------------------------------------
+    -- RINGE (Verzauberkunst-exklusiv)
+    --
+    -- Nur Verzauberer können ihre eigenen Ringe verzaubern. Das
+    -- Charakter-Modul blendet die Ring-Zeilen deshalb aus, wenn der
+    -- Beruf nicht geskillt ist (siehe HasEnchanting in charakter.lua) -
+    -- sonst hätten Nicht-Verzauberer dauerhaft zwei "fehlende"
+    -- Verzauberungen im Check.
+    --
+    -- SCHLÜSSEL: wie oben Platzhalter-IDs (Formel-Gegenstände
+    -- 84575-84578), bis die Link-Enchant-IDs per "/wc vz" bestätigt
+    -- sind. Zauber-IDs zur Kontrolle: 103461 Beweglichkeit,
+    -- 103462 Intelligenz, 103463 Ausdauer.
+    --------------------------------------------------
+
+    [84575] = { name = "Große Beweglichkeit", slot = "Ring", stats = { agility  = 160 }, verify = true },
+    [84576] = { name = "Große Intelligenz",   slot = "Ring", stats = { intellect = 160 }, verify = true },
+    [84577] = { name = "Große Ausdauer",      slot = "Ring", stats = { stamina  = 240 }, verify = true },
+    [84578] = { name = "Große Stärke",        slot = "Ring", stats = { strength = 160 }, verify = true },
 
 }
 

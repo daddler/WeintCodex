@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.1.0.0",
+        date    = "03.08.2026",
+        notes   = {
+            "Verzauberungs-Check zaehlt die Nebenhand jetzt richtig: Schild und Beihand-Gegenstand galten bisher als nicht verzauberbar, deshalb stand dort immer 8/8.",
+            "Neu: Schild-/Nebenhand-Verzauberungen (Grosses Parieren, Maechtige Intelligenz) und Ringverzauberungen fuer Verzauberer.",
+            "Leere Nebenhand bei angelegter Einhandwaffe wird als Hinweis gemeldet.",
+            "Neu: WeintTV im Addon - Tiefenanalyse des letzten Pulls (vermeidbarer Schaden, Wirkungsdauern, Aktivzeit, Laufwege, Cooldowns, Mechaniken).",
+            "Neu: Academy unter Charakter - Bewertung, Trainingsplan und Lektionskatalog aus WeintCompanion.",
+        },
+    },
+    {
         version = "1.0.0.5",
         date    = "03.08.2026",
         notes   = {

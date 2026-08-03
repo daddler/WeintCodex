@@ -14,7 +14,7 @@ Comments and in-game UI text are in German; Lua identifiers are in English/mixed
 
 ## Working with this codebase
 
-There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `1.0.0.3` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
+There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `1.1.0.0` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
 
 ### Releases
 
@@ -46,8 +46,10 @@ Everything hangs off the global `WeintCodex` table. Each module does `WeintCodex
 
 The addon and WeintCompanion communicate only through two Lua tables in the shared `SavedVariables` file (`WeintCodex.lua`), never directly over the network:
 
-- **Outbound** (`WeintCompanionDB`, written by `modules/companion.lua` via `WeintCodex.Companion.Send(messageType, payload)`): a `queue` of `{id, created, version, type, payload}` messages. "State" message types (`materials`, `character`, `calendar` — see `STATE_MESSAGES`) replace any existing queued message of the same type instead of appending, since only the latest state matters. WeintCompanion's `SyncManager` drains this queue and clears entries it successfully delivers.
-- **Inbound** (`WeintCompanionInboxDB`, written by WeintCompanion's `InboxWriter`): processed once per login via `WeintCodex.Companion.ProcessInbox()` (called from the `ADDON_LOADED` handler in `core/main.lua`), e.g. for `raid_import` messages pushed down from the Discord bot's roster export.
+- **Outbound** (`WeintCompanionDB`, written by `modules/companion.lua` via `WeintCodex.Companion.Send(messageType, payload)`): a `queue` of `{id, created, version, type, payload}` messages. "State" message types (`materials`, `character`, `calendar`, `academy` — see `STATE_MESSAGES`) replace any existing queued message of the same type instead of appending, since only the latest state matters. WeintCompanion's `SyncManager` drains this queue and clears entries it successfully delivers.
+- **Inbound** (`WeintCompanionInboxDB`, written by WeintCompanion's `InboxWriter`): processed once per login via `WeintCodex.Companion.ProcessInbox()` (called from the `ADDON_LOADED` handler in `core/main.lua`). `INBOX_HANDLERS` in `companion.lua` dispatches by `message.type`: `raid_import` carries a `WCIMPORT` string and goes to `WeintCodex.Sync.QuickImport`, while `academy_catalog`, `academy_state` and `weinttv_report` carry **nested Lua tables** and are stored in `WeintCodex.SavedData.academy` / `.weinttv`. Each handler runs in `pcall`, so one malformed message cannot strand the rest of the queue. The full payload schemas are documented in the header comment of `modules/companion.lua`.
+
+The inbox is read **only at login/reload** — WoW never re-reads `SavedVariables` at runtime. Anything built on it is therefore a report of the last delivery, never a live view; both `weinttv.lua` and `academy.lua` say so in their headers and in the UI.
 
 `WeintCodex.Companion.ReportCharacter()` fires on every `PLAYER_LOGIN` to tell the Companion/bot which real WoW character+realm is currently logged in (used for calendar-invite class/name resolution — Discord identity alone isn't enough).
 
@@ -60,6 +62,15 @@ A second, independent channel: the Discord bot generates a `WCIMPORT:<TYPE>:<pay
 `core/onboarding.lua` zeigt neuen Nutzern beim allerersten Login eine mehrseitige Feature-Tour (eine Seite pro Navigations-Tab) und bestehenden Nutzern nach einem Versionswechsel ein Popup mit dem, was sich geändert hat. Beide Modi teilen sich dasselbe Overlay-Fenster über `WeintCodex.MainFrame` (analog zu `modules/dialog.lua`). Getrackt wird das über `WeintCodex.SavedData.onboarding.lastSeenVersion`: `nil` → volle Tour, abweichend von `WeintCodex.Version` → Changelog-Popup mit allen Einträgen aus `data/changelog.lua` seit der zuletzt gesehenen Version, gleich → nichts. Aufgerufen wird `WeintCodex.Onboarding.Check()` aus dem `PLAYER_LOGIN`-Handler in `core/main.lua`; `/wc tour` ruft die Tour manuell erneut auf (zum Testen).
 
 `data/changelog.lua` (`WeintCodex_ChangelogData`, neueste Version zuerst) ist eine separate, laufzeit-lesbare Kurzfassung von `CHANGELOG.md` – beide müssen bei jedem Release von Hand gepflegt werden, das eine ersetzt das andere nicht.
+
+### WeintTV & Academy (`modules/weinttv.lua`, `modules/academy.lua`)
+
+Slimmed-down in-game versions of the two WeintCompanion desktop features, for players on a single monitor. They need **WeintCompanion 1.3.0 or newer** — that is the version which builds and delivers the three payloads (`addon/addon_payloads.py`, `core/addon_analysis_sync.py` over there). Both are **pure renderers**: every judgement (avoidable vs. unavoidable damage, movement in metres, cooldown efficiency, the six star ratings, the training-plan order) is computed in the Companion and arrives finished over the inbox. Nothing is recalculated here, so desktop and addon cannot disagree.
+
+- `modules/weinttv.lua` is its own nav tab (registered in the three usual places in `core/navigation.lua`: `tabs`, `SwitchTo`, `dashboardTiles`). Six table pages plus a "Nur ich / Ganzer Raid" toggle in `TitleBarActions`. The per-page entry points are exported on `WeintCodex.WeintTV` for deep links, same pattern as `WeintCodex.Charakter.ShowEnchants`.
+- `modules/academy.lua` deliberately has **no** tab — it hangs in the *Charakter* sidebar (`WeintCodex.Charakter.Show`), because ratings and lessons belong to the character. Since it renders into the shared `ContentPanel` from outside `charakter.lua`, it calls `WeintCodex.Charakter.LeaveView()` so the equipment watcher does not redraw a Charakter page over it.
+
+Two conventions inherited from the Companion must not be broken: `stars == 0` means *no data*, not *bad* (zero ratings are excluded from the average and from the weakest-area pick), and `at == -1` means *no timestamp known*, not second 0. Lesson progress is stored per character as **exclusions**, not inclusions, so newly delivered lessons are active without a migration. The log result (`results`) and the player's own checkbox (`completed`) are never written into each other — a lesson counts as done if either applies.
 
 ### Libraries
 

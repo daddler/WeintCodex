@@ -35,6 +35,8 @@ local TOUR_STEPS = {
       body = "Alle Termine der Gilde auf einen Blick, inklusive Ingame-Einladungen." },
     { icon = "Interface\\Icons\\Spell_Holy_MagicalSentry", title = "WeakAuras",
       body = "WeakAuras nach Kategorie sortiert per Klick importieren - keine Import-Strings mehr manuell suchen." },
+    { icon = "Interface\\Icons\\INV_Misc_Spyglass_02", title = "WeintTV",
+      body = "Die Tiefenanalyse eures letzten Pulls direkt im Spiel: vermeidbarer Schaden mit Gegenmassnahme, Wirkungsdauern, Aktivzeit, Laufwege, Cooldown-Nutzung und Mechanikfehler.\n\nDie Auswertung entsteht in WeintCompanion und wird ins Addon uebertragen - sie erscheint beim naechsten Login bzw. nach /reload. Das Lernzentrum dazu findet ihr unter Charakter." },
     { icon = "Interface\\Icons\\INV_Misc_Note_01", title = "Import",
       body = "Der Discord-Bot exportiert Bossnotizen, Raidlisten, Materialien und WeakAuras als Code - hier landen sie im Addon." },
     { icon = "Interface\\Icons\\Achievement_Quests_Completed_08", title = "Los geht's!",

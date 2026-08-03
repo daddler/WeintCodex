@@ -70,15 +70,9 @@ local function MakeBtn(parent, label, w, h, onClick)
     return btn, lbl
 end
 
-local function CreateScrollArea(parent, x, y, w, h)
-    local sf = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
-    sf:SetSize(w, h)
-    sf:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    local inner = CreateFrame("Frame", nil, sf)
-    inner:SetSize(w - 20, h)
-    sf:SetScrollChild(inner)
-    return sf, inner
-end
+-- Siehe core/ui.lua — dort liegt die gemeinsame Fassung, die auch
+-- modules/weinttv.lua und modules/academy.lua nutzen.
+local CreateScrollArea = WeintCodex.CreateScrollArea
 
 --------------------------------------------------
 -- STATUS-DEFINITIONEN (5-Zustands-System)
@@ -212,9 +206,14 @@ do
                                     :gsub("%%%%s", "(.+)")
 end
 
+-- Wird bei HasEnchanting() weiter unten befüllt; hier vorwärts deklariert,
+-- damit ClearCharakterCache den Beruf mit zurücksetzen kann.
+local enchantingKnown = nil
+
 local function ClearCharakterCache()
     WeintCodex._enchantDbNameCache = {}
     WeintCodex._enchantTooltipCache = {}
+    enchantingKnown = nil
 end
 
 --------------------------------------------------
@@ -223,6 +222,11 @@ end
 -- Zielfernrohre sitzen auf der Waffe in Slot 16.
 --------------------------------------------------
 
+-- enchSlot          fester Verzauberungs-Topf (Schlüssel in
+--                   spec_profiles.bestEnchants / enchants.lua)
+-- enchSlotDynamisch der Topf hängt vom angelegten Gegenstand ab
+--                   (Nebenhand: Waffe vs. Schild/Beihand)
+-- nurVerzauberer    zählt nur mit, wenn Verzauberkunst geskillt ist
 local EQUIP_SLOTS = {
     { id = 1,  name = "Kopf" },
     { id = 2,  name = "Hals" },
@@ -233,13 +237,13 @@ local EQUIP_SLOTS = {
     { id = 8,  name = "Füße",        enchSlot = "Füße" },
     { id = 9,  name = "Handgelenke", enchSlot = "Handgelenke" },
     { id = 10, name = "Hände",       enchSlot = "Hände" },
-    { id = 11, name = "Finger 1" },
-    { id = 12, name = "Finger 2" },
+    { id = 11, name = "Finger 1",    enchSlot = "Ring", nurVerzauberer = true },
+    { id = 12, name = "Finger 2",    enchSlot = "Ring", nurVerzauberer = true },
     { id = 13, name = "Schmuck 1" },
     { id = 14, name = "Schmuck 2" },
     { id = 15, name = "Umhang",      enchSlot = "Umhang" },
     { id = 16, name = "Haupthand",   enchSlot = "Waffe" },
-    { id = 17, name = "Nebenhand",   enchSlot = "Waffe", nurWaffe = true },
+    { id = 17, name = "Nebenhand",   enchSlotDynamisch = true },
 }
 
 -- WICHTIG: Diese Farben bezeichnen den SOCKELPLATZ im Item,
@@ -861,20 +865,121 @@ local function ResolveEnchant(slotId, enchId, link, enchSlot)
 end
 
 --------------------------------------------------
--- WAFFEN-ERKENNUNG (Nebenhand: Schild/Beihand
--- bekommt keine Waffenverzauberung => neutral)
+-- WAFFEN-/NEBENHAND-ERKENNUNG
+--
+-- Entscheidend ist nicht die Gegenstandsklasse (ein Schild ist
+-- Klasse 4 = Rüstung, keine Waffe), sondern der Anlegeplatz. Nur
+-- itemEquipLoc sagt zuverlässig, ob ein Zweihänder angelegt ist und
+-- ob die Nebenhand eine Waffe, einen Schild oder einen Beihand-
+-- Gegenstand trägt — und davon hängt ab, welcher Verzauberungs-Topf
+-- gilt und wie viele Slots überhaupt zählen können.
+--
+-- In MoP ist die Nebenhand IMMER verzauberbar:
+--   Waffe            -> Waffenverzauberungen (Lied des Windes usw.)
+--   Schild           -> "Großes Parieren" oder "Mächtige Intelligenz"
+--   Beihand-Gegenst. -> "Mächtige Intelligenz"
+-- (siehe data/enchants.lua, Block NEBENHAND)
 --------------------------------------------------
 
-local function IsWeaponLink(link)
+local EQUIP_LOC_KIND = {
+    INVTYPE_WEAPON         = "weapon",
+    INVTYPE_WEAPONMAINHAND = "weapon",
+    INVTYPE_WEAPONOFFHAND  = "weapon",
+    INVTYPE_2HWEAPON       = "weapon",
+    INVTYPE_RANGED         = "weapon",
+    INVTYPE_RANGEDRIGHT    = "weapon",
+    INVTYPE_SHIELD         = "shield",
+    INVTYPE_HOLDABLE       = "holdable",
+}
+
+-- "weapon" | "shield" | "holdable" | nil (Item-Infos noch nicht im Cache)
+local function ClassifyEquipLoc(link)
+    if not link then return nil end
+    if GetItemInfoInstant then
+        local _, _, _, equipLoc = GetItemInfoInstant(link)
+        if equipLoc and equipLoc ~= "" then return EQUIP_LOC_KIND[equipLoc] end
+    end
+    local equipLoc = select(9, GetItemInfo(link))
+    if equipLoc and equipLoc ~= "" then return EQUIP_LOC_KIND[equipLoc] end
+    -- Weder Instant- noch Voll-Infos verfügbar: nicht raten. Der Aufrufer
+    -- behandelt nil als "noch unbekannt" und lässt neu scannen, statt den
+    -- Slot still aus der Wertung zu nehmen.
+    return nil
+end
+
+local function IsTwoHander(link)
     if not link then return false end
     if GetItemInfoInstant then
-        local _, _, _, _, _, classID = GetItemInfoInstant(link)
-        if classID then return classID == 2 end
+        local _, _, _, equipLoc = GetItemInfoInstant(link)
+        if equipLoc and equipLoc ~= "" then return equipLoc == "INVTYPE_2HWEAPON" end
     end
-    local classID = select(12, GetItemInfo(link))
-    if classID then return classID == 2 end
-    local itemType = select(6, GetItemInfo(link))
-    return itemType == "Waffe" or itemType == "Weapon"
+    return select(9, GetItemInfo(link)) == "INVTYPE_2HWEAPON"
+end
+
+-- Verzauberungs-Topf für den Nebenhand-Slot.
+local OFFHAND_ENCH_SLOT = {
+    weapon   = "Waffe",
+    shield   = "Nebenhand",
+    holdable = "Nebenhand",
+}
+
+-- Item-ID für die Nachlieferung vormerken (GET_ITEM_INFO_RECEIVED, s.u.),
+-- damit ein noch ungecachtes Item nicht dauerhaft aus der Wertung fällt.
+local function NotePendingItemInfo(link)
+    local itemId = link and tonumber(link:match("item:(%d+):"))
+    if itemId then pendingItemInfoIds[itemId] = true end
+end
+
+--------------------------------------------------
+-- VERZAUBERKUNST
+-- Ringe kann nur verzaubern, wer den Beruf selbst geskillt hat.
+-- Ohne Beruf entsteht gar keine Ring-Zeile, sonst hätten
+-- Nicht-Verzauberer dauerhaft zwei "fehlende" Verzauberungen.
+-- Abgleich über die Skill-Line-ID (333), nicht über den Namen —
+-- der Client ist lokalisiert.
+--------------------------------------------------
+
+local ENCHANTING_SKILL_LINE = 333
+
+local function HasEnchanting()
+    if enchantingKnown ~= nil then return enchantingKnown end
+    enchantingKnown = false
+    if type(GetProfessions) == "function" and type(GetProfessionInfo) == "function" then
+        local prof1, prof2 = GetProfessions()
+        for _, index in ipairs({ prof1, prof2 }) do
+            if index then
+                local skillLine = select(7, GetProfessionInfo(index))
+                if skillLine == ENCHANTING_SKILL_LINE then
+                    enchantingKnown = true
+                    break
+                end
+            end
+        end
+    end
+    return enchantingKnown
+end
+
+-- Effektiver Verzauberungs-Topf eines Slots samt Nebenhand-Art.
+-- Rueckgabe: enchSlot ("Waffe"/"Nebenhand"/... oder nil), offhandKind.
+-- enchSlot == nil heisst "zaehlt nicht" — entweder weil der Slot gar nicht
+-- verzauberbar ist, weil der Beruf fehlt, oder weil die Item-Infos noch
+-- nicht im Cache sind (dann wurde die Nachlieferung vorgemerkt).
+local function ResolveEnchSlot(slotDef, link)
+    if slotDef.nurVerzauberer and not HasEnchanting() then
+        return nil, nil
+    end
+    if not slotDef.enchSlotDynamisch then
+        return slotDef.enchSlot, nil
+    end
+
+    -- Nebenhand: Waffe, Schild und Beihand-Gegenstand sind in MoP alle
+    -- verzauberbar, aber aus unterschiedlichen Toepfen.
+    local kind = ClassifyEquipLoc(link)
+    if not kind then
+        NotePendingItemInfo(link)
+        return nil, nil
+    end
+    return OFFHAND_ENCH_SLOT[kind], kind
 end
 
 --------------------------------------------------
@@ -1183,9 +1288,31 @@ local INSCRIPTION_KEYWORDS = {
     "tigerzahn", "tigerfang", "kranichschwinge", "ochsenhorn", "tigerklaue",
 }
 
-local function EvaluateEnchant(enchId, slotKey, profile, tooltipName)
-    local bestList = profile and profile.bestEnchants
-                     and profile.bestEnchants[slotKey]
+-- Empfehlungsliste für einen Slot. offhandKind ist nur bei der Nebenhand
+-- gesetzt und filtert schildgebundene Verzauberungen heraus, wenn dort gar
+-- kein Schild steckt (sonst bekäme ein Beihand-Gegenstand "Großes Parieren"
+-- empfohlen, was der Client nie erlauben würde).
+local function GetBestEnchantList(profile, slotKey, offhandKind)
+    local list = profile and profile.bestEnchants and profile.bestEnchants[slotKey]
+    if not list then return nil end
+    if offhandKind ~= "holdable" then return list end
+
+    local filtered = {}
+    for _, id in ipairs(list) do
+        local db = WeintCodex_Enchants and WeintCodex_Enchants[id]
+        if not (db and db.nurSchild) then
+            filtered[#filtered + 1] = id
+        end
+    end
+    if #filtered == 0 then return nil end
+    return filtered
+end
+
+-- bestList kommt IMMER von GetBestEnchantList — auch nil ist dort ein
+-- Ergebnis ("für diesen Gegenstand gibt es in diesem Spec nichts zu
+-- empfehlen") und darf nicht still durch die ungefilterte Profilliste
+-- ersetzt werden.
+local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName)
     if not bestList then
         return "neutral", nil
     end
@@ -1262,42 +1389,43 @@ local function ScanCharacter()
             local enchId = ParseItemLink(link)
 
             -- Verzauberung
-            if slotDef.enchSlot then
-                local skip = slotDef.nurWaffe and not IsWeaponLink(link)
-                if not skip then
-                    -- Angelegte Verzauberung über den Item-Tooltip
-                    -- identifizieren (siehe ResolveEnchant): liefert Name,
-                    -- Stats und ggf. eine korrigierte ID, falls unsere
-                    -- Tabelle der ID etwas anderes zuordnet als der Client.
-                    local res = ResolveEnchant(slotDef.id, enchId, link, slotDef.enchSlot)
-                    local effId = (res and res.id) or enchId
+            local enchSlot, offhandKind = ResolveEnchSlot(slotDef, link)
+            if enchSlot then
+                -- Angelegte Verzauberung über den Item-Tooltip
+                -- identifizieren (siehe ResolveEnchant): liefert Name,
+                -- Stats und ggf. eine korrigierte ID, falls unsere
+                -- Tabelle der ID etwas anderes zuordnet als der Client.
+                local res = ResolveEnchant(slotDef.id, enchId, link, enchSlot)
+                local effId = (res and res.id) or enchId
 
-                    if res and res.mismatch and not enchantMismatchHinted then
-                        enchantMismatchHinted = true
-                        print(WeintCodex.ColorText("danger", "[WeintCodex]")
-                            .. " Verzauberungs-ID " .. tostring(enchId) .. " (" .. slotDef.name
-                            .. ") passt nicht zur Datenbank - angezeigt wird der Wert aus dem"
-                            .. " Item-Tooltip. Bitte einmal |cffC8763A/wc vz|r ausführen und die"
-                            .. " Ausgabe melden.")
-                    end
-                    local status, bestList =
-                        EvaluateEnchant(effId, slotDef.enchSlot, profile, res and res.name)
-                    scan.enchants.rows[#scan.enchants.rows + 1] = {
-                        slotId       = slotDef.id,
-                        slotName     = slotDef.name,
-                        enchSlot     = slotDef.enchSlot,
-                        itemName     = itemName,
-                        enchId       = enchId,
-                        effId        = effId,
-                        displayName  = res and res.name,
-                        enchStats    = res and res.stats,
-                        mismatch     = res and res.mismatch,
-                        unverified   = res and res.unverified,
-                        status       = status,
-                        bestList     = bestList,
-                        recId        = bestList and bestList[1] or nil,
-                    }
+                if res and res.mismatch and not enchantMismatchHinted then
+                    enchantMismatchHinted = true
+                    print(WeintCodex.ColorText("danger", "[WeintCodex]")
+                        .. " Verzauberungs-ID " .. tostring(enchId) .. " (" .. slotDef.name
+                        .. ") passt nicht zur Datenbank - angezeigt wird der Wert aus dem"
+                        .. " Item-Tooltip. Bitte einmal |cffC8763A/wc vz|r ausführen und die"
+                        .. " Ausgabe melden.")
                 end
+                local status, bestList = EvaluateEnchant(
+                    effId, enchSlot,
+                    GetBestEnchantList(profile, enchSlot, offhandKind),
+                    res and res.name)
+                scan.enchants.rows[#scan.enchants.rows + 1] = {
+                    slotId       = slotDef.id,
+                    slotName     = slotDef.name,
+                    enchSlot     = enchSlot,
+                    offhandKind  = offhandKind,
+                    itemName     = itemName,
+                    enchId       = enchId,
+                    effId        = effId,
+                    displayName  = res and res.name,
+                    enchStats    = res and res.stats,
+                    mismatch     = res and res.mismatch,
+                    unverified   = res and res.unverified,
+                    status       = status,
+                    bestList     = bestList,
+                    recId        = bestList and bestList[1] or nil,
+                }
             end
 
             -- Sockel
@@ -1452,6 +1580,18 @@ local function ScanCharacter()
         end
     end
 
+    -- Leere Nebenhand trotz Einhandwaffe. Bewusst NUR als Hinweis und nicht
+    -- als Zeile in scan.enchants.rows: es fehlt ein Gegenstand, keine
+    -- Verzauberung — als "missing"-Zeile gezählt würde die Quote lügen.
+    do
+        local mainLink = GetInventoryItemLink("player", 16)
+        local offLink  = GetInventoryItemLink("player", 17)
+        if mainLink and not offLink and not IsTwoHander(mainLink) then
+            issues[#issues + 1] = { prio = 1, status = "missing",
+                text = "Nebenhand: Kein Gegenstand angelegt" }
+        end
+    end
+
     for _, row in ipairs(scan.gems.rows) do
         if row.status == "missing" then
             local rec = row.recId and GetGemDisplayName(row.recId)
@@ -1517,6 +1657,21 @@ end
 -- Für andere Module (z.B. Companion-Export) verfügbar machen
 WeintCodex.Charakter.Scan = ScanCharacter
 
+-- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
+-- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
+-- geändert haben, muss vorher hier durch — sonst liefert der Scan die
+-- Bewertung von vorhin.
+WeintCodex.Charakter.ClearCache = ClearCharakterCache
+
+-- Von Unterseiten aufzurufen, die NICHT aus diesem Modul stammen, aber in
+-- derselben Charakter-Sidebar haengen (modules/academy.lua). Ohne das
+-- wuerde der Ausruestungs-Watcher weiter unten die zuletzt gezeigte
+-- Charakter-Seite ueber die fremde Seite legen, sobald sich etwas an der
+-- Ausruestung aendert.
+function WeintCodex.Charakter.LeaveView()
+    activeCharakterView = nil
+end
+
 -- Nur den Profil-Schlüssel (z.B. "PALADIN_RETRIBUTION") plus den
 -- lesbaren Spec-Namen. Für Module wie modules/bis.lua, die die Spec
 -- brauchen, aber keinen vollen Ausrüstungs-Scan auslösen wollen.
@@ -1542,7 +1697,8 @@ function WeintCodex.Charakter.DumpEnchants()
             local enchId, gems = ParseItemLink(link)
             if enchId then
                 any = true
-                local scan = ScanEquippedEnchant(slotDef.id, enchId, link, slotDef.enchSlot)
+                local scan = ScanEquippedEnchant(slotDef.id, enchId, link,
+                                                 (ResolveEnchSlot(slotDef, link)))
                 local tt   = scan and scan.name
                 local db   = WeintCodex_Enchants and WeintCodex_Enchants[enchId]
                 local marker = ""
@@ -1620,6 +1776,9 @@ end
 -- Bei Ausrüstungswechsel automatisch neu scannen (entprellt)
 local equipWatcher = CreateFrame("Frame")
 equipWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+-- Verzauberkunst an-/abgelegt: die Ring-Slots kommen dadurch in die
+-- Wertung hinein oder fallen heraus (siehe HasEnchanting).
+equipWatcher:RegisterEvent("SKILL_LINES_CHANGED")
 equipWatcher._pending = false
 equipWatcher:SetScript("OnEvent", function(self)
     if not activeCharakterView or self._pending then return end
@@ -3201,6 +3360,20 @@ function WeintCodex.Charakter.Show()
         { isGroup = true, label = "— ANALYSE —" },
         { label = "Werteverteilung", onClick = ShowWerteverteilung },
         { label = "Priorisierung",   onClick = ShowPriorisierung },
+        { isGroup = true, label = "— ACADEMY —" },
+        -- Eigenes Modul (modules/academy.lua), haengt aber bewusst hier:
+        -- Bewertung und Lektionen gehoeren zum Charakter, nicht in einen
+        -- eigenen Tab. Aufloesung zur Laufzeit, damit die Ladereihenfolge
+        -- keine Rolle spielt.
+        { label = "Lernzentrum",   indent = true, onClick = function()
+            if WeintCodex.Academy then WeintCodex.Academy.ShowOverview() end
+        end },
+        { label = "Trainingsplan", indent = true, onClick = function()
+            if WeintCodex.Academy then WeintCodex.Academy.ShowPlan() end
+        end },
+        { label = "Lektionskatalog", indent = true, onClick = function()
+            if WeintCodex.Academy then WeintCodex.Academy.ShowCatalog() end
+        end },
         { isGroup = true, label = "— VERWALTUNG —" },
         { label = "Twinkverwaltung", onClick = ShowTwinkverwaltung },
     })

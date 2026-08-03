@@ -154,6 +154,64 @@ function WeintCodex.ColorText(colorName, text)
 end
 
 --------------------------------------------------
+-- Scrollbereich
+-- Liefert das ScrollFrame und den Inhalts-Frame, in den Zeilen gehaengt
+-- werden. Die Hoehe des Inhalts-Frames muss der Aufrufer setzen, sonst
+-- scrollt nichts.
+--------------------------------------------------
+
+function WeintCodex.CreateScrollArea(parent, x, y, w, h)
+    local sf = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    sf:SetSize(w, h)
+    sf:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    local inner = CreateFrame("Frame", nil, sf)
+    inner:SetSize(w - 20, h)
+    sf:SetScrollChild(inner)
+    return sf, inner
+end
+
+--------------------------------------------------
+-- Zahlen-/Zeitformate
+-- Spiegeln die Darstellung der Companion-App (format_per_second,
+-- MM:SS), damit dieselbe Auswertung ingame und auf dem Desktop
+-- gleich aussieht. Dezimaltrennzeichen ist das deutsche Komma.
+--------------------------------------------------
+
+-- 950 -> "950", 12345 -> "12,3k", 1234567 -> "1,23M"
+function WeintCodex.FormatAmount(value)
+    value = tonumber(value) or 0
+    local sign = value < 0 and "-" or ""
+    value = math.abs(value)
+    local text
+    if value >= 1000000 then
+        text = string.format("%.2fM", value / 1000000)
+    elseif value >= 1000 then
+        text = string.format("%.1fk", value / 1000)
+    else
+        text = string.format("%d", value + 0.5)
+    end
+    return sign .. (text:gsub("%.", ","))
+end
+
+-- Sekunden -> "MM:SS" (auch jenseits einer Stunde, dann "H:MM:SS")
+function WeintCodex.FormatClock(seconds)
+    seconds = math.floor(tonumber(seconds) or 0)
+    if seconds < 0 then seconds = 0 end
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = seconds % 60
+    if h > 0 then return string.format("%d:%02d:%02d", h, m, s) end
+    return string.format("%02d:%02d", m, s)
+end
+
+-- 92.4 -> "92 %"  (nachkomma nur, wenn ausdruecklich gewuenscht)
+function WeintCodex.FormatPercent(value, decimals)
+    value = tonumber(value) or 0
+    local text = string.format("%." .. (decimals or 0) .. "f", value)
+    return (text:gsub("%.", ",")) .. " %"
+end
+
+--------------------------------------------------
 -- Schlanker Einzel-Rahmen (Alternative zum zweilagigen Glow-DrawBorder)
 --------------------------------------------------
 
