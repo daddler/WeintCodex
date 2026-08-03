@@ -70,15 +70,9 @@ local function MakeBtn(parent, label, w, h, onClick)
     return btn, lbl
 end
 
-local function CreateScrollArea(parent, x, y, w, h)
-    local sf = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
-    sf:SetSize(w, h)
-    sf:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    local inner = CreateFrame("Frame", nil, sf)
-    inner:SetSize(w - 20, h)
-    sf:SetScrollChild(inner)
-    return sf, inner
-end
+-- Siehe core/ui.lua — dort liegt die gemeinsame Fassung, die auch
+-- modules/weinttv.lua und modules/academy.lua nutzen.
+local CreateScrollArea = WeintCodex.CreateScrollArea
 
 --------------------------------------------------
 -- STATUS-DEFINITIONEN (5-Zustands-System)
@@ -1668,6 +1662,15 @@ WeintCodex.Charakter.Scan = ScanCharacter
 -- geändert haben, muss vorher hier durch — sonst liefert der Scan die
 -- Bewertung von vorhin.
 WeintCodex.Charakter.ClearCache = ClearCharakterCache
+
+-- Von Unterseiten aufzurufen, die NICHT aus diesem Modul stammen, aber in
+-- derselben Charakter-Sidebar haengen (modules/academy.lua). Ohne das
+-- wuerde der Ausruestungs-Watcher weiter unten die zuletzt gezeigte
+-- Charakter-Seite ueber die fremde Seite legen, sobald sich etwas an der
+-- Ausruestung aendert.
+function WeintCodex.Charakter.LeaveView()
+    activeCharakterView = nil
+end
 
 -- Nur den Profil-Schlüssel (z.B. "PALADIN_RETRIBUTION") plus den
 -- lesbaren Spec-Namen. Für Module wie modules/bis.lua, die die Spec
@@ -3357,6 +3360,20 @@ function WeintCodex.Charakter.Show()
         { isGroup = true, label = "— ANALYSE —" },
         { label = "Werteverteilung", onClick = ShowWerteverteilung },
         { label = "Priorisierung",   onClick = ShowPriorisierung },
+        { isGroup = true, label = "— ACADEMY —" },
+        -- Eigenes Modul (modules/academy.lua), haengt aber bewusst hier:
+        -- Bewertung und Lektionen gehoeren zum Charakter, nicht in einen
+        -- eigenen Tab. Aufloesung zur Laufzeit, damit die Ladereihenfolge
+        -- keine Rolle spielt.
+        { label = "Lernzentrum",   indent = true, onClick = function()
+            if WeintCodex.Academy then WeintCodex.Academy.ShowOverview() end
+        end },
+        { label = "Trainingsplan", indent = true, onClick = function()
+            if WeintCodex.Academy then WeintCodex.Academy.ShowPlan() end
+        end },
+        { label = "Lektionskatalog", indent = true, onClick = function()
+            if WeintCodex.Academy then WeintCodex.Academy.ShowCatalog() end
+        end },
         { isGroup = true, label = "— VERWALTUNG —" },
         { label = "Twinkverwaltung", onClick = ShowTwinkverwaltung },
     })

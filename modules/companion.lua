@@ -9,7 +9,8 @@ local STATE_MESSAGES = {
 
     materials = true,
     character = true,
-    calendar = true,
+    calendar  = true,
+    academy   = true,
 
 }
 
@@ -197,6 +198,151 @@ WeintCompanionInboxDB.queue or {}
 
 end
 
+----------------------------------------------------------
+-- Ablage der Companion-Auswertungen
+----------------------------------------------------------
+-- Die Nutzlasten landen in WeintCodex.SavedData und bleiben dort
+-- liegen. Die Inbox wird beim Login geleert, die Anzeige soll aber
+-- auch dann noch etwas zeigen, wenn die Companion gerade nichts
+-- Neues geliefert hat.
+--
+-- Fortschritt (completed/excluded) wird pro Charakter gefuehrt,
+-- genau wie in der Companion. Gespeichert werden AUSSCHLUESSE, nicht
+-- Einschluesse: eine neu gelieferte Lektion ist damit automatisch
+-- aktiv, ohne Migration.
+----------------------------------------------------------
+
+local function AcademyStore()
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+
+    local store = WeintCodex.SavedData.academy or {}
+    store.completed = store.completed or {}
+    store.excluded  = store.excluded  or {}
+
+    WeintCodex.SavedData.academy = store
+    return store
+
+end
+
+WeintCodex.Companion.AcademyStore = AcademyStore
+
+-- Fortschritt-Listen des uebergebenen Charakters (immer eine Tabelle).
+function WeintCodex.Companion.AcademyProgress(character)
+
+    local store = AcademyStore()
+    character = character or UnitName("player") or "?"
+
+    store.completed[character] = store.completed[character] or {}
+    store.excluded[character]  = store.excluded[character]  or {}
+
+    return store.completed[character], store.excluded[character]
+
+end
+
+----------------------------------------------------------
+-- Inbox (Bot/Companion -> Addon): Nachrichtentypen
+----------------------------------------------------------
+-- raid_import      payload = WCIMPORT-String (siehe modules/sync.lua)
+--
+-- Die folgenden drei erwarten eine TABELLE als payload, keinen String:
+--
+-- academy_catalog  { categories = { { id, label, hint }, ... },
+--                    lessons    = { { id, title, category, summary,
+--                                     steps = {...}, class, spec,
+--                                     encounter, roles = {...} }, ... } }
+--
+-- academy_state    { character, encounter, pull, source, capturedAt,
+--                    actor   = { name, class, spec, role },
+--                    ratings = { { category, stars, detail, metric, at }, ... },
+--                    plan    = { "<lessonId>", ... },
+--                    results = { ["<lessonId>"] = { status, at,
+--                                  checks = { { status, detail }, ... } } },
+--                    completed = { "<lessonId>", ... },
+--                    excluded  = { "<lessonId>", ... },
+--                    gap = "" | "no_raid" | "no_pull" | "sums_only" }
+--
+-- weinttv_report   { capturedAt, source, pull, duration, bossHealth, kill,
+--                    hasAnalysis, gap, me,
+--                    encounter   = { name, instance, difficulty, size },
+--                    damageTaken, uptimes, activity, movement, cooldowns,
+--                    support, mechanics, consumables, warnings }
+--                  (Zeilenschemata siehe modules/weinttv.lua)
+--
+-- Zwei Konventionen aus der Companion gelten hier genauso:
+--   stars == 0  heisst "keine Daten", nicht "schlecht"
+--   at    == -1 heisst "kein Zeitpunkt bekannt"
+----------------------------------------------------------
+
+-- Liste von Lektions-IDs in eine Nachschlagetabelle drehen.
+local function IdSet(list)
+
+    local set = {}
+
+    if type(list) == "table" then
+        for _, id in ipairs(list) do
+            if type(id) == "string" then set[id] = true end
+        end
+    end
+
+    return set
+
+end
+
+local INBOX_HANDLERS = {}
+
+INBOX_HANDLERS.raid_import = function(payload)
+
+    if type(payload) ~= "string" then return end
+
+    if WeintCodex.Sync and WeintCodex.Sync.QuickImport then
+        WeintCodex.Sync.QuickImport(payload)
+    end
+
+end
+
+INBOX_HANDLERS.academy_catalog = function(payload)
+
+    if type(payload) ~= "table" then return end
+
+    local store = AcademyStore()
+    store.catalog = payload
+
+end
+
+INBOX_HANDLERS.academy_state = function(payload)
+
+    if type(payload) ~= "table" then return end
+
+    local store = AcademyStore()
+    store.state = payload
+
+    -- Fortschritt vom Desktop uebernehmen. Die Companion ist beim Login
+    -- die juengere Quelle: sie hat die Auswertung gerade erst erzeugt,
+    -- waehrend die Addon-Seite seit dem letzten Ausloggen unveraendert
+    -- ist. Ingame gesetzte Haken gehen ueber die Ausgangs-Warteschlange
+    -- zurueck (siehe SendAcademyProgress).
+    local character = payload.character
+    if character then
+        if payload.completed then
+            store.completed[character] = IdSet(payload.completed)
+        end
+        if payload.excluded then
+            store.excluded[character] = IdSet(payload.excluded)
+        end
+    end
+
+end
+
+INBOX_HANDLERS.weinttv_report = function(payload)
+
+    if type(payload) ~= "table" then return end
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    WeintCodex.SavedData.weinttv = payload
+
+end
+
 function WeintCodex.Companion.ProcessInbox()
 
 InitializeInbox()
@@ -207,17 +353,81 @@ end
 
 for _, message in ipairs(WeintCompanionInboxDB.queue) do
 
-    if message.type == "raid_import" and message.payload then
+    local handler = message.type and INBOX_HANDLERS[message.type]
 
-        if WeintCodex.Sync and WeintCodex.Sync.QuickImport then
-            WeintCodex.Sync.QuickImport(message.payload)
+    if handler and message.payload ~= nil then
+        -- Eine fehlerhafte Nachricht darf die restliche Warteschlange
+        -- nicht mitreissen: sonst bliebe z.B. der Raid-Import liegen,
+        -- weil die Auswertung davor ein Feld anders benannt hat.
+        local ok, err = pcall(handler, message.payload)
+        if not ok then
+            print(WeintCodex.ColorText("danger", "[WeintCodex]")
+                .. " Companion-Nachricht \"" .. tostring(message.type)
+                .. "\" konnte nicht verarbeitet werden: " .. tostring(err))
         end
-
     end
 
 end
 
 wipe(WeintCompanionInboxDB.queue)
+
+end
+
+----------------------------------------------------------
+-- Academy-Fortschritt zurueck an die Companion
+----------------------------------------------------------
+-- Zustandsnachricht (siehe STATE_MESSAGES): es zaehlt immer nur der
+-- letzte Stand, aeltere Eintraege werden ersetzt statt angehaengt.
+--
+-- Format (bewusst derselbe Stil wie die uebrigen Nutzlasten - eine
+-- flache Zeichenkette, damit der SyncManager unveraendert bleibt):
+--
+--   <Charakter>|<erledigt,...>|<ausgeblendet,...>;<Charakter2>|...
+--
+-- Lektions-IDs sind ASCII-Bezeichner ohne Komma/Pipe/Semikolon, das
+-- Format ist damit eindeutig. Leere Listen bleiben leere Felder.
+----------------------------------------------------------
+
+local function JoinIds(set)
+
+    local ids = {}
+
+    for id in pairs(set or {}) do
+        if set[id] then ids[#ids + 1] = id end
+    end
+
+    table.sort(ids)
+    return table.concat(ids, ",")
+
+end
+
+function WeintCodex.Companion.SendAcademyProgress()
+
+    local store = AcademyStore()
+    local characters = {}
+
+    for character in pairs(store.completed) do characters[character] = true end
+    for character in pairs(store.excluded)  do characters[character] = true end
+
+    local names = {}
+    for character in pairs(characters) do names[#names + 1] = character end
+    table.sort(names)
+
+    local parts = {}
+
+    for _, character in ipairs(names) do
+        local done = JoinIds(store.completed[character])
+        local excl = JoinIds(store.excluded[character])
+        if done ~= "" or excl ~= "" then
+            parts[#parts + 1] = character .. "|" .. done .. "|" .. excl
+        end
+    end
+
+    if #parts == 0 then
+        return
+    end
+
+    return WeintCodex.Companion.Send("academy", table.concat(parts, ";"))
 
 end
 

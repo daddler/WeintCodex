@@ -18,6 +18,9 @@ local tabs = {
     { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien" },
     { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender" },
     { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
+    -- Bis ein eigenes nav_weinttv.tga vorliegt, ein Blizzard-Icon: die
+    -- Rail zeigt jede Texturpfad-Angabe, ein fehlendes TGA bliebe leer.
+    { id = "weinttv",    icon = "Interface\\Icons\\INV_Misc_Spyglass_02", tooltip = "WeintTV" },
     { id = "import",     icon = ICON_PATH .. "nav_import",     tooltip = "Import" },
 }
 
@@ -858,6 +861,10 @@ function WeintCodex.Navigation.SwitchTo(tabId)
         if WeintCodex.WeakAuras and WeintCodex.WeakAuras.Show then
             WeintCodex.WeakAuras.Show()
         end
+    elseif tabId == "weinttv" then
+        if WeintCodex.WeintTV and WeintCodex.WeintTV.Show then
+            WeintCodex.WeintTV.Show()
+        end
     elseif tabId == "import" then
         if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
             WeintCodex.Sync.ShowImportDialog()
@@ -999,6 +1006,7 @@ local dashboardTiles = {
     { id = "materials",  icon = "Interface\\Icons\\INV_Crate_01",                     title = "Materialien", desc = "Gildenbank-Übersicht" },
     { id = "calendar",   icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",          title = "Kalender",    desc = "Termine & Ingame-Einladungen" },
     { id = "weakauras",  icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",         title = "WeakAuras",   desc = "1-Klick-Import nach Kategorie" },
+    { id = "weinttv",    icon = "Interface\\Icons\\INV_Misc_Spyglass_02",             title = "WeintTV",     desc = "Tiefenanalyse des letzten Pulls" },
     { id = "import",     icon = "Interface\\Icons\\INV_Misc_Note_01",                 title = "Import",      desc = "Daten vom Discord-Bot importieren" },
 }
 
