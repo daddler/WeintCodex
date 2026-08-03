@@ -7,7 +7,7 @@
 
 WeintCodex_ChangelogData = {
     {
-        version = "1.0.1.0",
+        version = "1.1.0.0",
         date    = "03.08.2026",
         notes   = {
             "Verzauberungs-Check zaehlt die Nebenhand jetzt richtig: Schild und Beihand-Gegenstand galten bisher als nicht verzauberbar, deshalb stand dort immer 8/8.",

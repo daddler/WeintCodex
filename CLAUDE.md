@@ -14,7 +14,7 @@ Comments and in-game UI text are in German; Lua identifiers are in English/mixed
 
 ## Working with this codebase
 
-There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `1.0.1.0` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
+There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `1.1.0.0` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
 
 ### Releases
 
@@ -65,7 +65,7 @@ A second, independent channel: the Discord bot generates a `WCIMPORT:<TYPE>:<pay
 
 ### WeintTV & Academy (`modules/weinttv.lua`, `modules/academy.lua`)
 
-Slimmed-down in-game versions of the two WeintCompanion desktop features, for players on a single monitor. Both are **pure renderers**: every judgement (avoidable vs. unavoidable damage, movement in metres, cooldown efficiency, the six star ratings, the training-plan order) is computed in the Companion and arrives finished over the inbox. Nothing is recalculated here, so desktop and addon cannot disagree.
+Slimmed-down in-game versions of the two WeintCompanion desktop features, for players on a single monitor. They need **WeintCompanion 1.3.0 or newer** — that is the version which builds and delivers the three payloads (`addon/addon_payloads.py`, `core/addon_analysis_sync.py` over there). Both are **pure renderers**: every judgement (avoidable vs. unavoidable damage, movement in metres, cooldown efficiency, the six star ratings, the training-plan order) is computed in the Companion and arrives finished over the inbox. Nothing is recalculated here, so desktop and addon cannot disagree.
 
 - `modules/weinttv.lua` is its own nav tab (registered in the three usual places in `core/navigation.lua`: `tabs`, `SwitchTo`, `dashboardTiles`). Six table pages plus a "Nur ich / Ganzer Raid" toggle in `TitleBarActions`. The per-page entry points are exported on `WeintCodex.WeintTV` for deep links, same pattern as `WeintCodex.Charakter.ShowEnchants`.
 - `modules/academy.lua` deliberately has **no** tab — it hangs in the *Charakter* sidebar (`WeintCodex.Charakter.Show`), because ratings and lessons belong to the character. Since it renders into the shared `ContentPanel` from outside `charakter.lua`, it calls `WeintCodex.Charakter.LeaveView()` so the equipment watcher does not redraw a Charakter page over it.
