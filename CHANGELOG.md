@@ -31,6 +31,12 @@ Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lo
 - Neues Modul `modules/rotation_engine.lua` (geladen vor `modules/rotationtrainer.lua`) trennt Auswertung und Bewertung von der Darstellung; der Trainer zeichnet nur noch
 - `WeintCodex_ValidateRotationData()` prüft zusätzlich die Regelarten und löst für die eigene Spec jede Zauber-ID gegen den Client auf
 
+## [1.3.0.2] – 2026-08-04
+
+### Behoben
+- **Rotationstrainer**: stürzte beim Verschieben am Titelbalken ab. Der Ziehen-Handler der Kopfzeile schrieb die Fensterposition nach `SavedData.rotationTrainer.pos`, ohne die Tabelle vorher anzulegen – anders als der Handler des Fensters selbst direkt darüber
+- **Unheilig-Todesritter**: der Prioritätenliste fehlte Geißelstoß, die Hauptschadensfähigkeit im Einzelziel, komplett. Fäulnisschlag stand dadurch als einziger Filler da. Geißelstoß ist jetzt davor eingeordnet (Geißelstoß → Fäulnisschlag → Todesspirale)
+
 ## [1.3.0.1] – 2026-08-04
 
 ### Behoben
