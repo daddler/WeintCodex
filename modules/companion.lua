@@ -14,6 +14,30 @@ local STATE_MESSAGES = {
 
 }
 
+-- Ausgangsseitige Freigaben: welche Nachrichtenart welche Rolle braucht.
+-- "character" (der Bot braucht den echten WoW-Namen fuer Kalender-Invites)
+-- und "academy" (eigener Lernfortschritt) sind absichtlich nicht gelistet.
+local FEATURE_BY_MESSAGE = {
+
+    loot      = "loot.report",
+    materials = "materials.scan",
+
+}
+
+-- Gebundene Community-ID oder nil. Wird an jede ausgehende Nachricht
+-- gestempelt, damit die Desktop-Seite Verkehr einer anderen Community
+-- verwerfen kann (siehe core/access.lua).
+local function BoundCommunityId()
+
+    if not (WeintCodex.Access and WeintCodex.Access.Community) then return nil end
+
+    local community = WeintCodex.Access.Community()
+    if not community then return nil end
+
+    return WeintCodex.Access.NormalizeId(community.id)
+
+end
+
 ----------------------------------------------------------
 -- Initialisierung
 ----------------------------------------------------------
@@ -45,6 +69,24 @@ function WeintCodex.Companion.Send(
 Initialize()
 
 ------------------------------------------------------
+-- Freigabe pruefen
+------------------------------------------------------
+-- Ein Client ohne die passende Rolle soll nichts Gildeninternes
+-- hinausschicken - z. B. keine Gildenbank einer fremden Gilde und
+-- keine Loot-Meldungen in unseren Discord. Still, weil "loot" pro
+-- Drop feuert; die Begruendung steht in der jeweiligen Oberflaeche.
+------------------------------------------------------
+
+local requiredFeature = FEATURE_BY_MESSAGE[messageType]
+
+if requiredFeature and WeintCodex.Access
+    and not WeintCodex.Access.Can(requiredFeature) then
+    return nil
+end
+
+local community = BoundCommunityId()
+
+------------------------------------------------------
 -- Zustandsnachrichten ersetzen
 ------------------------------------------------------
 
@@ -59,6 +101,11 @@ if STATE_MESSAGES[messageType] then
         message.created = time()
         message.version = 1
         message.payload = payload
+
+        -- Auch hier mitfuehren: trifft das Zugriffsprofil zwischen
+        -- zwei Sends ein, behielte eine bereits eingereihte
+        -- Nachricht sonst eine fehlende oder veraltete ID.
+        message.community = community
 
         print(
             "|cff00ff00WeintCompanion|r: "
@@ -92,6 +139,8 @@ if STATE_MESSAGES[messageType] then
             created = time(),
 
             payload = payload,
+
+            community = community,
 
         }
 
@@ -245,7 +294,16 @@ end
 ----------------------------------------------------------
 -- raid_import      payload = WCIMPORT-String (siehe modules/sync.lua)
 --
--- Die folgenden drei erwarten eine TABELLE als payload, keinen String:
+-- Die folgenden vier erwarten eine TABELLE als payload, keinen String:
+--
+-- access_profile   { community = { id = "<Discord-Guild-ID>", name },
+--                    identity  = { discordId, discordName },
+--                    tier, tierLabel, roles = {...},
+--                    features  = { ["raids.view"] = true, ... },
+--                    issuedAt, expiresAt, companionVersion, notice }
+--                  Das vollstaendige Schema und die Bindungsregeln stehen im
+--                  Kopf von core/access.lua. Diese Nachricht bindet das Addon
+--                  an eine Community und steuert alle Freigaben.
 --
 -- academy_catalog  { categories = { { id, label, hint }, ... },
 --                    lessons    = { { id, title, category, summary,
@@ -272,6 +330,14 @@ end
 -- Zwei Konventionen aus der Companion gelten hier genauso:
 --   stars == 0  heisst "keine Daten", nicht "schlecht"
 --   at    == -1 heisst "kein Zeitpunkt bekannt"
+--
+-- Jede Nachricht darf zusaetzlich ein message.community (Zeichenkette) auf
+-- der Huelle tragen. Weicht es von der Bindung ab, wird die Nachricht
+-- verworfen statt eingearbeitet - fuer access_profile wird das Feld
+-- ignoriert, dort ist die Nutzlast maßgeblich.
+--
+-- Ausgehend traegt jede Nachricht in WeintCompanionDB.queue umgekehrt ein
+-- community-Feld mit der gebundenen ID.
 ----------------------------------------------------------
 
 -- Liste von Lektions-IDs in eine Nachschlagetabelle drehen.
@@ -290,6 +356,16 @@ local function IdSet(list)
 end
 
 local INBOX_HANDLERS = {}
+
+INBOX_HANDLERS.access_profile = function(payload)
+
+    if type(payload) ~= "table" then return end
+
+    if WeintCodex.Access and WeintCodex.Access.ApplyProfile then
+        WeintCodex.Access.ApplyProfile(payload)
+    end
+
+end
 
 INBOX_HANDLERS.raid_import = function(payload)
 
@@ -343,6 +419,22 @@ INBOX_HANDLERS.weinttv_report = function(payload)
 
 end
 
+local function Dispatch(message)
+
+    local handler = INBOX_HANDLERS[message.type]
+
+    -- Eine fehlerhafte Nachricht darf die restliche Warteschlange
+    -- nicht mitreissen: sonst bliebe z.B. der Raid-Import liegen,
+    -- weil die Auswertung davor ein Feld anders benannt hat.
+    local ok, err = pcall(handler, message.payload)
+    if not ok then
+        print(WeintCodex.ColorText("danger", "[WeintCodex]")
+            .. " Companion-Nachricht \"" .. tostring(message.type)
+            .. "\" konnte nicht verarbeitet werden: " .. tostring(err))
+    end
+
+end
+
 function WeintCodex.Companion.ProcessInbox()
 
 InitializeInbox()
@@ -351,24 +443,62 @@ if #WeintCompanionInboxDB.queue == 0 then
     return
 end
 
+------------------------------------------------------
+-- 1. Durchgang: nur Zugriffsprofile
+------------------------------------------------------
+-- Muss vor allem anderen laufen. Sonst wuerde beim erstmaligen
+-- Verknuepfen genau der Schwung Daten noch durchrutschen, den das
+-- gelieferte Profil eigentlich sperrt. Mehrere Profile werden in
+-- Warteschlangen-Reihenfolge angewandt, das letzte gewinnt.
+------------------------------------------------------
+
 for _, message in ipairs(WeintCompanionInboxDB.queue) do
 
-    local handler = message.type and INBOX_HANDLERS[message.type]
-
-    if handler and message.payload ~= nil then
-        -- Eine fehlerhafte Nachricht darf die restliche Warteschlange
-        -- nicht mitreissen: sonst bliebe z.B. der Raid-Import liegen,
-        -- weil die Auswertung davor ein Feld anders benannt hat.
-        local ok, err = pcall(handler, message.payload)
-        if not ok then
-            print(WeintCodex.ColorText("danger", "[WeintCodex]")
-                .. " Companion-Nachricht \"" .. tostring(message.type)
-                .. "\" konnte nicht verarbeitet werden: " .. tostring(err))
-        end
+    if message.type == "access_profile" and message.payload ~= nil then
+        Dispatch(message)
     end
 
 end
 
+------------------------------------------------------
+-- 2. Durchgang: alles andere, mit Herkunftspruefung
+------------------------------------------------------
+
+local rejected = 0
+
+for _, message in ipairs(WeintCompanionInboxDB.queue) do
+
+    if message.type ~= "access_profile"
+        and INBOX_HANDLERS[message.type]
+        and message.payload ~= nil then
+
+        if WeintCodex.Access and WeintCodex.Access.IsForeign(message.community) then
+
+            rejected = rejected + 1
+            WeintCodex.Access.NoteRejection(message.community)
+
+        else
+
+            Dispatch(message)
+
+        end
+
+    end
+
+end
+
+-- Eine gesammelte Warnung, nicht eine pro Nachricht.
+if rejected > 0 then
+    print(WeintCodex.ColorText("warning", "[WeintCodex]") .. " "
+        .. string.format(WeintCodex.Access.MSG_FOREIGN_INBOX,
+            rejected, WeintCodex.Access.CommunityName()))
+end
+
+-- Auch verworfene Nachrichten verlassen die Warteschlange. Sie liegen
+-- zu lassen hiesse dieselbe Warnung bei jedem Login - und schlimmer:
+-- nach einem legitimen /wc access reset wuerden wochenalte Roster der
+-- vorherigen Community ploetzlich angenommen. Gezaehlt werden sie in
+-- SavedData.access.rejections, das reicht fuer den Supportfall.
 wipe(WeintCompanionInboxDB.queue)
 
 end

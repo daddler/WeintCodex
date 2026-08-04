@@ -142,6 +142,14 @@ local function CreateMatFrame()
 
         local id = WeintCodex.Companion.Send("materials", exportStr)
 
+        -- Send() liefert nil, wenn die eigene Discord-Rolle das Weitergeben
+        -- von Gildenbankdaten nicht freigibt (siehe core/access.lua).
+        if not id then
+            print(WeintCodex.ColorText("danger", "[WeintCodex]") .. " "
+                .. WeintCodex.Access.Reason("materials.scan"))
+            return
+        end
+
         WeintCodex.Dialog.Show([[
             Die Daten wurden erfolgreich vorbereitet.
 
