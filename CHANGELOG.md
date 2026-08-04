@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
-## [1.4.0.0] – 2026-08-04
+## [1.3.1.0] – 2026-08-04
 
 ### Neu
 - **Rotationshelfer** (bisher „Rotationstrainer"): die Prioritätenliste sortiert sich jetzt live um, statt eine feste Liste mit einem Marker zu sein. Oben steht, was jetzt fällig ist; wer eine Fähigkeit drückt, sieht sie im selben Moment nach unten wandern und die nächste aufsteigen. Die Zeilen gleiten dabei an ihren neuen Platz, sie springen nicht

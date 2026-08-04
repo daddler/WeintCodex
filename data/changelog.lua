@@ -7,7 +7,7 @@
 
 WeintCodex_ChangelogData = {
     {
-        version = "1.4.0.0",
+        version = "1.3.1.0",
         date    = "04.08.2026",
         notes   = {
             "Neu: Der Rotationshelfer sortiert sich live um - was ihr gedrueckt habt, rutscht nach unten, die naechste Faehigkeit steigt auf.",
