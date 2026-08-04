@@ -146,8 +146,9 @@ WeintCodex_Rotations = {
     DEATHKNIGHT_UNHOLY = {
         { spell = 45477,  debuffMissing = 59921 },                          -- Frostberührung (Frostfieber)
         { spell = 45462,  debuffMissing = 55078 },                          -- Pestschlag (Blutpest)
-        { spell = 47541,  power = { type = "RUNIC_POWER", atLeast = 40 } }, -- Todesspirale
-        { spell = 85948,  always = true },                                 -- Fäulnisschlag (Filler)
+        { spell = 55090,  always = true },                                 -- Geißelstoß / Scourge Strike (Hauptschaden, mit Verderbnis-/Todesrunen)
+        { spell = 85948,  always = true },                                 -- Fäulnisschlag (mit Blut-/Frostrunen, wenn Geißelstoß nicht bereit)
+        { spell = 47541,  power = { type = "RUNIC_POWER", atLeast = 40 } }, -- Todesspirale (Runenmacht-Dump)
     },
 
     --------------------------------------------------

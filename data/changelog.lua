@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.0.2",
+        date    = "04.08.2026",
+        notes   = {
+            "Fix: Rotationstrainer stuerzte beim Ziehen am Titelbalken ab (SavedVariables-Tabelle wurde dort nicht angelegt).",
+            "Fix: Unheilig-Todesritter-Prioritaetenliste im Rotationstrainer ergaenzt - Geisselstoss (Hauptschaden) fehlte komplett, Faeulnisschlag war faelschlich als einziger Filler eingetragen.",
+        },
+    },
+    {
         version = "1.3.0.1",
         date    = "04.08.2026",
         notes   = {

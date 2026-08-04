@@ -251,6 +251,8 @@ local function CreateFrameOnce()
     header:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
         local point, _, _, x, y = frame:GetPoint()
+        WeintCodex.SavedData = WeintCodex.SavedData or {}
+        WeintCodex.SavedData.rotationTrainer = WeintCodex.SavedData.rotationTrainer or {}
         WeintCodex.SavedData.rotationTrainer.pos = { point = point, x = x, y = y }
     end)
     SetSolidBg(header, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
