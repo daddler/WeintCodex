@@ -580,6 +580,15 @@ end
 --   <Charakter>|<specKey>|<Datum YYYYMMDD>|<durationSec>|<hits>|
 --   <compliantHits>|<compliancePercent>
 --
+-- Das Format ist absichtlich unveraendert geblieben, obwohl der
+-- Rotationshelfer inzwischen deutlich mehr misst (Auslastung, Laufzeit
+-- der Dots, Note): die Companion rechnet ihre Tage-Serie positionsweise
+-- aus diesen sieben Feldern. compliancePercent traegt jetzt die
+-- gewichtete Gesamtnote statt der reinen Trefferquote - dieselbe
+-- Bedeutung ("wie gut war die Sitzung"), nur auf einer ehrlicheren
+-- Zahl. Die feineren Werte stehen im Addon unter
+-- SavedData.rotationTrainer.sessions.
+--
 -- specKey ist der interne Profilschlüssel aus data/spec_profiles.lua
 -- (z.B. "WARRIOR_ARMS") - die Companion übersetzt ihn über eine eigene
 -- Tabelle in ihre Lektions-ID, siehe core/academy_dummy_sync.py.

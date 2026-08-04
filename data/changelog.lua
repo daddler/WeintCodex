@@ -7,6 +7,20 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.4.0.0",
+        date    = "04.08.2026",
+        notes   = {
+            "Neu: Der Rotationshelfer sortiert sich live um - was ihr gedrueckt habt, rutscht nach unten, die naechste Faehigkeit steigt auf.",
+            "Jede Zeile sagt jetzt, warum sie da steht: 'Blutpest steht noch 14s', 'Wut 34/60', 'keine Unheilige Rune'.",
+            "Neu: Grosse 'Jetzt'-Karte mit Tastenkuerzel und Vorschau auf die naechsten drei Faehigkeiten.",
+            "Neu: Bewertungsseite mit Note (S bis E), Fehlgriffen und der Laufzeit eurer Dots.",
+            "Die Bewertung ist rangbasiert: die zweitbeste Wahl gibt Teilpunkte, Traenke und Cooldowns zaehlen gar nicht mehr mit.",
+            "Behoben: Waehrend der globalen Abklingzeit war die Liste rund anderthalb Sekunden lang leer.",
+            "Alle 23 Schadensspecs ueberarbeitet - mehrere Listen waren unvollstaendig oder trugen alte Zauber-IDs.",
+            "Neu: /wc training check meldet Zauber-IDs, die euer Client nicht kennt.",
+        },
+    },
+    {
         version = "1.3.0.2",
         date    = "04.08.2026",
         notes   = {

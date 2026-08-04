@@ -2,6 +2,35 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.4.0.0] – 2026-08-04
+
+### Neu
+- **Rotationshelfer** (bisher „Rotationstrainer"): die Prioritätenliste sortiert sich jetzt live um, statt eine feste Liste mit einem Marker zu sein. Oben steht, was jetzt fällig ist; wer eine Fähigkeit drückt, sieht sie im selben Moment nach unten wandern und die nächste aufsteigen. Die Zeilen gleiten dabei an ihren neuen Platz, sie springen nicht
+- Jede Zeile sagt, **warum** sie steht, wo sie steht: „Blutpest steht noch 14s", „Wut 34/60", „keine Unheilige Rune", „3/5 Kombopunkte" – mit den echten Zahlen aus dem laufenden Kampf
+- „Jetzt"-Karte über der Liste: die fällige Fähigkeit groß mit Symbol, Begründung, Tastenkürzel aus deinen Aktionsleisten und einer Vorschau auf die nächsten drei
+- Eigene Leiste für große Cooldowns und Fähigkeiten ohne globale Abklingzeit (Heroischer Stoß, Blutmal). Sie werden **nie** bewertet – an der Puppe einen Zweiminuten-Cooldown liegen zu lassen ist keine Fehlleistung
+- Bewertungsseite im Fenster: Note von S bis E, die drei Teilwertungen als Balken, die häufigsten Fehlgriffe („3× Wilder Hieb statt Blutdurst") und die Dots mit der schwächsten Laufzeit
+- Einstellungen direkt im Fenster (automatisch an der Puppe öffnen, kurze Liste, Cooldown-Leiste, Tastenkürzel, Fenster festsetzen). Rechtsklick auf eine Zeile schaltet sie stumm – gedacht für Fähigkeiten, die dem eigenen Talentaufbau fehlen
+- `/wc training check` listet jede Regel der eigenen Spec mit Zauber-ID, Client-Namen und Gelernt-Status auf; `/wc training id` meldet die NPC-ID des Ziels, damit weitere Trainingspuppen ergänzt werden können
+
+### Geändert
+- **Die Bewertung ist rangbasiert statt richtig/falsch.** Wer die zweitbeste Fähigkeit drückt, bekommt Teilpunkte statt einer Null. Zauber, die nicht zur Rotation gehören (Tränke, Cooldowns, Fremdzauber), zählen gar nicht mehr mit, und wenn gerade nichts wirkbar war, zählt der Zauber neutral – in einer Ressourcenpause gibt es keine falsche Taste
+- Bewertet wird gegen den Zustand **vor** dem Zauber, zusätzlich gegen den Takt davor. Eine richtige Entscheidung zählt damit nicht mehr als Fehler, nur weil ein Dot zwischen Tastendruck und Server-Antwort abgelaufen ist
+- Die Gesamtnote wiegt drei Dinge: Priorität (60 %), Auslastung der globalen Abklingzeit (20 %) und Laufzeit der überwachten Dots und Buffs (20 %). Hat eine Spec nichts zu überwachen, gehen die 20 % an die Priorität
+- Kanalisierte Zauber (Gedankenschinden, Bösartiger Griff, Seele entziehen) werden jetzt erfasst; bisher fielen sie je nach Client aus der Wertung
+- `data/rotations.lua` hat ein neues Format: mehrere Bedingungen pro Regel, Erneuerungsfenster für Dots („fehlt oder läuft in unter 4s aus"), Runenbedarf für Todesritter, Kombopunkte, Ressourcengrenzen und Oder-Verknüpfungen. Die Zwangs-`always`-Regel als Filler ist weg – „gerade ist nichts fällig" ist ein ehrlicher Zustand und wird als solcher angezeigt
+- Alle 23 Schadensspecs wurden gegen den MoP-Stand nachgezogen. Mehrere Listen waren unvollständig: Schatten ohne Verschlingende Seuche, Gleichgewicht ohne Zorn und ohne Eklipsen-Unterscheidung, Vergeltung ohne Inquisition, Wildheit ohne Wildes Brüllen, Frost-Todesritter ohne Seelenschnitter
+- Die an WeintCompanion gemeldete Prozentzahl ist jetzt die gewichtete Gesamtnote statt der reinen Trefferquote. Das Nachrichtenformat bleibt unverändert, damit die Tage-Serie dort weiterrechnet
+
+### Behoben
+- Während der globalen Abklingzeit galt jede Fähigkeit als „nicht bereit". Die Liste war dadurch nach jedem Tastendruck rund anderthalb Sekunden lang leer – also genau dann, wenn man auf sie schaut
+- Mehrere Zauber-IDs stammten aus Wrath/Cataclysm und lösten im MoP-Client nie auf, die Zeile blieb dadurch stumm (unter anderem Todesschuss, Frostfieber, Tigerhandfläche/Stoß, Verstümmeln). `/wc training check` meldet solche Fälle künftig selbst
+- Die Trefferquote zählte jeden Zauber mit, auch Tränke, Aufrufe und Fremdzauber
+
+### Intern
+- Neues Modul `modules/rotation_engine.lua` (geladen vor `modules/rotationtrainer.lua`) trennt Auswertung und Bewertung von der Darstellung; der Trainer zeichnet nur noch
+- `WeintCodex_ValidateRotationData()` prüft zusätzlich die Regelarten und löst für die eigene Spec jede Zauber-ID gegen den Client auf
+
 ## [1.3.0.1] – 2026-08-04
 
 ### Behoben

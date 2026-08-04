@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "1.3.0.2"
+WeintCodex.Version = "1.4.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -49,13 +49,21 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
-    -- Rotationstrainer: Puppen-Prioritätenliste manuell oeffnen/schliessen
+    -- Rotationshelfer: Prioritaetenliste manuell oeffnen/schliessen
     -- (siehe modules/rotationtrainer.lua) - Fallback fuer Ziele, die nicht
     -- automatisch als Trainingspuppe erkannt werden.
+    --   /wc training        oeffnen bzw. schliessen
+    --   /wc training stop   schliessen
+    --   /wc training check  Zauber-IDs der eigenen Spec pruefen
+    --   /wc training id     NPC-ID des Ziels melden (fuer neue Puppen)
     if verb == "training" or verb == "trainer" then
         if not WeintCodex.RotationTrainer then return end
         if rest == "stop" then
             WeintCodex.RotationTrainer.StopManual()
+        elseif rest == "check" or rest == "pruefen" or rest == "prüfen" then
+            WeintCodex.RotationTrainer.PrintCheck()
+        elseif rest == "id" or rest == "ziel" then
+            WeintCodex.RotationTrainer.PrintTargetId()
         else
             WeintCodex.RotationTrainer.Toggle()
         end
@@ -105,11 +113,17 @@ local function OnEvent(self, event, addonName)
             WeintCodex_ValidateBiSData()
         end
 
-        -- Dasselbe fuer die Rotationstrainer-Prioritaetenlisten: warnt,
-        -- falls ein Eintrag eine Spec referenziert, die es nicht (mehr)
-        -- gibt, oder keine always-Filler-Regel besitzt.
+        -- Dasselbe fuer die Prioritaetenlisten des Rotationshelfers:
+        -- warnt, falls ein Eintrag eine Spec referenziert, die es nicht
+        -- (mehr) gibt, oder keine Filler-Regel besitzt. Die eigene Spec
+        -- wird mitgegeben, damit zusaetzlich deren Zauber-IDs gegen den
+        -- Client geprueft werden koennen (siehe data/rotations.lua).
         if WeintCodex_ValidateRotationData then
-            WeintCodex_ValidateRotationData()
+            local specKey
+            if WeintCodex.Charakter and WeintCodex.Charakter.GetProfileKey then
+                specKey = WeintCodex.Charakter.GetProfileKey()
+            end
+            WeintCodex_ValidateRotationData(specKey)
         end
 
         -- Erststart-Tour bzw. Update-Changelog-Popup (core/onboarding.lua):
