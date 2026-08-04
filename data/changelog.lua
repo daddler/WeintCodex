@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.2.0.0",
+        date    = "04.08.2026",
+        notes   = {
+            "Neu: Zugriffsprofile - WeintCompanion fragt eure Discord-Rolle ab, danach richtet sich, welche Bereiche offenstehen.",
+            "Neu: Das Addon verknuepft sich mit genau einer Community. Daten einer anderen Gilde werden abgewiesen statt vermischt.",
+            "Gesperrte Bereiche bleiben sichtbar und nennen den Grund - sie verschwinden nicht einfach.",
+            "Neu: /wc access zeigt euer Profil (Community, Rang, Freigaben), /wc access reset hebt die Verknuepfung auf.",
+            "Ohne geliefertes Profil bleibt alles wie bisher offen - fuer die Rollenabfrage braucht es WeintCompanion ab 1.4.0.",
+        },
+    },
+    {
         version = "1.1.0.0",
         date    = "03.08.2026",
         notes   = {
