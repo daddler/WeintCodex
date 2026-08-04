@@ -36,7 +36,9 @@ local DrawBorder = WeintCodex.DrawBorder
 -- erweiterbar: "/wc training" auf einem unbekannten Ziel meldet dessen
 -- NPC-ID im Chat, damit die Liste bei Bedarf ergänzt werden kann.
 local DUMMY_NPC_IDS = {
-    [2673] = true,  -- "Trainingspuppe" (Hauptstädte, seit Classic-Vanilla)
+    [2673]  = true, -- "Trainingspuppe" (Hauptstädte, seit Classic-Vanilla)
+    [67127] = true, -- "Trainingspuppe" (Schrein der Zwei Monde / Sieben Sterne, MoP)
+    [31146] = true, -- "Trainingspuppe" (große Übungsziel-Variante, MoP)
 }
 
 local MIN_SESSION_SECONDS = 30
