@@ -173,6 +173,13 @@ local COL_NOTE_X             = 520
 
 local reloadBtn, clearBtn = nil, nil
 
+-- Anmeldeliste bearbeiten (Namenskorrektur, Loeschen) ist Sache der
+-- Raidleitung - siehe core/access.lua.
+local function MayEdit()
+    if not (WeintCodex.Access and WeintCodex.Access.Can) then return true end
+    return WeintCodex.Access.Can("raids.edit")
+end
+
 local function CreateRaidFrame()
     if raidFrame then return raidFrame end
 
@@ -354,10 +361,14 @@ local function UpdateInspector(raidData)
         }},
         { type = "divider" },
         { type = "header", text = "Namenskorrektur" },
-        { type = "card", lines = {
-            "Stimmt ein Charaktername nicht (Discord- statt WoW-Name)?",
-            "Notiz-Symbol in der jeweiligen Zeile anklicken und korrigieren.",
-        }},
+        { type = "card", lines = MayEdit()
+            and {
+                "Stimmt ein Charaktername nicht (Discord- statt WoW-Name)?",
+                "Notiz-Symbol in der jeweiligen Zeile anklicken und korrigieren.",
+            }
+            or {
+                WeintCodex.Access.Reason("raids.edit"),
+            }},
         { type = "divider" },
         { type = "button", label = "Import-Format anzeigen", onClick = function()
             WeintCodex.ShowExportDialog(
@@ -479,8 +490,10 @@ local function RefreshRaidDisplay(raidData)
             end
 
             -- Namen manuell korrigieren (falls Bot/Auto-Erkennung den
-            -- Discord-Namen nicht auflösen konnten)
+            -- Discord-Namen nicht auflösen konnten). Nur mit der passenden
+            -- Rolle - die Zuordnung ist Sache der Raidleitung.
             local editBtn = CreateFrame("Button", nil, row)
+            editBtn:SetShown(MayEdit())
             editBtn:SetSize(20, 20)
             editBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
 
@@ -532,7 +545,7 @@ function WeintCodex.Raids.Show()
     local f = CreateRaidFrame()
     f:Show()
     reloadBtn:Show()
-    clearBtn:Show()
+    clearBtn:SetShown(MayEdit())
 
     local sidebarItems = {
         {

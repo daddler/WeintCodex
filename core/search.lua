@@ -60,7 +60,15 @@ local function BuildIndex()
         end
     end
 
-    if WeintCodex.Materials and WeintCodex.Materials.GetItems then
+    -- Nur die Materialien sind gildenintern: die Bossnamen kommen aus der
+    -- statischen WeintCodex_BossData (nicht aus den importierten Tipps), die
+    -- Verzauberungen aus WeintCodex_Enchants, die Lektionen aus dem eigenen
+    -- Academy-Katalog. BuildIndex laeuft bei jedem Tastendruck neu und greift
+    -- eine Profilaenderung damit ohne weiteres Zutun auf.
+    local matAllowed = not (WeintCodex.Access and WeintCodex.Access.Can)
+        or WeintCodex.Access.Can("materials.view")
+
+    if matAllowed and WeintCodex.Materials and WeintCodex.Materials.GetItems then
         for _, item in ipairs(WeintCodex.Materials.GetItems()) do
             if item.name then
                 index[#index + 1] = {

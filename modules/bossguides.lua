@@ -687,9 +687,19 @@ end
 -- Boss-Tipps im Raid-/Gruppenchat ansagen
 --------------------------------------------------
 
+-- Vom Bot gelieferte Rollen-Tipps sind gildeninterne Taktiknotizen und
+-- haengen an der eigenen Discord-Rolle (siehe core/access.lua). Die
+-- statischen Guides aus data/BossData.lua bleiben immer offen.
+local function BotTips()
+    if WeintCodex.Access and not WeintCodex.Access.Can("bossguides.tips") then
+        return nil
+    end
+    return WeintCodex.SavedData and WeintCodex.SavedData.bossData
+end
+
 local function AnnounceBossTips(bossName, roleKey)
     local data = WeintCodex_BossData and WeintCodex_BossData[bossName]
-    local savedData = WeintCodex.SavedData and WeintCodex.SavedData.bossData
+    local savedData = BotTips()
     if savedData and savedData[bossName] then data = savedData[bossName] end
 
     if not data then
@@ -730,7 +740,7 @@ end
 local function ResolveBossData(bossName, roleKey)
     local data = WeintCodex_BossData and WeintCodex_BossData[bossName]
 
-    local savedData = WeintCodex.SavedData and WeintCodex.SavedData.bossData
+    local savedData = BotTips()
     if savedData and savedData[bossName] and savedData[bossName][roleKey] then
         data = savedData[bossName]
     end

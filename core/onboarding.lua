@@ -27,11 +27,17 @@ local TOUR_STEPS = {
       body = "Prueft eure Verzauberungen und Sockelsteine gegen das aktuelle Spec-Profil und verwaltet eure Twinks an einem Ort." },
     { icon = "Interface\\Icons\\Achievement_Boss_LichKing", title = "Bossguides",
       body = "Rollen-Tipps fuer jeden Boss, inklusive Positionierungsbildern und der Best-in-Slot-Liste fuer euer Spec." },
+    -- feature: Seite wird uebersprungen, wenn das Zugriffsprofil den Bereich
+    -- nicht freigibt (siehe core/access.lua) - sonst bewirbt die Tour
+    -- Bereiche, die der Spieler nicht oeffnen kann.
     { icon = "Interface\\Icons\\Ability_Warrior_BattleShout", title = "Raids",
+      feature = "raids.view",
       body = "Meldet euch fuer den Mittwochs- oder Donnerstagsraid an und seht auf einen Blick, wer schon zugesagt hat." },
     { icon = "Interface\\Icons\\INV_Crate_01", title = "Materialien",
+      feature = "materials.view",
       body = "Behaltet den Ueberblick ueber die Gildenbank-Materialien nach Kategorie - per Scan oder Import vom Discord-Bot." },
     { icon = "Interface\\Icons\\INV_Misc_PocketWatch_01", title = "Kalender",
+      feature = "calendar.view",
       body = "Alle Termine der Gilde auf einen Blick, inklusive Ingame-Einladungen." },
     { icon = "Interface\\Icons\\Spell_Holy_MagicalSentry", title = "WeakAuras",
       body = "WeakAuras nach Kategorie sortiert per Klick importieren - keine Import-Strings mehr manuell suchen." },
@@ -174,19 +180,39 @@ end
 -- Tour (Erststart)
 --------------------------------------------------
 
+-- Tatsaechlich gezeigte Seiten. Die Konstante TOUR_STEPS bleibt unangetastet,
+-- damit ein spaeter eintreffendes Zugriffsprofil die uebersprungenen Seiten
+-- beim naechsten Aufruf wieder einblenden kann.
+local visibleSteps = {}
+
+local function BuildVisibleSteps()
+    wipe(visibleSteps)
+
+    for _, step in ipairs(TOUR_STEPS) do
+        local allowed = true
+        if step.feature and WeintCodex.Access and WeintCodex.Access.Can then
+            allowed = WeintCodex.Access.Can(step.feature)
+        end
+        if allowed then
+            visibleSteps[#visibleSteps + 1] = step
+        end
+    end
+end
+
 local function RenderTourStep()
-    local step = TOUR_STEPS[currentStep]
+    local step = visibleSteps[currentStep]
+    if not step then return end
 
     iconStr:SetText(WeintCodex.Icon(step.icon, 30))
     titleStr:SetText(step.title)
-    stepStr:SetText(WeintCodex.ColorText("textDim", "Schritt " .. currentStep .. " von " .. #TOUR_STEPS))
+    stepStr:SetText(WeintCodex.ColorText("textDim", "Schritt " .. currentStep .. " von " .. #visibleSteps))
     bodyStr:SetText(step.body)
 
     ClearButtons()
 
-    local isLast  = currentStep == #TOUR_STEPS
+    local isLast  = currentStep == #visibleSteps
     local nextBtn = AddButton(isLast and "Los geht's!" or "Weiter", 140, function()
-        if currentStep < #TOUR_STEPS then
+        if currentStep < #visibleSteps then
             currentStep = currentStep + 1
             RenderTourStep()
         else
@@ -207,6 +233,9 @@ end
 function WeintCodex.Onboarding.ShowTour()
     EnsureFrame()
     if not overlay then return end
+
+    BuildVisibleSteps()
+    if #visibleSteps == 0 then return end
 
     currentStep = 1
     RenderTourStep()

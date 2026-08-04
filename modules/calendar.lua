@@ -416,6 +416,8 @@ local function CreateCalendarFrame()
         SetSolidBg(self, C.purple[1], C.purple[2], C.purple[3], 0.85)
     end)
 
+    f.CreateBtnLbl = createBtnLbl
+
     -- Status text
     local statusText = leftPanel:CreateFontString(nil, "OVERLAY")
     statusText:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
@@ -505,6 +507,17 @@ local function CreateCalendarFrame()
 
     -- Create button logic (needs access to rightPanel data)
     createBtn:SetScript("OnClick", function()
+        -- Einladungen an den ganzen Raid verschickt die Raidleitung (siehe
+        -- core/access.lua). Die Pruefung steht bewusst hier, im selben
+        -- synchronen Durchlauf wie CreatePlayerEvent - siehe die Warnung
+        -- zu ADDON_ACTION_BLOCKED weiter oben in dieser Datei.
+        if WeintCodex.Access and not WeintCodex.Access.Can("calendar.invite") then
+            f.StatusText:SetText("|cffff6666"
+                .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " "
+                .. WeintCodex.Access.Reason("calendar.invite") .. "|r")
+            return
+        end
+
         local sd  = WeintCodex.SavedData
         local key = (activeDay == "thursday") and "raidThursday" or "raidWednesday"
         local data = sd and sd[key]
@@ -768,6 +781,15 @@ function WeintCodex.Calendar.Show()
     local f = CreateCalendarFrame()
     f:Show()
     f.StatusText:SetText("")
+
+    -- Der Knopf bleibt sichtbar, aber sichtbar unzustaendig: so ist erkennbar,
+    -- dass es die Funktion gibt, und der Klick nennt den Grund.
+    local mayInvite = not WeintCodex.Access or WeintCodex.Access.Can("calendar.invite")
+    f.CreateBtnLbl:SetText(
+        (mayInvite and "|cffffffff" or "|cff8A8178")
+        .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16)
+        .. "  Kalender-Eintrag erstellen|r"
+    )
 
     local sidebarItems = {
         {

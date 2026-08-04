@@ -52,22 +52,43 @@ local function Rows(list)
     return type(list) == "table" and list or {}
 end
 
--- Zeilen auf den eigenen Charakter eindampfen. Der Filter greift nur,
--- wenn dabei ueberhaupt etwas uebrig bleibt — sonst saehe der Nutzer
--- eine leere Tabelle und wuesste nicht, ob Daten fehlen oder der
--- Filter zu scharf ist.
+-- Darf dieser Client Zeilen des ganzen Raids sehen? Ohne geladenes
+-- Access-Modul (oder ohne Zugriffsprofil) ja, wie bisher.
+local function RaidAllowed()
+    if not (WeintCodex.Access and WeintCodex.Access.Can) then return true end
+    return WeintCodex.Access.Can("weinttv.raid")
+end
+
+-- Zeilen auf den eigenen Charakter eindampfen. Der Filter greift normalerweise
+-- nur, wenn dabei ueberhaupt etwas uebrig bleibt — sonst saehe der Nutzer eine
+-- leere Tabelle und wuesste nicht, ob Daten fehlen oder der Filter zu scharf
+-- ist.
+--
+-- ACHTUNG: Bei erzwungenem Filter (fehlende Freigabe fuer den ganzen Raid)
+-- darf dieser Rueckfall NICHT greifen. Er wuerde sonst genau dann alle
+-- Raidzeilen ausliefern, wenn der eigene Name in einem Abschnitt nicht
+-- vorkommt — z. B. bei Mechanikfehlern, die man selbst nicht gemacht hat.
 local function ApplyFilter(rows, report, nameField)
-    if not onlyMine then return rows, false end
+    local forced = not RaidAllowed()
+
+    if not onlyMine and not forced then return rows, false end
 
     local me = MyName(report)
-    if not me then return rows, false end
+    if not me then
+        if forced then return {}, true end
+        return rows, false
+    end
 
     local kept = {}
     for _, row in ipairs(rows) do
         if row[nameField or "actor"] == me then kept[#kept + 1] = row end
     end
 
-    if #kept == 0 then return rows, false end
+    if #kept == 0 then
+        if forced then return {}, true end
+        return rows, false
+    end
+
     return kept, true
 end
 
@@ -343,6 +364,12 @@ end
 -- Zeigt an, ob der Filter tatsaechlich gegriffen hat.
 local function FilterNote(filtered)
     if not filtered then return nil end
+
+    if not RaidAllowed() then
+        return "Auswertungen des ganzen Raids sind fuer deinen Rang nicht "
+            .. "freigegeben — angezeigt werden nur deine eigenen Zeilen."
+    end
+
     return "Gefiltert auf den eingeloggten Charakter — Umschalter oben rechts."
 end
 
@@ -638,7 +665,14 @@ local VIEWS = {
 
 local function UpdateFilterLabel()
     if not filterLbl then return end
+
     filterLbl:SetText(onlyMine and "Nur ich" or "Ganzer Raid")
+
+    -- Ohne Freigabe ist der Umschalter zwar da, aber sichtbar wirkungslos:
+    -- so ist erkennbar, dass es die Ansicht gibt, und der Tooltip erklaert,
+    -- warum sie fehlt.
+    local col = RaidAllowed() and C.textNormal or C.textFaint
+    filterLbl:SetTextColor(col[1], col[2], col[3])
 end
 
 local function MakeFilterButton()
@@ -653,15 +687,32 @@ local function MakeFilterButton()
         filterLbl:SetJustifyH("CENTER")
         filterLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 
-        filterBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
-        filterBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+        filterBtn:SetScript("OnEnter", function(self)
+            if RaidAllowed() then self:SetSurface("surface3") end
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+            GameTooltip:SetText(onlyMine and "Nur ich" or "Ganzer Raid")
+            if not RaidAllowed() then
+                GameTooltip:AddLine(WeintCodex.Access.Reason("weinttv.raid"),
+                    C.textFaint[1], C.textFaint[2], C.textFaint[3], true)
+            end
+            GameTooltip:Show()
+        end)
+        filterBtn:SetScript("OnLeave", function(self)
+            self:SetSurface("surface2")
+            GameTooltip:Hide()
+        end)
         filterBtn:SetScript("OnClick", function()
+            if not RaidAllowed() then return end
             onlyMine = not onlyMine
             UpdateFilterLabel()
             local rebuild = activeView and VIEWS[activeView]
             if rebuild then rebuild() end
         end)
     end
+
+    -- Fehlt die Freigabe, bleibt die Ansicht bei den eigenen Zeilen - auch
+    -- wenn vorher in derselben Sitzung umgeschaltet wurde.
+    if not RaidAllowed() then onlyMine = true end
 
     UpdateFilterLabel()
     filterBtn:Show()

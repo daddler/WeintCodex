@@ -443,13 +443,26 @@ local function RefreshMatDisplay(matData, filterCat)
         shoppingListItems[1] = { label = "Alles im Soll", labelColor = "success" }
     end
 
-    WeintCodex.Navigation.SetInspector({
+    -- Gildenbankdaten erfassen und weitergeben haengt an der eigenen
+    -- Discord-Rolle (siehe core/access.lua): ein Extern-Raider soll nicht die
+    -- Bank einer fremden Gilde in unsere Auswertung spielen.
+    local mayScan = not WeintCodex.Access or WeintCodex.Access.Can("materials.scan")
+
+    local botStatus, botColor
+    if not mayScan then
+        botStatus, botColor = "nicht freigegeben", "textFaint"
+    elseif WeintCodex.Companion ~= nil then
+        botStatus, botColor = "verbunden", "success"
+    else
+        botStatus, botColor = "nicht verfügbar", "textDim"
+    end
+
+    local blocks = {
         { type = "header", text = "Sync-Status" },
         { type = "rows", rows = {
             { label = "Letzter Import", value = isSample and "—" or (dataSource.date or "—") },
             { label = "Einträge",       value = tostring(#dataSource.items) },
-            { label = "Bot-Kanäle",     value = (WeintCodex.Companion ~= nil) and "verbunden" or "nicht verfügbar",
-                valueColor = (WeintCodex.Companion ~= nil) and "success" or "textDim" },
+            { label = "Bot-Kanäle",     value = botStatus, valueColor = botColor },
         }},
         { type = "divider" },
         { type = "header", text = "Auto-Einkaufsliste · " .. #shoppingItems .. " Positionen" },
@@ -461,6 +474,20 @@ local function RefreshMatDisplay(matData, filterCat)
             { label = string.format("≥ %.0f%% vom Soll", THRESH_OK   * 100), value = "ok",      valueColor = "warning" },
             { label = string.format("< %.0f%% vom Soll", THRESH_OK   * 100), value = "niedrig", valueColor = "danger" },
         }},
+    }
+
+    if not mayScan then
+        blocks[#blocks + 1] = { type = "divider" }
+        blocks[#blocks + 1] = { type = "header", text = "Export" }
+        blocks[#blocks + 1] = { type = "card", lines = {
+            "Gildenbank-Exporte sind fuer deinen",
+            "Rang nicht freigegeben.",
+        }}
+        WeintCodex.Navigation.SetInspector(blocks)
+        return
+    end
+
+    blocks[#blocks + 1] =
         { type = "button", style = "primary", label = "Export für Bot", onClick = function()
             local exportStr = WeintCodex.Materials.GetExportString()
             if exportStr == "" or not WeintCodex.SavedData or not WeintCodex.SavedData.materialData then
@@ -471,7 +498,9 @@ local function RefreshMatDisplay(matData, filterCat)
             else
                 WeintCodex.ShowExportDialog("Export für Discord-Bot", exportStr)
             end
-        end },
+        end }
+
+    blocks[#blocks + 1] =
         { type = "button", label = "Komplett-Export", onClick = function()
             local exportStr = WeintCodex.Materials.GetFullBankExportString()
             if exportStr == "" or not WeintCodex.SavedData or not WeintCodex.SavedData.guildBankCache then
@@ -482,8 +511,9 @@ local function RefreshMatDisplay(matData, filterCat)
             else
                 WeintCodex.ShowExportDialog("Komplett-Export der Gildenbank", exportStr)
             end
-        end },
-    })
+        end }
+
+    WeintCodex.Navigation.SetInspector(blocks)
 end
 
 -- Fuer die globale Suche (core/search.lua): dieselbe Datenquelle wie Show()
@@ -504,7 +534,15 @@ function WeintCodex.Materials.Show()
 
     local f = CreateMatFrame()
     f:Show()
-    f.CompanionBtn:Show()
+
+    -- Der Button wird in CreateMatFrame einmalig gebaut und hier nur ein-
+    -- bzw. ausgeblendet: ein spaeter eintreffendes Zugriffsprofil koennte
+    -- ihn sonst nicht mehr nachtraeglich hinzufuegen.
+    if not WeintCodex.Access or WeintCodex.Access.Can("materials.scan") then
+        f.CompanionBtn:Show()
+    else
+        f.CompanionBtn:Hide()
+    end
 
     -- Gather categories from current data
     local matData = WeintCodex.SavedData and WeintCodex.SavedData.materialData
@@ -595,6 +633,13 @@ local function UpdateRequiredMaterialsFromCache()
 end
 
 local function ScanCurrentTab()
+    -- Ohne Freigabe wird gar nicht erst erfasst, damit guildBankCache leer
+    -- bleibt. Bewusst ein frueher Ausstieg statt eines Abmeldens der Events:
+    -- der Scanner registriert sich zur Ladezeit, wenn SavedData noch nicht
+    -- existiert, und ein Neu-Registrieren bei Profilaenderung waere mehr
+    -- Bewegung als diese eine Pruefung.
+    if WeintCodex.Access and not WeintCodex.Access.Can("materials.scan") then return end
+
     if not GuildBankFrame or not GuildBankFrame:IsShown() then return end
 
     local now = GetTime()

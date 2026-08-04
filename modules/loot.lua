@@ -63,13 +63,16 @@ end
 --------------------------------------------------
 -- Gueltigkeitspruefung: Loot-Logging nur im Raid-Kontext
 --
--- Alle drei Bedingungen muessen gleichzeitig erfuellt sein:
---   1. Spieler ist in einer Raidgruppe (nicht Solo, nicht 5er-Party)
---   2. Spieler steht in einer Raidinstanz (instanceType == "raid") -
+-- Alle vier Bedingungen muessen gleichzeitig erfuellt sein:
+--   1. Die eigene Discord-Rolle gibt das Melden frei (siehe core/access.lua) -
+--      ein Extern-Raider soll nicht den Loot aus den Raids seiner eigenen
+--      Gilde in unseren Discord melden
+--   2. Spieler ist in einer Raidgruppe (nicht Solo, nicht 5er-Party)
+--   3. Spieler steht in einer Raidinstanz (instanceType == "raid") -
 --      damit fallen Dungeons ("party"), Szenarien ("scenario"),
 --      Schlachtfelder ("pvp"/"arena") und Worldbosse (gar keine
 --      Instanz) automatisch raus
---   3. Die Gruppe nutzt den Meisterlooter - nur dann wird Loot ueberhaupt
+--   4. Die Gruppe nutzt den Meisterlooter - nur dann wird Loot ueberhaupt
 --      manuell vergeben und ist damit protokollierenswert
 --------------------------------------------------
 
@@ -83,6 +86,14 @@ local function GetLootMethodSafe()
 end
 
 function WeintCodex.Loot.IsTrackingActive()
+    -- Bewusst hier und nicht in Report(): diese Funktion wird sowohl im
+    -- direkten CHAT_MSG_LOOT-Pfad geprueft als auch im verzoegerten
+    -- Nachpruefen von ReportIfEpic. Ein mitten in der Sitzung eintreffendes
+    -- Zugriffsprofil kann so von keinem laufenden Retry ueberholt werden.
+    if WeintCodex.Access and not WeintCodex.Access.Can("loot.report") then
+        return false
+    end
+
     if type(IsInRaid) ~= "function" or not IsInRaid() then return false end
 
     if type(IsInInstance) ~= "function" then return false end
