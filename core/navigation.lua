@@ -18,9 +18,7 @@ local tabs = {
     { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien" },
     { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender" },
     { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
-    -- Bis ein eigenes nav_weinttv.tga vorliegt, ein Blizzard-Icon: die
-    -- Rail zeigt jede Texturpfad-Angabe, ein fehlendes TGA bliebe leer.
-    { id = "weinttv",    icon = "Interface\\Icons\\INV_Misc_Spyglass_02", tooltip = "WeintTV" },
+    { id = "weinttv",    icon = ICON_PATH .. "nav_weinttv",    tooltip = "WeintTV" },
     { id = "import",     icon = ICON_PATH .. "nav_import",     tooltip = "Import" },
 }
 
