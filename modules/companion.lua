@@ -15,8 +15,10 @@ local STATE_MESSAGES = {
 }
 
 -- Ausgangsseitige Freigaben: welche Nachrichtenart welche Rolle braucht.
--- "character" (der Bot braucht den echten WoW-Namen fuer Kalender-Invites)
--- und "academy" (eigener Lernfortschritt) sind absichtlich nicht gelistet.
+-- "character" (der Bot braucht den echten WoW-Namen fuer Kalender-Invites),
+-- "academy" (eigener Lernfortschritt) und "dummy_practice_session" (eigene
+-- Uebungsdaten am Trainingsdummy, siehe modules/rotationtrainer.lua) sind
+-- absichtlich nicht gelistet.
 local FEATURE_BY_MESSAGE = {
 
     loot      = "loot.report",
@@ -561,6 +563,42 @@ function WeintCodex.Companion.SendAcademyProgress()
 
     return WeintCodex.Companion.Send("academy", table.concat(parts, ";"))
 
+end
+
+----------------------------------------------------------
+-- Rotationstrainer-Sitzung (Addon -> Companion)
+----------------------------------------------------------
+-- Eine abgeschlossene Übungssitzung am Trainingsdummy (siehe
+-- modules/rotationtrainer.lua). Bewusst EIN Event pro Sitzung statt
+-- eines STATE_MESSAGES-Eintrags: die Companion führt daraus eine
+-- Tage-Serie (core/academy_dummy_sync.py) und muss deshalb jede
+-- einzelne Sitzung sehen, nicht nur die letzte.
+--
+-- Format (Zeichenkette, keine Tabelle - Outbound-Nachrichten sind bei
+-- der Companion nur als String parsbar):
+--
+--   <Charakter>|<specKey>|<Datum YYYYMMDD>|<durationSec>|<hits>|
+--   <compliantHits>|<compliancePercent>
+--
+-- specKey ist der interne Profilschlüssel aus data/spec_profiles.lua
+-- (z.B. "WARRIOR_ARMS") - die Companion übersetzt ihn über eine eigene
+-- Tabelle in ihre Lektions-ID, siehe core/academy_dummy_sync.py.
+----------------------------------------------------------
+
+function WeintCodex.Companion.SendDummyPracticeSession(session)
+    if type(session) ~= "table" or not session.specKey then return end
+
+    local payload = table.concat({
+        UnitName("player") or "?",
+        session.specKey,
+        session.date or date("%Y%m%d"),
+        math.floor(session.duration or 0),
+        session.hits or 0,
+        session.compliant or 0,
+        math.floor(session.compliance or 0),
+    }, "|")
+
+    return WeintCodex.Companion.Send("dummy_practice_session", payload)
 end
 
 ----------------------------------------------------------

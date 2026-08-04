@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.0.0",
+        date    = "04.08.2026",
+        notes   = {
+            "Neu: Rotationstrainer - kleines, frei verschiebbares Fenster mit der Prioritaetenliste eurer Spec, live abgehakt bei jedem Zauber.",
+            "Oeffnet sich automatisch am Trainingsdummy, oder manuell per /wc training (auch an jedem anderen Ziel).",
+            "Verzahnt mit der Academy: an 3 Tagen in Folge mit guter Trefferquote geuebt, hakt WeintCompanion den passenden Trainingsplan-Punkt automatisch ab.",
+            "Deckt alle 23 DPS-Specs ab (Single-Target, vereinfachte Prioritaet - kein volles Rotations-Solver).",
+        },
+    },
+    {
         version = "1.2.0.0",
         date    = "04.08.2026",
         notes   = {

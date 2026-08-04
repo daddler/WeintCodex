@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "1.2.0.0"
+WeintCodex.Version = "1.3.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -49,6 +49,19 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
+    -- Rotationstrainer: Puppen-Prioritätenliste manuell oeffnen/schliessen
+    -- (siehe modules/rotationtrainer.lua) - Fallback fuer Ziele, die nicht
+    -- automatisch als Trainingspuppe erkannt werden.
+    if verb == "training" or verb == "trainer" then
+        if not WeintCodex.RotationTrainer then return end
+        if rest == "stop" then
+            WeintCodex.RotationTrainer.StopManual()
+        else
+            WeintCodex.RotationTrainer.Toggle()
+        end
+        return
+    end
+
     if WeintCodex.MainFrame:IsShown() then
         WeintCodex.MainFrame:Hide()
     else
@@ -90,6 +103,13 @@ local function OnEvent(self, event, addonName)
         -- würden das Item sonst still nirgends anzeigen).
         if WeintCodex_ValidateBiSData then
             WeintCodex_ValidateBiSData()
+        end
+
+        -- Dasselbe fuer die Rotationstrainer-Prioritaetenlisten: warnt,
+        -- falls ein Eintrag eine Spec referenziert, die es nicht (mehr)
+        -- gibt, oder keine always-Filler-Regel besitzt.
+        if WeintCodex_ValidateRotationData then
+            WeintCodex_ValidateRotationData()
         end
 
         -- Erststart-Tour bzw. Update-Changelog-Popup (core/onboarding.lua):

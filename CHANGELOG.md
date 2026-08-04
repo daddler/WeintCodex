@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.0.0] – 2026-08-04
+
+### Neu
+- **Rotationstrainer**: kleines, frei verschiebbares Fenster mit der Prioritätenliste der aktuellen Spec (`modules/rotationtrainer.lua`, Daten in `data/rotations.lua`). Zeigt live, welche Fähigkeit als nächstes fällig ist und markiert jeden Zauber, der dazu passt oder nicht – deckt alle 23 DPS-Specs ab (Single-Target, vereinfachte Priorität statt vollem Rotations-Solver)
+- Öffnet sich automatisch, wenn das Ziel eine bekannte Trainingspuppe ist; `/wc training` startet und beendet es manuell an jedem beliebigen Ziel
+- Verzahnt mit der Academy: eine abgeschlossene Übungssitzung geht als neue Nachricht `dummy_practice_session` an WeintCompanion. Wer an drei Tagen in Folge eine Mindest-Trefferquote erreicht, bekommt den passenden Trainingsplan-Punkt dort automatisch abgehakt
+
+### Intern
+- Neuer Drift-Guard `WeintCodex_ValidateRotationData()` (analog zu den bestehenden Spec-/BiS-Prüfungen) warnt, wenn eine Rotationsliste eine unbekannte Spec referenziert oder keine Filler-Regel besitzt
+
 ## [1.2.0.0] – 2026-08-04
 
 ### Neu
