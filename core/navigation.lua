@@ -10,17 +10,42 @@ local activeTab = nil
 -- Icon-Rail Definition: id, flaches Linien-Icon (eigene Textur statt echtem
 -- Blizzard-Icon, siehe media/icons/ - Vektorpfade kann WoW zur Laufzeit nicht
 -- rendern, deshalb werden die Icons einmalig vorgerendert) und Tooltip-Beschriftung.
+--
+-- feature: benötigte Freigabe aus dem Zugriffsprofil (core/access.lua). Nur
+-- Tabs, deren gesamter Inhalt gildenintern ist, tragen eine - die übrigen
+-- gaten innerhalb der Seite, damit ihr neutraler Teil offen bleibt.
 local ICON_PATH = "Interface\\AddOns\\WeintCodex\\media\\icons\\"
 local tabs = {
     { id = "charakter",  icon = ICON_PATH .. "nav_charakter",  tooltip = "Charakter" },
     { id = "bossguides", icon = ICON_PATH .. "nav_bossguides", tooltip = "Bossguides" },
-    { id = "raids",      icon = ICON_PATH .. "nav_raids",      tooltip = "Raids" },
-    { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien" },
-    { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender" },
+    { id = "raids",      icon = ICON_PATH .. "nav_raids",      tooltip = "Raids",
+      feature = "raids.view" },
+    { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien",
+      feature = "materials.view" },
+    { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender",
+      feature = "calendar.view" },
     { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
     { id = "weinttv",    icon = ICON_PATH .. "nav_weinttv",    tooltip = "WeintTV" },
     { id = "import",     icon = ICON_PATH .. "nav_import",     tooltip = "Import" },
 }
+
+-- tabId -> Feature, einzige Quelle bleibt die tabs-Tabelle oben.
+local tabFeature = {}
+
+function WeintCodex.Navigation.GetTabFeatures()
+    return tabFeature
+end
+
+-- Kurzform mit Fallback: ohne geladenes Access-Modul ist alles erlaubt.
+local function Can(featureKey)
+    if not (WeintCodex.Access and WeintCodex.Access.Can) then return true end
+    return WeintCodex.Access.Can(featureKey)
+end
+
+local function Locked(tabId)
+    local feature = tabFeature[tabId]
+    return feature ~= nil and not Can(feature)
+end
 
 local RAIL_ICON_GLYPH = 20
 
@@ -30,16 +55,32 @@ local RAIL_ICON_SIZE  = 44
 local RAIL_ICON_GAP   = 6
 local RAIL_ICON_START = -64 -- unterhalb des Marken-Badges (siehe core/ui.lua)
 
+-- Icon-Farbe an EINER Stelle: aktiv > gesperrt > Hover > Ruhe. Ohne diesen
+-- gemeinsamen Weg würde jedes der drei Skripte (SetTabActive, OnEnter,
+-- OnLeave) die Sperr-Abdunklung beim nächsten Ereignis überschreiben.
+local function TintIcon(btn, isActive, isHover)
+    local col
+    if btn._locked then
+        col = isActive and C.textDim or C.textGhost
+    elseif isActive then
+        col = C.textBright
+    elseif isHover then
+        col = C.textMuted
+    else
+        col = C.textDim
+    end
+    btn._icon:SetVertexColor(col[1], col[2], col[3])
+end
+
 local function SetTabActive(btn, isActive)
     if isActive then
         btn._bg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
         btn._bar:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
-        btn._icon:SetVertexColor(C.textBright[1], C.textBright[2], C.textBright[3])
     else
         btn._bg:SetColorTexture(0, 0, 0, 0)
         btn._bar:SetColorTexture(0, 0, 0, 0)
-        btn._icon:SetVertexColor(C.textDim[1], C.textDim[2], C.textDim[3])
     end
+    TintIcon(btn, isActive, false)
 end
 
 for i, tabDef in ipairs(tabs) do
@@ -78,16 +119,20 @@ for i, tabDef in ipairs(tabs) do
     btn:SetScript("OnEnter", function(self)
         if activeTab ~= tabDef.id then
             self._bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 0.80)
-            self._icon:SetVertexColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
+            TintIcon(self, false, true)
         end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(tabDef.tooltip)
+        if self._locked and WeintCodex.Access then
+            GameTooltip:AddLine(WeintCodex.Access.Reason(tabDef.feature),
+                C.textFaint[1], C.textFaint[2], C.textFaint[3], true)
+        end
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function(self)
         if activeTab ~= tabDef.id then
             self._bg:SetColorTexture(0, 0, 0, 0)
-            self._icon:SetVertexColor(C.textDim[1], C.textDim[2], C.textDim[3])
+            TintIcon(self, false, false)
         end
         GameTooltip:Hide()
     end)
@@ -101,6 +146,10 @@ for i, tabDef in ipairs(tabs) do
 
     tabButtons[tabDef.id] = btn
     table.insert(tabButtons, btn)
+
+    if tabDef.feature then
+        tabFeature[tabDef.id] = tabDef.feature
+    end
 end
 
 -- Zeigt/versteckt den Benachrichtigungspunkt eines Tabs anhand echten Zustands
@@ -109,6 +158,34 @@ function WeintCodex.Navigation.SetTabBadge(tabId, on)
     local btn = tabButtons[tabId]
     if not btn or not btn._dot then return end
     if on then btn._dot:Show() else btn._dot:Hide() end
+end
+
+-- Sperrt einen Tab optisch, ohne ihn aus der Leiste zu nehmen. Verstecken
+-- wäre teurer und schlechter: die Buttons entstehen zur Ladezeit mit
+-- festen Positionen (siehe Schleife oben), ein Filtern müsste sie zur
+-- Laufzeit neu verankern und Map wie Array von tabButtons synchron halten.
+-- Der gesperrte Tab bleibt außerdem absichtlich klickbar - der Spieler soll
+-- draufklicken und lesen können, warum (siehe ShowAccessLock).
+function WeintCodex.Navigation.SetTabLocked(tabId, on)
+    local btn = tabButtons[tabId]
+    if not btn then return end
+
+    btn._locked = on and true or nil
+
+    if not btn._lock then
+        -- Kleines Plättchen unten links, spiegelbildlich zum
+        -- Benachrichtigungspunkt oben rechts (siehe SetTabBadge).
+        local lock = btn:CreateTexture(nil, "OVERLAY")
+        lock:SetSize(5, 5)
+        lock:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 3, 3)
+        lock:SetColorTexture(C.textFaint[1], C.textFaint[2], C.textFaint[3], 1.0)
+        lock:Hide()
+        btn._lock = lock
+    end
+
+    if on then btn._lock:Show() else btn._lock:Hide() end
+
+    TintIcon(btn, activeTab == tabId, false)
 end
 
 --------------------------------------------------
@@ -835,6 +912,19 @@ function WeintCodex.Navigation.SwitchTo(tabId)
     WeintCodex.Navigation.ClearTitleActions()
     ClearContentPanel()
 
+    -- Einziger Kontrollpunkt für gesperrte Bereiche. Deckt Rail-Klicks,
+    -- GoToTab (Dashboard-Kacheln und Statistik-Karten) sowie core/search.lua
+    -- mit ab, weil alle drei hier hereinlaufen.
+    -- Bewusst NICHT abgedeckt: /wc import (core/main.lua) und der
+    -- Import-Button im Dashboard rufen Sync.ShowImportDialog() direkt auf.
+    -- Das ist unschädlich - der Import-Tab ist nie gesperrt, der Gate für
+    -- die Daten selbst sitzt in ProcessImport (modules/sync.lua).
+    local needed = tabFeature[tabId]
+    if needed and not Can(needed) then
+        WeintCodex.Navigation.ShowAccessLock(tabId, needed)
+        return
+    end
+
     if tabId == "charakter" then
         if WeintCodex.Charakter and WeintCodex.Charakter.Show then
             WeintCodex.Charakter.Show()
@@ -904,6 +994,96 @@ function WeintCodex.Navigation.ShowPlaceholder(title, msg)
 end
 
 --------------------------------------------------
+-- Sperrseite (Zugriffsprofil)
+--------------------------------------------------
+-- Eigener Frame statt ShowPlaceholder: hier stehen drei Textblöcke und eine
+-- Hinweiskarte, nicht nur Titel und Untertitel. Aufbau bewusst wie
+-- modules/academy.lua:DrawNotice, damit gesperrte und "noch keine Daten"-
+-- Zustände gleich aussehen.
+--------------------------------------------------
+
+local AREA_LABEL = {
+    raids     = "Raids",
+    materials = "Materialien",
+    calendar  = "Kalender",
+}
+
+local lockFrame = nil
+
+function WeintCodex.Navigation.ShowAccessLock(tabId, featureKey)
+    ClearContentPanel()
+
+    local Access = WeintCodex.Access
+
+    if not lockFrame then
+        local lf = CreateFrame("Frame", nil, WeintCodex.ContentPanel)
+        lf:SetAllPoints(WeintCodex.ContentPanel)
+
+        local card = WeintCodex.CreateCard(lf, { height = 132,
+            surface = "surface1", style = "border", borderColor = "hairline" })
+        card:SetPoint("TOPLEFT",  lf, "TOPLEFT",   24, -32)
+        card:SetPoint("TOPRIGHT", lf, "TOPRIGHT", -24, -32)
+
+        local title = card:CreateFontString(nil, "OVERLAY")
+        title:SetFont("Fonts\\MORPHEUS.TTF", 17, "")
+        title:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -14)
+        title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        lf._title = title
+
+        local reason = card:CreateFontString(nil, "OVERLAY")
+        reason:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        reason:SetPoint("TOPLEFT",  title, "BOTTOMLEFT", 0, -10)
+        reason:SetPoint("RIGHT",    card,  "RIGHT",     -16, 0)
+        reason:SetJustifyH("LEFT")
+        reason:SetSpacing(3)
+        reason:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
+        lf._reason = reason
+
+        local hint = card:CreateFontString(nil, "OVERLAY")
+        hint:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        hint:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 16, 12)
+        hint:SetPoint("RIGHT",      card, "RIGHT",     -16, 0)
+        hint:SetJustifyH("LEFT")
+        lf._hint = hint
+
+        lockFrame = lf
+    end
+
+    local profile = Access and Access.Profile()
+
+    lockFrame._title:SetText((Access and Access.LOCK_TITLE) or "Bereich gesperrt")
+    lockFrame._reason:SetText(Access and Access.Reason(featureKey) or "")
+
+    local notice = profile and profile.notice
+    if notice and notice ~= "" then
+        lockFrame._hint:SetText(WeintCodex.ColorText("textDim", notice))
+    else
+        lockFrame._hint:SetText(WeintCodex.ColorText("textFaint",
+            "Dein Zugriffsprofil zeigt dir /wc access."))
+    end
+
+    WeintCodex.SetBreadcrumb(AREA_LABEL[tabId] or tabId, "Gesperrt")
+
+    local blocks = {
+        { type = "header", text = "Zugriff" },
+        { type = "rows", rows = {
+            { label = "Rang",      value = Access and Access.TierLabel() or "—",
+              valueColor = Access and Access.TierColor() or "textFaint" },
+            { label = "Community", value = Access and Access.CommunityName() or "—" },
+            { label = "Bereich",   value = AREA_LABEL[tabId] or tabId,
+              valueColor = "textFaint" },
+        }},
+        { type = "divider" },
+        { type = "header", text = "Warum sehe ich das nicht?" },
+        { type = "card", lines = (Access and Access.LOCK_CARD) or {} },
+    }
+
+    WeintCodex.Navigation.SetInspector(blocks)
+
+    lockFrame:Show()
+end
+
+--------------------------------------------------
 -- Home Dashboard
 --------------------------------------------------
 
@@ -923,8 +1103,16 @@ local function DateKey(y, m, d)
     return y * 10000 + m * 100 + d
 end
 
+-- Text für gesperrte Kennzahlen. Bewusst kein "0" oder "Keine": das wäre
+-- eine Aussage über die Daten, obwohl der Spieler sie nicht sehen darf.
+local LOCKED_VALUE = "Gesperrt"
+
 -- Naechster bevorstehender Raidtermin (Mittwoch/Donnerstag), oder Fallback-Text
 local function GetNextRaidLabel()
+    if not Can("raids.view") then
+        return WeintCodex.ColorText("textFaint", LOCKED_VALUE)
+    end
+
     local sd = WeintCodex.SavedData
     local today = date("*t")
     local todayKey = DateKey(today.year, today.month, today.day)
@@ -951,7 +1139,11 @@ local function GetNextRaidLabel()
     return n.dayName .. " · " .. n.data.date
 end
 
+-- Gibt nil zurueck, wenn die Anmeldungen gesperrt sind. Eine 0 waere eine
+-- Luege ("niemand angemeldet"), obwohl nur die Sicht fehlt.
 local function GetSignupCount()
+    if not Can("raids.view") then return nil end
+
     local sd = WeintCodex.SavedData
     local total = 0
     if sd and sd.raidWednesday and sd.raidWednesday.players then
@@ -964,8 +1156,11 @@ local function GetSignupCount()
 end
 
 -- Anzahl Materialien unter 30% des Sollbestands (gleicher Schwellwert wie
--- modules/materials.lua); zweiter Rueckgabewert = false wenn noch nie importiert.
+-- modules/materials.lua); zweiter Rueckgabewert = false wenn noch nie
+-- importiert, dritter = true wenn der Bereich gesperrt ist.
 local function GetMaterialShortageCount()
+    if not Can("materials.view") then return 0, false, true end
+
     local sd      = WeintCodex.SavedData
     local matData = sd and sd.materialData
     if not matData or not matData.items or #matData.items == 0 then
@@ -1126,6 +1321,10 @@ function WeintCodex.ShowHome()
 
         local TILE_W, TILE_H, TILE_GAP, COLUMNS = 260, 84, 16, 3
 
+        -- Kacheln merken: das Raster wird nur einmal gebaut, ShowHome laeuft
+        -- aber bei jedem Besuch - der Sperrzustand muss nachziehbar bleiben.
+        local tileCards = {}
+
         for i, tile in ipairs(dashboardTiles) do
             local col = (i - 1) % COLUMNS
             local row = math.floor((i - 1) / COLUMNS)
@@ -1150,11 +1349,18 @@ function WeintCodex.ShowHome()
             desc:SetPoint("RIGHT", card, "RIGHT", -12, 0)
             desc:SetJustifyH("LEFT")
             desc:SetText(WeintCodex.ColorText("textDim", tile.desc))
+            card._descStr = desc
 
             card:SetScript("OnClick", function() GoToTab(tile.id) end)
-            card:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+            card:SetScript("OnEnter", function(self)
+                if not Locked(tile.id) then self:SetSurface("surface3") end
+            end)
             card:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
+
+            tileCards[tile.id] = card
         end
+
+        hf._tiles = tileCards
 
         ------------------------------------------------
         -- D. Footer-Hinweis
@@ -1162,7 +1368,7 @@ function WeintCodex.ShowHome()
         local hint = hf:CreateFontString(nil, "OVERLAY")
         hint:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
         hint:SetPoint("BOTTOM", hf, "BOTTOM", 0, 10)
-        hint:SetText(WeintCodex.ColorText("textDim", "/wc  •  /wc import"))
+        hf._hint = hint
 
         hf._statCards = statCards
 
@@ -1171,19 +1377,28 @@ function WeintCodex.ShowHome()
 
     -- Dynamische Werte bei JEDEM Aufruf neu berechnen, nicht nur beim
     -- ersten Bau der Struktur - siehe Kommentar oben an homeFrame.
-    local matShortage, hasMatScan = GetMaterialShortageCount()
+    local matShortage, hasMatScan, matLocked = GetMaterialShortageCount()
     local queueCount = GetQueueCount()
+    local signups    = GetSignupCount()
 
     homeFrame._statCards.raid._valueStr:SetText(GetNextRaidLabel())
-    homeFrame._statCards.signups._valueStr:SetText(tostring(GetSignupCount()))
 
-    if not hasMatScan then
-        homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText("textDim", "Kein Scan"))
+    homeFrame._statCards.signups._valueStr:SetText(
+        signups and tostring(signups)
+            or WeintCodex.ColorText("textFaint", LOCKED_VALUE)
+    )
+
+    local matValue, matColor
+    if matLocked then
+        matValue, matColor = LOCKED_VALUE, "textFaint"
+    elseif not hasMatScan then
+        matValue, matColor = "Kein Scan", "textDim"
     elseif matShortage > 0 then
-        homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText("danger", matShortage .. " Engpässe"))
+        matValue, matColor = matShortage .. " Engpässe", "danger"
     else
-        homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText("success", "Alles im Soll"))
+        matValue, matColor = "Alles im Soll", "success"
     end
+    homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText(matColor, matValue))
 
     homeFrame._statCards.queue._valueStr:SetText(
         queueCount > 0
@@ -1191,22 +1406,61 @@ function WeintCodex.ShowHome()
             or  WeintCodex.ColorText("textDim", "Keine")
     )
 
-    WeintCodex.Navigation.SetTabBadge("materials", hasMatScan and matShortage > 0)
+    -- Kein Engpass-Punkt auf einem gesperrten Tab: er verriete, dass es
+    -- ueberhaupt eine Zahl gibt.
+    WeintCodex.Navigation.SetTabBadge("materials",
+        (not matLocked) and hasMatScan and matShortage > 0)
     WeintCodex.Navigation.SetTabBadge("import", queueCount > 0)
+
+    -- Gesperrte Kacheln kennzeichnen (das Raster selbst wird nur einmal gebaut)
+    local Access = WeintCodex.Access
+    for _, tile in ipairs(dashboardTiles) do
+        local card = homeFrame._tiles and homeFrame._tiles[tile.id]
+        if card and card._descStr then
+            if Locked(tile.id) then
+                card._descStr:SetText(WeintCodex.ColorText("textFaint",
+                    "Gesperrt · " .. (Access and Access.TierLabel() or "—")))
+            else
+                card._descStr:SetText(WeintCodex.ColorText("textDim", tile.desc))
+            end
+        end
+    end
+
+    local hasProfile = Access and Access.HasProfile()
+    homeFrame._hint:SetText(WeintCodex.ColorText("textDim",
+        hasProfile and "/wc  •  /wc import  •  /wc access" or "/wc  •  /wc import"))
 
     WeintCodex.SetBreadcrumb("Dashboard")
 
+    local pulseRows = {}
+
+    -- Eigener Rang zuerst: erklaert auf einen Blick, warum darunter
+    -- vielleicht "Gesperrt" steht (und ist auf Screenshots sichtbar).
+    if hasProfile then
+        pulseRows[#pulseRows + 1] = { label = "Zugriff",
+            value = Access.TierLabel(), valueColor = Access.TierColor() }
+
+        local state = Access.IsStale()
+        if state == "grace" or state == "expired" then
+            pulseRows[#pulseRows + 1] = { label = "Profil",
+                value = state == "grace" and "läuft ab" or "abgelaufen",
+                valueColor = "warning" }
+        end
+    end
+
+    pulseRows[#pulseRows + 1] = { label = "Nächster Raid", value = GetNextRaidLabel() }
+    pulseRows[#pulseRows + 1] = { label = "Anmeldungen",
+        value = signups and tostring(signups) or LOCKED_VALUE,
+        valueColor = (not signups) and "textFaint" or nil }
+    pulseRows[#pulseRows + 1] = { label = "Materialien",
+        value = matValue, valueColor = matColor }
+    pulseRows[#pulseRows + 1] = { label = "Sync-Warteschlange",
+        value = queueCount > 0 and (queueCount .. " ausstehend") or "Keine",
+        valueColor = queueCount > 0 and "warning" or "textDim" }
+
     WeintCodex.Navigation.SetInspector({
         { type = "header", text = "Gilden-Puls" },
-        { type = "rows", rows = {
-            { label = "Nächster Raid",     value = GetNextRaidLabel() },
-            { label = "Anmeldungen",       value = tostring(GetSignupCount()) },
-            { label = "Materialien",       value = (not hasMatScan) and "Kein Scan"
-                or (matShortage > 0 and (matShortage .. " Engpässe") or "Alles im Soll"),
-                valueColor = (not hasMatScan) and "textDim" or (matShortage > 0 and "danger" or "success") },
-            { label = "Sync-Warteschlange", value = queueCount > 0 and (queueCount .. " ausstehend") or "Keine",
-                valueColor = queueCount > 0 and "warning" or "textDim" },
-        }},
+        { type = "rows", rows = pulseRows },
         { type = "divider" },
         { type = "button", style = "primary", label = "Kalender öffnen", onClick = function() GoToTab("calendar") end },
         { type = "button", label = "Daten importieren", onClick = function() GoToTab("import") end },
