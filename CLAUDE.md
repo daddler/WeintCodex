@@ -57,7 +57,9 @@ The inbox is read **only at login/reload** — WoW never re-reads `SavedVariable
 
 ### Zugriffsprofile & Freigaben (`core/access.lua`)
 
-**This is data hygiene and UX, not a security boundary.** `WeintCodex_SavedData` is an editable Lua file on the player's disk — anyone can set `features["materials.view"] = true` by hand. Its job is: a non-guild raider's Companion never mixes two guilds' data, nobody sees a UI full of numbers that don't concern them, and nothing guild-internal leaves a client that isn't entitled to send it. **Confidentiality has to be enforced by the Discord bot**, which must not deliver a payload a role isn't entitled to. Say so in any doc or comment you write about this system — that framing is the whole point.
+**This is data hygiene and UX, not a security boundary.** `WeintCodex_SavedData` is an editable Lua file on the player's disk — anyone can set `features["materials.view"] = true` by hand. Its job is: a non-guild raider's Companion never mixes two guilds' data, nobody sees a UI full of numbers that don't concern them, and nothing guild-internal leaves a client that isn't entitled to send it.
+
+Only the Discord bot *could* enforce more, by refusing to emit a payload a role isn't entitled to — and it currently does not. So the system delivers exactly the three things above and nothing further; **it does not provide confidentiality.** Say so in any doc or comment you write about this system — that framing is the whole point. The role→feature mapping lives in WeintCompanion, which puts it on the player's disk too, under the same caveat for the same reason.
 
 `core/access.lua` loads between `core/ui.lua` (it needs `Colors`/`CreateCard`/`IconRail`) and `core/navigation.lua`. It must **never** capture `WeintCodex.Navigation` in a file-local, since that file loads later — access it inside function bodies only.
 

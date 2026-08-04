@@ -8,8 +8,16 @@
 --   a) die Companion eines Extern-Raiders vermischt nie zwei Gilden,
 --   b) niemand sieht eine UI voller Zahlen, die ihn nichts angehen,
 --   c) von einem nicht berechtigten Client geht nichts Gildeninternes hinaus.
--- Die echte Durchsetzung ist der Discord-Bot, der eine Nutzlast fuer eine
--- Rolle ohne Berechtigung gar nicht erst ausliefert.
+--
+-- Erzwingen koennte das nur der Discord-Bot, indem er eine Nutzlast fuer eine
+-- Rolle ohne Berechtigung gar nicht erst ausliefert. Solange er das nicht tut,
+-- ist die Wirkung genau die oben genannte und keine weitere: die
+-- Community-Bindung verhindert das Vermischen zweier Gilden, die Freigaben
+-- halten die Oberflaeche ehrlich. Vertraulichkeit leistet das nicht.
+--
+-- Die Zuordnung Discord-Rolle -> Freigaben liegt in WeintCompanion. Sie ist
+-- damit ebenfalls eine Datei auf dem Rechner des Spielers - dieselbe
+-- Einschraenkung wie oben, aus demselben Grund.
 --------------------------------------------------
 -- Vertrag Companion -> Addon: Inbox-Nachrichtentyp "access_profile"
 -- (siehe modules/companion.lua, dort stehen die uebrigen Nutzlasten).
