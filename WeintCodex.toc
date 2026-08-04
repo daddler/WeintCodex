@@ -12,6 +12,7 @@ libs/LibDBIcon-1.0/lib.xml
 
 core/main.lua
 core/ui.lua
+core/access.lua
 core/navigation.lua
 core/minimap.lua
 core/onboarding.lua

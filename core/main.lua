@@ -7,6 +7,25 @@ SLASH_WEINTCODEX2 = "/weintcodex"
 SlashCmdList["WEINTCODEX"] = function(msg)
     local cmd = msg and msg:lower() or ""
 
+    -- Erstes Wort plus Rest: die Befehle unten vergleichen weiterhin exakt,
+    -- nur "access" braucht ein Argument (siehe core/access.lua).
+    local verb, rest = cmd:match("^(%S+)%s*(.-)$")
+    verb = verb or ""
+    rest = rest or ""
+
+    -- Zugriffsprofil anzeigen / Verknuepfung aufheben
+    if verb == "access" or verb == "zugriff" then
+        if not WeintCodex.Access then return end
+        if rest == "reset" then
+            WeintCodex.Access.Reset(false)
+        elseif rest == "reset bestaetigen" or rest == "reset bestätigen" then
+            WeintCodex.Access.Reset(true)
+        else
+            WeintCodex.Access.Print()
+        end
+        return
+    end
+
     if cmd == "import" then
         if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
             WeintCodex.Sync.ShowImportDialog()
@@ -130,10 +149,23 @@ local function OnEvent(self, event, addonName)
 
     WeintCodex.SavedData = WeintCodex_SavedData
 
+    -- Zugriffsprofil bereitstellen, BEVOR die Inbox verarbeitet wird: die
+    -- Herkunftsprüfung der Nachrichten hängt daran (siehe core/access.lua).
+    if WeintCodex.Access and WeintCodex.Access.Init then
+        WeintCodex.Access.Init()
+    end
+
     -- Companion-Inbox verarbeiten (z. B. automatisch abgerufener
     -- Raid-Roster-Export von einem per Discord-Login verknüpften Raidlead)
     if WeintCodex.Companion and WeintCodex.Companion.ProcessInbox then
         WeintCodex.Companion.ProcessInbox()
+    end
+
+    -- Sperren aus dem Zugriffsprofil anwenden. Muss nach ProcessInbox laufen
+    -- (das Profil kann in genau diesem Login angekommen sein) und vor
+    -- ResetToHome, damit das Dashboard nicht einmal mit Zahlen aufblitzt.
+    if WeintCodex.Access and WeintCodex.Access.Apply then
+        WeintCodex.Access.Apply()
     end
 
     -- Restore saved window size
