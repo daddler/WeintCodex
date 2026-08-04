@@ -2,6 +2,11 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.0.1] – 2026-08-04
+
+### Behoben
+- **Rotationstrainer**: erkannte im Schrein der Zwei Monde/Sieben Sterne (MoP-Hauptstädte) keine Trainingspuppen, weil `DUMMY_NPC_IDS` nur die alte Vanilla-Puppe (`2673`) aus den klassischen Hauptstädten kannte. Die MoP-Puppen (`67127` sowie die große Übungsziel-Variante `31146`) sind jetzt ergänzt, das Fenster öffnet sich dort wieder automatisch
+
 ## [1.3.0.0] – 2026-08-04
 
 ### Neu

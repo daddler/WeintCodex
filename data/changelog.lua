@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.0.1",
+        date    = "04.08.2026",
+        notes   = {
+            "Fix: Rotationstrainer erkennt jetzt auch die Trainingspuppen im Schrein der Zwei Monde/Sieben Sterne (NPC-IDs 67127 und 31146), nicht nur die alte Vanilla-Puppe aus den Hauptstaedten.",
+        },
+    },
+    {
         version = "1.3.0.0",
         date    = "04.08.2026",
         notes   = {
