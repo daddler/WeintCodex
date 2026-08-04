@@ -23,12 +23,34 @@
 --
 -- WEAKAURAS (eine Kategorie):
 --   WCIMPORT:WA:Klassenauren:AuraName|MAGE|Autor|1.0|Beschreibung,...
+--
+-- OPTIONALER COMMUNITY-TAG (rückwärtskompatibel):
+--   WCIMPORT:<TYP>@<COMMUNITY-ID>:<Nutzlast>
+--   z. B. WCIMPORT:RAIDWED@123456789012345678:2026-06-14:2000:...
+--
+-- Gehört die ID nicht zur verknüpften Community, wird der Import
+-- abgewiesen statt eingearbeitet (siehe core/access.lua). Strings ohne
+-- Tag gelten als Alt-Format und werden angenommen. Die Nutzlast selbst
+-- ist davon unberührt – geteilt wird nur das Typfeld.
 --------------------------------------------------
 
 WeintCodex.Sync = {}
 
 local C          = WeintCodex.Colors
 local importDialog = nil
+
+-- Welche Rolle ein Import-Typ braucht: dieselbe Freigabe, die auch die
+-- Anzeige des Bereichs steuert. Wer die Raids sehen darf, darf sie auch
+-- importieren. WA fehlt absichtlich - WeakAuras sind nicht gildenintern.
+local IMPORT_FEATURE = {
+
+    BOSS    = "bossguides.tips",
+    RAIDWED = "raids.view",
+    RAIDTHU = "raids.view",
+    RAID    = "raids.view",
+    MAT     = "materials.view",
+
+}
 
 --------------------------------------------------
 -- Helpers
@@ -237,7 +259,34 @@ local function ProcessImport(rawStr)
     if not typeTag then
         return false, "Konnte Typ nicht erkennen."
     end
+
+    -- Optionaler Community-Tag. Das Typfeld ist das erste Feld und enthält
+    -- nie ein "@", deshalb genügt ein Split - die Nutzlast bleibt unberührt
+    -- (BOSS trennt intern mit "::", MAT/RAID mit ":", beides unverändert).
+    -- Muss VOR dem :upper() passieren, sonst würde eine alphanumerische
+    -- Community-ID großgeschrieben und passte nicht mehr zur Bindung.
+    local baseTag, community = typeTag:match("^([^@]+)@(.+)$")
+    if baseTag then typeTag = baseTag end
+
     typeTag = typeTag:upper()
+
+    if community and WeintCodex.Access and WeintCodex.Access.IsForeign(community) then
+        return false, string.format(WeintCodex.Access.MSG_FOREIGN_IMPORT,
+            WeintCodex.Access.CommunityName())
+    end
+
+    -- Gildeninterne Typen brauchen die passende Rolle; ein abgelaufenes
+    -- Profil darf Bestehendes weiter lesen, aber nichts Neues aufnehmen.
+    local needed = IMPORT_FEATURE[typeTag]
+    if needed and WeintCodex.Access then
+        if not WeintCodex.Access.Can(needed) then
+            return false, string.format(WeintCodex.Access.MSG_IMPORT_DENIED,
+                WeintCodex.Access.TierLabel())
+        end
+        if not WeintCodex.Access.IngestAllowed() then
+            return false, WeintCodex.Access.MSG_IMPORT_EXPIRED
+        end
+    end
 
     -- BOSS GUIDES
     if typeTag == "BOSS" then
@@ -354,6 +403,9 @@ function WeintCodex.Sync.ShowImportDialog()
         { type = "card", lines = {
             "Der Bot-Exportbefehl erzeugt den passenden",
             "WCIMPORT:...-String automatisch.",
+            "",
+            "Welche Typen du importieren darfst,",
+            "hängt an deiner Discord-Rolle.",
         }},
     })
 
@@ -403,7 +455,9 @@ function WeintCodex.Sync.ShowImportDialog()
     fmtText:SetText(
         "BOSS: WCIMPORT:BOSS:BossName:tank:Tip1,Tip2:healer:Tip1:dps:Tip1::NächsterBoss:...\n" ..
         "RAID: WCIMPORT:RAIDWED:DATUM:HHMM:TITEL:Name|TANK|WARRIOR|REALM|,Name2|HEALER|PALADIN|REALM|,..." ..
-        "    WA: WCIMPORT:WA:Kategorie:AuraName|KLASSE|Autor|v|Beschreibung,..."
+        "    WA: WCIMPORT:WA:Kategorie:AuraName|KLASSE|Autor|v|Beschreibung,...\n" ..
+        "Optional hinter dem Typ: @COMMUNITY-ID (z. B. WCIMPORT:RAIDWED@123...:...) – " ..
+        "Strings einer anderen Community werden abgewiesen."
     )
 
     -- EditBox label
