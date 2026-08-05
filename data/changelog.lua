@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.2.0",
+        date    = "05.08.2026",
+        notes   = {
+            "Eine Uebungssitzung am Trainingsdummy zaehlt erst ab drei Minuten - alles darunter geht nicht mehr an die Companion.",
+            "Eine kurze Kampfpause beendet die Sitzung nicht mehr: kommt der Kampf binnen 20 Sekunden zurueck, laeuft dieselbe Sitzung weiter.",
+            "Die Fusszeile zeigt jetzt den Weg zur Mindestdauer ('01:12 / 03:00') und waehrend einer Pause den Countdown bis zum Abschluss.",
+            "Bewertung und Einstellungen sind jetzt eine beschriftete Reiterleiste statt zweier einzelner Zeichen in der Kopfzeile.",
+        },
+    },
+    {
         version = "1.3.1.0",
         date    = "04.08.2026",
         notes   = {

@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.2.0] – 2026-08-05
+
+### Geändert
+- **Eine Übungssitzung zählt erst ab drei Minuten.** Bisher genügten 30 Sekunden, um eine Sitzung an WeintCompanion zu melden und damit die Tage-Serie im Trainingsplan zu füttern – dafür ist eine halbe Minute an der Puppe kein Training. Alles darunter bleibt sichtbar bewertet, wird aber nicht mehr weitergegeben
+- **Eine kurze Kampfpause beendet die Sitzung nicht mehr.** An der Puppe fällt man schon durch einen Zielwechsel oder eine Ressourcenpause für ein paar Sekunden aus dem Kampf; bisher wurde in dem Moment abgerechnet, drei Minuten am Stück wären damit kaum je zusammengekommen. Kommt der Kampf binnen 20 Sekunden zurück, läuft dieselbe Sitzung weiter – die Pause selbst zählt weder für die Dauer noch für die Auslastung
+- Das Fenster sagt jetzt, wo die Sitzung steht: die Fußzeile zeigt „01:12 / 03:00" bis zur Mindestdauer und danach die Laufzeit, während einer Pause den Countdown bis zum Abschluss. Auf der Bewertungsseite steht, was noch fehlt bzw. ob die Sitzung gemeldet wurde
+- **Bewertung und Einstellungen sind jetzt eine beschriftete Reiterleiste** unter der Kopfzeile („LISTE · BEWERTUNG · EINSTELLUNGEN") statt zweier einzelner Zeichen („%" und „=") neben dem Schließen-Kreuz. Sie waren dort nur im Tooltip beschriftet, und welche Seite gerade offen war, stand nirgends. Gleiches Muster wie der Rollen-Umschalter in den Bossguides
+
 ## [1.3.1.0] – 2026-08-04
 
 ### Neu

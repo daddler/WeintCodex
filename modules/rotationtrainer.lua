@@ -17,7 +17,11 @@
 -- Am Ende einer Sitzung geht das Ergebnis per
 -- WeintCodex.Companion.SendDummyPracticeSession() an die Companion;
 -- die Tage-Serie und das Abhaken im Trainingsplan passieren dort
--- (siehe core/academy_dummy_sync.py).
+-- (siehe core/academy_dummy_sync.py). Gemeldet wird erst ab drei
+-- Minuten Kampfzeit (MIN_SESSION_SECONDS) - alles darunter ist kein
+-- Training. Kurze Kampfpausen beenden die Sitzung dabei nicht, sonst
+-- käme man an der Puppe kaum je auf drei Minuten am Stück
+-- (RESUME_WINDOW).
 --
 -- Der Modulname bleibt WeintCodex.RotationTrainer, obwohl das Fenster
 -- "Rotationshelfer" heißt: core/main.lua, modules/companion.lua und
@@ -45,17 +49,34 @@ local DUMMY_NPC_IDS = {
     [31146] = true, -- "Trainingspuppe" (große Übungsziel-Variante, MoP)
 }
 
-local MIN_SESSION_SECONDS = 30
+-- Was als Training zählt. Drei Minuten am Stück ist die Untergrenze,
+-- unterhalb derer nichts an die Companion geht: eine halbe Minute an
+-- der Puppe sagt nichts über eine Rotation aus und würde die Tage-Serie
+-- drüben (core/academy_dummy_sync.py) mit Rauschen füllen. Die
+-- Trefferzahl bleibt als reine Plausibilitätsschwelle daneben stehen.
+local MIN_SESSION_SECONDS = 180
 local MIN_SESSION_HITS    = 5
+
+-- Eine Kampfpause beendet die Sitzung nicht sofort. An der Puppe fällt
+-- man schon durch einen Zielwechsel oder eine Ressourcenpause für ein
+-- paar Sekunden aus dem Kampf; würde jedes Mal abgerechnet, wären drei
+-- Minuten am Stück praktisch nie zu erreichen. Erst wenn nach dieser
+-- Zeit kein Kampf zurückkommt, wird die Sitzung geschlossen - die Pause
+-- selbst zählt nicht mit, gemessen wird weiterhin nur Kampfzeit.
+local RESUME_WINDOW = 20
 
 local FRAME_W    = 300
 local HEADER_H   = 44
+local TAB_H      = 22
 local HERO_H     = 54
 local ROW_H      = 30
 local ROW_STEP   = 33
 local EXTRA_H    = 36
 local FOOTER_H   = 26
 local PAD        = 8
+
+-- Oberkante des wechselnden Inhalts: unter Kopfzeile und Reiterleiste.
+local CONTENT_TOP = HEADER_H + TAB_H + 6
 
 local TICK_COMBAT = 0.1
 local TICK_IDLE   = 0.25
@@ -129,7 +150,7 @@ end
 -- Zustand
 --------------------------------------------------
 
-local frame, header, hero, queue, extrasBar, footer, statsPanel, optionsPanel
+local frame, header, tabBar, hero, queue, extrasBar, footer, statsPanel, optionsPanel
 local titleText, subtitleText, scoreBar, scoreFill, scoreText, metaText
 local rows = {}
 local extraIcons = {}
@@ -142,7 +163,15 @@ local plan
 local ranksNow, ranksPrev = {}, {}
 local lastCast = {}
 local sessionActive = false
+local inCombat = false
+-- Zeitpunkt, an dem eine laufende Sitzung geschlossen wird, wenn bis
+-- dahin kein Kampf zurückgekommen ist (siehe RESUME_WINDOW).
+local resumeDeadline
 local lastResult
+-- Ob die zuletzt beendete Sitzung lang genug war, um gemeldet zu
+-- werden. Nur so kann die Oberfläche den Unterschied zwischen "kurz
+-- geübt" und "gewertet" überhaupt zeigen.
+local lastReported = false
 
 --------------------------------------------------
 -- Kleine Zeichenhelfer
@@ -156,6 +185,21 @@ local function SetText(fontString, text, colorName)
     fontString:SetText(text or "")
     local col = Col(colorName or "textNormal")
     fontString:SetTextColor(col[1], col[2], col[3])
+end
+
+local function Clock(seconds)
+    if WeintCodex.FormatClock then return WeintCodex.FormatClock(seconds or 0) end
+    return string.format("%.0fs", seconds or 0)
+end
+
+-- Wie viel Kampfzeit einer Sitzung noch bis zur Wertung fehlt, oder
+-- nil, wenn die Mindestdauer erreicht ist. Einzige Stelle, an der die
+-- Oberfläche diese Frage stellt.
+local function SessionRemaining(score)
+    if not score then return nil end
+    local missing = MIN_SESSION_SECONDS - (score.duration or 0)
+    if missing <= 0 then return nil end
+    return missing
 end
 
 local function NewFont(parent, font, size, flags)
@@ -246,10 +290,6 @@ local function CreateHeaderButton(parent, label, tooltip, onClick)
     text:SetJustifyH("CENTER")
     SetText(text, label, "textMuted")
 
-    btn.SetActive = function(_, active)
-        SetText(text, label, active and "purple" or "textMuted")
-    end
-
     btn:SetScript("OnEnter", function(self)
         SetText(text, label, "textBright")
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
@@ -281,7 +321,7 @@ local function BuildHeader()
 
     subtitleText = NewFont(header, WeintCodex.Fonts.mono, 9, "")
     subtitleText:SetPoint("TOPLEFT", header, "TOPLEFT", 12, -25)
-    subtitleText:SetPoint("RIGHT", header, "RIGHT", -70, 0)
+    subtitleText:SetPoint("RIGHT", header, "RIGHT", -28, 0)
     subtitleText:SetJustifyH("LEFT")
     SetText(subtitleText, "", "textFaint")
 
@@ -289,18 +329,106 @@ local function BuildHeader()
         WeintCodex.RotationTrainer.Hide()
     end)
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -6, -6)
+end
 
-    local options = CreateHeaderButton(header, "=", "Einstellungen", function()
-        SwitchPanel(activePanel == "options" and "queue" or "options")
-    end)
-    options:SetPoint("RIGHT", close, "LEFT", -2, 0)
-    header.optionsButton = options
+--------------------------------------------------
+-- Reiterleiste
+--
+-- Bewertung und Einstellungen hingen bisher als zwei einzelne Zeichen
+-- ("%" und "=") in der Kopfzeile und gingen dort neben Titel, Spec und
+-- Schließen-Kreuz unter: beschriftet waren sie nur im Tooltip, und
+-- welche Seite gerade offen ist, stand nirgends. Sie sind jetzt ein
+-- Segmented Control unter der Kopfzeile - dasselbe Muster wie der
+-- Rollen-Umschalter in modules/bossguides.lua, nur auf die Fensterbreite
+-- heruntergerechnet: beschriftet, immer sichtbar, mit erkennbarem
+-- Aktiv-Zustand (heller Text plus Akzentlinie).
+--------------------------------------------------
 
-    local stats = CreateHeaderButton(header, "%", "Bewertung", function()
-        SwitchPanel(activePanel == "stats" and "queue" or "stats")
+local TAB_DEFS = {
+    { key = "queue",   label = "LISTE",         tooltip = "Prioritätenliste" },
+    { key = "stats",   label = "BEWERTUNG",     tooltip = "Note der laufenden oder letzten Sitzung" },
+    { key = "options", label = "EINSTELLUNGEN", tooltip = "Fenster und Anzeige einstellen" },
+}
+
+local TAB_GAP = 2
+
+local function CreateTab(def, index, count)
+    local btn = CreateFrame("Button", nil, tabBar)
+    btn:SetHeight(TAB_H)
+
+    local width = math.floor((FRAME_W - PAD * 2 - TAB_GAP * (count - 1)) / count)
+    btn:SetWidth(width)
+    btn:SetPoint("TOPLEFT", tabBar, "TOPLEFT", (index - 1) * (width + TAB_GAP), 0)
+    if index == count then
+        -- Der letzte Reiter schließt bündig mit der rechten Kante ab,
+        -- damit die Rundung der Segmentbreite keine Lücke hinterlässt.
+        btn:SetPoint("TOPRIGHT", tabBar, "TOPRIGHT", 0, 0)
+    end
+
+    btn.bg = SetSolidBg(btn, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+
+    btn.accent = btn:CreateTexture(nil, "OVERLAY")
+    btn.accent:SetHeight(2)
+    btn.accent:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+    btn.accent:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
+    btn.accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1)
+    btn.accent:Hide()
+
+    btn.label = NewFont(btn, WeintCodex.Fonts.mono, 9, "")
+    btn.label:SetAllPoints(btn)
+    btn.label:SetJustifyH("CENTER")
+
+    btn.active = false
+
+    btn.SetActive = function(_, active)
+        btn.active = active and true or false
+        if btn.active then
+            btn.bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 1)
+            btn.accent:Show()
+            SetText(btn.label, def.label, "textBright")
+        else
+            btn.bg:SetColorTexture(C.surface1[1], C.surface1[2], C.surface1[3], 1)
+            btn.accent:Hide()
+            SetText(btn.label, def.label, "textDim")
+        end
+    end
+
+    btn:SetScript("OnEnter", function(self)
+        if not btn.active then
+            btn.bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 1)
+            SetText(btn.label, def.label, "textMuted")
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(def.tooltip, 1, 1, 1)
+        GameTooltip:Show()
     end)
-    stats:SetPoint("RIGHT", options, "LEFT", -2, 0)
-    header.statsButton = stats
+
+    btn:SetScript("OnLeave", function()
+        if not btn.active then
+            btn.bg:SetColorTexture(C.surface1[1], C.surface1[2], C.surface1[3], 1)
+            SetText(btn.label, def.label, "textDim")
+        end
+        GameTooltip:Hide()
+    end)
+
+    btn:SetScript("OnClick", function()
+        SwitchPanel(def.key)
+    end)
+
+    btn:SetActive(false)
+    return btn
+end
+
+local function BuildTabBar()
+    tabBar = CreateFrame("Frame", nil, frame)
+    tabBar:SetHeight(TAB_H)
+    tabBar:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -HEADER_H)
+    tabBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -HEADER_H)
+
+    tabBar.buttons = {}
+    for index, def in ipairs(TAB_DEFS) do
+        tabBar.buttons[def.key] = CreateTab(def, index, #TAB_DEFS)
+    end
 end
 
 --------------------------------------------------
@@ -314,8 +442,8 @@ end
 local function BuildHero()
     hero = CreateFrame("Frame", nil, frame)
     hero:SetHeight(HERO_H)
-    hero:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -(HEADER_H + 4))
-    hero:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -(HEADER_H + 4))
+    hero:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -CONTENT_TOP)
+    hero:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -CONTENT_TOP)
     SetSolidBg(hero, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
 
     hero.accent = hero:CreateTexture(nil, "ARTWORK")
@@ -601,7 +729,9 @@ local function FillStatsPanel()
         SetText(statsPanel.grade, "–", "textGhost")
         SetText(statsPanel.gradeLabel, "Noch keine Sitzung", "textDim")
         SetText(statsPanel.gradeHint,
-            "Greife eine Trainingspuppe an - die Wertung läuft mit.", "textFaint")
+            "Greife eine Trainingspuppe an - die Wertung läuft mit.\n"
+            .. "Ab 3 Minuten am Stück geht die Sitzung an die Companion.",
+            "textFaint")
         statsPanel.priority:Set(0, "textFaint")
         statsPanel.busy:Set(0, "textFaint")
         statsPanel.uptime:Set(0, "textFaint")
@@ -618,11 +748,43 @@ local function FillStatsPanel()
 
     SetText(statsPanel.grade, grade, gradeColor)
     SetText(statsPanel.gradeLabel, string.format("%s · %.0f %%", label, score.total or 0), "textBright")
-    SetText(statsPanel.gradeHint, live
-        and string.format("Läuft: %d Aktionen, %d davon auf Rang 1", score.casts, score.perfect)
-        or  string.format("Letzte Sitzung: %d Aktionen, %s", score.casts,
-                WeintCodex.FormatClock and WeintCodex.FormatClock(score.duration or 0)
-                or string.format("%.0fs", score.duration or 0)), "textFaint")
+
+    -- Der Hinweis unter der Note trägt den Stand zur Mindestdauer: was
+    -- noch fehlt, solange sie läuft, und hinterher, ob die Sitzung
+    -- gemeldet wurde. Ohne das wäre "gewertet oder nicht" nirgends
+    -- ablesbar (siehe MIN_SESSION_SECONDS).
+    local remaining = SessionRemaining(score)
+    local hint, hintColor
+
+    if live and resumeDeadline then
+        hint = string.format("Kampfpause · Sitzung läuft weiter (noch %ds)",
+            math.max(0, math.ceil(resumeDeadline - GetTime())))
+        hintColor = "gold"
+    elseif live and remaining then
+        hint = string.format("Läuft: %d Aktionen · noch %s bis zur Wertung",
+            score.casts, Clock(remaining))
+        hintColor = "textFaint"
+    elseif live then
+        hint = string.format("Läuft: %d Aktionen, %d auf Rang 1 · wird gemeldet",
+            score.casts, score.perfect)
+        hintColor = "green"
+    elseif lastReported then
+        hint = string.format("Letzte Sitzung: %d Aktionen, %s · gemeldet",
+            score.casts, Clock(score.duration))
+        hintColor = "textFaint"
+    elseif (score.duration or 0) < MIN_SESSION_SECONDS then
+        hint = string.format("Letzte Sitzung: %s · unter 3 Minuten, nicht gewertet",
+            Clock(score.duration))
+        hintColor = "gold"
+    else
+        -- Lang genug, aber zu wenig gedrückt: der andere Grund, aus dem
+        -- eine Sitzung nicht gemeldet wird (MIN_SESSION_HITS).
+        hint = string.format("Letzte Sitzung: %d Aktionen · zu wenig, nicht gewertet",
+            score.casts)
+        hintColor = "gold"
+    end
+
+    SetText(statsPanel.gradeHint, hint, hintColor)
 
     statsPanel.priority:Set(score.priority or 0, "purple")
     statsPanel.busy:Set(score.busy or 0, "blue")
@@ -779,11 +941,12 @@ local function CreateFrameOnce()
     DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.6, 1)
 
     BuildHeader()
+    BuildTabBar()
     BuildHero()
 
     queue = CreateFrame("Frame", nil, frame)
-    queue:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -(HEADER_H + HERO_H + 10))
-    queue:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -(HEADER_H + HERO_H + 10))
+    queue:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -(CONTENT_TOP + HERO_H + 6))
+    queue:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -(CONTENT_TOP + HERO_H + 6))
     queue:SetHeight(10)
 
     BuildExtrasBar()
@@ -814,8 +977,9 @@ SwitchPanel = function(target)
     statsPanel:SetShown(target == "stats")
     optionsPanel:SetShown(target == "options")
 
-    header.statsButton:SetActive(target == "stats")
-    header.optionsButton:SetActive(target == "options")
+    for key, button in pairs(tabBar.buttons) do
+        button:SetActive(key == target)
+    end
 
     if target == "options" then
         for _, toggle in ipairs(optionsPanel.toggles) do toggle.Sync() end
@@ -829,7 +993,7 @@ end
 --------------------------------------------------
 
 local function LayoutFrame(visibleRows)
-    local y = HEADER_H + 4
+    local y = CONTENT_TOP
 
     if activePanel == "queue" then
         y = y + HERO_H + 6
@@ -1053,7 +1217,13 @@ local function UpdateFooter()
     local score = RE.Session.Score()
 
     if not score then
-        SetText(scoreText, lastResult and "Letzte Sitzung" or "Kein Kampf", "textFaint")
+        -- Zwischen zwei Sitzungen sagt die Fußzeile, ob die letzte lang
+        -- genug war - sonst bliebe die Mindestdauer eine unsichtbare
+        -- Regel, und ein "nichts kam an" wäre nicht erklärbar.
+        SetText(scoreText, lastResult
+            and (lastReported and "Letzte Sitzung" or "Letzte Sitzung · zu kurz")
+            or "Kein Kampf", lastResult and not lastReported and "gold" or "textFaint")
+
         if lastResult then
             SetText(metaText, string.format("%s · %.0f %%",
                 lastResult.grade or "?", lastResult.total or 0), "textDim")
@@ -1070,9 +1240,22 @@ local function UpdateFooter()
     local colorName = total >= 84 and "green" or (total >= 62 and "gold" or "red")
 
     SetText(scoreText, string.format("%.0f %%  %s", total, select(2, RE.GradeFor(total))), colorName)
-    SetText(metaText, string.format("%d Aktionen · %s", score.casts,
-        WeintCodex.FormatClock and WeintCodex.FormatClock(score.duration or 0)
-        or string.format("%.0fs", score.duration or 0)), "textDim")
+
+    -- Rechts steht, woran die Sitzung gerade hängt: erst der Weg zur
+    -- Mindestdauer, dann die reine Laufzeit. Wer nach der Sitzung
+    -- fragt "warum kam nichts an", hat die Antwort vorher gesehen.
+    local remaining = SessionRemaining(score)
+
+    if resumeDeadline then
+        SetText(metaText, string.format("Pause · noch %ds",
+            math.max(0, math.ceil(resumeDeadline - GetTime()))), "gold")
+    elseif remaining then
+        SetText(metaText, string.format("%s / %s",
+            Clock(score.duration), Clock(MIN_SESSION_SECONDS)), "textDim")
+    else
+        SetText(metaText, string.format("%d Aktionen · %s",
+            score.casts, Clock(score.duration)), "textDim")
+    end
 
     local col = Col(colorName)
     scoreFill:SetColorTexture(col[1], col[2], col[3], 1)
@@ -1163,7 +1346,11 @@ local function RecordSession(result)
     end
 end
 
+-- Kampfbeginn: entweder eine neue Sitzung, oder die Fortsetzung der
+-- laufenden, wenn die Pause kurz genug war (siehe RESUME_WINDOW).
 local function StartSession()
+    resumeDeadline = nil
+
     if sessionActive or not currentSpecKey then return end
     if not (WeintCodex_GetRotation and WeintCodex_GetRotation(currentSpecKey)) then return end
 
@@ -1171,20 +1358,33 @@ local function StartSession()
     RE.Session.Start(currentSpecKey)
 end
 
+-- Kampfende: die Sitzung bleibt zunächst offen und wird erst nach
+-- RESUME_WINDOW geschlossen. Wer nur kurz Ressourcen sammelt oder das
+-- Ziel wechselt, übt danach an derselben Sitzung weiter.
+local function PauseSession()
+    if not sessionActive then return end
+    resumeDeadline = GetTime() + RESUME_WINDOW
+end
+
 local function FinalizeSession()
     if not sessionActive then return end
     sessionActive = false
+    resumeDeadline = nil
 
     local result = RE.Session.Finish()
     if not result then return end
 
     lastResult = result
 
-    -- Kurze Scharmützel werden nicht gemeldet: eine Sitzung über fünf
-    -- Sekunden sagt nichts über die Rotation aus und würde die
-    -- Tage-Serie in der Companion mit Rauschen füllen.
-    if (result.duration or 0) >= MIN_SESSION_SECONDS
-        and (result.casts or 0) >= MIN_SESSION_HITS then
+    -- Erst ab drei Minuten Kampfzeit ist es eine Übungssitzung: alles
+    -- darunter ist ein Scharmützel, sagt nichts über die Rotation aus
+    -- und würde die Tage-Serie in der Companion mit Rauschen füllen.
+    -- Die Zahl steht auch drüben in core/academy_dummy_sync.py, damit
+    -- die Regel unabhängig von der Addon-Version desselben Spielers gilt.
+    lastReported = (result.duration or 0) >= MIN_SESSION_SECONDS
+        and (result.casts or 0) >= MIN_SESSION_HITS
+
+    if lastReported then
         RecordSession(result)
     end
 
@@ -1221,13 +1421,23 @@ local function OnUpdate(self, elapsed)
     local step = elapsedSinceTick
     elapsedSinceTick = 0
 
+    -- Ist die Kampfpause zu lang geworden, wird hier abgerechnet. Das
+    -- muss vor dem Spec-Ausstieg stehen: eine offene Sitzung darf nicht
+    -- daran hängenbleiben, dass die Spec gerade nicht auflösbar ist.
+    if resumeDeadline and GetTime() >= resumeDeadline then
+        FinalizeSession()
+    end
+
     if not currentSpecKey then return end
 
     ranksNow, ranksPrev = ranksPrev, ranksNow
     plan = RE.Evaluate(currentSpecKey, MutedFor(currentSpecKey))
     RE.RankList(plan, ranksNow)
 
-    RE.Session.Sample(plan, step, sessionActive)
+    -- Gemessen wird ausschließlich echte Kampfzeit: die Pause zwischen
+    -- zwei Versuchen zählt weder für die Dauer noch für die Auslastung,
+    -- obwohl die Sitzung sie überlebt.
+    RE.Session.Sample(plan, step, sessionActive and inCombat)
 
     DrawActivePanel()
     UpdateFooter()
@@ -1271,7 +1481,8 @@ function WeintCodex.RotationTrainer.Show()
     SwitchPanel(activePanel == "queue" and "queue" or activePanel)
     frame:Show()
 
-    if InCombatLockdown and InCombatLockdown() then StartSession() end
+    inCombat = UnitAffectingCombat("player") and true or false
+    if inCombat then StartSession() end
     WeintCodex.RotationTrainer.Refresh()
 end
 
@@ -1413,12 +1624,17 @@ watcher:SetScript("OnEvent", function(self, event, unit, ...)
     end
 
     if event == "PLAYER_REGEN_DISABLED" then
+        inCombat = true
         if frame and frame:IsShown() then StartSession() end
         return
     end
 
+    -- Kampfende schließt die Sitzung nicht: erst wenn nach
+    -- RESUME_WINDOW kein Kampf zurückgekommen ist, wird abgerechnet
+    -- (im Takt, siehe OnUpdate).
     if event == "PLAYER_REGEN_ENABLED" then
-        FinalizeSession()
+        inCombat = false
+        PauseSession()
         return
     end
 
