@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.2.1] – 2026-08-06
+
+### Geändert
+- WeakAura-String für das Bosspaket „SuO Bosspaket 01-08" auf v3.0.4 aktualisiert
+- WeakAura-String für das Bosspaket „SuO Bosspaket 09-14" auf v3.0.8 aktualisiert
+
 ## [1.3.2.0] – 2026-08-05
 
 ### Geändert

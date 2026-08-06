@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.2.1",
+        date    = "06.08.2026",
+        notes   = {
+            "WeakAura-String fuer 'SuO Bosspaket 01-08' auf v3.0.4 aktualisiert.",
+            "WeakAura-String fuer 'SuO Bosspaket 09-14' auf v3.0.8 aktualisiert.",
+        },
+    },
+    {
         version = "1.3.2.0",
         date    = "05.08.2026",
         notes   = {
