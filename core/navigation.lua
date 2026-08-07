@@ -608,61 +608,498 @@ local function InspectorButton(parent, y, opts)
     return y - 32 - 8
 end
 
--- Notizfeld mit eigenem Scrollbereich, wahlweise ein- oder zweispaltig
--- (opts.columns = 2). Ohne Scrollframe lief Text, der ueber die feste
--- Boxhoehe hinausging, einfach unten aus dem sichtbaren Bereich - die
--- ScrollingEdit_On*-Handler sind Blizzards Standardmuster fuer genau
--- diesen Fall (Makro-Editor, Gildenbank-Notizen) und passen die Boxhoehe
--- selbst an den Inhalt an.
+--------------------------------------------------
+-- Notizfeld
 --
--- get/set bekommen bei columns = 2 die Spaltennummer (1 oder 2) als
--- erstes Argument, sonst nil.
-local NOTES_SCROLLBAR = 26
+-- Eigener Scrollbereich, wahlweise einspaltig (viel Platz pro Zeile, fuer
+-- laengeren Fliesstext) oder zweispaltig (schneller Ueberblick, zwei
+-- getrennte Felder nebeneinander). Welche der beiden Ansichten die
+-- richtige ist, haengt allein am Inhalt - deshalb entscheidet das der
+-- Nutzer ueber den Umschalter in der Kopfzeile und nicht das Addon.
+-- Wird das Feld zum ersten Mal zu voll, fragt eine einmalige Einblendung
+-- im Feld selbst nach; danach bleibt nur der Umschalter.
+--
+-- Statt der klobigen UIPanelScrollFrameTemplate-Leiste (26px) zeichnet das
+-- Feld eine 8px schmale Bildlaufanzeige. Bei zwei Spalten waeren von den
+-- 139px Spaltenbreite sonst kaum 110px Text uebrig geblieben.
+--
+-- opts:
+--   title         Ueberschrift; das Feld zeichnet seine Kopfzeile selbst
+--   height        Gesamthoehe des Blocks (inkl. Kopf- und Fusszeile)
+--   placeholder   Hinweis im leeren Feld, String oder { Spalte1, Spalte2 }
+--   columns       true = Zweispalten-Umschalter anbieten
+--   get(col) / set(col, text)       Spalteninhalt, col ist immer 1 oder 2
+--   getLayout() / setLayout(mode)   "single" | "columns"
+--   mergeColumns()                  vor dem Wechsel auf "single" aufgerufen
+--   shouldAsk() / markAsked()       einmalige Rueckfrage bei Ueberlauf
+--------------------------------------------------
+
+local NOTES_HEAD_H  = 22   -- Kopfzeile mit Titel + Umschalter
+local NOTES_FOOT_H  = 15   -- Fusszeile mit Zeichenzahl + Modus
+local NOTES_INSET   = 7    -- Innenabstand der Textflaeche
+local NOTES_BAR_W   = 8    -- Platz fuer die schmale Bildlaufanzeige
+local NOTES_COL_GAP = 12   -- Spaltenabstand inkl. Trennlinie
+local NOTES_WHEEL   = 32   -- Scrollweite pro Mausrad-Raste
+
+-- Vier umfaerbbare Rahmentexturen. DrawSlimBorder haelt keine Referenzen,
+-- der Fokusrahmen braucht aber genau das.
+local function NotesBorder(frame)
+    local edges = {}
+    for i = 1, 4 do
+        edges[i] = frame:CreateTexture(nil, "OVERLAY")
+    end
+    edges[1]:SetPoint("TOPLEFT");     edges[1]:SetPoint("TOPRIGHT");    edges[1]:SetHeight(1)
+    edges[2]:SetPoint("BOTTOMLEFT");  edges[2]:SetPoint("BOTTOMRIGHT"); edges[2]:SetHeight(1)
+    edges[3]:SetPoint("TOPLEFT");     edges[3]:SetPoint("BOTTOMLEFT");  edges[3]:SetWidth(1)
+    edges[4]:SetPoint("TOPRIGHT");    edges[4]:SetPoint("BOTTOMRIGHT"); edges[4]:SetWidth(1)
+
+    return function(colorName, alpha)
+        local col = C[colorName] or C.hairline
+        for i = 1, 4 do
+            edges[i]:SetColorTexture(col[1], col[2], col[3], alpha or col[4] or 1.0)
+        end
+    end
+end
+
+-- Segment des Umschalters, gleiches Muster wie der Rollen-Umschalter in
+-- modules/bossguides.lua - nur kleiner, weil es in die Kopfzeile passt.
+local function NotesSegment(parent, label, width)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(width, 16)
+    b._bg = WeintCodex.SetSolidBg(b, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+
+    local l = b:CreateFontString(nil, "OVERLAY")
+    l:SetAllPoints(b)
+    l:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    l:SetJustifyH("CENTER")
+    l:SetText(label)
+    b._label = l
+
+    b.SetActive = function(self, on)
+        self._active = on
+        if on then
+            self._bg:SetColorTexture(C.purpleDeep[1], C.purpleDeep[2], C.purpleDeep[3], 1.0)
+            self._label:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        else
+            self._bg:SetColorTexture(C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+            self._label:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+        end
+    end
+
+    b:SetScript("OnEnter", function(self)
+        if not self._active then
+            self._bg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+            self._label:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+        end
+    end)
+    b:SetScript("OnLeave", function(self) self:SetActive(self._active) end)
+
+    b:SetActive(false)
+    return b
+end
+
+local function NotesPromptButton(parent, label, width)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(width, 18)
+    b._bg = WeintCodex.SetSolidBg(b, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+    WeintCodex.DrawSlimBorder(b, "purpleDim", 0.8, 1)
+
+    local l = b:CreateFontString(nil, "OVERLAY")
+    l:SetAllPoints(b)
+    l:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+    l:SetJustifyH("CENTER")
+    l:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+    l:SetText(label)
+
+    b:SetScript("OnEnter", function(self)
+        self._bg:SetColorTexture(C.purpleDeep[1], C.purpleDeep[2], C.purpleDeep[3], 1.0)
+        l:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    end)
+    b:SetScript("OnLeave", function(self)
+        self._bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+        l:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+    end)
+    return b
+end
+
+local function NotesTextLength(text)
+    if not text or text == "" then return 0 end
+    -- Umlaute sind in UTF-8 zwei Bytes - # wuerde sie doppelt zaehlen.
+    if strlenutf8 then return strlenutf8(text) end
+    return #text
+end
 
 local function InspectorNotes(parent, y, opts)
-    local h = opts.height or 100
-    local bg = CreateFrame("Frame", nil, parent)
-    bg:SetHeight(h)
-    bg:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
-    bg:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
-    WeintCodex.SetSolidBg(bg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.90)
-    WeintCodex.DrawSlimBorder(bg, "hairline")
+    local h            = opts.height or 100
+    local allowColumns = (opts.columns == true) or (opts.columns == 2)
+    local headH        = (opts.title or allowColumns) and NOTES_HEAD_H or 0
 
-    local function BuildColumn(leftX, colW, col)
-        local scroll = CreateFrame("ScrollFrame", nil, bg, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", bg, "TOPLEFT", leftX, -6)
-        scroll:SetSize(colW - NOTES_SCROLLBAR, h - 12)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetHeight(h)
+    holder:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    holder:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    table.insert(inspectorWidgets, holder)
 
-        local box = CreateFrame("EditBox", nil, scroll)
+    local mode = (opts.getLayout and opts.getLayout()) or "single"
+    if mode ~= "columns" or not allowColumns then mode = "single" end
+
+    -- Einspaltig darf nie eine gefuellte, aber unsichtbare zweite Spalte
+    -- zurueckbleiben - etwa aus einer Version, in der zweispaltig die
+    -- einzige Ansicht war. mergeColumns ist ohne Inhalt ein No-Op.
+    if mode == "single" and opts.mergeColumns then opts.mergeColumns() end
+
+    local function Placeholder(index)
+        local p = opts.placeholder
+        if type(p) == "table" then return p[index] or "" end
+        return (index == 1) and (p or "") or ""
+    end
+
+    -- ------------------------------------------------
+    -- Kopfzeile: Titel links, Umschalter rechts
+    -- ------------------------------------------------
+
+    local segSingle, segColumns
+    if headH > 0 then
+        if opts.title then
+            local t = holder:CreateFontString(nil, "OVERLAY")
+            t:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            t:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, -3)
+            t:SetJustifyH("LEFT")
+            t:SetText(WeintCodex.ColorText("textFaint", string.upper(opts.title)))
+        end
+        if allowColumns then
+            segColumns = NotesSegment(holder, "2 SPALTEN", 62)
+            segColumns:SetPoint("TOPRIGHT", holder, "TOPRIGHT", 0, -1)
+            segSingle = NotesSegment(holder, "1 SPALTE", 56)
+            segSingle:SetPoint("TOPRIGHT", segColumns, "TOPLEFT", -3, 0)
+        end
+    end
+
+    -- ------------------------------------------------
+    -- Textflaeche
+    -- ------------------------------------------------
+
+    local card = CreateFrame("Frame", nil, holder)
+    card:SetPoint("TOPLEFT",     holder, "TOPLEFT",     0, -headH)
+    card:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", 0, NOTES_FOOT_H)
+    card._bg = WeintCodex.SetSolidBg(card, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.95)
+    card:EnableMouse(true)
+
+    local SetBorderTint = NotesBorder(card)
+    SetBorderTint("hairline", 1)
+
+    local colDivider = card:CreateTexture(nil, "ARTWORK")
+    colDivider:SetWidth(1)
+    colDivider:SetColorTexture(C.border[1], C.border[2], C.border[3], 1.0)
+    colDivider:Hide()
+
+    local footLeft = holder:CreateFontString(nil, "OVERLAY")
+    footLeft:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    footLeft:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", 1, 1)
+    footLeft:SetJustifyH("LEFT")
+
+    local footRight = holder:CreateFontString(nil, "OVERLAY")
+    footRight:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    footRight:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -1, 1)
+    footRight:SetJustifyH("RIGHT")
+
+    local cardH  = h - headH - NOTES_FOOT_H
+    local textH  = cardH - NOTES_INSET * 2
+    local ready  = false
+    local prompt
+    local columns = {}
+
+    local function UpdateBar(c)
+        local range = c.scroll:GetVerticalScrollRange() or 0
+        if range <= 1 then
+            c.track:Hide()
+            c.thumb:Hide()
+            return
+        end
+        local viewH  = c.scroll:GetHeight()
+        local thumbH = math.max(14, viewH * viewH / (viewH + range))
+        local frac   = math.min(1, math.max(0, (c.scroll:GetVerticalScroll() or 0) / range))
+        c.thumb:SetHeight(thumbH)
+        c.thumb:ClearAllPoints()
+        c.thumb:SetPoint("TOP", c.track, "TOP", 0, -frac * (viewH - thumbH))
+        c.track:Show()
+        c.thumb:Show()
+    end
+
+    local function RefreshFooter()
+        if not ready then return end
+        local total = 0
+        for i = 1, (mode == "columns") and 2 or 1 do
+            total = total + NotesTextLength(columns[i].box:GetText())
+        end
+        if total == 0 then
+            footLeft:SetText(WeintCodex.ColorText("textGhost", "Leer - ins Feld klicken"))
+        else
+            footLeft:SetText(WeintCodex.ColorText("textGhost", total .. " Zeichen"))
+        end
+        footRight:SetText(WeintCodex.ColorText("textGhost",
+            (mode == "columns") and "2 Spalten" or "1 Spalte"))
+    end
+
+    -- Einmalige Rueckfrage, sobald der Text das sichtbare Feld zum ersten
+    -- Mal ueberlaeuft. Bewusst kein Popup: eine Einblendung im Feld selbst
+    -- unterbricht das Tippen nicht.
+    local function MaybeAsk()
+        if not (prompt and allowColumns) or mode ~= "single" then return end
+        if not (opts.shouldAsk and opts.shouldAsk()) then return end
+        if (columns[1].scroll:GetVerticalScrollRange() or 0) <= 4 then return end
+        prompt:Show()
+    end
+
+    local function BuildColumn(index)
+        local c = {}
+
+        c.scroll = CreateFrame("ScrollFrame", nil, card)
+        c.scroll:EnableMouseWheel(true)
+
+        c.box = CreateFrame("EditBox", nil, c.scroll)
+        local box = c.box
         box:SetMultiLine(true)
         box:SetMaxLetters(0)
         box:SetAutoFocus(false)
         box:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
         box:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
-        box:SetTextInsets(2, 2, 2, 2)
-        box:SetWidth(colW - NOTES_SCROLLBAR)
-        box:SetText((opts.get and opts.get(col)) or "")
+        box:SetTextInsets(0, 0, 0, 0)
+        box:SetHeight(textH)
+        c.scroll:SetScrollChild(box)
+
+        c.track = card:CreateTexture(nil, "ARTWORK")
+        c.track:SetWidth(2)
+        c.track:SetColorTexture(C.border[1], C.border[2], C.border[3], 1.0)
+        c.track:Hide()
+
+        c.thumb = card:CreateTexture(nil, "OVERLAY")
+        c.thumb:SetWidth(2)
+        c.thumb:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 1.0)
+        c.thumb:Hide()
+
+        c.hint = card:CreateFontString(nil, "ARTWORK")
+        c.hint:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+        c.hint:SetTextColor(C.textGhost[1], C.textGhost[2], C.textGhost[3])
+        c.hint:SetJustifyH("LEFT")
+        c.hint:SetJustifyV("TOP")
+        c.hint:SetText(Placeholder(index))
+
+        local function RefreshHint()
+            if (box:GetText() or "") == "" and not box:HasFocus() then
+                c.hint:Show()
+            else
+                c.hint:Hide()
+            end
+        end
+        c.RefreshHint = RefreshHint
+
         box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        box:SetScript("OnTextChanged", function(self)
-            ScrollingEdit_OnTextChanged(self, scroll)
-            if opts.set then opts.set(col, self:GetText()) end
+        -- ClearInspector versteckt die Widgets nur. Ein verstecktes Feld,
+        -- das den Tastaturfokus behaelt, wuerde die Bewegungstasten
+        -- schlucken - deshalb hier zwingend loslassen.
+        box:SetScript("OnHide", function(self) self:ClearFocus() end)
+        box:SetScript("OnTextChanged", function(self, userInput)
+            if ScrollingEdit_OnTextChanged then
+                ScrollingEdit_OnTextChanged(self, c.scroll)
+            else
+                c.scroll:UpdateScrollChildRect()
+            end
+            if not c.suppress and opts.set then opts.set(index, self:GetText()) end
+            RefreshHint()
+            UpdateBar(c)
+            RefreshFooter()
+            if userInput then MaybeAsk() end
         end)
-        box:SetScript("OnCursorChanged", ScrollingEdit_OnCursorChanged)
-        box:SetScript("OnUpdate", ScrollingEdit_OnUpdate)
-        scroll:SetScrollChild(box)
+        box:SetScript("OnCursorChanged", function(self, x, cy, cw, ch)
+            if ScrollingEdit_OnCursorChanged then
+                ScrollingEdit_OnCursorChanged(self, x, cy, cw, ch)
+            end
+        end)
+        -- Haelt den Cursor beim Tippen im sichtbaren Bereich. Der Scrollframe
+        -- muss explizit mit, self:GetParent() ist nicht in jedem Client der
+        -- Rueckfallweg.
+        box:SetScript("OnUpdate", function(self, elapsed)
+            if ScrollingEdit_OnUpdate then
+                ScrollingEdit_OnUpdate(self, elapsed, c.scroll)
+            end
+        end)
+        box:SetScript("OnEditFocusGained", function()
+            SetBorderTint("purple", 0.9)
+            card._bg:SetColorTexture(C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+            RefreshHint()
+        end)
+        box:SetScript("OnEditFocusLost", function()
+            SetBorderTint("hairline", 1)
+            card._bg:SetColorTexture(C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.95)
+            RefreshHint()
+        end)
+
+        c.scroll:SetScript("OnMouseWheel", function(self, delta)
+            local range = self:GetVerticalScrollRange() or 0
+            local v = (self:GetVerticalScroll() or 0) - delta * NOTES_WHEEL
+            if v < 0 then v = 0 elseif v > range then v = range end
+            self:SetVerticalScroll(v)
+        end)
+        c.scroll:SetScript("OnVerticalScroll",     function() UpdateBar(c) end)
+        c.scroll:SetScript("OnScrollRangeChanged", function() UpdateBar(c) end)
+
+        c.suppress = true
+        box:SetText((opts.get and opts.get(index)) or "")
+        c.suppress = false
+        RefreshHint()
+
+        return c
     end
 
-    if opts.columns == 2 then
-        local gap  = 8
-        local innerW = INSPECTOR_CONTENT_W - 12
-        local colW = math.floor((innerW - gap) / 2)
-        BuildColumn(6, colW, 1)
-        BuildColumn(6 + colW + gap, colW, 2)
-    else
-        BuildColumn(6, INSPECTOR_CONTENT_W - 12, nil)
+    local function Layout()
+        local innerW = INSPECTOR_CONTENT_W - NOTES_INSET * 2
+        local two    = (mode == "columns")
+        local colW   = two and math.floor((innerW - NOTES_COL_GAP) / 2) or innerW
+        local textW  = colW - NOTES_BAR_W
+
+        for i = 1, 2 do
+            local c = columns[i]
+            if two or i == 1 then
+                local leftX = NOTES_INSET + ((i == 2) and (colW + NOTES_COL_GAP) or 0)
+
+                c.scroll:ClearAllPoints()
+                c.scroll:SetPoint("TOPLEFT", card, "TOPLEFT", leftX, -NOTES_INSET)
+                c.scroll:SetSize(textW, textH)
+                c.box:SetWidth(textW)
+
+                c.track:ClearAllPoints()
+                c.track:SetPoint("TOPLEFT", card, "TOPLEFT", leftX + textW + 3, -NOTES_INSET)
+                c.track:SetHeight(textH)
+
+                c.hint:ClearAllPoints()
+                c.hint:SetPoint("TOPLEFT", card, "TOPLEFT", leftX, -NOTES_INSET)
+                c.hint:SetWidth(textW)
+
+                c.scroll:Show()
+                c.RefreshHint()
+                UpdateBar(c)
+            else
+                c.box:ClearFocus()
+                c.scroll:Hide()
+                c.track:Hide()
+                c.thumb:Hide()
+                c.hint:Hide()
+            end
+        end
+
+        if two then
+            colDivider:ClearAllPoints()
+            colDivider:SetPoint("TOPLEFT", card, "TOPLEFT",
+                NOTES_INSET + colW + math.floor(NOTES_COL_GAP / 2), -NOTES_INSET)
+            colDivider:SetHeight(textH)
+            colDivider:Show()
+        else
+            colDivider:Hide()
+        end
+
+        if segSingle  then segSingle:SetActive(not two)  end
+        if segColumns then segColumns:SetActive(two)     end
     end
 
-    table.insert(inspectorWidgets, bg)
+    -- Wechsel auf eine Spalte darf nichts unsichtbar machen: mergeColumns
+    -- haengt Spalte 2 an Spalte 1 an, statt sie im SavedData liegen zu
+    -- lassen, wo sie niemand mehr sieht.
+    local function SetMode(newMode, remember)
+        if newMode == mode then return end
+        if newMode == "single" and opts.mergeColumns then opts.mergeColumns() end
+
+        mode = newMode
+        if remember and opts.setLayout then opts.setLayout(mode) end
+
+        for i = 1, 2 do
+            local c = columns[i]
+            c.suppress = true
+            c.box:SetText((opts.get and opts.get(i)) or "")
+            c.suppress = false
+            c.scroll:SetVerticalScroll(0)
+        end
+
+        Layout()
+        RefreshFooter()
+    end
+
+    columns[1] = BuildColumn(1)
+    columns[2] = BuildColumn(2)
+
+    -- Klick auf die freie Flaeche unter dem Text setzt den Cursor - ohne
+    -- das muss man exakt die Textzeile treffen.
+    card:SetScript("OnMouseDown", function(self)
+        local target = columns[1]
+        if mode == "columns" then
+            local cursorX = GetCursorPosition() / self:GetEffectiveScale()
+            if cursorX > (self:GetLeft() + self:GetWidth() / 2) then
+                target = columns[2]
+            end
+        end
+        target.box:SetFocus()
+    end)
+
+    if allowColumns then
+        prompt = CreateFrame("Frame", nil, card)
+        prompt:SetPoint("BOTTOMLEFT",  card, "BOTTOMLEFT",   1, 1)
+        prompt:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -1, 1)
+        prompt:SetHeight(46)
+        prompt:SetFrameLevel(card:GetFrameLevel() + 5)
+        prompt:EnableMouse(true)
+        WeintCodex.SetSolidBg(prompt, C.surface3[1], C.surface3[2], C.surface3[3], 0.97)
+
+        local topEdge = prompt:CreateTexture(nil, "OVERLAY")
+        topEdge:SetPoint("TOPLEFT")
+        topEdge:SetPoint("TOPRIGHT")
+        topEdge:SetHeight(1)
+        topEdge:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.85)
+
+        local q = prompt:CreateFontString(nil, "OVERLAY")
+        q:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+        q:SetPoint("TOPLEFT",  prompt, "TOPLEFT",   8, -7)
+        q:SetPoint("TOPRIGHT", prompt, "TOPRIGHT", -8, -7)
+        q:SetJustifyH("LEFT")
+        q:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
+        q:SetText("Viel Text. Lieber zwei Spalten nebeneinander?")
+
+        local bColumns = NotesPromptButton(prompt, "2 Spalten", 74)
+        bColumns:SetPoint("BOTTOMRIGHT", prompt, "BOTTOMRIGHT", -8, 6)
+
+        local bScroll = NotesPromptButton(prompt, "Scrollen", 74)
+        bScroll:SetPoint("BOTTOMRIGHT", bColumns, "BOTTOMLEFT", -6, 0)
+
+        bColumns:SetScript("OnClick", function()
+            if opts.markAsked then opts.markAsked() end
+            prompt:Hide()
+            SetMode("columns", true)
+        end)
+        bScroll:SetScript("OnClick", function()
+            if opts.markAsked then opts.markAsked() end
+            prompt:Hide()
+        end)
+        prompt:Hide()
+    end
+
+    if segSingle then
+        -- Wer den Umschalter benutzt, kennt ihn - die Rueckfrage waere ab
+        -- da nur noch im Weg.
+        segSingle:SetScript("OnClick", function()
+            if opts.markAsked then opts.markAsked() end
+            if prompt then prompt:Hide() end
+            SetMode("single", true)
+        end)
+        segColumns:SetScript("OnClick", function()
+            if opts.markAsked then opts.markAsked() end
+            if prompt then prompt:Hide() end
+            SetMode("columns", true)
+        end)
+    end
+
+    ready = true
+    Layout()
+    RefreshFooter()
+
     return y - h - 6
 end
 

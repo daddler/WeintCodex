@@ -837,6 +837,30 @@ local function SetBossNoteColumn(bossName, col, text)
     WeintCodex.SavedData.bossNotes[bossName] = tbl
 end
 
+-- Ein- oder zweispaltig ist eine Vorliebe, kein Bossmerkmal: die
+-- Einstellung gilt deshalb fuer alle Bosse gemeinsam.
+local function GetNotesLayout()
+    local mode = WeintCodex.SavedData and WeintCodex.SavedData.bossNotesLayout
+    return (mode == "columns") and "columns" or "single"
+end
+
+local function SetNotesLayout(mode)
+    if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
+    WeintCodex.SavedData.bossNotesLayout = (mode == "columns") and "columns" or "single"
+end
+
+-- Beim Wechsel auf eine Spalte wandert Spalte 2 ans Ende von Spalte 1.
+-- Sonst laege sie unerreichbar im SavedData und der Nutzer haette den
+-- Eindruck, seine Notizen seien weg.
+local function MergeBossNoteColumns(bossName)
+    local second = GetBossNoteColumn(bossName, 2)
+    if second == "" then return end
+
+    local first = GetBossNoteColumn(bossName, 1)
+    SetBossNoteColumn(bossName, 1, (first ~= "") and (first .. "\n\n" .. second) or second)
+    SetBossNoteColumn(bossName, 2, "")
+end
+
 --------------------------------------------------
 -- Inspector (rechte Spalte) aufbauen
 --
@@ -866,10 +890,20 @@ local function BuildInspector(data, roleKey)
         { type = "header", text = "Kurz & Knapp" },
         { type = "checklist", items = kurzItems },
         { type = "divider" },
-        { type = "header", text = "Notizen" },
-        { type = "notes", height = 150, columns = 2,
+        { type = "notes", title = "Notizen", height = 210, columns = true,
+            placeholder = { "Ablauf, Aufstellung, eigene Aufgaben …", "Cooldowns, Zuweisungen …" },
             get = function(col) return GetBossNoteColumn(bossForNotes, col) end,
             set = function(col, text) SetBossNoteColumn(bossForNotes, col, text) end,
+            getLayout    = GetNotesLayout,
+            setLayout    = SetNotesLayout,
+            mergeColumns = function() MergeBossNoteColumns(bossForNotes) end,
+            shouldAsk    = function()
+                return not (WeintCodex.SavedData and WeintCodex.SavedData.bossNotesAsked)
+            end,
+            markAsked    = function()
+                if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
+                WeintCodex.SavedData.bossNotesAsked = true
+            end,
         },
         { type = "divider" },
         { type = "header", text = bisHeader },

@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.2.3] – 2026-08-07
+
+### Geändert
+- **Das Notizfeld der Bossguides entscheidet die Ansicht nicht mehr selbst.** In der Kopfzeile sitzt ein Umschalter „1 Spalte / 2 Spalten" – eine Spalte für längeren Fliesstext, zwei für den schnellen Überblick. Die Wahl gilt für alle Bosse und bleibt über den Reload erhalten
+- **Läuft der Text zum ersten Mal über, fragt das Feld selbst nach**, ob zwei Spalten oder Scrollen gewünscht sind. Bewusst als Einblendung im Feld statt als Popup, damit sie das Tippen nicht unterbricht – und nur ein einziges Mal, danach bleibt der Umschalter
+- Beim Wechsel auf eine Spalte wandert der Inhalt der zweiten ans Ende der ersten. Sonst läge er unerreichbar in den gespeicherten Daten und man hielte seine Notizen für verloren
+- Das Feld ist gewachsen (150 → 210 px) und zeigt jetzt Fokusrahmen, Platzhaltertext und Zeichenzahl. Die breite Blizzard-Bildlaufleiste ist einer 8 px schmalen Anzeige gewichen – bei zwei Spalten waren von 137 px Spaltenbreite sonst kaum 110 px für Text übrig
+
 ## [1.3.2.2] – 2026-08-07
 
 ### Geändert

@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.2.3",
+        date    = "07.08.2026",
+        notes   = {
+            "Das Notizfeld der Bossguides hat jetzt einen Umschalter '1 Spalte / 2 Spalten' in der Kopfzeile.",
+            "Wird das Feld zum ersten Mal zu voll, fragt es selbst nach, ob ihr zwei Spalten oder lieber Scrollen wollt.",
+            "Beim Wechsel auf eine Spalte wandert Spalte 2 ans Ende von Spalte 1 - es geht nichts verloren.",
+            "Groesseres Feld, Fokusrahmen, Platzhaltertext, Zeichenzahl und eine schmale Bildlaufanzeige statt der breiten Leiste.",
+        },
+    },
+    {
         version = "1.3.2.2",
         date    = "07.08.2026",
         notes   = {

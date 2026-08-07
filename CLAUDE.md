@@ -42,6 +42,14 @@ Everything hangs off the global `WeintCodex` table. Each module does `WeintCodex
 
 `data/bis.lua` holds `WeintCodex_BiS`, a per-spec table (keys match `WeintCodex_SpecProfiles` in `spec_profiles.lua`, e.g. `WARRIOR_ARMS`) of `{ id, slot, boss, variants?, note? }` entries — item name is deliberately not stored, it's resolved at runtime via `GetItemInfo` so it always matches the client's language (same doctrine as `WeintCodex_GetGemName` in `gems.lua`). `modules/bis.lua` builds a boss→spec index from that once and exposes `WeintCodex.BiS.GetForBoss(bossName, specKey)`, which checks only *equipped* gear (no bag/bank scan) and classifies each entry `have`/`variant`/`open`. Tank specs playing offensive stance (`*_OFFENSIVE` profile keys) have no data of their own — `GetForBoss` falls back to the base spec key since gear is identical between styles. `modules/bossguides.lua` renders the result as a scrollable `itemlist` block (`core/navigation.lua`) in the Inspector, under the boss notes.
 
+### Bossnotizen (`notes`-Block in `core/navigation.lua`)
+
+Der `notes`-Inspector-Block ist das einzige frei beschreibbare Feld des Addons und hat zwei Ansichten: einspaltig (`single`, langer Fliesstext) oder zweispaltig (`columns`, schneller Überblick). **Welche davon passt, entscheidet der Nutzer, nicht das Addon** — der Umschalter sitzt in der Kopfzeile des Feldes, und beim ersten Überlaufen fragt eine einmalige Einblendung *im Feld* nach (kein Popup, das unterbricht das Tippen). Die Wahl steht global in `SavedData.bossNotesLayout`, das Ja/Nein der Rückfrage in `SavedData.bossNotesAsked`.
+
+Gespeichert wird pro Boss als `SavedData.bossNotes[boss] = { col1, col2 }`; ältere Einträge sind ein blanker String und wandern beim ersten Schreiben nach `col1`. **Invariante: im `single`-Modus darf `col2` nie gefüllt sein.** `InspectorNotes` ruft deshalb bei jedem Aufbau *und* bei jedem Wechsel auf `single` `mergeColumns()` auf, das `col2` ans Ende von `col1` hängt — sonst läge Text unerreichbar in den SavedData und der Nutzer hielte seine Notizen für verloren.
+
+Zwei Umsetzungsdetails, die nicht nach Geschmack sind: die Bildlaufanzeige ist selbst gezeichnet (8 px) statt `UIPanelScrollFrameTemplate` (26 px), weil von 137 px Spaltenbreite sonst kaum Text übrig bliebe; und die EditBox löst ihren Fokus in `OnHide` selbst — `ClearInspector` versteckt Widgets nur, und ein verstecktes Feld mit Tastaturfokus würde die Bewegungstasten schlucken.
+
 ### Companion bridge (bidirectional sync)
 
 The addon and WeintCompanion communicate only through two Lua tables in the shared `SavedVariables` file (`WeintCodex.lua`), never directly over the network:
