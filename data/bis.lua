@@ -200,6 +200,7 @@ WeintCodex_BiS = {
         { slot = "Beine",       boss = "Garrosh Höllschrei",              id = 104311 },
         { slot = "Füße",        boss = "Dunkelschamanen",                 id = 105531 },
         { slot = "Finger",      boss = "Belagerungsingenieur Rußschmied", id = 104624 },
+        { slot = "Finger",      boss = "Die Schätze Pandarias",           id = 103796 },
         { slot = "Schmuck",     boss = "Thok der Blutdürstige",           id = 105609 },
         { slot = "Schmuck",     boss = "Malkorok",                        id = 105568 },
         { slot = "Haupthand",   boss = "Malkorok",                        id = 105567, note = "Quelle unsicher" },

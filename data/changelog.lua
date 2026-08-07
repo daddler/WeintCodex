@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.2.2",
+        date    = "07.08.2026",
+        notes   = {
+            "Notizfeld bei den Bossguides scrollt jetzt und ist zweispaltig fuer den schnellen Ueberblick.",
+            "Schutzpaladin-BiS: fehlenden Ring 'Siegelring der Vergessenen Koenige' (Schaetze Pandarias) ergaenzt.",
+        },
+    },
+    {
         version = "1.3.2.1",
         date    = "06.08.2026",
         notes   = {

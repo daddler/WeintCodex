@@ -810,6 +810,34 @@ local function BuildBiSSection(bossName)
 end
 
 --------------------------------------------------
+-- Notizen: zwei Spalten pro Boss
+--
+-- SavedData.bossNotes[boss] war bisher ein reiner String (eine Spalte).
+-- Bestehende Notizen wandern beim ersten Schreiben nach dem Update in
+-- Spalte 1, statt verloren zu gehen.
+--------------------------------------------------
+
+local function GetBossNoteColumn(bossName, col)
+    local raw = WeintCodex.SavedData and WeintCodex.SavedData.bossNotes
+        and WeintCodex.SavedData.bossNotes[bossName]
+    if not raw then return "" end
+    if type(raw) == "string" then
+        return (col == 2) and "" or raw
+    end
+    return raw["col" .. col] or ""
+end
+
+local function SetBossNoteColumn(bossName, col, text)
+    if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
+    if not WeintCodex.SavedData.bossNotes then WeintCodex.SavedData.bossNotes = {} end
+
+    local raw = WeintCodex.SavedData.bossNotes[bossName]
+    local tbl = (type(raw) == "table") and raw or { col1 = raw or "" }
+    tbl["col" .. col] = text
+    WeintCodex.SavedData.bossNotes[bossName] = tbl
+end
+
+--------------------------------------------------
 -- Inspector (rechte Spalte) aufbauen
 --
 -- Getrennt von ShowRoleTips, damit die Spalte auch allein neu gebaut
@@ -839,16 +867,9 @@ local function BuildInspector(data, roleKey)
         { type = "checklist", items = kurzItems },
         { type = "divider" },
         { type = "header", text = "Notizen" },
-        { type = "notes", height = 110,
-            get = function()
-                return WeintCodex.SavedData and WeintCodex.SavedData.bossNotes
-                    and WeintCodex.SavedData.bossNotes[bossForNotes] or ""
-            end,
-            set = function(text)
-                if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
-                if not WeintCodex.SavedData.bossNotes then WeintCodex.SavedData.bossNotes = {} end
-                WeintCodex.SavedData.bossNotes[bossForNotes] = text
-            end,
+        { type = "notes", height = 150, columns = 2,
+            get = function(col) return GetBossNoteColumn(bossForNotes, col) end,
+            set = function(col, text) SetBossNoteColumn(bossForNotes, col, text) end,
         },
         { type = "divider" },
         { type = "header", text = bisHeader },

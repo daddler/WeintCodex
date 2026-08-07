@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.2.2] – 2026-08-07
+
+### Geändert
+- Notizfeld bei den Bossguides scrollt jetzt, statt Text unten aus dem sichtbaren Bereich laufen zu lassen, und ist zweispaltig für den schnellen Überblick
+- Schutzpaladin-BiS: der fehlende Ring „Siegelring der Vergessenen Könige" (Schätze Pandarias) ergänzt
+
 ## [1.3.2.1] – 2026-08-06
 
 ### Geändert

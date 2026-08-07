@@ -608,6 +608,17 @@ local function InspectorButton(parent, y, opts)
     return y - 32 - 8
 end
 
+-- Notizfeld mit eigenem Scrollbereich, wahlweise ein- oder zweispaltig
+-- (opts.columns = 2). Ohne Scrollframe lief Text, der ueber die feste
+-- Boxhoehe hinausging, einfach unten aus dem sichtbaren Bereich - die
+-- ScrollingEdit_On*-Handler sind Blizzards Standardmuster fuer genau
+-- diesen Fall (Makro-Editor, Gildenbank-Notizen) und passen die Boxhoehe
+-- selbst an den Inhalt an.
+--
+-- get/set bekommen bei columns = 2 die Spaltennummer (1 oder 2) als
+-- erstes Argument, sonst nil.
+local NOTES_SCROLLBAR = 26
+
 local function InspectorNotes(parent, y, opts)
     local h = opts.height or 100
     local bg = CreateFrame("Frame", nil, parent)
@@ -617,20 +628,39 @@ local function InspectorNotes(parent, y, opts)
     WeintCodex.SetSolidBg(bg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.90)
     WeintCodex.DrawSlimBorder(bg, "hairline")
 
-    local box = CreateFrame("EditBox", nil, bg)
-    box:SetPoint("TOPLEFT",     bg, "TOPLEFT",     6, -6)
-    box:SetPoint("BOTTOMRIGHT", bg, "BOTTOMRIGHT", -6, 6)
-    box:SetMultiLine(true)
-    box:SetMaxLetters(0)
-    box:SetAutoFocus(false)
-    box:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
-    box:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
-    box:SetTextInsets(2, 2, 2, 2)
-    box:SetText((opts.get and opts.get()) or "")
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnTextChanged", function(self)
-        if opts.set then opts.set(self:GetText()) end
-    end)
+    local function BuildColumn(leftX, colW, col)
+        local scroll = CreateFrame("ScrollFrame", nil, bg, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", bg, "TOPLEFT", leftX, -6)
+        scroll:SetSize(colW - NOTES_SCROLLBAR, h - 12)
+
+        local box = CreateFrame("EditBox", nil, scroll)
+        box:SetMultiLine(true)
+        box:SetMaxLetters(0)
+        box:SetAutoFocus(false)
+        box:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+        box:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+        box:SetTextInsets(2, 2, 2, 2)
+        box:SetWidth(colW - NOTES_SCROLLBAR)
+        box:SetText((opts.get and opts.get(col)) or "")
+        box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        box:SetScript("OnTextChanged", function(self)
+            ScrollingEdit_OnTextChanged(self, scroll)
+            if opts.set then opts.set(col, self:GetText()) end
+        end)
+        box:SetScript("OnCursorChanged", ScrollingEdit_OnCursorChanged)
+        box:SetScript("OnUpdate", ScrollingEdit_OnUpdate)
+        scroll:SetScrollChild(box)
+    end
+
+    if opts.columns == 2 then
+        local gap  = 8
+        local innerW = INSPECTOR_CONTENT_W - 12
+        local colW = math.floor((innerW - gap) / 2)
+        BuildColumn(6, colW, 1)
+        BuildColumn(6 + colW + gap, colW, 2)
+    else
+        BuildColumn(6, INSPECTOR_CONTENT_W - 12, nil)
+    end
 
     table.insert(inspectorWidgets, bg)
     return y - h - 6
