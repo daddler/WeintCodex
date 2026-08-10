@@ -83,12 +83,46 @@ local function Store()
     return store
 end
 
-local function Catalog() return Store().catalog end
-local function State()   return Store().state   end
-
+--------------------------------------------------
+-- Wer ist "ich"?
+--------------------------------------------------
+-- Der EINGELOGGTE Charakter, und sonst niemand. Bis 1.3.2.3 stand
+-- hier state.character - also der Name aus der zuletzt gelieferten
+-- Nutzlast, mit UnitName nur als Rueckfall. Weil es kontoweit nur
+-- einen Platz fuer diese Nutzlast gab, sah jeder Twink die Bewertung
+-- des Mains, unter dessen Namen, mit dessen Klasse und dessen
+-- Trainingsplan - und keine Stelle im Code konnte das bemerken, weil
+-- Anzeige und Identitaet aus derselben Tabelle kamen.
+--------------------------------------------------
 local function CharacterName()
-    local state = State()
-    return (state and state.character) or UnitName("player") or "?"
+    local me = WeintCodex.Names.Me()
+    if me ~= "" then return me end
+    return UnitName("player") or "?"
+end
+
+-- Beide duerfen nil sein: "fuer diesen Charakter liegt nichts vor"
+-- ist ein gueltiger Zustand und wird als solcher benannt.
+local function Catalog()
+    if WeintCodex.Companion and WeintCodex.Companion.AcademyCatalogFor then
+        return WeintCodex.Companion.AcademyCatalogFor(CharacterName())
+    end
+    return nil
+end
+
+local function State()
+    if WeintCodex.Companion and WeintCodex.Companion.AcademyStateFor then
+        return WeintCodex.Companion.AcademyStateFor(CharacterName())
+    end
+    return nil
+end
+
+-- Fuer wen hat die Companion zuletzt ausgewertet? Nur fuer den
+-- Hinweistext gedacht, nie als Identitaet.
+local function DeliveredCharacter()
+    if WeintCodex.Companion and WeintCodex.Companion.AcademyDeliveredCharacter then
+        return WeintCodex.Companion.AcademyDeliveredCharacter()
+    end
+    return nil
 end
 
 local function Progress()
@@ -308,6 +342,30 @@ local NO_DATA_TEXT =
     .. "Desktop-App einen Raid ausgewertet hat, erscheinen Bewertung und "
     .. "Trainingsplan hier — beim naechsten Login oder nach /reload."
 
+-- Es gibt Daten, nur nicht fuer diesen Charakter. Das ist etwas ganz
+-- anderes als "noch nichts geliefert" und fuehrt zu einer anderen
+-- Handlung, deshalb ein eigener Text: der Nutzer muss wissen, dass
+-- die Verbindung steht und nur die Auswahl auf dem Desktop auf
+-- jemand anderem steht.
+local function NoDataText()
+
+    local delivered = DeliveredCharacter()
+
+    if not delivered or delivered == "" then
+        return NO_DATA_TEXT
+    end
+
+    if WeintCodex.Names.Equal(delivered, CharacterName()) then
+        return NO_DATA_TEXT
+    end
+
+    return "Fuer " .. CharacterName() .. " liegt noch keine Auswertung vor. "
+        .. "Zuletzt hat WeintCompanion " .. tostring(delivered)
+        .. " ausgewertet. Waehle dort diesen Charakter aus — die Auswertung "
+        .. "erscheint nach dem naechsten Login oder /reload."
+
+end
+
 local function Page(titleText, build)
     ClearContent()
     if academyFrame then academyFrame:Hide() end
@@ -329,7 +387,7 @@ local function Page(titleText, build)
     local y = DrawPageHeader(academyFrame, titleText)
 
     if not Catalog() and not State() then
-        DrawNotice(academyFrame, y, NO_DATA_TEXT, 90)
+        DrawNotice(academyFrame, y, NoDataText(), 104)
         WeintCodex.Navigation.SetInspector({
             { type = "header", text = "Academy" },
             { type = "card", lines = {
@@ -362,7 +420,11 @@ function WeintCodex.Academy.ShowOverview()
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, y)
 
         local nameLbl = Text(card, 14, "TOPLEFT", card, "TOPLEFT", 14, -12)
-        nameLbl:SetText(WeintCodex.ColorText("textBright", actor.name or CharacterName()))
+        -- "-" ist der Wert einer aelteren Companion fuer "Spieler im
+        -- Pull nicht gefunden" - als Charaktername unbrauchbar.
+        local shown = actor.name
+        if not shown or shown == "" or shown == "-" then shown = CharacterName() end
+        nameLbl:SetText(WeintCodex.ColorText("textBright", shown))
 
         local specParts = {}
         if actor.spec  then specParts[#specParts + 1] = actor.spec end

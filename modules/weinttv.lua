@@ -41,15 +41,119 @@ local function Report()
     return WeintCodex.SavedData and WeintCodex.SavedData.weinttv or nil
 end
 
--- Name, auf den der "Nur mein Charakter"-Filter matcht. Die Companion
--- schickt in report.me den Charakter, fuer den sie ausgewertet hat; ist
--- das Feld leer, faellt es auf den eingeloggten Charakter zurueck.
-local function MyName(report)
-    return (report and report.me) or UnitName("player")
-end
-
 local function Rows(list)
     return type(list) == "table" and list or {}
+end
+
+--------------------------------------------------
+-- Wer ist "ich"?
+--------------------------------------------------
+-- Bis 1.3.2.3 galt schlicht report.me — der Charakter, den jemand in
+-- der Companion ausgewaehlt hat. Das war falsch herum: der Bericht
+-- ist RAIDWEIT, alle Zeilen aller Raider stehen drin, und der
+-- einzige Wert daran, der ueberhaupt spielerbezogen ist, ist dieses
+-- eine Feld. Wer auf einem Twink einloggte oder wessen Auswahl auf
+-- dem Desktop verrutscht war, bekam damit einen fremden Charakter als
+-- "Mein Charakter" praesentiert.
+--
+-- Jetzt gewinnt der EINGELOGGTE Charakter, sofern er ueberhaupt im
+-- Bericht vorkommt — die Frage laesst sich hier vollstaendig
+-- beantworten, ohne die Companion zu fragen. Nur wenn er nicht
+-- vorkommt (anderer Raid, anderer Charakter), bleibt report.me, und
+-- dann sagt IdentityNotice das auch.
+--------------------------------------------------
+
+-- Reihenfolge ist egal, aber die Liste muss vollstaendig sein: fehlt
+-- ein Abschnitt, wird ein Spieler, der nur dort auftaucht, nicht
+-- gefunden.
+local ROW_LISTS = {
+    { "damageTaken", "actor" },
+    { "uptimes",     "actor" },
+    { "activity",    "actor" },
+    { "movement",    "actor" },
+    { "cooldowns",   "actor" },
+    { "support",     "actor" },
+    { "mechanics",   "actor" },
+    { "consumables", "actor" },
+}
+
+-- Ergebnis je Berichtstabelle merken. Der Durchlauf ist billig, aber
+-- er liefe sonst bei jedem Seitenaufbau und jedem Umschalten erneut.
+--
+-- Der Startwert ist ABSICHTLICH kein nil: ohne Bericht waere sonst
+-- schon der allererste Aufruf ein vermeintlicher Treffer (nil == nil)
+-- und lieferte eine nie berechnete Antwort zurueck.
+local NO_REPORT = {}
+local resolvedFor, resolvedName, resolvedSource = NO_REPORT, nil, nil
+
+-- -> name, source ("player" | "payload" | "none")
+local function ResolveMe(report)
+
+    if resolvedFor == report then
+        return resolvedName, resolvedSource
+    end
+
+    local me = WeintCodex.Names.Me()
+    local name, source = nil, "none"
+
+    if report and me ~= "" then
+
+        for _, spec in ipairs(ROW_LISTS) do
+
+            for _, row in ipairs(Rows(report[spec[1]])) do
+
+                if WeintCodex.Names.Equal(row[spec[2]], me) then
+                    -- Die Schreibweise des Berichts behalten, nicht
+                    -- die des Clients: alle weiteren Vergleiche
+                    -- laufen gegen dieselben Zeilen.
+                    name, source = row[spec[2]], "player"
+                    break
+                end
+
+            end
+
+            if name then break end
+
+        end
+
+    end
+
+    if not name and report and report.me and report.me ~= "" then
+        name, source = report.me, "payload"
+    end
+
+    if not name and me ~= "" then
+        name, source = me, "none"
+    end
+
+    resolvedFor, resolvedName, resolvedSource = report, name, source
+    return name, source
+
+end
+
+local function MyName(report)
+    local name = ResolveMe(report)
+    return name
+end
+
+-- Wenn der Bericht fuer jemand anderen ausgewertet wurde, muss das
+-- dastehen. Es stillschweigend hinzunehmen war der eigentliche
+-- Fehler: die Seite behauptete "Mein Charakter" ueber fremde Zahlen.
+local function IdentityNotice(report)
+
+    local name, source = ResolveMe(report)
+
+    if source ~= "payload" then return nil end
+
+    local me = WeintCodex.Names.Me()
+    if me == "" or WeintCodex.Names.Equal(name, me) then return nil end
+
+    return "Dieser Bericht wurde fuer " .. tostring(name)
+        .. " ausgewertet — angemeldet bist du als " .. me
+        .. ". \"Nur ich\" zeigt deshalb " .. tostring(name)
+        .. ". Waehle in WeintCompanion deinen Charakter aus; die neue "
+        .. "Auswertung erscheint nach /reload."
+
 end
 
 -- Darf dieser Client Zeilen des ganzen Raids sehen? Ohne geladenes
@@ -68,28 +172,40 @@ end
 -- darf dieser Rueckfall NICHT greifen. Er wuerde sonst genau dann alle
 -- Raidzeilen ausliefern, wenn der eigene Name in einem Abschnitt nicht
 -- vorkommt — z. B. bei Mechanikfehlern, die man selbst nicht gemacht hat.
+--
+-- Rueckgabe: rows, filtered, fellBack
+--
+-- fellBack sagt, dass der Rueckfall oben gegriffen hat. Ohne diesen
+-- dritten Wert war er unsichtbar — die Tabelle zeigte den ganzen
+-- Raid, waehrend der Umschalter "Nur ich" anzeigte, und niemand
+-- konnte unterscheiden, ob es keine eigenen Zeilen gibt oder ob der
+-- Name nicht passte. Genau daran ist die falsche Identitaet bisher
+-- nicht aufgefallen.
+--
 local function ApplyFilter(rows, report, nameField)
     local forced = not RaidAllowed()
 
-    if not onlyMine and not forced then return rows, false end
+    if not onlyMine and not forced then return rows, false, false end
 
     local me = MyName(report)
     if not me then
-        if forced then return {}, true end
-        return rows, false
+        if forced then return {}, true, false end
+        return rows, false, true
     end
 
     local kept = {}
     for _, row in ipairs(rows) do
-        if row[nameField or "actor"] == me then kept[#kept + 1] = row end
+        if WeintCodex.Names.Equal(row[nameField or "actor"], me) then
+            kept[#kept + 1] = row
+        end
     end
 
     if #kept == 0 then
-        if forced then return {}, true end
-        return rows, false
+        if forced then return {}, true, false end
+        return rows, false, true
     end
 
-    return kept, true
+    return kept, true, false
 end
 
 --------------------------------------------------
@@ -277,8 +393,18 @@ local function BuildInspector(report, extraRows)
 
     blocks[#blocks + 1] = { type = "header", text = "Mein Charakter" }
 
-    local me   = MyName(report)
+    local me, source = ResolveMe(report)
     local rows = { { label = "Charakter", value = me or "—" } }
+
+    -- Woher der Name stammt, gehoert dazu: "Mein Charakter" ueber
+    -- einer fremden Auswertung war genau die stille Luege, die diese
+    -- Ueberarbeitung beseitigt.
+    if source == "payload" then
+        rows[#rows + 1] = { label = "Quelle", value = "Auswahl in der Companion",
+            valueColor = "warning" }
+    elseif source == "player" then
+        rows[#rows + 1] = { label = "Quelle", value = "angemeldeter Charakter" }
+    end
 
     for _, row in ipairs(extraRows or {}) do rows[#rows + 1] = row end
     blocks[#blocks + 1] = { type = "rows", rows = rows }
@@ -301,7 +427,7 @@ local function MyMetrics(report)
     local rows = {}
 
     for _, entry in ipairs(Rows(report.damageTaken)) do
-        if entry.actor == me then
+        if WeintCodex.Names.Equal(entry.actor, me) then
             rows[#rows + 1] = { label = "Schaden erhalten", value = Amount(entry.total) }
             local share = (entry.total or 0) > 0
                 and ((entry.avoidable or 0) / entry.total * 100) or 0
@@ -312,7 +438,7 @@ local function MyMetrics(report)
     end
 
     for _, entry in ipairs(Rows(report.activity)) do
-        if entry.actor == me then
+        if WeintCodex.Names.Equal(entry.actor, me) then
             rows[#rows + 1] = { label = "Aktivzeit", value = Percent(entry.activePercent) }
             rows[#rows + 1] = { label = "Aktionen/min",
                 value = (string.format("%.1f", entry.apm or 0):gsub("%.", ",")) }
@@ -320,7 +446,7 @@ local function MyMetrics(report)
     end
 
     for _, entry in ipairs(Rows(report.movement)) do
-        if entry.actor == me then
+        if WeintCodex.Names.Equal(entry.actor, me) then
             rows[#rows + 1] = { label = "Laufweg",
                 value = Amount(entry.meters) .. " m"
                     .. (entry.estimated and " (geschaetzt)" or "") }
@@ -350,6 +476,14 @@ local function Page(titleText, viewId, build)
     local report = Report()
     local y = DrawHeader(tvFrame, titleText, report)
 
+    -- Vor allem anderen: gehoert dieser Bericht ueberhaupt zu mir?
+    -- Steht das nicht ganz oben, liest es niemand — und die Seite
+    -- behauptet weiter "Mein Charakter" ueber fremde Zahlen.
+    local identity = IdentityNotice(report)
+    if identity then
+        y = DrawNotice(tvFrame, y, identity)
+    end
+
     local gap = GapText(report)
     if gap and not (report and report.hasAnalysis) then
         DrawNotice(tvFrame, y, gap)
@@ -361,8 +495,15 @@ local function Page(titleText, viewId, build)
     BuildInspector(report, MyMetrics(report))
 end
 
--- Zeigt an, ob der Filter tatsaechlich gegriffen hat.
-local function FilterNote(filtered)
+-- Zeigt an, ob der Filter tatsaechlich gegriffen hat — und wenn
+-- nicht, warum trotzdem der ganze Raid dasteht.
+local function FilterNote(filtered, fellBack, report)
+    if fellBack then
+        local me = MyName(report) or "dich"
+        return "Fuer " .. tostring(me) .. " gibt es in diesem Abschnitt "
+            .. "keine Zeilen — gezeigt wird der ganze Raid."
+    end
+
     if not filtered then return nil end
 
     if not RaidAllowed() then
@@ -378,7 +519,7 @@ local ShowDamageTaken, ShowAvoidable, ShowUptimes,
 
 function ShowDamageTaken()
     Page("Erhaltener Schaden", "damage", function(frame, y, report)
-        local rows, filtered = ApplyFilter(Rows(report and report.damageTaken), report)
+        local rows, filtered, fellBack = ApplyFilter(Rows(report and report.damageTaken), report)
 
         local table_ = {}
         for _, e in ipairs(rows) do
@@ -399,7 +540,7 @@ function ShowDamageTaken()
         end
         table.sort(table_, function(a, b) return a.sortKey > b.sortKey end)
 
-        local note = FilterNote(filtered)
+        local note = FilterNote(filtered, fellBack, report)
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {
@@ -414,7 +555,7 @@ end
 
 function ShowAvoidable()
     Page("Vermeidbarer Schaden", "avoidable", function(frame, y, report)
-        local entries, filtered = ApplyFilter(Rows(report and report.damageTaken), report)
+        local entries, filtered, fellBack = ApplyFilter(Rows(report and report.damageTaken), report)
 
         -- Faehigkeiten aus allen Spielerzeilen flach ziehen und nur die
         -- behalten, die die Companion als vermeidbar eingestuft hat.
@@ -450,7 +591,7 @@ function ShowAvoidable()
             }
         end
 
-        local note = FilterNote(filtered)
+        local note = FilterNote(filtered, fellBack, report)
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {
@@ -465,7 +606,7 @@ end
 
 function ShowUptimes()
     Page("Wirkungsdauern", "uptimes", function(frame, y, report)
-        local rows, filtered = ApplyFilter(Rows(report and report.uptimes), report)
+        local rows, filtered, fellBack = ApplyFilter(Rows(report and report.uptimes), report)
 
         local table_ = {}
         for _, e in ipairs(rows) do
@@ -485,7 +626,7 @@ function ShowUptimes()
             }
         end
 
-        local note = FilterNote(filtered)
+        local note = FilterNote(filtered, fellBack, report)
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {
@@ -501,7 +642,7 @@ end
 
 function ShowActivity()
     Page("Aktivzeit & Laufwege", "activity", function(frame, y, report)
-        local acts, filtered = ApplyFilter(Rows(report and report.activity), report)
+        local acts, filtered, fellBack = ApplyFilter(Rows(report and report.activity), report)
 
         -- Laufwege nach Spieler nachschlagen; beide Bloecke koennen
         -- unabhaengig voneinander fehlen.
@@ -530,7 +671,7 @@ function ShowActivity()
             }
         end
 
-        local note = FilterNote(filtered)
+        local note = FilterNote(filtered, fellBack, report)
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {
@@ -545,7 +686,7 @@ end
 
 function ShowCooldowns()
     Page("Cooldown-Nutzung", "cooldowns", function(frame, y, report)
-        local rows, filtered = ApplyFilter(Rows(report and report.cooldowns), report)
+        local rows, filtered, fellBack = ApplyFilter(Rows(report and report.cooldowns), report)
 
         local table_ = {}
         for _, e in ipairs(rows) do
@@ -572,7 +713,7 @@ function ShowCooldowns()
         -- Schlechteste Ausnutzung zuerst: danach wird gesucht.
         table.sort(table_, function(a, b) return a.sortKey < b.sortKey end)
 
-        local note = FilterNote(filtered)
+        local note = FilterNote(filtered, fellBack, report)
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {
@@ -588,7 +729,7 @@ end
 function ShowSupport()
     Page("Unterbrechungen & Mechaniken", "support", function(frame, y, report)
         local supports = ApplyFilter(Rows(report and report.support), report)
-        local mechs, filtered = ApplyFilter(Rows(report and report.mechanics), report)
+        local mechs, filtered, fellBack = ApplyFilter(Rows(report and report.mechanics), report)
 
         local table_ = {}
 
@@ -626,7 +767,7 @@ function ShowSupport()
 
         table.sort(table_, function(a, b) return a.sortKey < b.sortKey end)
 
-        local note = FilterNote(filtered)
+        local note = FilterNote(filtered, fellBack, report)
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {

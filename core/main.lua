@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "1.3.2.3"
+WeintCodex.Version = "1.3.3.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -89,6 +89,17 @@ local function OnEvent(self, event, addonName)
         -- fürs Kalender-Invite kennt - siehe modules/companion.lua.
         if WeintCodex.Companion and WeintCodex.Companion.ReportCharacter then
             WeintCodex.Companion.ReportCharacter()
+        end
+
+        -- Und getrennt davon: WER von diesen Charakteren gerade
+        -- spielt. Die obige Meldung ist die ganze Twinkliste ohne
+        -- Kennzeichnung - die Companion konnte daraus nie ablesen,
+        -- wer angemeldet ist, und hat die Frage deshalb geraten.
+        -- Genau daher stammte der fremde Charakter in Academy und
+        -- WeintTV. Diese Nachricht bleibt auf dem Rechner des
+        -- Spielers, siehe modules/companion.lua.
+        if WeintCodex.Companion and WeintCodex.Companion.ReportLoggedInCharacter then
+            WeintCodex.Companion.ReportLoggedInCharacter()
         end
 
         -- Bereits importierte Rosterdaten erneut auflösen - UnitClass/

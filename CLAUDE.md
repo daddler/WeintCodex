@@ -61,7 +61,12 @@ The addon and WeintCompanion communicate only through two Lua tables in the shar
 
 The inbox is read **only at login/reload** — WoW never re-reads `SavedVariables` at runtime. Anything built on it is therefore a report of the last delivery, never a live view; both `weinttv.lua` and `academy.lua` say so in their headers and in the UI.
 
-`WeintCodex.Companion.ReportCharacter()` fires on every `PLAYER_LOGIN` to tell the Companion/bot which real WoW character+realm is currently logged in (used for calendar-invite class/name resolution — Discord identity alone isn't enough).
+Two different messages fire on every `PLAYER_LOGIN`, and confusing them is easy:
+
+- `WeintCodex.Companion.ReportCharacter()` sends the **whole twink list** (`name|class|realm,…`) onward to the Discord bot, for calendar-invite class/name resolution — Discord identity alone isn't enough. It carries **no marker for which of them is currently logged in**, so nothing downstream can read that from it.
+- `WeintCodex.Companion.ReportLoggedInCharacter()` (since 1.3.3.0) answers exactly that question, as its own type `character_report`, handled locally by the Companion and **never forwarded to the bot** — the same pattern as `dummy_practice_session`. Deliberately not an extension of `character`: anything hung on that message becomes a bot contract.
+
+It only sends when `WeintCompanionInboxDB.companionVersion` is ≥ 1.7.0 (written by `InboxWriter.send_batch()` on every write, including an empty one). An older Companion would route the unknown type into its generic branch, POST it to the bot, fail, never remove it and log an error every five seconds. `character_report` is in `STATE_MESSAGES`, so at most one ever exists.
 
 ### Zugriffsprofile & Freigaben (`core/access.lua`)
 
@@ -116,6 +121,16 @@ Slimmed-down in-game versions of the two WeintCompanion desktop features, for pl
 - `modules/academy.lua` deliberately has **no** tab — it hangs in the *Charakter* sidebar (`WeintCodex.Charakter.Show`), because ratings and lessons belong to the character. Since it renders into the shared `ContentPanel` from outside `charakter.lua`, it calls `WeintCodex.Charakter.LeaveView()` so the equipment watcher does not redraw a Charakter page over it.
 
 Two conventions inherited from the Companion must not be broken: `stars == 0` means *no data*, not *bad* (zero ratings are excluded from the average and from the weakest-area pick), and `at == -1` means *no timestamp known*, not second 0. Lesson progress is stored per character as **exclusions**, not inclusions, so newly delivered lessons are active without a migration. The log result (`results`) and the player's own checkbox (`completed`) are never written into each other — a lesson counts as done if either applies.
+
+#### Wer ist „ich"? (`core/names.lua`)
+
+Bis 1.3.2.3 schlug **die gelieferte Identität den eingeloggten Charakter**: `academy.lua` las `state.character`, `weinttv.lua` las `report.me`, und `UnitName("player")` war nur Rückfall. Da beide Nutzlasten kontoweit auf *einem* Platz lagen, sah jeder Twink die Auswertung des Mains — unter dessen Namen, Klasse und Trainingsplan. Auffallen konnte das nirgends, weil Anzeige und Identität aus derselben Tabelle kamen.
+
+- **Der eingeloggte Charakter gewinnt.** `core/names.lua` (lädt direkt nach `core/main.lua`, vor `core/ui.lua` — sonst fehlt sie `academy.lua`, das *vor* `companion.lua` lädt) ist der eine Ort, an dem „ist das derselbe Charakter" beantwortet wird. **Ein fehlender Realm ist ein Platzhalter, kein Widerspruch** — der Client kennt nur den nackten Namen, WarcraftLogs qualifiziert nur realmfremde Zeilen. Dieselben drei Regeln stehen drüben in `analyzer/names.py`; weichen sie ab, ist „ich" im Spiel jemand anderes als „ich" auf dem Desktop.
+- **WeintTV löst die Identität selbst auf.** Der Bericht ist raidweit, alle Zeilen aller Raider stehen drin — `ResolveMe()` sucht darin den eingeloggten Charakter und nimmt **die Schreibweise des Berichts**; nur wenn er nicht vorkommt, bleibt `report.me`, und dann sagt `IdentityNotice()` das auch. `ApplyFilter` liefert einen dritten Wert `fellBack`: der stille Rückfall „0 Treffer → ganzer Raid" ist genau der Grund, warum die falsche Identität so lange unbemerkt blieb.
+- **Die Academy liegt je Charakter.** `SavedData.academy.states[<Charakter>]` / `.catalogs[…]` / `.lastCharacter`; die Migration des alten Einzelplatzes passiert in `AcademyStore()`, damit jeder Einstiegspunkt sie mitbekommt. Liegt für den eingeloggten Charakter nichts vor, nennt die Hinweiskarte den zuletzt gelieferten Charakter — **nie wird eine fremde Auswertung als eigene gezeichnet**. `character == "-"` (so meldete eine ältere Companion „Spieler im Pull nicht gefunden") gilt als unbeschriftet und landet beim eingeloggten Charakter.
+- **Der Katalog trägt keine Identität.** Er wird als `store.pendingCatalog` zwischengelegt und von der unmittelbar folgenden `academy_state`-Nachricht übernommen. Das trägt nur, weil `core/addon_analysis_sync.py` Katalog **vor** Zustand in einer geordneten Liste veröffentlicht — eine unsichtbare Kopplung, die in beiden Dateien kommentiert ist.
+- **`/wc access reset`** löscht über `Companion.ResetDeliveredAnalysis()` gezielt `states`/`catalogs`/`lastCharacter`. `academy` steht bewusst **nicht** in `GUILD_KEYS`: `completed`/`excluded` ist eigener Lernfortschritt, weder gildenintern noch aus fremden Raids abgeleitet — ihn zu löschen wäre Datenverlust im Gewand der Hygiene.
 
 ### Libraries
 

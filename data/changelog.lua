@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.3.0",
+        date    = "10.08.2026",
+        notes   = {
+            "Academy und WeintTV zeigen jetzt den Charakter, mit dem ihr angemeldet seid — nicht mehr den, der zuletzt in der Companion ausgewaehlt war.",
+            "Die Academy merkt sich die Auswertung je Charakter. Ein Twink sieht nicht mehr die Bewertung des Mains.",
+            "Liegt fuer den angemeldeten Charakter nichts vor, steht das jetzt da — samt Name des zuletzt ausgewerteten Charakters, statt fremde Zahlen als eigene auszugeben.",
+            "\"Nur ich\" in WeintTV findet euch auch bei abweichender Schreibweise (Realm-Zusatz, Gross-/Kleinschreibung) und sagt es, wenn es stattdessen den ganzen Raid zeigt.",
+            "Das Addon meldet der Companion beim Login, wer angemeldet ist. Die Charakterauswahl auf dem Desktop folgt dem von selbst (WeintCompanion 1.7.0 noetig).",
+        },
+    },
+    {
         version = "1.3.2.3",
         date    = "07.08.2026",
         notes   = {

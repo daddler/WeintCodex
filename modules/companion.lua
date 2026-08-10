@@ -12,6 +12,9 @@ local STATE_MESSAGES = {
     calendar  = true,
     academy   = true,
 
+    -- Wer ist gerade angemeldet? Immer nur der letzte Stand.
+    character_report = true,
+
 }
 
 -- Ausgangsseitige Freigaben: welche Nachrichtenart welche Rolle braucht.
@@ -250,6 +253,36 @@ WeintCompanionInboxDB.queue or {}
 end
 
 ----------------------------------------------------------
+-- Welche Companion-Version schreibt hier?
+----------------------------------------------------------
+-- WeintCompanion 1.7.0 schreibt companionVersion bei jedem
+-- Schreibvorgang in WeintCompanionInboxDB. Wir brauchen die Angabe
+-- fuer genau eine Entscheidung: ob wir "character_report" senden
+-- duerfen. Eine aeltere Companion kennt den Typ nicht, wuerde ihn an
+-- den Bot schicken, dort scheitern, die Nachricht liegen lassen und
+-- alle fuenf Sekunden einen Fehler ins Log schreiben.
+--
+-- Fehlt die Marke, gilt "zu alt" - der Normalfall vor 1.7.0.
+----------------------------------------------------------
+
+local function CompanionAtLeast(major, minor)
+
+    InitializeInbox()
+
+    local version = WeintCompanionInboxDB.companionVersion
+    if type(version) ~= "string" then return false end
+
+    local gotMajor, gotMinor = version:match("^v?(%d+)%.(%d+)")
+    if not gotMajor then return false end
+
+    gotMajor, gotMinor = tonumber(gotMajor), tonumber(gotMinor)
+
+    if gotMajor ~= major then return gotMajor > major end
+    return gotMinor >= minor
+
+end
+
+----------------------------------------------------------
 -- Ablage der Companion-Auswertungen
 ----------------------------------------------------------
 -- Die Nutzlasten landen in WeintCodex.SavedData und bleiben dort
@@ -263,6 +296,15 @@ end
 -- aktiv, ohne Migration.
 ----------------------------------------------------------
 
+-- Schluessel einer Tabelle als Liste - Names.Match braucht eine, um
+-- den Charakter unabhaengig von Realmzusatz und Schreibweise zu
+-- finden.
+local function KeysOf(tbl)
+    local keys = {}
+    for key in pairs(tbl or {}) do keys[#keys + 1] = key end
+    return keys
+end
+
 local function AcademyStore()
 
     WeintCodex.SavedData = WeintCodex.SavedData or {}
@@ -271,6 +313,46 @@ local function AcademyStore()
     store.completed = store.completed or {}
     store.excluded  = store.excluded  or {}
 
+    --------------------------------------------------
+    -- Auswertungen liegen JE CHARAKTER
+    --------------------------------------------------
+    -- Bis 1.3.2.3 gab es genau einen Platz fuer Bewertung und
+    -- Katalog - kontoweit, fuer alle Charaktere zusammen. Wer auf
+    -- einem Twink einloggte, bekam die Bewertung seines Mains
+    -- vorgesetzt, mitsamt dessen Namen, Klasse und Trainingsplan. Es
+    -- gab keine Stelle, an der das haette auffallen koennen: die
+    -- Seite las den Namen aus derselben Nutzlast, die sie anzeigte.
+    --
+    -- Migration passiert hier und nicht an den Aufrufstellen, damit
+    -- jeder Einstiegspunkt sie mitbekommt. Der alte Platz wird
+    -- danach entfernt; die Companion liest SavedData.academy nie,
+    -- das ist also gefahrlos.
+    --------------------------------------------------
+
+    if store.state and not store.states then
+
+        local key = store.state.character
+
+        -- "-" ist der Wert, den eine aeltere Companion schickte, wenn
+        -- sie den gewaehlten Spieler im Pull nicht fand. Als
+        -- Charaktername ist er unbrauchbar.
+        if key == nil or key == "" or key == "-" then
+            key = (WeintCodex.Names and WeintCodex.Names.Me()) or UnitName("player")
+        end
+
+        if key and key ~= "" then
+            store.states   = { [key] = store.state }
+            store.catalogs = { [key] = store.catalog }
+            store.lastCharacter = key
+        end
+
+        store.state, store.catalog = nil, nil
+
+    end
+
+    store.states   = store.states   or {}
+    store.catalogs = store.catalogs or {}
+
     WeintCodex.SavedData.academy = store
     return store
 
@@ -278,11 +360,42 @@ end
 
 WeintCodex.Companion.AcademyStore = AcademyStore
 
+-- Auswertung und Katalog des uebergebenen Charakters. Beide duerfen
+-- nil sein - "fuer diesen Charakter liegt nichts vor" ist ein
+-- gueltiger Zustand und wird in modules/academy.lua als solcher
+-- benannt, statt ersatzweise eine fremde Auswertung zu zeigen.
+function WeintCodex.Companion.AcademyStateFor(character)
+    local store = AcademyStore()
+    local key = WeintCodex.Names.Match(character, KeysOf(store.states))
+    return key and store.states[key] or nil
+end
+
+function WeintCodex.Companion.AcademyCatalogFor(character)
+    local store = AcademyStore()
+    local key = WeintCodex.Names.Match(character, KeysOf(store.catalogs))
+    return key and store.catalogs[key] or nil
+end
+
+-- Fuer wen hat die Companion zuletzt ausgewertet? Das beantwortet die
+-- Frage, die der Nutzer vor einer leeren Academy hat: liegt es an der
+-- Verbindung oder an der Auswahl auf dem Desktop?
+function WeintCodex.Companion.AcademyDeliveredCharacter()
+    return AcademyStore().lastCharacter
+end
+
 -- Fortschritt-Listen des uebergebenen Charakters (immer eine Tabelle).
 function WeintCodex.Companion.AcademyProgress(character)
 
     local store = AcademyStore()
     character = character or UnitName("player") or "?"
+
+    -- Auf eine bereits vorhandene Schreibweise abbilden. Ohne das
+    -- liegen die Haken unter "Aldrin-DieAldor" (so schreibt der
+    -- Bericht) und werden unter "Aldrin" (so schreibt der Client)
+    -- gesucht - der Fortschritt sieht dann verloren aus.
+    character = WeintCodex.Names.Match(character, KeysOf(store.completed))
+        or WeintCodex.Names.Match(character, KeysOf(store.excluded))
+        or character
 
     store.completed[character] = store.completed[character] or {}
     store.excluded[character]  = store.excluded[character]  or {}
@@ -379,12 +492,24 @@ INBOX_HANDLERS.raid_import = function(payload)
 
 end
 
+--
+-- Der Katalog traegt selbst KEINEN Charakter - ihm eins zu geben
+-- waere ein neuer versionsuebergreifender Vertrag ohne Gegenwert.
+-- Stattdessen wird er zwischengelegt und von der unmittelbar
+-- folgenden academy_state-Nachricht uebernommen.
+--
+-- ACHTUNG, unsichtbare Kopplung: das traegt nur, weil
+-- core/addon_analysis_sync.py der Companion Katalog VOR Zustand in
+-- einer geordneten Liste veroeffentlicht und AddonInbox die
+-- Reihenfolge innerhalb eines Kanals erhaelt. Wer dort die
+-- Reihenfolge aendert, landet hier bei Katalogen ohne Besitzer.
+--
 INBOX_HANDLERS.academy_catalog = function(payload)
 
     if type(payload) ~= "table" then return end
 
     local store = AcademyStore()
-    store.catalog = payload
+    store.pendingCatalog = payload
 
 end
 
@@ -393,22 +518,66 @@ INBOX_HANDLERS.academy_state = function(payload)
     if type(payload) ~= "table" then return end
 
     local store = AcademyStore()
-    store.state = payload
+
+    -- "-" schickte eine aeltere Companion, wenn sie den gewaehlten
+    -- Spieler im Pull nicht fand. Unbeschriftet heisst: gehoert dem,
+    -- der gerade spielt - eine alte Companion kennt ohnehin nur einen
+    -- Charakter.
+    local key = payload.character
+    if key == nil or key == "" or key == "-" then
+        key = WeintCodex.Names.Me()
+    end
+
+    if key == "" then
+        store.pendingCatalog = nil
+        return
+    end
+
+    -- Unter der Schreibweise ablegen, die schon da ist - sonst
+    -- entstuenden "Aldrin" und "Aldrin-DieAldor" als zwei Charaktere.
+    key = WeintCodex.Names.Match(key, KeysOf(store.states)) or key
+
+    store.states[key] = payload
+
+    if store.pendingCatalog then
+        store.catalogs[key] = store.pendingCatalog
+        store.pendingCatalog = nil
+    end
+
+    store.lastCharacter = key
 
     -- Fortschritt vom Desktop uebernehmen. Die Companion ist beim Login
     -- die juengere Quelle: sie hat die Auswertung gerade erst erzeugt,
     -- waehrend die Addon-Seite seit dem letzten Ausloggen unveraendert
     -- ist. Ingame gesetzte Haken gehen ueber die Ausgangs-Warteschlange
     -- zurueck (siehe SendAcademyProgress).
-    local character = payload.character
-    if character then
-        if payload.completed then
-            store.completed[character] = IdSet(payload.completed)
-        end
-        if payload.excluded then
-            store.excluded[character] = IdSet(payload.excluded)
-        end
+    --
+    -- Derselbe aufgeloeste Schluessel wie oben: frueher stand hier
+    -- payload.character roh, sodass der Fortschritt unter einem
+    -- anderen Namen landete als die Bewertung und die Haken beim
+    -- naechsten Login verschwunden schienen.
+    if payload.completed then
+        store.completed[key] = IdSet(payload.completed)
     end
+    if payload.excluded then
+        store.excluded[key] = IdSet(payload.excluded)
+    end
+
+end
+
+-- Gelieferte Auswertungen verwerfen, ohne den eigenen Lernfortschritt
+-- anzutasten. Genutzt von /wc access reset (core/access.lua): die
+-- Bewertungen stammen aus den Raids der alten Community und muessen
+-- gehen, die selbst gesetzten Haken sind eigene Daten und bleiben.
+function WeintCodex.Companion.ResetDeliveredAnalysis()
+
+    local store = AcademyStore()
+
+    store.states         = {}
+    store.catalogs       = {}
+    store.lastCharacter  = nil
+    store.pendingCatalog = nil
+    store.state, store.catalog = nil, nil
 
 end
 
@@ -667,6 +836,70 @@ function WeintCodex.Companion.ReportCharacter()
     WeintCodex.Companion.Send(
         "character",
         table.concat(parts, ",")
+    )
+
+end
+
+----------------------------------------------------------
+-- Wer spielt gerade? (Addon -> Companion, bleibt lokal)
+----------------------------------------------------------
+-- Bis WeintCodex 1.3.2.3 erfuhr die Companion NIE, welcher Charakter
+-- ingame angemeldet ist. Sie musste die Frage "wer bin ich" aus einer
+-- WarcraftLogs-Namensliste raten - im Zweifel wurde der alphabetisch
+-- erste Raider genommen. Genau daher stammte der Fehler, dass in der
+-- Academy und in WeintTV ein voellig fremder Charakter stand.
+--
+-- Bewusst ein EIGENER Nachrichtentyp und keine Erweiterung von
+-- "character": jene Nachricht laeuft ueber den CharacterSyncClient
+-- weiter an den Discord-Bot, alles daran Angehaengte waere damit ein
+-- Bot-Vertrag. "character_report" wird von der Companion lokal
+-- verarbeitet (core/character_report_sync.py) und verlaesst den
+-- Rechner nie - dasselbe Muster wie "dummy_practice_session".
+--
+-- Format (flache Zeichenkette; Ausgangsnachrichten kann
+-- addon/sync_reader.py der Companion nur als String lesen):
+--
+--   <Name>|<Realm>|<classFile>|<Level>|<specKey>
+--
+-- specKey darf leer bleiben - die Spezialisierung steht bei
+-- PLAYER_LOGIN noch nicht verlaesslich fest. Die Companion nimmt
+-- zwei bis fuenf Felder und ignoriert weitere, das Format kann also
+-- wachsen, ohne die alte Gegenseite zu brechen.
+----------------------------------------------------------
+
+function WeintCodex.Companion.ReportLoggedInCharacter()
+
+    -- Eine zu alte Companion kennt den Typ nicht und wuerde ihn an
+    -- den Bot zu senden versuchen: das scheitert, die Nachricht
+    -- bliebe liegen und erzeugte im Sync-Takt Fehlermeldungen.
+    if not CompanionAtLeast(1, 7) then
+        return
+    end
+
+    local name, realm = WeintCodex.Names.Me()
+    if name == "" then return end
+
+    local _, classFile = UnitClass("player")
+    local level = UnitLevel("player")
+
+    -- Derselbe Profilschluessel wie ueberall sonst (siehe
+    -- data/spec_profiles.lua). Er darf leer bleiben: bei PLAYER_LOGIN
+    -- ist die Spezialisierung noch nicht verlaesslich abfragbar, und
+    -- die Companion braucht sie fuer die Charakterauswahl nicht.
+    local specKey = ""
+    if WeintCodex.Charakter and WeintCodex.Charakter.GetProfileKey then
+        specKey = WeintCodex.Charakter.GetProfileKey() or ""
+    end
+
+    return WeintCodex.Companion.Send(
+        "character_report",
+        table.concat({
+            name,
+            realm or "",
+            classFile or "",
+            tostring(level or 0),
+            specKey,
+        }, "|")
     )
 
 end

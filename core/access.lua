@@ -480,6 +480,16 @@ function WeintCodex.Access.Unbind()
         sd[key] = nil
     end
 
+    -- "academy" steht bewusst NICHT in GUILD_KEYS. Der Schluessel
+    -- enthaelt zweierlei: die gelieferten Bewertungen (stammen aus
+    -- den Raids der alten Community, muessen gehen) und die selbst
+    -- gesetzten Haken in completed/excluded (eigener Lernfortschritt,
+    -- weder gildenintern noch aus fremden Raids abgeleitet). Ihn ganz
+    -- zu loeschen waere Datenverlust im Gewand der Hygiene.
+    if WeintCodex.Companion and WeintCodex.Companion.ResetDeliveredAnalysis then
+        WeintCodex.Companion.ResetDeliveredAnalysis()
+    end
+
     -- bossData wird von modules/sync.lua als Tabelle erwartet.
     sd.bossData = {}
 

@@ -2,6 +2,22 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.3.0] – 2026-08-10
+
+### Behoben
+- **Academy und WeintTV zeigten manchmal einen alten oder einen völlig fremden Charakter.** Ursache war nicht ein Fehler, sondern dass es vier voneinander unabhängige Antworten auf „wer bin ich" gab – die Auswahlbox der Companion, deren gespeicherte Auswahl, das ausgewertete Profil und der angemeldete Charakter – und nichts davon miteinander abgeglichen wurde. Die einzige verlässliche Quelle, der angemeldete Charakter, wurde nirgends gefragt
+- **Die gelieferte Auswertung schlug den angemeldeten Charakter.** `modules/academy.lua` las den Namen aus derselben Nutzlast, die es anzeigte, und konnte eine Abweichung deshalb prinzipiell nicht bemerken. Jetzt zählt `UnitName("player")`, und nur der
+- **Bewertung und Katalog lagen kontoweit auf einem einzigen Platz.** Jeder Twink bekam die Bewertung des Mains vorgesetzt, mitsamt dessen Namen, Klasse und Trainingsplan. Beides liegt jetzt je Charakter; bestehende Daten wandern beim ersten Login unter ihren Charakter, es geht nichts verloren
+- **„Nur ich" in WeintTV verglich Namen roh und schreibweisengenau** und zeigte bei null Treffern stillschweigend den ganzen Raid. Verglichen wird jetzt ohne Rücksicht auf Realm-Zusatz und Gross-/Kleinschreibung, und der Rückfall auf den ganzen Raid steht als Hinweis über der Tabelle statt gar nicht
+
+### Neu
+- **Das Addon meldet der Companion beim Login, wer angemeldet ist** (neue Nachricht `character_report`). Die Charakterauswahl auf dem Desktop folgt dem von selbst, statt sie zu raten. Bewusst ein eigener Nachrichtentyp, der den Rechner nie verlässt – die bestehende `character`-Meldung geht an den Discord-Bot und bleibt unverändert. Braucht **WeintCompanion 1.7.0**; ältere Versionen bekommen die Nachricht gar nicht erst geschickt
+- Liegt für den angemeldeten Charakter keine Auswertung vor, nennt die Academy den Charakter, für den die Companion zuletzt ausgewertet hat – statt entweder nichts zu sagen oder fremde Zahlen als eigene auszugeben
+- Neue Datei `core/names.lua`: der eine Ort, an dem „ist das derselbe Charakter" beantwortet wird. Ein fehlender Realm gilt dabei als Platzhalter, nicht als Widerspruch – der Client kennt nur den nackten Namen, WarcraftLogs qualifiziert nur realmfremde Zeilen
+
+### Geändert
+- `/wc access reset` löscht jetzt auch die gelieferten Auswertungen der alten Community. Die selbst gesetzten Haken im Lernfortschritt bleiben – sie sind eigene Daten, weder gildenintern noch aus fremden Raids abgeleitet
+
 ## [1.3.2.3] – 2026-08-07
 
 ### Geändert
