@@ -2,6 +2,17 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.3.1] – 2026-08-11
+
+### Neu
+- **Das Addon meldet der Companion den Ausrüstungsstand des angemeldeten Charakters** (neue Nachricht `character_sheet`). Damit sind „Meine Charaktere" und „Vorbereitung" auf dem Desktop nicht mehr leer: je Charakter Gegenstandsstufe, geprüfte Verzauberungen und Sockel, offene BiS-Plätze und die konkreten Mängel in der Reihenfolge, in der dieses Addon sie bewertet. Braucht **WeintCompanion 2.0.1**; ältere Versionen bekommen die Nachricht gar nicht erst geschickt
+- Wie `character_report` und `dummy_practice_session` bleibt sie auf dem Rechner des Spielers und geht den Discord-Bot nichts an – es ist die eigene Ausrüstung, kein Gildenwissen. Bewusst ein eigener Nachrichtentyp: alles, was an die bestehende `character`-Meldung angehängt würde, wäre ein Bot-Vertrag
+- `WeintCodex.BiS.GetSummary(specKey)` beantwortet erstmals „wie weit bin ich insgesamt" statt nur „droppt hier etwas für mich". Gezählt wird **je Slot**, nicht je Eintrag – eine BiS-Liste führt für Finger und Schmuck mehrere Einträge, und wer einen davon trägt, hat den Platz nicht halb offen. Ist für eine Spec keine Liste gepflegt, sagt die Übersicht das, statt „0 offen" zu behaupten
+
+### Geändert
+- Gemeldet wird beim Betreten der Welt (nach 8 s) und entprellt nach jedem Ausrüstungs-, Berufs- oder Spec-Wechsel – **nicht** bei `PLAYER_LOGIN`: dort steht weder die Spezialisierung fest noch sind die Item-Daten im Client-Cache, ein Scan zu diesem Zeitpunkt meldete eine halb leere Ausrüstung als Befund. Gesendet wird nur, wenn sich am Ergebnis etwas geändert hat
+- Die Versionsprüfung gegenüber der Companion kennt jetzt auch die dritte Stelle. 2.0.0 war bereits draußen und kennt die neue Nachricht nicht – „mindestens 2.0" hätte genau die Version eingeschlossen, die daran scheitert
+
 ## [1.3.3.0] – 2026-08-10
 
 ### Behoben

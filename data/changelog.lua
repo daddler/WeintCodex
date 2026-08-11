@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.3.1",
+        date    = "11.08.2026",
+        notes   = {
+            "Das Addon meldet der Companion jetzt euren Ausruestungsstand: Gegenstandsstufe, Verzauberungen, Sockel und offene BiS-Plaetze.",
+            "Damit sind \"Meine Charaktere\" und \"Vorbereitung\" auf dem Desktop nicht mehr leer — je Charakter ein Fortschrittsring und die konkreten Maengel.",
+            "Bewertet wird weiterhin hier im Spiel, wo Spec-Profile, Caps und Sockelboni bekannt sind. Die Companion zeichnet nur — Spiel und Desktop koennen so nicht auseinanderlaufen.",
+            "Gemeldet wird beim Betreten der Welt und nach jedem Ausruestungswechsel, aber nur wenn sich wirklich etwas geaendert hat. Braucht WeintCompanion 2.0.1.",
+        },
+    },
+    {
         version = "1.3.3.0",
         date    = "10.08.2026",
         notes   = {

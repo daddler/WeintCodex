@@ -250,6 +250,94 @@ function WeintCodex.BiS.GetForBoss(bossName, specKey)
 end
 
 --------------------------------------------------
+-- ÜBERSICHT ÜBER DIE GANZE SPEC
+--
+-- GetForBoss beantwortet "droppt hier etwas für mich". Die
+-- Vorbereitungsansicht der Companion stellt die andere Frage: "wie
+-- weit bin ich insgesamt". Dafür zählt nicht der einzelne Eintrag,
+-- sondern der SLOT - eine BiS-Liste führt für Finger und Schmuck
+-- mehrere Einträge, und wer einen davon trägt, hat den Platz nicht
+-- halb offen.
+--
+-- Rückgabe:
+--   summary  { have, variant, open, total, openSlots = { name, ... } }
+--   hasData  true, wenn für diese Spec überhaupt Einträge gepflegt
+--            sind. Ohne das wäre "0 von 0 offen" von "es gibt keine
+--            Liste" nicht zu unterscheiden - und die Companion würde
+--            eine gepflegte Vollständigkeit behaupten, die niemand
+--            gemessen hat.
+--------------------------------------------------
+
+function WeintCodex.BiS.GetSummary(specKey)
+
+    local summary = { have = 0, variant = 0, open = 0, total = 0, openSlots = {} }
+
+    if not specKey then return summary, false end
+
+    local dataKey = ResolveDataKey(specKey)
+
+    local entries = WeintCodex_BiS and WeintCodex_BiS[dataKey]
+
+    if type(entries) ~= "table" or #entries == 0 then
+        return summary, false
+    end
+
+    local equipped = BuildEquippedIndex()
+
+    -- Bester Zustand je Slot. "have" schlägt "variant" schlägt "open":
+    -- ein getragenes Item macht den Platz nicht dadurch offen, dass
+    -- daneben noch eine zweite Empfehlung in der Liste steht.
+    local bySlot = {}
+
+    for _, entry in ipairs(entries) do
+
+        local slot = entry.slot
+
+        if slot then
+
+            local state = ResolveState(entry, equipped)
+
+            local current = bySlot[slot]
+
+            if current == nil
+                or (STATE_RANK[state] or 99) > (STATE_RANK[current] or 99) then
+                bySlot[slot] = state
+            end
+
+        end
+
+    end
+
+    -- Nach der Reihenfolge des Charakterfensters, damit die Liste der
+    -- offenen Plätze in der Companion nicht bei jedem Login anders
+    -- sortiert ist (pairs() ist in Lua nicht stabil).
+    local slots = {}
+    for slot in pairs(bySlot) do slots[#slots + 1] = slot end
+
+    table.sort(slots, function(a, b)
+        local ra, rb = SLOT_RANK[a] or 99, SLOT_RANK[b] or 99
+        if ra ~= rb then return ra < rb end
+        return a < b
+    end)
+
+    for _, slot in ipairs(slots) do
+
+        local state = bySlot[slot]
+
+        summary.total = summary.total + 1
+        summary[state] = (summary[state] or 0) + 1
+
+        if state == "open" then
+            summary.openSlots[#summary.openSlots + 1] = slot
+        end
+
+    end
+
+    return summary, true
+
+end
+
+--------------------------------------------------
 -- AKTUALISIERUNG
 --
 -- Legt man ein BiS-Item an oder wechselt die Spec, muss die Liste im

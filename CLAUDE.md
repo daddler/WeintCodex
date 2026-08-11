@@ -68,6 +68,19 @@ Two different messages fire on every `PLAYER_LOGIN`, and confusing them is easy:
 
 It only sends when `WeintCompanionInboxDB.companionVersion` is ≥ 1.7.0 (written by `InboxWriter.send_batch()` on every write, including an empty one). An older Companion would route the unknown type into its generic branch, POST it to the bot, fail, never remove it and log an error every five seconds. `character_report` is in `STATE_MESSAGES`, so at most one ever exists.
 
+A third message answers the gear question, since 1.3.3.1:
+
+- `WeintCodex.Companion.ReportCharacterSheet()` sends `character_sheet` — item level, per-slot enchant/gem status, the counts, the open BiS slots and the ready-made defect texts of the logged-in character. It is what fills WeintCompanion's "Meine Charaktere" and "Vorbereitung" pages, which were empty through 2.0.0 because the app knew nothing about gear. Local like the two above; full contract in the file header and in `docs/character-sheet-bridge.md` on the Companion side.
+
+Four things about it that are not taste:
+
+- **This addon judges, the Companion draws.** Which enchant is optimal, which gem sits wrong and which stat is over cap is decided by `ScanCharacter()` in `modules/charakter.lua`, where spec profiles, caps, socket bonuses and the real item tooltip exist. That is the exact reverse of WeintTV/Academy, and for the same reason: two evaluations of one fact drift apart, and then game and desktop contradict each other.
+- **Not at `PLAYER_LOGIN`.** Neither the specialization nor the client's item cache is reliable there, and a scan at that moment reports half-empty gear as a *finding*. The watcher in `companion.lua` fires on `PLAYER_ENTERING_WORLD` (8 s) and debounced (3 s) on equipment/profession/spec changes, and only sends when the payload actually changed — a full scan reads every item's tooltip, and `PLAYER_EQUIPMENT_CHANGED` fires repeatedly while regemming.
+- **`CompanionAtLeast()` grew an optional `patch` argument** for this. The message needs Companion 2.0.1 and 2.0.0 was already shipped, so "at least 2.0" would have included exactly the version that does not know the type.
+- **The payload is flat and positional** (`~` sections, `;` records, `|` fields) because `addon/sync_reader.py` on the other side reads outbound payloads as a single string; nested tables exist only in the inbound direction. `CleanField()` strips the three separators plus `"`, `\` and newlines from anything client-supplied — an item name could otherwise take the structure apart, and a backslash would break the Lua string the Companion writes the surviving queue back into.
+
+`WeintCodex.BiS.GetSummary(specKey)` (`modules/bis.lua`) exists for it: `GetForBoss` answers "does something for me drop here", the summary answers "how far along am I overall". It counts **per slot, not per entry** — a BiS list carries several entries for Finger and Schmuck, and wearing one of them does not leave the slot half open — and returns a second value saying whether a list is maintained for the spec at all, so "0 offen" is never claimed where nothing was checked.
+
 ### Zugriffsprofile & Freigaben (`core/access.lua`)
 
 **This is data hygiene and UX, not a security boundary.** `WeintCodex_SavedData` is an editable Lua file on the player's disk — anyone can set `features["materials.view"] = true` by hand. Its job is: a non-guild raider's Companion never mixes two guilds' data, nobody sees a UI full of numbers that don't concern them, and nothing guild-internal leaves a client that isn't entitled to send it.

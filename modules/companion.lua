@@ -15,6 +15,11 @@ local STATE_MESSAGES = {
     -- Wer ist gerade angemeldet? Immer nur der letzte Stand.
     character_report = true,
 
+    -- Ausruestungsstand des angemeldeten Charakters. Ebenfalls nur der
+    -- letzte Stand: die Companion sammelt die Twinks ueber die Zeit
+    -- auf ihrer Seite ein, hier liegt immer nur der aktuelle.
+    character_sheet = true,
+
 }
 
 -- Ausgangsseitige Freigaben: welche Nachrichtenart welche Rolle braucht.
@@ -263,9 +268,15 @@ end
 -- alle fuenf Sekunden einen Fehler ins Log schreiben.
 --
 -- Fehlt die Marke, gilt "zu alt" - der Normalfall vor 1.7.0.
+--
+-- `patch` ist optional und kam mit "character_sheet" dazu: die
+-- Nachricht gibt es erst ab Companion 2.0.1, und 2.0.0 war bereits
+-- draussen. Ohne die dritte Stelle waere "mindestens 2.0" wahr fuer
+-- eine Companion, die den Typ noch nicht kennt - also genau der
+-- Fehler, gegen den diese Funktion ueberhaupt existiert.
 ----------------------------------------------------------
 
-local function CompanionAtLeast(major, minor)
+local function CompanionAtLeast(major, minor, patch)
 
     InitializeInbox()
 
@@ -278,7 +289,15 @@ local function CompanionAtLeast(major, minor)
     gotMajor, gotMinor = tonumber(gotMajor), tonumber(gotMinor)
 
     if gotMajor ~= major then return gotMajor > major end
-    return gotMinor >= minor
+    if gotMinor ~= minor then return gotMinor > minor end
+
+    if not patch then return true end
+
+    -- Eine fehlende dritte Stelle ist eine Null ("2.0" = "2.0.0") und
+    -- nicht "unbekannt": so schreibt core/version.py drueben es auch.
+    local gotPatch = tonumber(version:match("^v?%d+%.%d+%.(%d+)") or 0) or 0
+
+    return gotPatch >= patch
 
 end
 
@@ -903,3 +922,378 @@ function WeintCodex.Companion.ReportLoggedInCharacter()
     )
 
 end
+
+----------------------------------------------------------
+-- Ausruestungsstand (Addon -> Companion, bleibt lokal)
+----------------------------------------------------------
+-- Die Companion-Seiten "Meine Charaktere" und "Vorbereitung" waren bis
+-- 2.0.0 leer, und das war ehrlich: ueber Ausruestung wusste die App
+-- schlicht nichts. Die Twinkliste ("character") traegt Name, Klasse und
+-- Realm und wandert an den Bot; Gegenstandsstufe, Verzauberungen,
+-- Sockel und offene BiS-Plaetze kamen nirgends vor. Ein Ring bei 0 %
+-- haette eine Messung behauptet, die es nicht gab - deshalb stand dort
+-- ein Leerzustand statt einer Null.
+--
+-- Diese Nachricht liefert die fehlende Messung. Sie bleibt wie
+-- "character_report" und "dummy_practice_session" auf dem Rechner des
+-- Spielers und geht den Bot nichts an: es ist die eigene Ausruestung,
+-- kein Gildenwissen. Bewusst ein eigener Typ und keine Erweiterung von
+-- "character" - jene Nachricht ist ein Bot-Vertrag.
+--
+-- Format (flache Zeichenkette; Ausgangsnachrichten kann
+-- addon/sync_reader.py der Companion nur zeilenweise als String lesen,
+-- verschachtelte Tabellen gibt es nur in der Gegenrichtung):
+--
+--   <KOPF> ~ <ZAEHLER> ~ <BIS> ~ <SLOTS> ~ <MAENGEL>
+--
+--   Abschnitte mit "~", Datensaetze mit ";", Felder mit "|".
+--
+--   KOPF     Name|Realm|classFile|Level|specKey|specName|
+--            IlvlAngelegt|IlvlGesamt|Punkte|Note|Vollstaendigkeit|
+--            Qualitaet|Zeitstempel
+--   ZAEHLER  je ein Satz "ench" und "gem":
+--            Art|optimal|ok|falsch|ueberCap|fehlt|gesamt
+--   BIS      Satz 1: getragen|Variante|offen|gesamt
+--            Satz 2: Namen der offenen Plaetze, mit "|" getrennt
+--            (leerer Abschnitt = fuer diese Spec ist keine Liste
+--            gepflegt; das ist etwas anderes als "nichts offen")
+--   SLOTS    slotId|Slotname|Itemname|Ilvl|Verzauberung|Sockel
+--            Status je: optimal|ok|wrong|overcap|missing|-
+--            ("-" heisst: dieser Platz kennt so etwas nicht)
+--   MAENGEL  prio|status|Text
+--
+-- Die Companion nimmt fehlende Abschnitte und fehlende Felder hin und
+-- ignoriert zusaetzliche (siehe core/character_sheet_sync.py) - das
+-- Format darf also wachsen, ohne eine aeltere Gegenseite zu brechen.
+----------------------------------------------------------
+
+-- Trennzeichen duerfen im Inhalt nicht vorkommen. Itemnamen kommen aus
+-- dem Client und koennen theoretisch alles enthalten; ausserdem
+-- schreibt sync_reader.py die Nutzlast in einen Lua-String zurueck, in
+-- dem ein Backslash nicht entwertet wird.
+local function CleanField(text)
+
+    text = tostring(text or "")
+
+    text = text:gsub("[|;~\"\\\r\n]", " ")
+
+    return (text:gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1"))
+
+end
+
+-- Reihenfolge "wie schlimm". Ein Item mit drei Sockeln bekommt den
+-- schlechtesten seiner Steine als Slotstatus: die Vorbereitungsansicht
+-- fragt, wo noch etwas zu tun ist, und ein leerer Sockel neben zwei
+-- perfekten ist genau das.
+local STATUS_SEVERITY = {
+    missing = 0,
+    wrong   = 1,
+    overcap = 2,
+    ok      = 3,
+    optimal = 4,
+}
+
+local function WorseStatus(current, candidate)
+
+    if not candidate then return current end
+    if not current then return candidate end
+
+    local a = STATUS_SEVERITY[current]   or 99
+    local b = STATUS_SEVERITY[candidate] or 99
+
+    if b < a then return candidate end
+
+    return current
+
+end
+
+-- Gegenstandsstufe eines angelegten Teils. GetDetailedItemLevelInfo
+-- kennt die Aufwertungsstufen und gibt es nicht in jedem Classic-Build
+-- - deshalb ueber pcall, mit dem Grundwert aus GetItemInfo als
+-- Rueckfall (gleiches Muster wie GetInventoryItemID in modules/bis.lua).
+local function SlotItemLevel(link)
+
+    if not link then return 0 end
+
+    if GetDetailedItemLevelInfo then
+        local ok, level = pcall(GetDetailedItemLevelInfo, link)
+        if ok and type(level) == "number" and level > 0 then
+            return level
+        end
+    end
+
+    local _, _, _, itemLevel = GetItemInfo(link)
+
+    return itemLevel or 0
+
+end
+
+local function BuildCharacterSheet()
+
+    if not (WeintCodex.Charakter and WeintCodex.Charakter.Scan) then
+        return nil
+    end
+
+    local name, realm = WeintCodex.Names.Me()
+    if name == "" then return nil end
+
+    -- Ohne das liefert der Scan die Bewertung von vorhin, wenn sich
+    -- seit dem letzten Aufruf Ausruestung, Spec oder Beruf geaendert
+    -- haben - und genau dann wird er hier gerufen.
+    if WeintCodex.Charakter.ClearCache then
+        WeintCodex.Charakter.ClearCache()
+    end
+
+    local ok, scan = pcall(WeintCodex.Charakter.Scan)
+
+    if not ok or type(scan) ~= "table" then
+        return nil
+    end
+
+    local _, classFile = UnitClass("player")
+
+    local equippedIlvl, overallIlvl = 0, 0
+
+    if GetAverageItemLevel then
+        local gotOk, overall, equipped = pcall(GetAverageItemLevel)
+        if gotOk then
+            overallIlvl  = tonumber(overall) or 0
+            equippedIlvl = tonumber(equipped) or overallIlvl
+        end
+    end
+
+    local score = scan.score or {}
+
+    ------------------------------------------------------
+    -- Kopf
+    ------------------------------------------------------
+
+    local head = table.concat({
+        CleanField(name),
+        CleanField(realm or ""),
+        CleanField(classFile or ""),
+        tostring(UnitLevel("player") or 0),
+        CleanField(scan.profileKey or ""),
+        CleanField(scan.specDisplay or ""),
+        string.format("%.1f", equippedIlvl),
+        string.format("%.1f", overallIlvl),
+        tostring(score.total or 0),
+        CleanField(score.grade or ""),
+        tostring(score.completeness or 0),
+        tostring(score.quality or 0),
+        tostring(time()),
+    }, "|")
+
+    ------------------------------------------------------
+    -- Zaehler
+    ------------------------------------------------------
+
+    local function CountRecord(kind, counts)
+
+        counts = counts or {}
+
+        return table.concat({
+            kind,
+            tostring(counts.optimal or 0),
+            tostring(counts.ok or 0),
+            tostring(counts.wrong or 0),
+            tostring(counts.overcap or 0),
+            tostring(counts.missing or 0),
+            tostring(counts.total or 0),
+        }, "|")
+
+    end
+
+    local countsSection = table.concat({
+        CountRecord("ench", scan.enchants and scan.enchants.counts),
+        CountRecord("gem",  scan.gems and scan.gems.counts),
+    }, ";")
+
+    ------------------------------------------------------
+    -- BiS
+    ------------------------------------------------------
+    -- Leer, wenn fuer die Spec keine Liste gepflegt ist. Ein "0 offen"
+    -- waere dort eine Behauptung ueber Vollstaendigkeit, die niemand
+    -- geprueft hat - dieselbe Trennung von Befund und Datenluecke wie
+    -- ueberall sonst in diesem Projekt.
+
+    local bisSection = ""
+
+    if WeintCodex.BiS and WeintCodex.BiS.GetSummary then
+
+        local summary, hasData = WeintCodex.BiS.GetSummary(scan.profileKey)
+
+        if hasData then
+
+            local openSlots = {}
+
+            for _, slot in ipairs(summary.openSlots or {}) do
+                openSlots[#openSlots + 1] = CleanField(slot)
+            end
+
+            bisSection = table.concat({
+                table.concat({
+                    tostring(summary.have or 0),
+                    tostring(summary.variant or 0),
+                    tostring(summary.open or 0),
+                    tostring(summary.total or 0),
+                }, "|"),
+                table.concat(openSlots, "|"),
+            }, ";")
+
+        end
+
+    end
+
+    ------------------------------------------------------
+    -- Slots
+    ------------------------------------------------------
+
+    local enchBySlot = {}
+
+    for _, row in ipairs((scan.enchants and scan.enchants.rows) or {}) do
+        if row.slotId then enchBySlot[row.slotId] = row.status end
+    end
+
+    local gemBySlot = {}
+
+    for _, row in ipairs((scan.gems and scan.gems.rows) or {}) do
+        if row.slotId then
+            gemBySlot[row.slotId] = WorseStatus(gemBySlot[row.slotId], row.status)
+        end
+    end
+
+    local slotRecords = {}
+
+    for _, slotDef in ipairs(WeintCodex.Charakter.EquipSlots or {}) do
+
+        local link = GetInventoryItemLink("player", slotDef.id)
+
+        local itemName = ""
+
+        if link then
+            itemName = link:match("|h%[(.-)%]|h") or ""
+        end
+
+        slotRecords[#slotRecords + 1] = table.concat({
+            tostring(slotDef.id),
+            CleanField(slotDef.name),
+            CleanField(itemName),
+            -- Ein leerer Platz meldet 0 und nicht etwa gar nichts: die
+            -- Companion soll "hier haengt nichts" zeigen koennen,
+            -- statt den Slot stillschweigend auszulassen.
+            string.format("%.0f", link and SlotItemLevel(link) or 0),
+            enchBySlot[slotDef.id] or "-",
+            gemBySlot[slotDef.id] or "-",
+        }, "|")
+
+    end
+
+    ------------------------------------------------------
+    -- Maengel
+    ------------------------------------------------------
+
+    local issueRecords = {}
+
+    for _, issue in ipairs(scan.issues or {}) do
+
+        issueRecords[#issueRecords + 1] = table.concat({
+            tostring(issue.prio or 9),
+            CleanField(issue.status or ""),
+            CleanField(issue.text or ""),
+        }, "|")
+
+    end
+
+    return table.concat({
+        head,
+        countsSection,
+        bisSection,
+        table.concat(slotRecords, ";"),
+        table.concat(issueRecords, ";"),
+    }, "~")
+
+end
+
+-- Zuletzt gesendete Nutzlast. Der Scan laeuft bei jedem
+-- Ausruestungswechsel, die Nachricht aber nur, wenn sich am Ergebnis
+-- etwas geaendert hat - sonst schriebe jeder Ringtausch dieselbe
+-- Zeichenkette erneut in die SavedVariables.
+local lastSheet = nil
+
+function WeintCodex.Companion.ReportCharacterSheet()
+
+    -- Erst Companion 2.0.1 kennt den Typ. Eine aeltere wuerde ihn in
+    -- ihren generischen Zweig geben, an den Bot POSTen, scheitern, die
+    -- Nachricht liegen lassen und im Sync-Takt Fehler protokollieren.
+    if not CompanionAtLeast(2, 0, 1) then
+        return
+    end
+
+    local sheet = BuildCharacterSheet()
+
+    if not sheet or sheet == lastSheet then
+        return
+    end
+
+    lastSheet = sheet
+
+    return WeintCodex.Companion.Send("character_sheet", sheet)
+
+end
+
+----------------------------------------------------------
+-- Wann gemeldet wird
+----------------------------------------------------------
+-- Nicht bei PLAYER_LOGIN: dort ist weder die Spezialisierung
+-- verlaesslich abfragbar noch sind die Item-Daten im Client-Cache, und
+-- ein Scan zu diesem Zeitpunkt meldete eine halb leere Ausruestung als
+-- Befund. PLAYER_ENTERING_WORLD plus eine kurze Wartezeit ist der
+-- Zeitpunkt, zu dem auch die Charakterseite des Addons brauchbare
+-- Werte liefert.
+--
+-- Danach bei jedem Ausruestungs- oder Spec-Wechsel, entprellt: ein
+-- kompletter Scan liest je Item den Tooltip, und beim Umsockeln
+-- feuert PLAYER_EQUIPMENT_CHANGED mehrfach hintereinander.
+----------------------------------------------------------
+
+local sheetWatcher = CreateFrame("Frame")
+
+sheetWatcher._pending = false
+
+local function ScheduleCharacterSheet(delay)
+
+    if sheetWatcher._pending then return end
+
+    if not (C_Timer and C_Timer.After) then
+        WeintCodex.Companion.ReportCharacterSheet()
+        return
+    end
+
+    sheetWatcher._pending = true
+
+    C_Timer.After(delay or 3, function()
+        sheetWatcher._pending = false
+        pcall(WeintCodex.Companion.ReportCharacterSheet)
+    end)
+
+end
+
+WeintCodex.Companion.ScheduleCharacterSheet = ScheduleCharacterSheet
+
+sheetWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+sheetWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+sheetWatcher:RegisterEvent("SKILL_LINES_CHANGED")
+
+-- Wie in modules/bis.lua ueber pcall: welche der Spec-Events ein
+-- Classic-Build kennt, schwankt.
+pcall(sheetWatcher.RegisterEvent, sheetWatcher, "PLAYER_SPECIALIZATION_CHANGED")
+pcall(sheetWatcher.RegisterEvent, sheetWatcher, "ACTIVE_TALENT_GROUP_CHANGED")
+
+sheetWatcher:SetScript("OnEvent", function(_, event)
+
+    -- Beim ersten Betreten der Welt braucht der Client laenger, bis
+    -- Item-Infos im Cache stehen.
+    ScheduleCharacterSheet(event == "PLAYER_ENTERING_WORLD" and 8 or 3)
+
+end)

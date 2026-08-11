@@ -1657,6 +1657,12 @@ end
 -- Für andere Module (z.B. Companion-Export) verfügbar machen
 WeintCodex.Charakter.Scan = ScanCharacter
 
+-- Dieselbe Slotliste, die der Scan durchläuft. Exportiert, damit
+-- modules/companion.lua für seinen Ausrüstungsbericht nicht eine
+-- zweite Liste führen muss - eine Kopie liefe still auseinander,
+-- sobald hier ein Slot dazukommt oder wegfällt.
+WeintCodex.Charakter.EquipSlots = EQUIP_SLOTS
+
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
 -- geändert haben, muss vorher hier durch — sonst liefert der Scan die
