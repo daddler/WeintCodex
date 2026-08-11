@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.3.2",
+        date    = "11.08.2026",
+        notes   = {
+            "Jedes Update bringt ab sofort seine eigene Aenderungsliste mit - der Text auf GitHub entsteht direkt aus diesem Changelog.",
+            "Bisher wurden Releases teils mit leerem Notizfeld angelegt, wodurch die Companion unter \"Addon & Updates\" faelschlich \"Keine Aenderungen gefunden.\" zeigte.",
+        },
+    },
+    {
         version = "1.3.3.1",
         date    = "11.08.2026",
         notes   = {

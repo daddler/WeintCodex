@@ -2,6 +2,11 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.3.2] – 2026-08-11
+
+### Geändert
+- **Jedes Release trägt jetzt seine eigene Änderungsliste.** Releases wurden bisher von Hand mit leerem Notizfeld angelegt; WeintCompanion zeigte deshalb unter *Addon & Updates* dauerhaft „Keine Änderungen gefunden.", obwohl dieser Changelog immer gepflegt wurde. Der Release-Text auf GitHub entsteht jetzt direkt aus diesem Abschnitt (`.github/scripts/release_notes.py`), und ein Tag ohne passenden Eintrag – oder mit abweichender Versionsnummer in `.toc`, `core/main.lua` oder `data/changelog.lua` – lässt den Build abbrechen, statt ein Release ohne Beschreibung zu veröffentlichen
+
 ## [1.3.3.1] – 2026-08-11
 
 ### Neu
