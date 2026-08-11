@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "1.3.3.3",
+        date    = "11.08.2026",
+        notes   = {
+            "Der Ausruestungs-Check verlangte bei Tank-Kriegern und -Todesrittern nur 7,5% Waffenkunde statt der eigentlich noetigen 15% - wer den richtigen Wert hatte, wurde faelschlich zum Umsockeln aufgefordert.",
+            "Bereits angelegte Verzauberungen mit Kategorie-Praefix im Tooltip (z.B. \"Schild - Grosses Parieren\") werden jetzt korrekt als optimal erkannt statt als \"nicht ideal\" gemeldet.",
+        },
+    },
+    {
         version = "1.3.3.2",
         date    = "11.08.2026",
         notes   = {

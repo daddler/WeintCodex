@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [1.3.3.3] – 2026-08-11
+
+### Behoben
+- **Der Ausrüstungs-Check verlangte bei Tank-Kriegern und -Todesrittern nur 7,5% Waffenkunde, obwohl 15% der eigentliche Zielwert ist.** Wer den korrekten Wert erreicht hatte, bekam „über dem Cap – X Wertung verschwendet. Umsockeln!" angezeigt und wurde aufgefordert, richtig gesockelte Steine wieder zu entfernen. `WARRIOR_PROTECTION` und `DEATHKNIGHT_BLOOD` (samt ihrer Offensiv-Varianten) trugen den 15%-Hardcap bereits als Notiz im Cap-Eintrag, prüften aber weiterhin gegen 7,5% – anders als `PALADIN_PROTECTION`/`DRUID_GUARDIAN`, wo derselbe Wert schon korrekt hinterlegt war. Alle vier Profile jetzt auf 15% angeglichen
+- **Bereits angelegte Verzauberungen wurden als „nicht ideal" gemeldet, wenn ihr Tooltip-Name ein Kategorie-Präfix trägt** (z. B. „Schild - Großes Parieren" statt „Großes Parieren"). Der Namensabgleich verlangte exakte Gleichheit; ein neuer Enthaltensein-Check erkennt jetzt auch Verzauberungen mit Slot-Präfix korrekt als optimal – betroffen waren u. a. Umhang, Füße und Nebenhand bei Tank-Profilen
+
 ## [1.3.3.2] – 2026-08-11
 
 ### Geändert
