@@ -102,7 +102,7 @@ WeintCodex_SpecProfiles = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) optional" },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Parieren)" },
         },
         statWeights = {
             stamina = 100, hit = 90, expertise = 88, parry = 70,
@@ -133,7 +133,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76589, 76656 },         -- Perfekter Alexandrit; Imposanter (Meister+Ausdauer)
             prismatic = { 76639 },                -- Ausdauer universell
         },
-        gemNote = "Defensiv: Ausdauer überall (Gediegener Chrysokoll), nach 7,5% Treffer/Waffenkunde Parieren/Ausweichen. Sockelbonus nur matchen, wenn er sich lohnt.",
+        gemNote = "Defensiv: Ausdauer überall (Gediegener Chrysokoll), nach 7,5% Treffer / 15% Waffenkunde Parieren/Ausweichen. Sockelbonus nur matchen, wenn er sich lohnt.",
     },
 
     --------------------------------------------------
@@ -568,10 +568,10 @@ WeintCodex_SpecProfiles = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) optional" },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Parieren)" },
         },
         -- "Most Defensive"-Prioritätsreihe: Ausdauer > Meisterschaft > Parieren >
-        -- Stärke > Treffer/Waffenkunde(7,5%) > Tempo > Ausweichen > Krit.
+        -- Stärke > Treffer(7,5%)/Waffenkunde(15%) > Tempo > Ausweichen > Krit.
         statWeights = {
             stamina = 100, mastery = 90, parry = 80, strength = 70,
             hit = 65, expertise = 63, haste = 45, dodge = 40, crit = 25,
@@ -597,7 +597,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76656, 76643 },
             prismatic = { 76639, 76695 },
         },
-        gemNote = "Defensiv: Ausdauer > Meisterschaft (Blutschild) > Parieren > Stärke, nach Treffer/Waffenkunde-Cap.",
+        gemNote = "Defensiv: Ausdauer > Meisterschaft (Blutschild) > Parieren > Stärke, nach Treffer(7,5%)/Waffenkunde(15%)-Cap.",
     },
 
     DEATHKNIGHT_FROST = {
@@ -1241,7 +1241,7 @@ WeintCodex_SpecProfiles = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) empfohlen" },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Parieren) empfohlen" },
         },
         statWeights = {
             hit = 100, expertise = 98, crit = 90, parry = 62,
@@ -1271,7 +1271,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641 },                -- Stechender Dioptas
             prismatic = { 76697, 83146 },         -- Krit universell
         },
-        gemNote = "Offensiv: Krit überall nach 7,5% Treffer/Waffenkunde. Sockelbonus nur matchen, wenn er sich lohnt.",
+        gemNote = "Offensiv: Krit überall nach 7,5% Treffer / 15% Waffenkunde. Sockelbonus nur matchen, wenn er sich lohnt.",
     },
 
     PALADIN_PROTECTION_OFFENSIVE = {
@@ -1314,9 +1314,9 @@ WeintCodex_SpecProfiles = {
         role = "TANK",
         caps = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
-            { stat = "expertise",                pct = 7.5, note = "Hard-Cap 15% (Parieren) empfohlen" },
+            { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Parieren) empfohlen" },
         },
-        -- "Offensive"-Prioritätsreihe: Treffer/Waffenkunde(7,5%) > Krit >
+        -- "Offensive"-Prioritätsreihe: Treffer(7,5%)/Waffenkunde(15%) > Krit >
         -- Tempo > Parieren > Ausweichen > Stärke > Ausdauer > Meisterschaft (schwächster Stat).
         statWeights = {
             hit = 100, expertise = 98, crit = 85, haste = 75,
@@ -1343,7 +1343,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641, 76643 },
             prismatic = { 76696, 83141 },
         },
-        gemNote = "Offensiv: Nach Treffer/Waffenkunde-Cap Krit > Tempo. Meisterschaft ist hier der schwächste Stat.",
+        gemNote = "Offensiv: Nach Treffer(7,5%)/Waffenkunde(15%)-Cap Krit > Tempo. Meisterschaft ist hier der schwächste Stat.",
     },
 
     MONK_BREWMASTER_OFFENSIVE = {

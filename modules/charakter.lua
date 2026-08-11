@@ -778,11 +778,23 @@ local function StatsMatch(dbStats, scanned)
     return n > 0
 end
 
+-- Viele Berufs-Verzauberungen zeigt der Client mit einem Kategorie-
+-- Präfix an ("Nebenhand - Großes Parieren", "Schild - Großes Parieren"),
+-- unsere DB speichert nur den reinen Namen ("Großes Parieren"). Exakter
+-- Stringvergleich würde diese sonst identisch bewerteten Verzauberungen
+-- als unbekannt/"nicht ideal" melden, obwohl exakt die Empfehlung
+-- angelegt ist. Ein Enthaltsein-Check (in beide Richtungen, falls die
+-- DB selbst mal ein Präfix trägt) deckt Gleichheit UND Präfix-Fälle ab.
+local function EnchantNamesMatch(tooltipName, dbName)
+    if not (tooltipName and dbName) then return false end
+    local a, b = tooltipName:lower(), dbName:lower()
+    return a == b or a:find(b, 1, true) ~= nil or b:find(a, 1, true) ~= nil
+end
+
 local function FindEnchantByName(enchSlot, name)
     if not (WeintCodex_Enchants and name) then return nil end
-    local lower = name:lower()
     for id, db in pairs(WeintCodex_Enchants) do
-        if db.name and db.name:lower() == lower
+        if db.name and EnchantNamesMatch(name, db.name)
            and (not enchSlot or db.slot == enchSlot) then
             return id, db
         end
@@ -834,7 +846,7 @@ local function ResolveEnchant(slotId, enchId, link, enchSlot)
     -- 1) DB deckt sich mit dem Tooltip: gleicher Name (der Client gibt je
     --    nach Build den Namen aus) oder exakt gleiche Stats.
     if db then
-        local sameName = db.name and db.name:lower() == scan.name:lower()
+        local sameName = db.name and EnchantNamesMatch(scan.name, db.name)
         if sameName or (scanned and db.stats and StatsMatch(db.stats, scanned)) then
             res.name  = db.name or scan.name
             res.stats = db.stats or scanned
@@ -1332,10 +1344,12 @@ local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName)
     if currentName then
         local tn = currentName:lower()
 
-        -- Namensgleichheit mit einer Empfehlung => optimal
+        -- Namensgleichheit mit einer Empfehlung => optimal (tolerant
+        -- gegenüber Kategorie-Präfixen wie "Nebenhand - ", die der
+        -- Client anzeigt, unsere DB aber nicht speichert).
         for _, bid in ipairs(bestList) do
             local db = WeintCodex_Enchants and WeintCodex_Enchants[bid]
-            if db and db.name and tn == db.name:lower() then
+            if db and db.name and EnchantNamesMatch(currentName, db.name) then
                 return "optimal", bestList
             end
         end
