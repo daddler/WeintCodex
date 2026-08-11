@@ -24,6 +24,24 @@ Two workflows in `.github/workflows/` build the distributable ZIP by rsync-ing t
 
 Both pass tag/notes through `env:` rather than direct `${{ }}` interpolation into shell — preserve that pattern if you touch these workflows, it's there specifically to avoid shell injection via release notes content.
 
+#### Every release ships its changelog — this is not optional
+
+**A release with an empty description is a bug, not a stylistic choice.** It looked harmless from this side and was invisible here: the releases were created by hand with the notes field left empty, so the desktop app showed "Keine Änderungen gefunden." under *Addon & Updates* forever. That text was accurate — the release body really was empty — and useless, because `CHANGELOG.md` was maintained all along. The user's only way to find out what an update brings was to read the repository.
+
+So each version needs its entry in **three** places, and none of them replaces another:
+
+- **`CHANGELOG.md`** — the long form. It is what the GitHub release body is built from (`.github/scripts/release_notes.py`), and it travels **inside the addon ZIP** (the rsync excludes only `.git`/`.github`/`README.md`/`LICENSE`), which is how WeintCompanion's changelog view reads the *full* history of the installed addon without a network round. Headings are `## [1.3.3.1] – 2026-08-11`; the Companion's reader understands that shape and its own `## 2.0.1` shape, but nothing else.
+- **`data/changelog.lua`** — the short form for the in-game update popup (`core/onboarding.lua`), newest first.
+- **`WeintCodex.toc` + `core/main.lua`** — the version itself, in both places.
+
+`.github/scripts/release_notes.py` enforces all four at once: it prints the changelog section for the tag and **fails the release** if the `.toc`, `core/main.lua`, `data/changelog.lua` or `CHANGELOG.md` disagree with it. Run it locally before tagging:
+
+```bash
+python3 .github/scripts/release_notes.py v1.3.3.2
+```
+
+`Manual Release` uses its output whenever the `notes` input is empty; `Pack and Attach` fills an empty body of an already-published release from the same source and leaves a non-empty one alone.
+
 ## Architecture
 
 ### Global namespace, no module system

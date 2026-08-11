@@ -36,6 +36,31 @@ jobs:
         run: |
           zip -r "WeintCodex-${VERSION}.zip" WeintCodex
 
+      # Ein ueber die GitHub-Oberflaeche angelegtes Release hat oft
+      # ein leeres Beschreibungsfeld. In WeintCompanion stand dann
+      # unter "Addon & Updates" dauerhaft "Keine Änderungen
+      # gefunden." - der Text war wirklich leer, obwohl CHANGELOG.md
+      # gepflegt ist. Fehlt er, wird er hier nachgetragen; ein
+      # vorhandener Text bleibt unangetastet.
+      - name: Leeren Release-Text aus dem Changelog nachtragen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body=$(gh release view "$VERSION" --repo "${{ github.repository }}" --json body --jq .body)
+
+          if [ -n "$body" ]; then
+            echo "Release-Text vorhanden - unveraendert."
+            exit 0
+          fi
+
+          if python3 .github/scripts/release_notes.py "$VERSION" > release-notes.md; then
+            gh release edit "$VERSION" \
+              --repo "${{ github.repository }}" \
+              --notes-file release-notes.md
+          else
+            echo "::warning::Kein Changelog-Abschnitt fuer $VERSION - Release bleibt ohne Text."
+          fi
+
       - name: Upload ZIP to Release
         uses: softprops/action-gh-release@v2
         with:

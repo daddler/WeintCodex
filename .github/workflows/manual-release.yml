@@ -49,13 +49,29 @@ jobs:
         run: |
           zip -r "WeintCodex-${TAG}.zip" WeintCodex
 
+      # Ohne eigene Notes ist der Changelog-Abschnitt des Tags der
+      # Release-Text. Genau das fehlte bisher: die Releases wurden mit
+      # leerem Feld angelegt, und WeintCompanion zeigte deshalb unter
+      # "Addon & Updates" dauerhaft "Keine Änderungen gefunden." -
+      # obwohl CHANGELOG.md gepflegt ist. Das Skript prüft dabei auch,
+      # dass .toc, core/main.lua und data/changelog.lua dieselbe
+      # Fassung nennen wie der Tag, und bricht sonst ab.
+      - name: Release-Text aus dem Changelog holen
+        env:
+          TAG: ${{ inputs.tag }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            printf '%s' "$NOTES" > release-notes.md
+          else
+            python3 .github/scripts/release_notes.py "$TAG" > release-notes.md
+          fi
+
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag }}
-          NOTES: ${{ inputs.notes }}
         run: |
-          printf '%s' "$NOTES" > release-notes.md
           gh release create "$TAG" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
