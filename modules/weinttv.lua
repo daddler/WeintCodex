@@ -327,8 +327,9 @@ local function DrawTable(frame, y, columns, rows, emptyText)
 
     local x = 24
     for _, col in ipairs(columns) do
-        local h = Text(frame, 9, x, headerY, col.width, col.align)
-        h:SetText(WeintCodex.ColorText("textFaint", string.upper(col.title)))
+        local h = WeintCodex.Eyebrow(frame, col.title, { size = 10, justify = col.align })
+        h:SetPoint("TOPLEFT", frame, "TOPLEFT", x, headerY)
+        if col.width then h:SetWidth(col.width) end
         x = x + col.width + 10
     end
 
@@ -336,7 +337,7 @@ local function DrawTable(frame, y, columns, rows, emptyText)
     divider:SetPoint("TOPLEFT",  frame, "TOPLEFT",  16, headerY - 14)
     divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -16, headerY - 14)
     divider:SetHeight(1)
-    divider:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.40)
+    divider:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     if #rows == 0 then
         local fs = Text(frame, 11, 24, headerY - 34, frame:GetWidth() - 48)
@@ -355,21 +356,22 @@ local function DrawTable(frame, y, columns, rows, emptyText)
         local rf = CreateFrame("Frame", nil, inner)
         rf:SetSize(inner:GetWidth() - 4, ROW_H)
         rf:SetPoint("TOPLEFT", inner, "TOPLEFT", 2, yOff)
-        SetSolidBg(rf, C.surface2[1], C.surface2[2], C.surface2[3], 0.68)
-
-        if row.level then
-            local stripe = rf:CreateTexture(nil, "BORDER")
-            stripe:SetSize(3, ROW_H)
-            stripe:SetPoint("LEFT", rf, "LEFT", 0, 0)
-            local col = C[row.level] or C.textDim
-            stripe:SetColorTexture(col[1], col[2], col[3], 0.80)
-        end
+        -- Der Entwurf setzt Tabellenzeilen ohne Flaeche und ohne Rahmen:
+        -- nur eine Haarlinie darunter. Der frueher links angesetzte
+        -- Farbstreifen wird zum Statuspunkt - dieselbe Form wie ueberall
+        -- sonst, wo ein Zustand an einer Zeile haengt.
+        WeintCodex.RowLine(rf, -(ROW_H - 1))
 
         local cx = 10
+        if row.level then
+            local dot = WeintCodex.StatusDot(rf, row.level, 7)
+            dot:SetPoint("LEFT", rf, "LEFT", 6, 0)
+            cx = 22
+        end
         for i, col in ipairs(columns) do
             local cell = row.cells[i]
             local fs = rf:CreateFontString(nil, "OVERLAY")
-            fs:SetFont(WeintCodex.Fonts.sans, 11, "")
+            fs:SetFont(WeintCodex.Fonts.sans, 13, "")
             fs:SetPoint("LEFT", rf, "LEFT", cx, 0)
             fs:SetWidth(col.width)
             fs:SetJustifyH(col.align or "LEFT")
@@ -380,7 +382,7 @@ local function DrawTable(frame, y, columns, rows, emptyText)
             cx = cx + col.width + 10
         end
 
-        yOff = yOff - (ROW_H + 4)
+        yOff = yOff - ROW_H
     end
 
     inner:SetHeight(math.abs(yOff) + 10)
