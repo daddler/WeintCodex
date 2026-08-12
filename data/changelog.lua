@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.0.0",
+        date    = "12.08.2026",
+        notes   = {
+            "Das Addon traegt die Designsprache von WeintCompanion 2.0: schwarze Flaechen, Karten ohne Rahmen, Bernstein nur noch dort, wo es etwas bedeutet.",
+            "Die Navigation ist eine ausgeschriebene Spalte mit den Gruppen Raid, Charakter und Gilde - statt einer Leiste aus acht Symbolen, deren Bedeutung man raten musste.",
+            "Die Startseite beantwortet den Abend statt das Menue: naechster Raid, was an deiner Ausruestung offen ist, welche Bosse anstehen und wie es um die Gildenbank steht.",
+            "Die Unternavigation jeder Seite sitzt als Reiterleiste unter dem Titel; die rechte Detailspalte ist Teil der Seite geworden und erscheint nur, wenn es etwas zu zeigen gibt.",
+            "Die Academy ist ein eigener Navigationspunkt und haengt nicht mehr in der Charakter-Unternavigation.",
+        },
+    },
+    {
         version = "1.3.3.3",
         date    = "11.08.2026",
         notes   = {

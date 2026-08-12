@@ -7,25 +7,35 @@ WeintCodex.Navigation = {}
 local C = WeintCodex.Colors
 local activeTab = nil
 
--- Icon-Rail Definition: id, flaches Linien-Icon (eigene Textur statt echtem
--- Blizzard-Icon, siehe media/icons/ - Vektorpfade kann WoW zur Laufzeit nicht
--- rendern, deshalb werden die Icons einmalig vorgerendert) und Tooltip-Beschriftung.
+-- Navigationsspalte (Entwurf 1a): ausgeschriebene Eintraege in drei Gruppen
+-- statt der frueheren 64-px-Icon-Rail. id, vorgerendertes Icon (Vektorpfade
+-- kann WoW zur Laufzeit nicht zeichnen, siehe media/icons/) und Beschriftung.
 --
 -- feature: benötigte Freigabe aus dem Zugriffsprofil (core/access.lua). Nur
 -- Tabs, deren gesamter Inhalt gildenintern ist, tragen eine - die übrigen
 -- gaten innerhalb der Seite, damit ihr neutraler Teil offen bleibt.
+--
+-- "uebersicht" und "academy" sind mit 2.0 dazugekommen: die Startseite ist im
+-- Entwurf ein eigener Navigationspunkt, und die Academy haengt nicht mehr in
+-- der Charakter-Unternavigation, sondern steht gleichberechtigt daneben.
 local ICON_PATH = "Interface\\AddOns\\WeintCodex\\media\\icons\\"
 local tabs = {
-    { id = "charakter",  icon = ICON_PATH .. "nav_charakter",  tooltip = "Charakter" },
+    { id = "uebersicht", icon = ICON_PATH .. "nav_uebersicht", tooltip = "Übersicht",
+      group = "Raid" },
     { id = "bossguides", icon = ICON_PATH .. "nav_bossguides", tooltip = "Bossguides" },
     { id = "raids",      icon = ICON_PATH .. "nav_raids",      tooltip = "Raids",
       feature = "raids.view" },
-    { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien",
-      feature = "materials.view" },
     { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender",
       feature = "calendar.view" },
-    { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
     { id = "weinttv",    icon = ICON_PATH .. "nav_weinttv",    tooltip = "WeintTV" },
+
+    { id = "charakter",  icon = ICON_PATH .. "nav_charakter",  tooltip = "Charakter",
+      group = "Charakter" },
+    { id = "academy",    icon = ICON_PATH .. "nav_academy",    tooltip = "Academy" },
+
+    { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien",
+      group = "Gilde", feature = "materials.view" },
+    { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
     { id = "import",     icon = ICON_PATH .. "nav_import",     tooltip = "Import" },
 }
 
@@ -47,117 +57,234 @@ local function Locked(tabId)
     return feature ~= nil and not Can(feature)
 end
 
-local RAIL_ICON_GLYPH = 20
-
 local tabButtons = {}
 
-local RAIL_ICON_SIZE  = 44
-local RAIL_ICON_GAP   = 6
-local RAIL_ICON_START = -64 -- unterhalb des Marken-Badges (siehe core/ui.lua)
+local NAV_ITEM_H   = 40
+local NAV_ITEM_GAP = 2
+local NAV_PAD      = 12
+local NAV_GROUP_H  = 24   -- Gruppenlabel inkl. 4 px Abstand darunter
+local NAV_GROUP_TOP= 16   -- Luft ueber einer neuen Gruppe (ausser der ersten)
+local NAV_GLYPH    = 18
 
--- Icon-Farbe an EINER Stelle: aktiv > gesperrt > Hover > Ruhe. Ohne diesen
--- gemeinsamen Weg würde jedes der drei Skripte (SetTabActive, OnEnter,
+-- Icon- und Textfarbe an EINER Stelle: aktiv > gesperrt > Hover > Ruhe. Ohne
+-- diesen gemeinsamen Weg würde jedes der drei Skripte (SetTabActive, OnEnter,
 -- OnLeave) die Sperr-Abdunklung beim nächsten Ereignis überschreiben.
 local function TintIcon(btn, isActive, isHover)
-    local col
+    local iconCol, textCol
     if btn._locked then
-        col = isActive and C.textDim or C.textGhost
+        iconCol = isActive and C.textDim or C.textGhost
+        textCol = iconCol
     elseif isActive then
-        col = C.textBright
+        iconCol, textCol = C.accent, C.textBright
     elseif isHover then
-        col = C.textMuted
+        iconCol, textCol = C.textMuted, C.textNormal
     else
-        col = C.textDim
+        iconCol, textCol = C.textDim, C.textMuted
     end
-    btn._icon:SetVertexColor(col[1], col[2], col[3])
+    btn._icon:SetVertexColor(iconCol[1], iconCol[2], iconCol[3])
+    btn._label:SetTextColor(textCol[1], textCol[2], textCol[3])
 end
 
 local function SetTabActive(btn, isActive)
     if isActive then
         btn._bg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
-        btn._bar:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
+        btn._bar:Show()
+        btn._label:SetFont(WeintCodex.Fonts.sansMedium, 13, "")
+        for _, t in pairs(btn._corners or {}) do t:Show() end
     else
         btn._bg:SetColorTexture(0, 0, 0, 0)
-        btn._bar:SetColorTexture(0, 0, 0, 0)
+        btn._bar:Hide()
+        btn._label:SetFont(WeintCodex.Fonts.sans, 13, "")
+        for _, t in pairs(btn._corners or {}) do t:Hide() end
     end
     TintIcon(btn, isActive, false)
 end
 
-for i, tabDef in ipairs(tabs) do
-    local btn = CreateFrame("Button", nil, WeintCodex.IconRail)
-    btn:SetSize(RAIL_ICON_SIZE, RAIL_ICON_SIZE)
-    btn:SetPoint("TOP", WeintCodex.IconRail, "TOP", 0, RAIL_ICON_START - (i - 1) * (RAIL_ICON_SIZE + RAIL_ICON_GAP))
+-- Aufbau der Spalte: Gruppenlabels und Eintraege laufen auf einem
+-- gemeinsamen y-Zaehler, damit eine neue Gruppe die folgenden Eintraege
+-- automatisch nach unten schiebt.
+do
+    local rail = WeintCodex.NavColumn
+    local y = -NAV_PAD
 
-    local bg = btn:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints(btn)
-    bg:SetColorTexture(0, 0, 0, 0)
-    btn._bg = bg
-
-    -- Aktiv-Indikator: schlanker Akzentbalken am linken Rand des Icons
-    local bar = btn:CreateTexture(nil, "OVERLAY")
-    bar:SetWidth(2)
-    bar:SetPoint("TOPLEFT",    btn, "TOPLEFT",    -1,  4)
-    bar:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", -1, -4)
-    bar:SetColorTexture(0, 0, 0, 0)
-    btn._bar = bar
-
-    local icon = btn:CreateTexture(nil, "OVERLAY")
-    icon:SetSize(RAIL_ICON_GLYPH, RAIL_ICON_GLYPH)
-    icon:SetPoint("CENTER", btn, "CENTER", 0, 0)
-    icon:SetTexture(tabDef.icon)
-    icon:SetVertexColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    btn._icon = icon
-
-    -- Benachrichtigungspunkt (standardmaessig versteckt, siehe SetTabBadge)
-    local dot = btn:CreateTexture(nil, "OVERLAY")
-    dot:SetSize(6, 6)
-    dot:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -2, -2)
-    dot:SetColorTexture(C.accentDot[1], C.accentDot[2], C.accentDot[3], 1.0)
-    dot:Hide()
-    btn._dot = dot
-
-    btn:SetScript("OnEnter", function(self)
-        if activeTab ~= tabDef.id then
-            self._bg:SetColorTexture(C.surface2[1], C.surface2[2], C.surface2[3], 0.80)
-            TintIcon(self, false, true)
+    for _, tabDef in ipairs(tabs) do
+        if tabDef.group then
+            local lbl = WeintCodex.Eyebrow(rail, tabDef.group, { color = "textFaint", size = 10 })
+            lbl:SetPoint("TOPLEFT", rail, "TOPLEFT", NAV_PAD + 11, y - NAV_GROUP_TOP + 4)
+            y = y - NAV_GROUP_TOP - NAV_GROUP_H
         end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(tabDef.tooltip)
-        if self._locked and WeintCodex.Access then
-            GameTooltip:AddLine(WeintCodex.Access.Reason(tabDef.feature),
-                C.textFaint[1], C.textFaint[2], C.textFaint[3], true)
-        end
-        GameTooltip:Show()
-    end)
-    btn:SetScript("OnLeave", function(self)
-        if activeTab ~= tabDef.id then
-            self._bg:SetColorTexture(0, 0, 0, 0)
-            TintIcon(self, false, false)
-        end
-        GameTooltip:Hide()
-    end)
-    btn:SetScript("OnClick", function(self)
-        if activeTab == tabDef.id then return end
-        for _, b in ipairs(tabButtons) do SetTabActive(b, false) end
-        SetTabActive(self, true)
-        activeTab = tabDef.id
-        WeintCodex.Navigation.SwitchTo(tabDef.id)
-    end)
 
-    tabButtons[tabDef.id] = btn
-    table.insert(tabButtons, btn)
+        local btn = CreateFrame("Button", nil, rail)
+        btn:SetHeight(NAV_ITEM_H)
+        btn:SetPoint("TOPLEFT",  rail, "TOPLEFT",  NAV_PAD, y)
+        btn:SetPoint("TOPRIGHT", rail, "TOPRIGHT", -NAV_PAD, y)
+        y = y - NAV_ITEM_H - NAV_ITEM_GAP
 
-    if tabDef.feature then
-        tabFeature[tabDef.id] = tabDef.feature
+        local bg = btn:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints(btn)
+        bg:SetColorTexture(0, 0, 0, 0)
+        btn._bg = bg
+        WeintCodex.CutCorners(btn, 10, "bgPanel")
+        for _, t in pairs(btn._corners or {}) do t:Hide() end
+
+        -- Aktiv-Indikator: 3x22 Bernsteinbalken am linken Rand der Spalte
+        local bar = btn:CreateTexture(nil, "OVERLAY")
+        bar:SetSize(3, 22)
+        bar:SetPoint("LEFT", btn, "LEFT", -NAV_PAD, 0)
+        bar:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 1.0)
+        bar:Hide()
+        btn._bar = bar
+
+        local icon = btn:CreateTexture(nil, "OVERLAY")
+        icon:SetSize(NAV_GLYPH, NAV_GLYPH)
+        icon:SetPoint("LEFT", btn, "LEFT", 11, 0)
+        icon:SetTexture(tabDef.icon)
+        btn._icon = icon
+
+        local label = btn:CreateFontString(nil, "OVERLAY")
+        label:SetFont(WeintCodex.Fonts.sans, 13, "")
+        label:SetPoint("LEFT", icon, "RIGHT", 10, 0)
+        label:SetJustifyH("LEFT")
+        btn._label = label
+
+        -- Rechter Rand: entweder eine Zahl (Bossanzahl, Warteschlange) oder
+        -- ein Statuspunkt. Beides wird von ShowHome() aus echtem Zustand
+        -- gesetzt, siehe SetTabBadge/SetTabCount.
+        local count = btn:CreateFontString(nil, "OVERLAY")
+        count:SetFont(WeintCodex.Fonts.mono, 10, "")
+        count:SetPoint("RIGHT", btn, "RIGHT", -10, 0)
+        count:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        count:Hide()
+        btn._count = count
+
+        local dot = WeintCodex.StatusDot(btn, "accent", 7)
+        dot:SetPoint("RIGHT", btn, "RIGHT", -10, 0)
+        dot:Hide()
+        btn._dot = dot
+
+        btn:SetScript("OnEnter", function(self)
+            if activeTab ~= tabDef.id then
+                self._bg:SetColorTexture(1, 1, 1, 0.04)
+                TintIcon(self, false, true)
+            end
+            if self._locked and WeintCodex.Access then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(tabDef.tooltip)
+                GameTooltip:AddLine(WeintCodex.Access.Reason(tabDef.feature),
+                    C.textFaint[1], C.textFaint[2], C.textFaint[3], true)
+                GameTooltip:Show()
+            end
+        end)
+        btn:SetScript("OnLeave", function(self)
+            if activeTab ~= tabDef.id then
+                self._bg:SetColorTexture(0, 0, 0, 0)
+                TintIcon(self, false, false)
+            end
+            GameTooltip:Hide()
+        end)
+        btn:SetScript("OnClick", function(self)
+            if activeTab == tabDef.id then return end
+            for _, b in ipairs(tabButtons) do SetTabActive(b, false) end
+            SetTabActive(self, true)
+            activeTab = tabDef.id
+            WeintCodex.Navigation.SwitchTo(tabDef.id)
+        end)
+
+        SetTabActive(btn, false)
+
+        tabButtons[tabDef.id] = btn
+        table.insert(tabButtons, btn)
+
+        if tabDef.feature then
+            tabFeature[tabDef.id] = tabDef.feature
+        end
     end
+end
+
+--------------------------------------------------
+-- Konto-Zeile am Fuss der Spalte
+--------------------------------------------------
+-- Zeigt den eingeloggten Charakter und den Zustand der Companion-Bruecke.
+-- "Verbunden" heisst hier: es liegt eine Inbox-Lieferung vor. Die Inbox wird
+-- nur beim Login gelesen - das ist also der Stand der letzten Lieferung, nie
+-- eine Live-Verbindung.
+--------------------------------------------------
+
+do
+    local rail = WeintCodex.NavColumn
+    local foot = CreateFrame("Frame", nil, rail)
+    foot:SetHeight(44)
+    foot:SetPoint("BOTTOMLEFT",  rail, "BOTTOMLEFT",  NAV_PAD, NAV_PAD)
+    foot:SetPoint("BOTTOMRIGHT", rail, "BOTTOMRIGHT", -NAV_PAD, NAV_PAD)
+
+    local av = CreateFrame("Frame", nil, foot)
+    av:SetSize(28, 28)
+    av:SetPoint("LEFT", foot, "LEFT", 0, 0)
+    local avTex = av:CreateTexture(nil, "ARTWORK")
+    avTex:SetAllPoints(av)
+    WeintCodex.ApplyVerticalGradient(avTex, "brandA", "brandB")
+    WeintCodex.CutCorners(av, 14, "bgPanel")
+
+    local initial = av:CreateFontString(nil, "OVERLAY")
+    initial:SetFont(WeintCodex.Fonts.monoBold, 12, "")
+    initial:SetPoint("CENTER", av, "CENTER", 0, 0)
+    initial:SetTextColor(1, 1, 1, 1)
+
+    local name = foot:CreateFontString(nil, "OVERLAY")
+    name:SetFont(WeintCodex.Fonts.sans, 12, "")
+    name:SetPoint("TOPLEFT", av, "TOPRIGHT", 10, -1)
+    name:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
+
+    local state = WeintCodex.Eyebrow(foot, "", { color = "successBright", size = 9 })
+    state:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -2)
+
+    function WeintCodex.Navigation.RefreshAccount()
+        local who = UnitName("player") or "?"
+        initial:SetText(who:sub(1, 1):upper())
+        name:SetText(who)
+
+        local inbox = _G.WeintCompanionInboxDB
+        local ver = inbox and inbox.companionVersion
+        if ver then
+            state:SetText(WeintCodex.Spaced(string.upper("Companion " .. tostring(ver))))
+            state:SetTextColor(C.successBright[1], C.successBright[2], C.successBright[3])
+        else
+            state:SetText(WeintCodex.Spaced("KEINE LIEFERUNG"))
+            state:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        end
+    end
+end
+
+-- Zahl am rechten Rand eines Navigationseintrags (z.B. "14" bei Bossguides).
+function WeintCodex.Navigation.SetTabCount(tabId, value, tone)
+    local btn = tabButtons[tabId]
+    if not btn or not btn._count then return end
+    if value == nil then
+        btn._count:Hide()
+        return
+    end
+    local col = C[tone or "textFaint"] or C.textFaint
+    btn._count:SetTextColor(col[1], col[2], col[3])
+    btn._count:SetText(WeintCodex.Spaced(tostring(value)))
+    btn._count:Show()
 end
 
 -- Zeigt/versteckt den Benachrichtigungspunkt eines Tabs anhand echten Zustands
 -- (z.B. Materialengpass, offene Sync-Warteschlange) - siehe ShowHome().
-function WeintCodex.Navigation.SetTabBadge(tabId, on)
+-- `tone` faerbt den Punkt (Entwurf: rot = Handlungsbedarf, bernstein = Hinweis).
+-- Punkt und Zahl teilen sich denselben Platz rechts, deshalb blendet der Punkt
+-- eine gesetzte Zahl aus statt sich mit ihr zu ueberlagern.
+function WeintCodex.Navigation.SetTabBadge(tabId, on, tone)
     local btn = tabButtons[tabId]
     if not btn or not btn._dot then return end
-    if on then btn._dot:Show() else btn._dot:Hide() end
+    if on then
+        local col = C[tone or "accent"] or C.accent
+        btn._dot:SetColorTexture(col[1], col[2], col[3], 1.0)
+        btn._dot:Show()
+        if btn._count then btn._count:Hide() end
+    else
+        btn._dot:Hide()
+    end
 end
 
 -- Sperrt einen Tab optisch, ohne ihn aus der Leiste zu nehmen. Verstecken
@@ -166,215 +293,272 @@ end
 -- Laufzeit neu verankern und Map wie Array von tabButtons synchron halten.
 -- Der gesperrte Tab bleibt außerdem absichtlich klickbar - der Spieler soll
 -- draufklicken und lesen können, warum (siehe ShowAccessLock).
+-- In der ausgeschriebenen Spalte traegt der gesperrte Zustand sich selbst:
+-- TintIcon dunkelt Symbol UND Beschriftung ab. Das fruehere Plaettchen unten
+-- links entfaellt damit - es war die Kruecke der reinen Icon-Rail, in der
+-- ausser dem Symbol nichts da war, was den Zustand zeigen konnte.
 function WeintCodex.Navigation.SetTabLocked(tabId, on)
     local btn = tabButtons[tabId]
     if not btn then return end
 
     btn._locked = on and true or nil
-
-    if not btn._lock then
-        -- Kleines Plättchen unten links, spiegelbildlich zum
-        -- Benachrichtigungspunkt oben rechts (siehe SetTabBadge).
-        local lock = btn:CreateTexture(nil, "OVERLAY")
-        lock:SetSize(5, 5)
-        lock:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 3, 3)
-        lock:SetColorTexture(C.textFaint[1], C.textFaint[2], C.textFaint[3], 1.0)
-        lock:Hide()
-        btn._lock = lock
-    end
-
-    if on then btn._lock:Show() else btn._lock:Hide() end
-
     TintIcon(btn, activeTab == tabId, false)
 end
-
 --------------------------------------------------
--- Sidebar builder
+-- Unternavigation der Seite
+--------------------------------------------------
+-- Bis 1.3.3.3 war das eine zweite Fensterspalte (Sidebar, 240 px). Der
+-- Entwurf kennt sie nicht mehr: "Die heutige Sidebar-Unternavigation jeder
+-- Seite wird zur Reiterleiste unter dem Titel."
+--
+-- BuildSidebar(sectionTitle, items) bleibt als API bestehen - sieben Module
+-- rufen sie auf - und entscheidet nun selbst, wie sie sich zeigt:
+--
+--   * Reiterleiste (Segmented Control) fuer kurze, flache Listen. Das ist der
+--     Regelfall und genau das, was der Entwurf auf Charakter, Raids,
+--     Materialien und WeintTV zeigt.
+--   * Listenspalte links im Inhalt, sobald Eintraege ein Portraet, eine
+--     Statuszeile oder Gruppen tragen. Vierzehn Bosse mit Bild und
+--     "erledigt/offen" sind keine Reiter - das waere die eine Stelle, an der
+--     die Uebersetzung des Entwurfs kippt, weil er Bossguides nicht zeigt.
+--
+-- Beides sitzt IN der Seite, nicht im Fensterrahmen. Die Shell bleibt damit
+-- auf allen Seiten gleich, was der eigentliche Punkt der Aenderung war.
 --------------------------------------------------
 
 local sidebarItems  = {}
 local sidebarGroups = {}
+local subNavStrip   = nil   -- Reiterleiste
+local subNavColumn  = nil   -- Listenspalte
+
+local SUBNAV_COL_W  = 232
+local SUBNAV_TOP_H  = 54    -- Reiterleiste 38 + 16 Abstand
+
+local function EnsureSubNavColumn()
+    if subNavColumn then return subNavColumn end
+    local col = CreateFrame("Frame", nil, WeintCodex.ContentHost)
+    col:SetWidth(SUBNAV_COL_W)
+    col:SetPoint("TOPLEFT",    WeintCodex.ContentHost, "TOPLEFT",    0, 0)
+    col:SetPoint("BOTTOMLEFT", WeintCodex.ContentHost, "BOTTOMLEFT", 0, 0)
+    local div = col:CreateTexture(nil, "OVERLAY")
+    div:SetPoint("TOPRIGHT",    col, "TOPRIGHT",    0, 0)
+    div:SetPoint("BOTTOMRIGHT", col, "BOTTOMRIGHT", 0, 0)
+    div:SetWidth(1)
+    div:SetColorTexture(C.border[1], C.border[2], C.border[3], 1.0)
+    subNavColumn = col
+    return col
+end
 
 function WeintCodex.Navigation.ClearSidebar()
     for _, item in ipairs(sidebarItems) do item:Hide() end
     for _, grp  in ipairs(sidebarGroups) do grp:Hide()  end
     wipe(sidebarItems)
     wipe(sidebarGroups)
-    WeintCodex.SidebarHeader:SetText(WeintCodex.ColorText("textFaint", "NAVIGATION"))
+    if subNavStrip then subNavStrip:Hide() end
+    if subNavColumn then subNavColumn:Hide() end
+    WeintCodex.SetSubNavWidth(0)
+    WeintCodex.SetSubNavTop(0)
 end
 
--- Build flat list of items
-function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
-    WeintCodex.Navigation.ClearSidebar()
-    WeintCodex.SidebarHeader:SetText(WeintCodex.ColorText("purple", string.upper(sectionTitle or "")))
+-- Entscheidet die Darstellungsform. Sobald ein Eintrag mehr ist als eine
+-- Beschriftung, wird aus der Leiste eine Liste.
+local function NeedsColumn(items)
+    local count = 0
+    for _, it in ipairs(items) do
+        if it.isGroup or it.portrait or it.status or it.indent then return true end
+        count = count + 1
+    end
+    return count > 7
+end
 
-    local sidebar  = WeintCodex.Sidebar
-    local offsetY  = -46
+--------------------------------------------------
+-- Darstellung 1: Reiterleiste
+--------------------------------------------------
+
+local function BuildStrip(items)
+    local segItems = {}
+    for i, it in ipairs(items) do
+        segItems[i] = { text = it.label or "", dot = it.dot, key = i }
+    end
+
+    local strip = WeintCodex.CreateSegmentedControl(WeintCodex.ContentHost, {
+        items = segItems,
+        backdrop = "bgDark",
+        onSelect = function(_, index)
+            local def = items[index]
+            if def and def.onClick then def.onClick() end
+        end,
+    })
+    strip:SetPoint("TOPLEFT", WeintCodex.ContentHost, "TOPLEFT",
+        WeintCodex.Metrics.PAD_X, -WeintCodex.Metrics.PAD_Y)
+
+    subNavStrip = strip
+    WeintCodex.SetSubNavTop(WeintCodex.Metrics.PAD_Y + SUBNAV_TOP_H)
+
+    -- Die Reiter selbst dienen als "sidebarItems", damit ActivateFirst und
+    -- UpdateSidebarStatus unveraendert weiterfunktionieren.
+    for i, seg in ipairs(strip._segments or {}) do
+        seg.SetActive = function() end
+        sidebarItems[i] = seg
+    end
+end
+
+--------------------------------------------------
+-- Darstellung 2: Listenspalte
+--------------------------------------------------
+
+local function BuildColumn(sectionTitle, items)
+    local col = EnsureSubNavColumn()
+    col:Show()
+    WeintCodex.SetSubNavWidth(SUBNAV_COL_W)
+
+    local pad = 16
+    local title = WeintCodex.Eyebrow(col, sectionTitle or "", { color = "textFaint" })
+    title:SetPoint("TOPLEFT", col, "TOPLEFT", pad + 11, -WeintCodex.Metrics.PAD_Y)
+    table.insert(sidebarGroups, title)
+
+    local offsetY = -WeintCodex.Metrics.PAD_Y - 26
 
     for _, itemDef in ipairs(items) do
-        local isGroup = itemDef.isGroup
-
-        if isGroup then
-            local lbl = sidebar:CreateFontString(nil, "OVERLAY")
-            lbl:SetFont(WeintCodex.Fonts.mono, 10, "")
-            lbl:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, offsetY)
-            lbl:SetText(WeintCodex.ColorText("textGhost", itemDef.label or ""))
-            lbl:SetWidth(204)
+        if itemDef.isGroup then
+            local lbl = WeintCodex.Eyebrow(col, itemDef.label or "", { color = "textGhost" })
+            lbl:SetPoint("TOPLEFT", col, "TOPLEFT", pad + 11, offsetY - 8)
             table.insert(sidebarGroups, lbl)
-            offsetY = offsetY - 18
+            offsetY = offsetY - 26
         else
-            local indent   = itemDef.indent and 32 or 16
             local hasStatus = itemDef.status ~= nil
-            local itemH    = hasStatus and 40 or 28
+            local itemH = hasStatus and 44 or 36
 
-            local btn = CreateFrame("Button", nil, sidebar)
+            local btn = CreateFrame("Button", nil, col)
             btn:SetHeight(itemH)
-            -- Rechts relativ zur Sidebar verankert statt fester Breite, damit
-            -- eingerueckte Eintraege nicht ueber den rechten Rand der Sidebar
-            -- hinaus in das Hauptfeld hineinragen.
-            btn:SetPoint("TOPLEFT",  sidebar, "TOPLEFT",  indent, offsetY)
-            btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -12,    offsetY)
+            btn:SetPoint("TOPLEFT",  col, "TOPLEFT",  pad, offsetY)
+            btn:SetPoint("TOPRIGHT", col, "TOPRIGHT", -pad, offsetY)
 
             local bg = btn:CreateTexture(nil, "BACKGROUND")
             bg:SetAllPoints(btn)
             bg:SetColorTexture(0, 0, 0, 0)
             btn._bg = bg
+            WeintCodex.CutCorners(btn, 10, "bgDark")
+            for _, t in pairs(btn._corners or {}) do t:Hide() end
 
-            -- Dauerhafter Akzentstreifen (z.B. End-Boss-Kennzeichnung),
-            -- unabhaengig vom Aktiv-/Hover-Zustand sichtbar - siehe
-            -- BaselineAccent()/SetActive() weiter unten.
+            -- Dauerhafter Akzentstreifen (z.B. End-Boss), unabhaengig vom
+            -- Aktiv-/Hover-Zustand sichtbar.
             local accentColor = itemDef.accentColor and C[itemDef.accentColor]
-
             local accent = btn:CreateTexture(nil, "OVERLAY")
-            accent:SetSize(3, itemH)
-            accent:SetPoint("LEFT", btn, "LEFT", 0, 0)
+            accent:SetSize(3, 22)
+            accent:SetPoint("LEFT", btn, "LEFT", -pad, 0)
             btn._accent = accent
 
             local function BaselineAccent()
                 if accentColor then
-                    accent:SetColorTexture(accentColor[1], accentColor[2], accentColor[3], 0.6)
+                    accent:SetColorTexture(accentColor[1], accentColor[2], accentColor[3], 0.60)
+                    accent:Show()
                 else
-                    accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.0)
+                    accent:Hide()
                 end
             end
             BaselineAccent()
 
-            local iconOffsetX = 12
+            local textX = 12
 
             if itemDef.portrait then
-                local iconBox = btn:CreateTexture(nil, "OVERLAY")
-                iconBox:SetSize(20, 20)
-                iconBox:SetPoint("LEFT", btn, "LEFT", 8, 0)
-                iconBox:SetTexture("Interface\\AddOns\\WeintCodex\\" .. itemDef.portrait)
-                iconOffsetX = 34
-            elseif itemDef.iconColor then
-                local iconBox = btn:CreateTexture(nil, "OVERLAY")
-                iconBox:SetSize(16, 16)
-                iconBox:SetPoint("LEFT", btn, "LEFT", 12, 0)
-                iconBox:SetColorTexture(
-                    itemDef.iconColor[1],
-                    itemDef.iconColor[2],
-                    itemDef.iconColor[3],
-                    0.85
-                )
-                iconOffsetX = 34
+                local box = btn:CreateTexture(nil, "ARTWORK")
+                box:SetSize(28, 28)
+                box:SetPoint("LEFT", btn, "LEFT", 10, 0)
+                box:SetTexture(itemDef.portrait)
+                box:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                btn._portrait = box
+                textX = 46
             end
 
-            local lbl = btn:CreateFontString(nil, "OVERLAY")
-            lbl:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
-            lbl:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-            lbl:SetText(itemDef.label or "")
-            lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
-            lbl:SetJustifyH("LEFT")
-            btn._label = lbl
-
-            local statusLbl
+            local label = btn:CreateFontString(nil, "OVERLAY")
+            label:SetFont(WeintCodex.Fonts.sans, 13, "")
+            label:SetJustifyH("LEFT")
+            label:SetText(itemDef.label or "")
+            label:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
             if hasStatus then
-                -- Zweizeilig: Name oben, Status-Subline darunter. Rechter
-                -- Rand um 20px statt 8px eingerueckt, damit der Progress-
-                -- Punkt (nur beim aktiven Eintrag sichtbar) nicht mit
-                -- langen Namen/Statustexten kollidiert.
-                lbl:ClearAllPoints()
-                lbl:SetPoint("TOPLEFT", btn, "TOPLEFT", iconOffsetX, -8)
-                lbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
-
-                statusLbl = btn:CreateFontString(nil, "OVERLAY")
-                statusLbl:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -4)
-                statusLbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
-                statusLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-                statusLbl:SetJustifyH("LEFT")
-                local sc = C[itemDef.status.color or "textFaint"] or C.textFaint
-                statusLbl:SetTextColor(sc[1], sc[2], sc[3])
-                statusLbl:SetText(itemDef.status.text or "")
-                btn._statusLbl = statusLbl
+                label:SetPoint("TOPLEFT", btn, "TOPLEFT", textX, -6)
             else
-                lbl:SetPoint("LEFT", btn, "LEFT", iconOffsetX, 0)
+                label:SetPoint("LEFT", btn, "LEFT", textX, 0)
             end
+            label:SetPoint("RIGHT", btn, "RIGHT", -12, 0)
+            btn._label = label
 
-            local dot
             if hasStatus then
-                dot = btn:CreateTexture(nil, "OVERLAY")
-                dot:SetSize(6, 6)
-                dot:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
-                dot:SetColorTexture(C.accentDot[1], C.accentDot[2], C.accentDot[3], 1.0)
-                dot:Hide()
-                btn._dot = dot
+                local st = btn:CreateFontString(nil, "OVERLAY")
+                st:SetFont(WeintCodex.Fonts.mono, 9, "")
+                st:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
+                local sc = C[itemDef.status.color or "textFaint"] or C.textFaint
+                st:SetTextColor(sc[1], sc[2], sc[3])
+                st:SetText(WeintCodex.Spaced(string.upper(itemDef.status.text or "")))
+                btn._statusLbl = st
             end
 
             local function SetActive(self, on)
+                self._isActive = on
                 if on then
-                    self._bg:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.20)
-                    self._accent:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 1.0)
+                    self._bg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
                     self._label:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-                    if self._dot then self._dot:Show() end
+                    self._label:SetFont(WeintCodex.Fonts.sansMedium, 13, "")
+                    self._accent:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 1.0)
+                    self._accent:Show()
+                    for _, t in pairs(self._corners or {}) do t:Show() end
                 else
                     self._bg:SetColorTexture(0, 0, 0, 0)
+                    self._label:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
+                    self._label:SetFont(WeintCodex.Fonts.sans, 13, "")
                     BaselineAccent()
-                    self._label:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
-                    if self._dot then self._dot:Hide() end
+                    for _, t in pairs(self._corners or {}) do t:Hide() end
                 end
             end
             btn.SetActive = SetActive
 
             btn:SetScript("OnEnter", function(self)
                 if not self._isActive then
-                    self._bg:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.10)
+                    self._bg:SetColorTexture(1, 1, 1, 0.04)
+                    self._label:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
                 end
             end)
             btn:SetScript("OnLeave", function(self)
                 if not self._isActive then
                     self._bg:SetColorTexture(0, 0, 0, 0)
+                    self._label:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
                 end
             end)
             btn:SetScript("OnClick", function(self)
-                for _, s in ipairs(sidebarItems) do
-                    s._isActive = false
-                    s:SetActive(false)
-                end
-                self._isActive = true
+                for _, s in ipairs(sidebarItems) do s:SetActive(false) end
                 self:SetActive(true)
                 if itemDef.onClick then itemDef.onClick() end
             end)
 
             table.insert(sidebarItems, btn)
-            offsetY = offsetY - (hasStatus and 42 or 30)
+            offsetY = offsetY - itemH - 2
         end
     end
 end
 
+function WeintCodex.Navigation.BuildSidebar(sectionTitle, items)
+    WeintCodex.Navigation.ClearSidebar()
+    items = items or {}
+    if NeedsColumn(items) then
+        BuildColumn(sectionTitle, items)
+    else
+        BuildStrip(items)
+    end
+end
+
 -- Aktualisiert nur die Status-Subline eines bereits gebauten Eintrags
--- (z.B. Boss-Kill waehrend des Raids), ohne die Sidebar neu aufzubauen -
--- der aktuell angeklickte Eintrag bleibt dadurch markiert.
+-- (z.B. Boss-Kill waehrend des Raids), ohne die Unternavigation neu
+-- aufzubauen - der aktuell angeklickte Eintrag bleibt dadurch markiert.
 -- index bezieht sich auf die Reihenfolge der Nicht-Gruppen-Eintraege.
 function WeintCodex.Navigation.UpdateSidebarStatus(index, status)
     local btn = sidebarItems[index]
     if not (btn and btn._statusLbl and status) then return end
     local sc = C[status.color or "textFaint"] or C.textFaint
     btn._statusLbl:SetTextColor(sc[1], sc[2], sc[3])
-    btn._statusLbl:SetText(status.text or "")
+    btn._statusLbl:SetText(WeintCodex.Spaced(string.upper(status.text or "")))
 end
 
--- Activate first sidebar item automatically
 function WeintCodex.Navigation.ActivateFirst()
     if sidebarItems[1] then
         sidebarItems[1]:Click()
@@ -397,6 +581,9 @@ local INSPECTOR_CONTENT_W = WeintCodex.Inspector:GetWidth() - INSPECTOR_PAD * 2
 function WeintCodex.Navigation.ClearInspector()
     for _, w in ipairs(inspectorWidgets) do w:Hide() end
     wipe(inspectorWidgets)
+    -- Ohne Bloecke gibt es keinen Detailbereich: der Inhalt bekommt die
+    -- volle Breite zurueck. Frueher blieb die Spalte als leere Flaeche stehen.
+    WeintCodex.SetDetailShown(false)
 end
 
 -- Verbirgt frei belegte Aktions-Buttons in der Titelleiste (z.B. "Companion",
@@ -1320,8 +1507,16 @@ end
 -- blocks: Liste von { type = "header"|"rows"|"list"|"checklist"|"card"|"notes"|"button"|"itemlist"|"divider"|"spacer", ... }
 function WeintCodex.Navigation.SetInspector(blocks)
     WeintCodex.Navigation.ClearInspector()
+    if not blocks or #blocks == 0 then return end
+
+    -- Der Detailbereich ist keine eigene Fensterspalte mehr, sondern die
+    -- rechte Spalte der Seite (372 px, Entwurf: Raster "1fr 372px"). Er
+    -- erscheint nur, wenn es wirklich etwas zu zeigen gibt - ContentPanel
+    -- schrumpft dann automatisch, die Module merken davon nichts.
+    WeintCodex.SetDetailShown(true)
+
     local parent = WeintCodex.Inspector
-    local y = -22
+    local y = 0
 
     for _, block in ipairs(blocks or {}) do
         if block.type == "header" then
@@ -1392,7 +1587,26 @@ function WeintCodex.Navigation.SwitchTo(tabId)
         return
     end
 
-    if tabId == "charakter" then
+    if tabId == "uebersicht" then
+        -- Die Startseite ist mit 2.0 ein eigener Navigationspunkt. ShowHome
+        -- raeumt selbst auf, deshalb genuegt der direkte Aufruf.
+        if WeintCodex.ShowHome then WeintCodex.ShowHome() end
+    elseif tabId == "academy" then
+        -- Bis 1.3.3.3 haing die Academy in der Charakter-Unternavigation. Sie
+        -- steht jetzt gleichberechtigt in der Spalte; ihre drei Ansichten
+        -- (Uebersicht/Trainingsplan/Katalog) sind die Reiterleiste der Seite.
+        if WeintCodex.Academy and WeintCodex.Academy.ShowOverview then
+            if WeintCodex.Charakter and WeintCodex.Charakter.LeaveView then
+                WeintCodex.Charakter.LeaveView()
+            end
+            WeintCodex.Navigation.BuildSidebar("Academy", {
+                { label = "Übersicht",    onClick = function() WeintCodex.Academy.ShowOverview() end },
+                { label = "Trainingsplan", onClick = function() WeintCodex.Academy.ShowPlan()    end },
+                { label = "Katalog",       onClick = function() WeintCodex.Academy.ShowCatalog() end },
+            })
+            WeintCodex.Navigation.ActivateFirst()
+        end
+    elseif tabId == "charakter" then
         if WeintCodex.Charakter and WeintCodex.Charakter.Show then
             WeintCodex.Charakter.Show()
         end
@@ -1551,10 +1765,8 @@ function WeintCodex.Navigation.ShowAccessLock(tabId, featureKey)
 end
 
 --------------------------------------------------
--- Home Dashboard
+-- Daten der Startseite
 --------------------------------------------------
-
-local homeFrame = nil
 
 -- Datums-Hilfe (gleiches Format wie modules/calendar.lua ParseDate())
 local function ParseYMD(dateStr)
@@ -1658,280 +1870,445 @@ local function GoToTab(tabId)
     if btn then btn:Click() end
 end
 
--- Modul-Kacheln des Dashboards (gleiche Icons wie die Tab-Leiste oben)
-local dashboardTiles = {
-    { id = "charakter",  icon = "Interface\\Icons\\Achievement_Character_Human_Male", title = "Charakter",   desc = "Enchants, Stats & Twink-Verwaltung" },
-    { id = "bossguides", icon = "Interface\\Icons\\Achievement_Boss_LichKing",        title = "Bossguides",  desc = "Rollen-Tipps für alle Bosse" },
-    { id = "raids",      icon = "Interface\\Icons\\Ability_Warrior_BattleShout",      title = "Raids",       desc = "Anmeldungen Mittwoch & Donnerstag" },
-    { id = "materials",  icon = "Interface\\Icons\\INV_Crate_01",                     title = "Materialien", desc = "Gildenbank-Übersicht" },
-    { id = "calendar",   icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",          title = "Kalender",    desc = "Termine & Ingame-Einladungen" },
-    { id = "weakauras",  icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",         title = "WeakAuras",   desc = "1-Klick-Import nach Kategorie" },
-    { id = "weinttv",    icon = "Interface\\Icons\\INV_Misc_Spyglass_02",             title = "WeintTV",     desc = "Tiefenanalyse des letzten Pulls" },
-    { id = "import",     icon = "Interface\\Icons\\INV_Misc_Note_01",                 title = "Import",      desc = "Daten vom Discord-Bot importieren" },
-}
+-- Die acht Modulkacheln der v1-Startseite sind mit 2.0 entfallen: die
+-- Navigationsspalte schreibt dieselben Bereiche aus, eine zweite Liste
+-- derselben Namen war das "Menue statt Antwort", das der Entwurf abloest.
+--------------------------------------------------
+-- Startseite (Entwurf 1a: "Was ist jetzt zu tun?")
+--------------------------------------------------
+-- Die Startseite beantwortet den Abend, nicht das Menue. Aufbau von oben nach
+-- unten: eine Handlungskarte zum naechsten Raid, darunter drei Spalten mit
+-- dem, was offen ist (eigene Ausruestung, geplante Bosse, Gildenbank), unten
+-- eine Systemzeile zum Zustand der Companion-Bruecke.
+--
+-- Die frueheren acht Modulkacheln sind entfallen: die Navigationsspalte
+-- schreibt die Bereiche seit 2.0 aus, eine zweite Liste derselben Namen war
+-- genau das "Menue statt Antwort", das der Entwurf abloest. Erreichbar bleibt
+-- alles ueber die Spalte links.
+--------------------------------------------------
+
+local homeFrame = nil
+
+-- Bricht Text in der Karte nicht mittig ab, sondern kuerzt sauber.
+local function Ellipsis(text, maxChars)
+    text = tostring(text or "")
+    if #text <= maxChars then return text end
+    return text:sub(1, maxChars - 1) .. "…"
+end
 
 function WeintCodex.ShowHome()
     ClearContentPanel()
     WeintCodex.Navigation.ClearSidebar()
     WeintCodex.Navigation.ClearTitleActions()
-    for _, b in ipairs(tabButtons) do SetTabActive(b, false) end
-    activeTab = nil
+    WeintCodex.Navigation.ClearInspector()
+    WeintCodex.SetBreadcrumb("Übersicht")
+    if WeintCodex.Navigation.RefreshAccount then
+        WeintCodex.Navigation.RefreshAccount()
+    end
 
-    if not homeFrame then
-        local hf = CreateFrame("Frame", nil, WeintCodex.ContentPanel)
-        hf:SetAllPoints(WeintCodex.ContentPanel)
+    local PAD_X = WeintCodex.Metrics.PAD_X
+    local PAD_Y = WeintCodex.Metrics.PAD_Y
+    local GAP   = WeintCodex.Metrics.GAP
 
-        ------------------------------------------------
-        -- A. Kompakte Hero-Leiste
-        ------------------------------------------------
-        local hero = CreateFrame("Frame", nil, hf)
-        hero:SetHeight(72)
-        hero:SetPoint("TOPLEFT",  hf, "TOPLEFT",  0, 0)
-        hero:SetPoint("TOPRIGHT", hf, "TOPRIGHT", 0, 0)
+    if homeFrame then homeFrame:Hide() end
+    homeFrame = CreateFrame("Frame", nil, WeintCodex.ContentPanel)
+    homeFrame:SetAllPoints(WeintCodex.ContentPanel)
+    local root = homeFrame
 
-        local wordmark = hero:CreateFontString(nil, "OVERLAY")
-        wordmark:SetFont("Fonts\\MORPHEUS.TTF", 20, "")
-        wordmark:SetPoint("TOPLEFT", hero, "TOPLEFT", 20, -14)
-        wordmark:SetText(WeintCodex.ColorText("textBright", "WeintCodex"))
+    --------------------------------------------------
+    -- Kopf
+    --------------------------------------------------
 
-        local sub = hero:CreateFontString(nil, "OVERLAY")
-        sub:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-        sub:SetPoint("TOPLEFT", wordmark, "BOTTOMLEFT", 0, -4)
-        sub:SetText(WeintCodex.ColorText("textDim", "Raid Guide & Intelligence System"))
+    local today = date("*t")
+    local WEEKDAYS = { "Sonntag", "Montag", "Dienstag", "Mittwoch",
+                       "Donnerstag", "Freitag", "Samstag" }
+    local MONTHS = { "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+                     "August", "September", "Oktober", "November", "Dezember" }
 
-        local heroDiv = hero:CreateTexture(nil, "OVERLAY")
-        heroDiv:SetHeight(1)
-        heroDiv:SetPoint("BOTTOMLEFT",  hero, "BOTTOMLEFT",  20, 0)
-        heroDiv:SetPoint("BOTTOMRIGHT", hero, "BOTTOMRIGHT", -20, 0)
-        heroDiv:SetColorTexture(C.hairline[1], C.hairline[2], C.hairline[3], C.hairline[4])
+    local eyebrow = WeintCodex.Eyebrow(root,
+        string.format("%s, %d. %s", WEEKDAYS[today.wday] or "", today.day,
+                      MONTHS[today.month] or ""))
+    eyebrow:SetPoint("TOPLEFT", root, "TOPLEFT", PAD_X, -PAD_Y)
 
-        local importBtn = WeintCodex.CreateCard(hero, { width = 110, height = 28, buttonStyle = true })
-        importBtn:SetPoint("TOPRIGHT", hero, "TOPRIGHT", -20, -14)
-        local importLbl = importBtn:CreateFontString(nil, "OVERLAY")
-        importLbl:SetAllPoints(importBtn)
-        importLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-        importLbl:SetJustifyH("CENTER")
-        importLbl:SetText("Import")
-        importLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-        importBtn:SetScript("OnClick", function()
+    -- Ueberschrift benennt den Handlungsbedarf, nicht den Bereich.
+    local scan
+    if WeintCodex.Charakter and WeintCodex.Charakter.Scan then
+        local ok, result = pcall(WeintCodex.Charakter.Scan)
+        if ok then scan = result end
+    end
+    local openIssues = 0
+    for _, iss in ipairs((scan and scan.issues) or {}) do
+        if iss.status == "missing" or iss.status == "empty" or iss.status == "wrong" then
+            openIssues = openIssues + 1
+        end
+    end
+
+    local shortages, matKnown, matLocked = GetMaterialShortageCount()
+    local headline
+    if openIssues > 0 then
+        headline = openIssues == 1 and "Eine Sache ist noch offen"
+                                   or (openIssues .. " Dinge sind noch offen")
+    elseif shortages > 0 and not matLocked then
+        headline = "Ausrüstung sitzt – die Gildenbank nicht"
+    else
+        headline = "Alles bereit"
+    end
+
+    local title = WeintCodex.PageTitle(root, headline)
+    title:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+
+    --------------------------------------------------
+    -- Handlungskarte: naechster Raid
+    --------------------------------------------------
+
+    local action = WeintCodex.CreateSurface(root, {
+        height = 116, tone = "accent", radius = 14, backdrop = "bgDark",
+    })
+    action:SetPoint("TOPLEFT",  root, "TOPLEFT",  PAD_X, -(PAD_Y + 72))
+    action:SetPoint("TOPRIGHT", root, "TOPRIGHT", -PAD_X, -(PAD_Y + 72))
+
+    local aEyebrow = WeintCodex.Eyebrow(action, "Nächster Raid",
+        { color = "accentBright", size = 11 })
+    aEyebrow:SetPoint("TOPLEFT", action, "TOPLEFT", 20, -16)
+
+    local raidLabel = GetNextRaidLabel()
+    local aTitle = action:CreateFontString(nil, "OVERLAY")
+    aTitle:SetFont(WeintCodex.Fonts.sansSemi, 17, "")
+    aTitle:SetPoint("TOPLEFT", aEyebrow, "BOTTOMLEFT", 0, -8)
+    aTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    aTitle:SetText(raidLabel)
+
+    local signups = GetSignupCount()
+    local aSub = WeintCodex.Label(action,
+        signups and "Anmeldungen liegen vor – Raidliste im Bereich Raids"
+                or "Keine Anmeldeliste vorhanden",
+        { color = "textMuted", size = 13 })
+    aSub:SetPoint("TOPLEFT", aTitle, "BOTTOMLEFT", 0, -6)
+
+    -- Rechte Seite: Kennzahl + Schaltflaeche
+    local aBtn = WeintCodex.CreateButton(action, {
+        text = "Raids öffnen", kind = "primary", backdrop = "accentCardTop",
+        onClick = function() GoToTab("raids") end,
+    })
+    aBtn:SetPoint("RIGHT", action, "RIGHT", -20, 0)
+
+    if signups then
+        local nCap = action:CreateFontString(nil, "OVERLAY")
+        nCap:SetFont(WeintCodex.Fonts.monoBold, 26, "")
+        nCap:SetPoint("RIGHT", aBtn, "LEFT", -24, 6)
+        nCap:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+        nCap:SetText(tostring(signups))
+
+        local nLbl = WeintCodex.Eyebrow(action, "Angemeldet", { size = 10 })
+        nLbl:SetPoint("TOPRIGHT", nCap, "BOTTOMRIGHT", 0, -4)
+    end
+
+    --------------------------------------------------
+    -- Drei Spalten
+    --------------------------------------------------
+
+    local COL_TOP = PAD_Y + 72 + 116 + GAP
+    local BOTTOM  = PAD_Y + 48 + GAP   -- Platz fuer die Systemzeile
+
+    -- Die drei Spalten teilen sich die Breite. WoW kennt keine Rasterspalten,
+    -- deshalb sitzt jede in einem unsichtbaren Traeger, dessen Breite bei
+    -- jeder Groessenaenderung des Rasters neu gerechnet wird - das Fenster ist
+    -- in der Groesse veraenderbar, feste Breiten waeren nach dem ersten Ziehen
+    -- am Griff falsch.
+    local grid = CreateFrame("Frame", nil, root)
+    grid:SetPoint("TOPLEFT",     root, "TOPLEFT",      PAD_X, -COL_TOP)
+    grid:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -PAD_X,  BOTTOM)
+
+    local function Column(index)
+        local holder = CreateFrame("Frame", nil, grid)
+        holder:SetPoint("TOP",    grid, "TOP",    0, 0)
+        holder:SetPoint("BOTTOM", grid, "BOTTOM", 0, 0)
+        holder:SetPoint("LEFT",  grid, "LEFT", 0, 0)
+        holder:SetPoint("RIGHT", grid, "LEFT", 0, 0)
+        -- Breite/Position relativ ueber ein OnSizeChanged, weil die Breite des
+        -- Rasters erst nach dem Layout feststeht.
+        local function place()
+            local w = grid:GetWidth() or 0
+            if w <= 0 then return end
+            local colW = (w - 2 * GAP) / 3
+            holder:ClearAllPoints()
+            holder:SetPoint("TOPLEFT", grid, "TOPLEFT", (index - 1) * (colW + GAP), 0)
+            holder:SetSize(colW, grid:GetHeight() or 1)
+        end
+        grid:HookScript("OnSizeChanged", place)
+        place()
+
+        local card = WeintCodex.CreateSurface(holder, {
+            tone = "plain", radius = 14, backdrop = "bgDark",
+        })
+        card:SetAllPoints(holder)
+        return card
+    end
+
+    local function CardHeader(card, titleText, chipText, chipTone)
+        local t = card:CreateFontString(nil, "OVERLAY")
+        t:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
+        t:SetPoint("TOPLEFT", card, "TOPLEFT", 20, -16)
+        t:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        t:SetText(titleText)
+        if chipText then
+            local chip = WeintCodex.Chip(card, {
+                text = chipText, tone = chipTone or "textMuted",
+                textColor = chipTone and (chipTone .. "Bright") or nil,
+                backdrop = "cardTop", height = 22, size = 9,
+            })
+            chip:SetPoint("TOPRIGHT", card, "TOPRIGHT", -16, -14)
+        end
+        return t
+    end
+
+    -- Zeile mit Punkt links, Text, Kennwert rechts
+    local function StateRow(parent, y, dotTone, text, value, valueTone)
+        local row = CreateFrame("Frame", nil, parent)
+        row:SetHeight(34)
+        row:SetPoint("TOPLEFT",  parent, "TOPLEFT",  20, y)
+        row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -16, y)
+
+        local dot = WeintCodex.StatusDot(row, dotTone, 7)
+        dot:SetPoint("LEFT", row, "LEFT", 0, 0)
+
+        local val
+        if value then
+            val = row:CreateFontString(nil, "OVERLAY")
+            val:SetFont(WeintCodex.Fonts.monoBold, 10, "")
+            val:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+            local vc = C[valueTone or "textMuted"] or C.textMuted
+            val:SetTextColor(vc[1], vc[2], vc[3])
+            val:SetText(WeintCodex.Spaced(string.upper(value)))
+        end
+
+        local lbl = row:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont(WeintCodex.Fonts.sans, 13, "")
+        lbl:SetPoint("LEFT", dot, "RIGHT", 10, 0)
+        lbl:SetPoint("RIGHT", val or row, val and "LEFT" or "RIGHT", val and -8 or 0, 0)
+        lbl:SetJustifyH("LEFT")
+        lbl:SetWordWrap(false)
+        lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+        lbl:SetText(text)
+
+        WeintCodex.RowLine(row, -33)
+        return y - 36
+    end
+
+    --------------------------------------------------
+    -- Spalte 1: Deine Vorbereitung
+    --------------------------------------------------
+
+    local prep = Column(1)
+    CardHeader(prep, "Deine Vorbereitung",
+        openIssues > 0 and (openIssues .. " offen") or "bereit",
+        openIssues > 0 and "danger" or "success")
+
+    local specLine = WeintCodex.Eyebrow(prep,
+        (scan and scan.specDisplay) or "Keine Spezialisierung erkannt",
+        { size = 10 })
+    specLine:SetPoint("TOPLEFT", prep, "TOPLEFT", 20, -44)
+
+    local y = -66
+    local shown = 0
+    for _, iss in ipairs((scan and scan.issues) or {}) do
+        if shown >= 4 then break end
+        local tone, tag
+        if iss.status == "missing" then tone, tag = "danger", "fehlt"
+        elseif iss.status == "empty" then tone, tag = "danger", "leer"
+        elseif iss.status == "wrong" then tone, tag = "violet", "falsch"
+        else tone, tag = "warning", "prüfen" end
+        y = StateRow(prep, y, tone, Ellipsis(iss.text, 42), tag,
+                     tone == "violet" and "violetBright" or (tone .. "Bright"))
+        shown = shown + 1
+    end
+    if shown == 0 then
+        y = StateRow(prep, y, "success", "Verzauberungen und Sockel vollständig",
+                     "ok", "successBright")
+    end
+
+    local prepBtn = WeintCodex.CreateButton(prep, {
+        text = "Charakter prüfen", kind = "secondary", backdrop = "cardBottom",
+        onClick = function() GoToTab("charakter") end,
+    })
+    prepBtn:SetPoint("BOTTOMLEFT",  prep, "BOTTOMLEFT",  20, 16)
+    prepBtn:SetPoint("BOTTOMRIGHT", prep, "BOTTOMRIGHT", -20, 16)
+
+    --------------------------------------------------
+    -- Spalte 2: Heute geplant
+    --------------------------------------------------
+
+    local bosses = Column(2)
+
+    local prog = WeintCodex.SavedData and WeintCodex.SavedData.encounterProgress
+    local downCount, totalCount = 0, 0
+    local pending = {}
+    for _, inst in pairs(prog or {}) do
+        for bossName, state in pairs(inst.bosses or {}) do
+            totalCount = totalCount + 1
+            if state.killed then
+                downCount = downCount + 1
+            elseif #pending < 3 then
+                pending[#pending + 1] = bossName
+            end
+        end
+    end
+
+    CardHeader(bosses, "Heute geplant",
+        totalCount > 0 and (downCount .. "/" .. totalCount .. " down") or nil,
+        "textMuted")
+
+    local noteLine = WeintCodex.Eyebrow(bosses,
+        totalCount > 0 and "Fortschritt dieser Woche" or "Noch kein Fortschritt erfasst",
+        { size = 10 })
+    noteLine:SetPoint("TOPLEFT", bosses, "TOPLEFT", 20, -44)
+
+    y = -66
+    for _, bossName in ipairs(pending) do
+        y = StateRow(bosses, y, nil, Ellipsis(bossName, 40), nil)
+    end
+    if #pending == 0 then
+        y = StateRow(bosses, y,
+            totalCount > 0 and "success" or nil,
+            totalCount > 0 and "Alle bekannten Bosse liegen" or "Noch keine Daten",
+            nil)
+    end
+
+    local bossBtn = WeintCodex.CreateButton(bosses, {
+        text = "Bossguide öffnen", kind = "secondary", backdrop = "cardBottom",
+        onClick = function() GoToTab("bossguides") end,
+    })
+    bossBtn:SetPoint("BOTTOMLEFT",  bosses, "BOTTOMLEFT",  20, 16)
+    bossBtn:SetPoint("BOTTOMRIGHT", bosses, "BOTTOMRIGHT", -20, 16)
+
+    --------------------------------------------------
+    -- Spalte 3: Gildenbank
+    --------------------------------------------------
+
+    local bank = Column(3)
+    CardHeader(bank, "Gildenbank",
+        matLocked and "gesperrt"
+            or (shortages > 0 and (shortages .. " engpässe") or (matKnown and "im soll" or "kein scan")),
+        matLocked and "textMuted" or (shortages > 0 and "danger" or "success"))
+
+    local matData = WeintCodex.SavedData and WeintCodex.SavedData.materialData
+    local scanLine = WeintCodex.Eyebrow(bank,
+        matLocked and "Keine Freigabe"
+            or (matData and matData.scanned and ("Scan " .. tostring(matData.scanned))
+                or "Noch kein Scan"),
+        { size = 10 })
+    scanLine:SetPoint("TOPLEFT", bank, "TOPLEFT", 20, -44)
+
+    y = -70
+    if matLocked then
+        StateRow(bank, y, nil, "Materialien sind für dich gesperrt", nil)
+    elseif not matKnown then
+        StateRow(bank, y, nil, "Noch nichts importiert", nil)
+    else
+        -- Die drei knappsten Posten mit Fortschrittsbalken, wie im Entwurf.
+        local worst = {}
+        for _, item in ipairs((matData and matData.items) or {}) do
+            local amount = tonumber(item.count)  or 0
+            local target = tonumber(item.target) or 0
+            if target > 0 then
+                worst[#worst + 1] = { name = item.name, amount = amount,
+                                      target = target, pct = amount / target }
+            end
+        end
+        table.sort(worst, function(a, b) return a.pct < b.pct end)
+
+        for i = 1, math.min(3, #worst) do
+            local it = worst[i]
+            local tone = it.pct < 0.30 and "red" or (it.pct < 0.70 and "gold" or "green")
+            local textTone = it.pct < 0.30 and "dangerBright"
+                or (it.pct < 0.70 and "accentBright" or "successBright")
+
+            local nameLbl = WeintCodex.Label(bank, Ellipsis(it.name, 26),
+                { color = "textNormal", size = 13 })
+            nameLbl:SetPoint("TOPLEFT", bank, "TOPLEFT", 20, y)
+
+            local valLbl = bank:CreateFontString(nil, "OVERLAY")
+            valLbl:SetFont(WeintCodex.Fonts.monoBold, 10, "")
+            valLbl:SetPoint("TOPRIGHT", bank, "TOPRIGHT", -20, y - 1)
+            local vc = C[textTone]
+            valLbl:SetTextColor(vc[1], vc[2], vc[3])
+            valLbl:SetText(it.amount .. "/" .. it.target)
+
+            local meter = WeintCodex.CreateMeter(bank, { height = 6, tone = tone })
+            meter:SetPoint("TOPLEFT",  bank, "TOPLEFT",  20, y - 20)
+            meter:SetPoint("TOPRIGHT", bank, "TOPRIGHT", -20, y - 20)
+            -- Breite steht erst nach dem Layout fest; der Balken zieht nach.
+            meter:HookScript("OnSizeChanged", function(self)
+                self:SetValue(math.min(1, it.pct))
+            end)
+            meter:SetValue(math.min(1, it.pct))
+
+            y = y - 46
+        end
+    end
+
+    local bankBtn = WeintCodex.CreateButton(bank, {
+        text = "Materialien ansehen", kind = "secondary", backdrop = "cardBottom",
+        onClick = function() GoToTab("materials") end,
+    })
+    bankBtn:SetPoint("BOTTOMLEFT",  bank, "BOTTOMLEFT",  20, 16)
+    bankBtn:SetPoint("BOTTOMRIGHT", bank, "BOTTOMRIGHT", -20, 16)
+
+    --------------------------------------------------
+    -- Systemzeile
+    --------------------------------------------------
+
+    local sysRow = WeintCodex.CreateSurface(root, {
+        height = 48, tone = "flat", surface = "bgMid", radius = 10, backdrop = "bgDark",
+    })
+    sysRow:SetPoint("BOTTOMLEFT",  root, "BOTTOMLEFT",  PAD_X, PAD_Y)
+    sysRow:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -PAD_X, PAD_Y)
+
+    local inbox = _G.WeintCompanionInboxDB
+    local queueCount = GetQueueCount()
+
+    local sysDot = WeintCodex.StatusDot(sysRow, inbox and "green" or nil, 7)
+    sysDot:SetPoint("LEFT", sysRow, "LEFT", 16, 0)
+
+    local parts = {}
+    if inbox and inbox.companionVersion then
+        parts[#parts + 1] = "Companion " .. tostring(inbox.companionVersion)
+    else
+        parts[#parts + 1] = "Keine Companion-Lieferung"
+    end
+    if queueCount > 0 then
+        parts[#parts + 1] = queueCount .. (queueCount == 1 and " Nachricht" or " Nachrichten")
+            .. " in der Warteschlange"
+    end
+    -- Die Inbox wird nur beim Login gelesen. Das steht hier, weil die Zeile
+    -- sonst wie eine Live-Verbindung aussieht - sie ist der Stand der
+    -- letzten Lieferung.
+    parts[#parts + 1] = "Stand der letzten Lieferung"
+
+    local sysLbl = WeintCodex.Label(sysRow, table.concat(parts, " · "),
+        { color = "textMuted", size = 13 })
+    sysLbl:SetPoint("LEFT", sysDot, "RIGHT", 12, 0)
+
+    local importBtn = WeintCodex.CreateButton(sysRow, {
+        text = "Jetzt importieren", kind = "secondary", backdrop = "bgMid",
+        onClick = function()
             if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
                 WeintCodex.Sync.ShowImportDialog()
             end
-        end)
-        importBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
-        importBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
-
-        local calBtn = WeintCodex.CreateCard(hero, { width = 140, height = 28, buttonStyle = true })
-        calBtn:SetPoint("TOPRIGHT", importBtn, "TOPLEFT", -10, 0)
-        local calLbl = calBtn:CreateFontString(nil, "OVERLAY")
-        calLbl:SetAllPoints(calBtn)
-        calLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-        calLbl:SetJustifyH("CENTER")
-        calLbl:SetText("Kalender öffnen")
-        calLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-        calBtn:SetScript("OnClick", function() GoToTab("calendar") end)
-        calBtn:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
-        calBtn:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
-
-        ------------------------------------------------
-        -- B. Statistik-Reihe
-        ------------------------------------------------
-        local statRow = CreateFrame("Frame", nil, hf)
-        statRow:SetHeight(70)
-        statRow:SetPoint("TOPLEFT",  hero, "BOTTOMLEFT",  20, -18)
-        statRow:SetPoint("TOPRIGHT", hero, "BOTTOMRIGHT", -20, -18)
-
-        local STAT_W, STAT_GAP = 190, 14
-        local statDefs = {
-            { key = "raid",      label = "Nächster Raid",      tabId = "raids" },
-            { key = "signups",   label = "Anmeldungen",         tabId = "raids" },
-            { key = "materials", label = "Materialien",         tabId = "materials" },
-            { key = "queue",     label = "Sync-Warteschlange",  tabId = "import" },
-        }
-
-        local statCards = {}
-        for i, def in ipairs(statDefs) do
-            local card = WeintCodex.CreateCard(statRow, { width = STAT_W, height = 70, buttonStyle = true })
-            card:SetPoint("TOPLEFT", statRow, "TOPLEFT", (i - 1) * (STAT_W + STAT_GAP), 0)
-
-            local lbl = card:CreateFontString(nil, "OVERLAY")
-            lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-            lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
-            lbl:SetText(WeintCodex.ColorText("textDim", def.label))
-
-            local val = card:CreateFontString(nil, "OVERLAY")
-            val:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
-            val:SetPoint("TOPLEFT",  lbl, "BOTTOMLEFT", 0, -8)
-            val:SetPoint("RIGHT",    card, "RIGHT", -12, 0)
-            val:SetJustifyH("LEFT")
-            val:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-
-            card:SetScript("OnClick", function() GoToTab(def.tabId) end)
-            card:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
-            card:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
-
-            card._valueStr = val
-            statCards[def.key] = card
-        end
-
-        ------------------------------------------------
-        -- C. Modul-Kachel-Raster
-        ------------------------------------------------
-        local gridLabel = hf:CreateFontString(nil, "OVERLAY")
-        gridLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-        gridLabel:SetPoint("TOPLEFT", statRow, "BOTTOMLEFT", 0, -22)
-        gridLabel:SetText(WeintCodex.ColorText("textDim", "— BEREICHE —"))
-
-        local grid = CreateFrame("Frame", nil, hf)
-        grid:SetPoint("TOPLEFT",  gridLabel, "BOTTOMLEFT",  0, -10)
-        grid:SetPoint("TOPRIGHT", statRow,   "BOTTOMRIGHT", 0, -32)
-
-        local TILE_W, TILE_H, TILE_GAP, COLUMNS = 260, 84, 16, 3
-
-        -- Kacheln merken: das Raster wird nur einmal gebaut, ShowHome laeuft
-        -- aber bei jedem Besuch - der Sperrzustand muss nachziehbar bleiben.
-        local tileCards = {}
-
-        for i, tile in ipairs(dashboardTiles) do
-            local col = (i - 1) % COLUMNS
-            local row = math.floor((i - 1) / COLUMNS)
-
-            local card = WeintCodex.CreateCard(grid, { width = TILE_W, height = TILE_H, buttonStyle = true })
-            card:SetPoint("TOPLEFT", grid, "TOPLEFT", col * (TILE_W + TILE_GAP), -row * (TILE_H + TILE_GAP))
-
-            local icon = card:CreateFontString(nil, "OVERLAY")
-            icon:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-            icon:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
-            icon:SetText(WeintCodex.Icon(tile.icon, 22))
-
-            local title = card:CreateFontString(nil, "OVERLAY")
-            title:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-            title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
-            title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-            title:SetText(tile.title)
-
-            local desc = card:CreateFontString(nil, "OVERLAY")
-            desc:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-            desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-            desc:SetPoint("RIGHT", card, "RIGHT", -12, 0)
-            desc:SetJustifyH("LEFT")
-            desc:SetText(WeintCodex.ColorText("textDim", tile.desc))
-            card._descStr = desc
-
-            card:SetScript("OnClick", function() GoToTab(tile.id) end)
-            card:SetScript("OnEnter", function(self)
-                if not Locked(tile.id) then self:SetSurface("surface3") end
-            end)
-            card:SetScript("OnLeave", function(self) self:SetSurface("surface2") end)
-
-            tileCards[tile.id] = card
-        end
-
-        hf._tiles = tileCards
-
-        ------------------------------------------------
-        -- D. Footer-Hinweis
-        ------------------------------------------------
-        local hint = hf:CreateFontString(nil, "OVERLAY")
-        hint:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        hint:SetPoint("BOTTOM", hf, "BOTTOM", 0, 10)
-        hf._hint = hint
-
-        hf._statCards = statCards
-
-        homeFrame = hf
-    end
-
-    -- Dynamische Werte bei JEDEM Aufruf neu berechnen, nicht nur beim
-    -- ersten Bau der Struktur - siehe Kommentar oben an homeFrame.
-    local matShortage, hasMatScan, matLocked = GetMaterialShortageCount()
-    local queueCount = GetQueueCount()
-    local signups    = GetSignupCount()
-
-    homeFrame._statCards.raid._valueStr:SetText(GetNextRaidLabel())
-
-    homeFrame._statCards.signups._valueStr:SetText(
-        signups and tostring(signups)
-            or WeintCodex.ColorText("textFaint", LOCKED_VALUE)
-    )
-
-    local matValue, matColor
-    if matLocked then
-        matValue, matColor = LOCKED_VALUE, "textFaint"
-    elseif not hasMatScan then
-        matValue, matColor = "Kein Scan", "textDim"
-    elseif matShortage > 0 then
-        matValue, matColor = matShortage .. " Engpässe", "danger"
-    else
-        matValue, matColor = "Alles im Soll", "success"
-    end
-    homeFrame._statCards.materials._valueStr:SetText(WeintCodex.ColorText(matColor, matValue))
-
-    homeFrame._statCards.queue._valueStr:SetText(
-        queueCount > 0
-            and WeintCodex.ColorText("warning", queueCount .. " ausstehend")
-            or  WeintCodex.ColorText("textDim", "Keine")
-    )
-
-    -- Kein Engpass-Punkt auf einem gesperrten Tab: er verriete, dass es
-    -- ueberhaupt eine Zahl gibt.
-    WeintCodex.Navigation.SetTabBadge("materials",
-        (not matLocked) and hasMatScan and matShortage > 0)
-    WeintCodex.Navigation.SetTabBadge("import", queueCount > 0)
-
-    -- Gesperrte Kacheln kennzeichnen (das Raster selbst wird nur einmal gebaut)
-    local Access = WeintCodex.Access
-    for _, tile in ipairs(dashboardTiles) do
-        local card = homeFrame._tiles and homeFrame._tiles[tile.id]
-        if card and card._descStr then
-            if Locked(tile.id) then
-                card._descStr:SetText(WeintCodex.ColorText("textFaint",
-                    "Gesperrt · " .. (Access and Access.TierLabel() or "—")))
-            else
-                card._descStr:SetText(WeintCodex.ColorText("textDim", tile.desc))
-            end
-        end
-    end
-
-    local hasProfile = Access and Access.HasProfile()
-    homeFrame._hint:SetText(WeintCodex.ColorText("textDim",
-        hasProfile and "/wc  •  /wc import  •  /wc access" or "/wc  •  /wc import"))
-
-    WeintCodex.SetBreadcrumb("Dashboard")
-
-    local pulseRows = {}
-
-    -- Eigener Rang zuerst: erklaert auf einen Blick, warum darunter
-    -- vielleicht "Gesperrt" steht (und ist auf Screenshots sichtbar).
-    if hasProfile then
-        pulseRows[#pulseRows + 1] = { label = "Zugriff",
-            value = Access.TierLabel(), valueColor = Access.TierColor() }
-
-        local state = Access.IsStale()
-        if state == "grace" or state == "expired" then
-            pulseRows[#pulseRows + 1] = { label = "Profil",
-                value = state == "grace" and "läuft ab" or "abgelaufen",
-                valueColor = "warning" }
-        end
-    end
-
-    pulseRows[#pulseRows + 1] = { label = "Nächster Raid", value = GetNextRaidLabel() }
-    pulseRows[#pulseRows + 1] = { label = "Anmeldungen",
-        value = signups and tostring(signups) or LOCKED_VALUE,
-        valueColor = (not signups) and "textFaint" or nil }
-    pulseRows[#pulseRows + 1] = { label = "Materialien",
-        value = matValue, valueColor = matColor }
-    pulseRows[#pulseRows + 1] = { label = "Sync-Warteschlange",
-        value = queueCount > 0 and (queueCount .. " ausstehend") or "Keine",
-        valueColor = queueCount > 0 and "warning" or "textDim" }
-
-    WeintCodex.Navigation.SetInspector({
-        { type = "header", text = "Gilden-Puls" },
-        { type = "rows", rows = pulseRows },
-        { type = "divider" },
-        { type = "button", style = "primary", label = "Kalender öffnen", onClick = function() GoToTab("calendar") end },
-        { type = "button", label = "Daten importieren", onClick = function() GoToTab("import") end },
+        end,
     })
+    importBtn:SetPoint("RIGHT", sysRow, "RIGHT", -12, 0)
+
+    --------------------------------------------------
+    -- Navigationsspalte mit echtem Zustand versehen
+    --------------------------------------------------
+
+    WeintCodex.Navigation.SetTabBadge("charakter", openIssues > 0, "red")
+    WeintCodex.Navigation.SetTabBadge("materials", (not matLocked) and shortages > 0, "red")
+    WeintCodex.Navigation.SetTabBadge("import",    queueCount > 0, "accent")
+    if totalCount > 0 then
+        WeintCodex.Navigation.SetTabCount("bossguides", totalCount)
+    end
 
     homeFrame:Show()
 end

@@ -1,94 +1,145 @@
 --------------------------------------------------
 -- WeintCodex :: UI Core
--- "Codex" theme: warmes Kaffeehaus-Dunkel / Amber-Akzent
--- (Redesign auf Basis der Claude-Design-Vorlagen v1.0)
+-- Designsprache 2.0 ("Adson"), uebernommen aus WeintCompanion 2.0:
+-- schwarze Flaechen, Karten ohne Rahmen mit 1-px-Oberkante, Bernstein nur
+-- fuer Bedeutung, Inter + JetBrains Mono, Raster 4/8/12/16/24/32.
+--
+-- Drei Dinge, die in WoW anders geloest werden muessen als im Entwurf:
+--
+--  * Radius. Frames koennen keinen haben. Statt die Karte rund zu zeichnen
+--    legen wir vier Viertelkreis-Masken in der Farbe DAHINTER auf die Ecken
+--    (CutCorners). Das setzt voraus, dass der Aufrufer weiss, worauf die
+--    Karte liegt - deshalb nimmt jede Flaeche ein `backdrop`.
+--  * Verlauf. SetGradient("VERTICAL", min, max) laeuft von UNTEN nach OBEN,
+--    CSS-`linear-gradient(180deg, a, b)` von oben nach unten. Die beiden
+--    Farben werden daher vertauscht uebergeben.
+--  * Schrift. Kein OUTLINE mehr. Der Entwurf lebt von duennen, ruhigen
+--    Textstufen; eine schwarze Kontur macht daraus wieder das alte Bild.
+--------------------------------------------------
+
+local WHITE  = "Interface\\Buttons\\WHITE8X8"
+local MEDIA  = "Interface\\AddOns\\WeintCodex\\media\\"
+local CORNER = MEDIA .. "ui\\corner"
+
+--------------------------------------------------
+-- Farbtokens
+--------------------------------------------------
+-- Die Namen der alten Palette bleiben allesamt gueltig und zeigen auf die
+-- neuen Werte. Das ist Absicht: rund 140 ColorText-Aufrufe und ein Dutzend
+-- Colors.x-Zugriffe im Addon nennen Farben beim Namen. Ein entfernter Name
+-- faellt nicht auf (ColorText gibt den Text dann ungefaerbt zurueck), waere
+-- also genau die Sorte Fehler, die man erst im Spiel sieht.
 --------------------------------------------------
 
 local C = {
-    -- Basis-Flaechen, dunkel nach hell gestaffelt
-    bgDark      = {0.043, 0.039, 0.035, 1.0},   -- 0b0a09 - Fensterhintergrund
-    bgMid       = {0.071, 0.063, 0.055, 1.0},   -- 12100d - mittlere Flaeche
-    bgPanel     = {0.063, 0.051, 0.043, 1.0},   -- 100d0b - Rail/Panel
-    bgCard      = {0.078, 0.067, 0.055, 1.0},   -- 14110e - Karten/Zeilen
+    -- Flaechen (Entwurf: #0A0A0C Grund, #08080A Navigation, Karte 121217->0C0C0F)
+    bgDark      = {0.039, 0.039, 0.047, 1.0},   -- 0A0A0C - Fenstergrund
+    bgMid       = {0.047, 0.047, 0.059, 1.0},   -- 0C0C0F - Kartenfuss
+    bgPanel     = {0.031, 0.031, 0.039, 1.0},   -- 08080A - Navigation/Titelleiste
+    bgCard      = {0.071, 0.071, 0.090, 1.0},   -- 121217 - Kartenkopf
 
-    -- Amber-Akzent (ersetzt vormals Lila als Primaerakzent)
-    purple      = {0.784, 0.463, 0.227, 1.0},   -- c8763a - Primaerakzent
-    purpleDim   = {0.635, 0.353, 0.149, 1.0},   -- a25a26 - gedaempfter Akzent
-    purpleDeep  = {0.353, 0.196, 0.086, 1.0},   -- 5a3216 - tiefer Akzent (Pressed)
+    surface0    = {0.039, 0.039, 0.047, 1.0},   -- 0A0A0C
+    surface1    = {0.031, 0.031, 0.039, 1.0},   -- 08080A
+    surface2    = {0.071, 0.071, 0.090, 1.0},   -- 121217
+    surface3    = {0.090, 0.090, 0.110, 1.0},   -- 17171C - Hover/aktiv
 
-    -- Erfolg / Warnung / Gefahr / Info
-    green       = {0.290, 0.486, 0.349, 1.0},   -- 4a7c59 - Erfolg
-    greenDim    = {0.208, 0.361, 0.259, 1.0},   -- 355c42
-    gold        = {0.784, 0.627, 0.227, 1.0},   -- c8a03a - Warnung/OK
-    goldDim     = {0.478, 0.373, 0.110, 1.0},   -- 7a5f1c
-    blue        = {0.420, 0.627, 0.851, 1.0},   -- 6ba0d9 - Info/Tank
-    blueDim     = {0.227, 0.431, 0.647, 1.0},   -- 3a6ea5
-    red         = {0.784, 0.353, 0.227, 1.0},   -- c85a3a - Gefahr/DPS
-    redDim      = {0.478, 0.188, 0.125, 1.0},   -- 7a3020
+    cardTop       = {0.071, 0.071, 0.090, 1.0}, -- 121217
+    cardBottom    = {0.047, 0.047, 0.059, 1.0}, -- 0C0C0F
+    accentCardTop = {0.090, 0.078, 0.102, 1.0}, -- 17141A
+    accentCardBot = {0.051, 0.047, 0.063, 1.0}, -- 0D0C10
+
+    -- Bernstein. Heisst historisch "purple" (frueher war der Akzent lila) und
+    -- behaelt den Namen, weil neun Aufrufstellen ihn so ansprechen.
+    purple      = {0.831, 0.635, 0.290, 1.0},   -- D4A24A - Primaerakzent
+    purpleDim   = {0.541, 0.416, 0.180, 1.0},   -- 8A6A2E - gedaempft
+    purpleDeep  = {0.290, 0.227, 0.102, 1.0},   -- 4A3A1A - tief/gedrueckt
+    accent      = {0.831, 0.635, 0.290, 1.0},   -- D4A24A
+    accentBright= {0.910, 0.788, 0.427, 1.0},   -- E8C96D
+
+    -- Zustaende. Je Ton ein Grundwert (Flaeche/Punkt) und ein heller Wert
+    -- (Text auf dunklem Grund) - im Entwurf durchgaengig so gepaart.
+    green         = {0.486, 0.753, 0.431, 1.0}, -- 7CC06E
+    greenDim      = {0.306, 0.478, 0.271, 1.0}, -- 4E7A45
+    successBright = {0.561, 0.855, 0.502, 1.0}, -- 8FDA80
+    red           = {0.898, 0.420, 0.420, 1.0}, -- E56B6B
+    redDim        = {0.561, 0.251, 0.251, 1.0}, -- 8F4040
+    dangerBright  = {0.945, 0.549, 0.549, 1.0}, -- F18C8C
+    gold          = {0.831, 0.635, 0.290, 1.0}, -- D4A24A
+    goldDim       = {0.541, 0.416, 0.180, 1.0}, -- 8A6A2E
+    blue          = {0.545, 0.584, 0.961, 1.0}, -- 8B95F5
+    blueDim       = {0.353, 0.384, 0.722, 1.0}, -- 5A62B8
+    infoBright    = {0.659, 0.690, 1.000, 1.0}, -- A8B0FF
+    violet        = {0.659, 0.333, 0.969, 1.0}, -- A855F7
+    violetBright  = {0.753, 0.518, 0.988, 1.0}, -- C084FC
+
+    success     = {0.486, 0.753, 0.431, 1.0},
+    warning     = {0.831, 0.635, 0.290, 1.0},
+    danger      = {0.898, 0.420, 0.420, 1.0},
+    info        = {0.545, 0.584, 0.961, 1.0},
 
     -- Textstufen (bright > normal > muted > dim > faint > ghost)
-    textBright  = {0.949, 0.929, 0.898, 1.0},   -- f2ede4
-    textNormal  = {0.910, 0.890, 0.859, 1.0},   -- e8e3db
-    textMuted   = {0.788, 0.757, 0.710, 1.0},   -- c9c1b5
-    textDim     = {0.541, 0.506, 0.467, 1.0},   -- 8a8177
-    textFaint   = {0.420, 0.384, 0.349, 1.0},   -- 6b6259
-    textGhost   = {0.290, 0.259, 0.227, 1.0},   -- 4a423a
+    textBright  = {1.000, 1.000, 1.000, 1.0},   -- FFFFFF
+    textNormal  = {0.910, 0.910, 0.918, 1.0},   -- E8E8EA
+    textMuted   = {0.659, 0.659, 0.690, 1.0},   -- A8A8B0
+    textDim     = {0.420, 0.420, 0.455, 1.0},   -- 6B6B74
+    textFaint   = {0.290, 0.290, 0.322, 1.0},   -- 4A4A52
+    textGhost   = {0.227, 0.227, 0.259, 1.0},   -- 3A3A42
 
-    border      = {0.141, 0.122, 0.106, 1.0},   -- 241f1b - Standard-Hairline
-    borderGlow  = {0.784, 0.463, 0.227, 0.30},  -- Akzent-Glow (Hover/aktiv)
-    headerBg    = {0.051, 0.043, 0.035, 1.0},   -- 0d0b09 - Insets (Suchfeld etc.)
+    -- Linien
+    border       = {0.090, 0.090, 0.110, 1.0},  -- 17171C
+    borderStrong = {0.118, 0.118, 0.141, 1.0},  -- 1E1E24
+    rowLine      = {0.078, 0.078, 0.102, 1.0},  -- 14141A - Zeilentrenner
+    hairline     = {0.090, 0.090, 0.110, 1.0},
+    hairlineSoft = {0.078, 0.078, 0.102, 1.0},
+    borderGlow   = {0.831, 0.635, 0.290, 0.30},
+    headerBg     = {0.031, 0.031, 0.039, 1.0},  -- 08080A - Insets (Suchfeld)
+    accentDot    = {0.831, 0.635, 0.290, 1.0},
 
-    -- Flache Elevation-Stufen fuer das reduzierte, ruhigere Panel-Design.
-    surface0    = {0.043, 0.039, 0.035, 1.0},   -- 0b0a09
-    surface1    = {0.063, 0.051, 0.043, 1.0},   -- 100d0b
-    surface2    = {0.078, 0.067, 0.055, 1.0},   -- 14110e
-    surface3    = {0.118, 0.098, 0.082, 1.0},   -- 1e1915
+    -- Markenverlauf (Logo, Avatar) - der einzige Ort, an dem Lila bleibt
+    brandA      = {0.659, 0.333, 0.969, 1.0},   -- A855F7
+    brandB      = {0.388, 0.400, 0.945, 1.0},   -- 6366F1
 
-    -- Semantische Aliase auf bestehende Tontoene.
-    success     = {0.290, 0.486, 0.349, 1.0},
-    warning     = {0.784, 0.627, 0.227, 1.0},
-    danger      = {0.784, 0.353, 0.227, 1.0},
-    info        = {0.420, 0.627, 0.851, 1.0},
-    violet      = {0.72,  0.45,  0.98,  1.0},   -- eigenstaendiger 5. Status (z.B. "Ueber Cap")
-
-    -- Schlanke, blasse Rahmen-/Trenner-Toene fuer die reduzierte Ornamentik.
-    hairline     = {0.141, 0.122, 0.106, 1.0},
-    hairlineSoft = {0.141, 0.122, 0.106, 0.55},
-    accentDot    = {0.784, 0.463, 0.227, 1.0},
+    -- Text auf Bernstein-Flaechen
+    ink         = {0.039, 0.039, 0.047, 1.0},   -- 0A0A0C
 }
 WeintCodex.Colors = C
 
 --------------------------------------------------
--- Font-Helper
--- Eigene Schriftdateien (SIL OFL 1.1, siehe media/fonts/OFL-LICENSE.txt) fuer
--- die Fraunces/JetBrains-Mono-Optik aus dem Redesign-Mockup. FRIZQT__.TTF
--- bleibt fuer normalen Fliesstext/Buttons/Listen die Basis - diese Fonts
--- werden gezielt fuer Ueberschriften, grosse Zahlen und Mono-/Eyebrow-Labels
--- eingesetzt, nicht addonweit ausgetauscht.
+-- Schriften
 --------------------------------------------------
+-- Inter fuer alles Gesetzte, JetBrains Mono fuer Zahlen, Kennzahlen und
+-- Eyebrow-Labels - genau die Aufteilung des Entwurfs. `serif`/`serifBold`
+-- sind Altlasten aus der Fraunces-Zeit und zeigen auf Inter, damit die
+-- bestehenden Aufrufe weiterlaufen, bis sie migriert sind.
+--------------------------------------------------
+
 WeintCodex.Fonts = {
-    serif       = "Interface\\AddOns\\WeintCodex\\media\\fonts\\Fraunces-Medium.ttf",
-    serifBold   = "Interface\\AddOns\\WeintCodex\\media\\fonts\\Fraunces-SemiBold.ttf",
-    mono        = "Interface\\AddOns\\WeintCodex\\media\\fonts\\JetBrainsMono-Regular.ttf",
-    monoMedium  = "Interface\\AddOns\\WeintCodex\\media\\fonts\\JetBrainsMono-Medium.ttf",
+    sans        = MEDIA .. "fonts\\Inter-Regular.ttf",
+    sansMedium  = MEDIA .. "fonts\\Inter-Medium.ttf",
+    sansSemi    = MEDIA .. "fonts\\Inter-SemiBold.ttf",
+    sansBold    = MEDIA .. "fonts\\Inter-Bold.ttf",
+    mono        = MEDIA .. "fonts\\JetBrainsMono-Regular.ttf",
+    monoMedium  = MEDIA .. "fonts\\JetBrainsMono-Medium.ttf",
+    monoBold    = MEDIA .. "fonts\\JetBrainsMono-Bold.ttf",
+
+    serif       = MEDIA .. "fonts\\Inter-SemiBold.ttf",
+    serifBold   = MEDIA .. "fonts\\Inter-Bold.ttf",
 }
+local F = WeintCodex.Fonts
 
 --------------------------------------------------
 -- Icon-Helper
 --------------------------------------------------
--- Das UI-Font (FRIZQT__.TTF) unterstuetzt keine Unicode-Emoji - vorher
--- verwendete Zeichen wie ⚔ ✦ 📦 wurden deshalb als leere Kaestchen
--- dargestellt. Ab hier werden ausschliesslich echte, im Client
--- vorhandene Icon-Texturen ueber die |T...|t-Escape-Syntax verwendet.
+-- Das UI-Font unterstuetzt keine Unicode-Emoji - vorher verwendete Zeichen
+-- wie ⚔ ✦ 📦 wurden als leere Kaestchen dargestellt. Es werden deshalb nur
+-- echte Texturen ueber die |T...|t-Escape-Syntax verwendet.
 --------------------------------------------------
 
--- Beliebiges Icon aus Interface\Icons als Inline-Text-Icon
 function WeintCodex.Icon(iconPath, size)
     size = size or 14
     return "|T" .. iconPath .. ":" .. size .. "|t"
 end
 
--- Klassen-Icon (echtes Blizzard-Klassensymbol, kein Emoji)
 local CLASS_ICON_ATLAS = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes"
 
 function WeintCodex.ClassIcon(classToken, size)
@@ -105,8 +156,13 @@ function WeintCodex.ClassIcon(classToken, size)
 end
 
 --------------------------------------------------
--- Helpers
+-- Grundbausteine
 --------------------------------------------------
+
+local function Col(name)
+    if type(name) == "table" then return name end
+    return C[name] or C.textNormal
+end
 
 local function SetSolidBg(frame, r, g, b, a)
     local tex = frame:CreateTexture(nil, "BACKGROUND")
@@ -115,23 +171,27 @@ local function SetSolidBg(frame, r, g, b, a)
     return tex
 end
 
+-- Zwei-Punkt-verankert statt auf GetWidth()/GetHeight() gerechnet: der Rahmen
+-- waechst mit dem Frame mit. Wichtig, weil mehrere Aufrufer (Chip, Danger-
+-- Button) ihre Breite erst NACH dem Rahmen aus der Textbreite bestimmen - mit
+-- Groessen aus der Bauzeit waeren die Kanten dort 0 breit.
 local function DrawBorder(f, r, g, b, a, thick)
     thick = thick or 1
-    local function T(pt, rpt, w, h, ox, oy)
+    local function T(p1, p2, w, h)
         local t = f:CreateTexture(nil, "OVERLAY")
         t:SetColorTexture(r, g, b, a)
-        t:SetPoint(pt, f, rpt, ox or 0, oy or 0)
-        t:SetSize(w, h)
+        t:SetPoint(p1, f, p1, 0, 0)
+        t:SetPoint(p2, f, p2, 0, 0)
+        if w then t:SetWidth(w) end
+        if h then t:SetHeight(h) end
         return t
     end
-    local W, H = f:GetWidth(), f:GetHeight()
-    T("TOPLEFT",    "TOPLEFT",    W,     thick,  0, 0)
-    T("BOTTOMLEFT", "BOTTOMLEFT", W,     thick,  0, 0)
-    T("TOPLEFT",    "TOPLEFT",    thick, H,      0, 0)
-    T("TOPRIGHT",   "TOPRIGHT",   thick, H,      0, 0)
+    T("TOPLEFT",    "TOPRIGHT",    nil,   thick)
+    T("BOTTOMLEFT", "BOTTOMRIGHT", nil,   thick)
+    T("TOPLEFT",    "BOTTOMLEFT",  thick, nil)
+    T("TOPRIGHT",   "BOTTOMRIGHT", thick, nil)
 end
 
--- Horizontal line that stretches relative to its parent (no fixed width)
 local function DrawHLine(parent, r, g, b, a, offsetY, layer)
     local t = parent:CreateTexture(nil, layer or "OVERLAY")
     t:SetHeight(1)
@@ -142,10 +202,496 @@ local function DrawHLine(parent, r, g, b, a, offsetY, layer)
 end
 
 --------------------------------------------------
--- Hex-Helper (ersetzt handgetippte |cffRRGGBB-Escapes)
+-- Runde Ecken
+--------------------------------------------------
+-- Vier Viertelkreis-Masken in der Farbe des Untergrunds stanzen die Ecken
+-- aus. Die Maske (media/ui/corner.tga, 32x32) ist massstabsunabhaengig, ein
+-- einziges Bild deckt jeden Radius ab. Zweierpotenz, weil der Client keine
+-- andere Texturgroesse laedt.
 --------------------------------------------------
 
--- Erzeugt "|cffRRGGBBtext|r" aus einem Eintrag der Farbtabelle C.
+local CORNER_UV = {
+    TOPLEFT     = { 0, 1, 0, 1 },
+    TOPRIGHT    = { 1, 0, 0, 1 },
+    BOTTOMLEFT  = { 0, 1, 1, 0 },
+    BOTTOMRIGHT = { 1, 0, 1, 0 },
+}
+
+function WeintCodex.CutCorners(frame, radius, backdrop, layer, sublevel)
+    radius = radius or 14
+    local col = Col(backdrop or "bgDark")
+    local out = {}
+    for point, uv in pairs(CORNER_UV) do
+        local t = frame:CreateTexture(nil, layer or "OVERLAY", nil, sublevel or 6)
+        t:SetTexture(CORNER)
+        t:SetSize(radius, radius)
+        t:SetPoint(point, frame, point, 0, 0)
+        t:SetTexCoord(uv[1], uv[2], uv[3], uv[4])
+        t:SetVertexColor(col[1], col[2], col[3], col[4] or 1.0)
+        out[point] = t
+    end
+    frame._corners = out
+    return out
+end
+
+-- Faerbt bereits gesetzte Eckmasken um (z.B. wenn eine Karte auf einer
+-- anderen Flaeche landet als beim Bau angenommen).
+function WeintCodex.RecolorCorners(frame, backdrop)
+    if not frame._corners then return end
+    local col = Col(backdrop)
+    for _, t in pairs(frame._corners) do
+        t:SetVertexColor(col[1], col[2], col[3], col[4] or 1.0)
+    end
+end
+
+--------------------------------------------------
+-- Flaechen mit Verlauf
+--------------------------------------------------
+
+-- CSS `linear-gradient(180deg, a, b)` -> oben a, unten b.
+-- WoW `SetGradient("VERTICAL", min, max)` -> min unten, max oben.
+local function ApplyVerticalGradient(tex, topCol, bottomCol)
+    local t, b = Col(topCol), Col(bottomCol)
+    tex:SetTexture(WHITE)
+    tex:SetGradient("VERTICAL",
+        CreateColor(b[1], b[2], b[3], b[4] or 1.0),
+        CreateColor(t[1], t[2], t[3], t[4] or 1.0))
+end
+WeintCodex.ApplyVerticalGradient = ApplyVerticalGradient
+
+--------------------------------------------------
+-- Karte
+--------------------------------------------------
+-- Der zentrale Baustein des Entwurfs: kein Rahmen, sondern Verlauf plus eine
+-- 1-px-Oberkante, die links und rechts 8 px eingerueckt ist. `tone = "accent"`
+-- macht daraus die hervorgehobene Variante (waermerer Verlauf, bernsteinfarbene
+-- Oberkante) - im Entwurf immer genau eine pro Seite.
+--
+-- opts: { width, height, radius = 14, tone = "plain"|"accent"|"flat",
+--         backdrop = "bgDark", button = false, hover = false }
+--------------------------------------------------
+
+function WeintCodex.CreateSurface(parent, opts)
+    opts = opts or {}
+    local f = CreateFrame(opts.button and "Button" or "Frame", nil, parent)
+    if opts.width  then f:SetWidth(opts.width)   end
+    if opts.height then f:SetHeight(opts.height) end
+
+    local tone   = opts.tone or "plain"
+    local radius = opts.radius or 14
+
+    local bg = f:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(f)
+    f._bg = bg
+
+    local topLine
+    if tone == "flat" then
+        bg:SetColorTexture(unpack(Col(opts.surface or "surface1")))
+    else
+        if tone == "accent" then
+            ApplyVerticalGradient(bg, "accentCardTop", "accentCardBot")
+        else
+            ApplyVerticalGradient(bg, "cardTop", "cardBottom")
+        end
+        -- Oberkante: 8 px beidseitig eingerueckt, damit sie an den runden
+        -- Ecken nicht ueber den Rand hinauslaeuft.
+        topLine = f:CreateTexture(nil, "ARTWORK")
+        topLine:SetHeight(1)
+        topLine:SetPoint("TOPLEFT",  f, "TOPLEFT",   8, 0)
+        topLine:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, 0)
+        if tone == "accent" then
+            topLine:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.34)
+        else
+            topLine:SetColorTexture(1, 1, 1, 0.06)
+        end
+    end
+    f._topLine = topLine
+
+    if radius > 0 then
+        WeintCodex.CutCorners(f, radius, opts.backdrop or "bgDark")
+    end
+
+    f.SetTone = function(self, newTone)
+        if newTone == "accent" then
+            ApplyVerticalGradient(self._bg, "accentCardTop", "accentCardBot")
+            if self._topLine then
+                self._topLine:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.34)
+            end
+        else
+            ApplyVerticalGradient(self._bg, "cardTop", "cardBottom")
+            if self._topLine then self._topLine:SetColorTexture(1, 1, 1, 0.06) end
+        end
+    end
+
+    -- Hover wie im Entwurf: die Flaeche wird eine Stufe heller, nicht umrandet.
+    f.SetSurface = function(self, surfaceName)
+        local col = C[surfaceName]
+        if not col then return end
+        self._bg:SetTexture(WHITE)
+        self._bg:SetGradient("VERTICAL", CreateColor(col[1], col[2], col[3], col[4] or 1),
+                                          CreateColor(col[1], col[2], col[3], col[4] or 1))
+    end
+
+    return f
+end
+
+--------------------------------------------------
+-- Textbausteine
+--------------------------------------------------
+
+-- Eyebrow: mono, versal, weit gesperrt. WoW kennt kein letter-spacing, die
+-- Sperrung wird deshalb durch eingefuegte Haarspatien nachgebildet.
+local function Spaced(text)
+    if not text then return "" end
+    local out = {}
+    for i = 1, #text do
+        out[#out + 1] = text:sub(i, i)
+    end
+    return table.concat(out, "\194\160")
+end
+WeintCodex.Spaced = Spaced
+
+function WeintCodex.Eyebrow(parent, text, opts)
+    opts = opts or {}
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    fs:SetFont(F.mono, opts.size or 10, "")
+    fs:SetTextColor(unpack(Col(opts.color or "textDim")))
+    fs:SetText(Spaced(string.upper(text or "")))
+    fs:SetJustifyH(opts.justify or "LEFT")
+    return fs
+end
+
+function WeintCodex.PageTitle(parent, text, opts)
+    opts = opts or {}
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    fs:SetFont(F.sansBold, opts.size or 26, "")
+    fs:SetTextColor(unpack(Col(opts.color or "textBright")))
+    fs:SetText(text or "")
+    fs:SetJustifyH(opts.justify or "LEFT")
+    return fs
+end
+
+function WeintCodex.Label(parent, text, opts)
+    opts = opts or {}
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    fs:SetFont(opts.font or F.sans, opts.size or 13, "")
+    fs:SetTextColor(unpack(Col(opts.color or "textMuted")))
+    fs:SetText(text or "")
+    fs:SetJustifyH(opts.justify or "LEFT")
+    if opts.width then fs:SetWidth(opts.width) end
+    return fs
+end
+
+-- Kennzahl in Mono, wie im Entwurf rechts im Kopf bzw. in den Kacheln.
+function WeintCodex.MonoNumber(parent, text, opts)
+    opts = opts or {}
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    fs:SetFont(F.monoBold, opts.size or 24, "")
+    fs:SetTextColor(unpack(Col(opts.color or "textNormal")))
+    fs:SetText(text or "")
+    fs:SetJustifyH(opts.justify or "LEFT")
+    return fs
+end
+
+--------------------------------------------------
+-- Statuspunkt (7 px)
+--------------------------------------------------
+-- Im Entwurf durchgaengig der Traeger von "Zustand". Ein leerer Punkt
+-- (tone = nil) ist "noch offen/unbekannt" und wird nur umrandet.
+--------------------------------------------------
+
+function WeintCodex.StatusDot(parent, tone, size)
+    size = size or 7
+    local d = parent:CreateTexture(nil, "OVERLAY")
+    d:SetSize(size, size)
+    if tone then
+        local col = Col(tone)
+        d:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
+    else
+        local col = C.textFaint
+        d:SetColorTexture(col[1], col[2], col[3], 0.55)
+    end
+    return d
+end
+
+--------------------------------------------------
+-- Chip / Badge
+--------------------------------------------------
+-- Pille mit 13 % Fuellung und 38 % Rand derselben Farbe - die Werte stammen
+-- eins zu eins aus dem Entwurf.
+--------------------------------------------------
+
+function WeintCodex.Chip(parent, opts)
+    opts = opts or {}
+    local tone = opts.tone or "textMuted"
+    local col  = Col(tone)
+    local textCol = Col(opts.textColor or tone)
+
+    local h = opts.height or 26
+    local chip = CreateFrame("Frame", nil, parent)
+    chip:SetHeight(h)
+
+    local bg = chip:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(chip)
+    bg:SetColorTexture(col[1], col[2], col[3], opts.fill or 0.13)
+    DrawBorder(chip, col[1], col[2], col[3], opts.borderAlpha or 0.38, 1)
+
+    local lbl = chip:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont(F.monoBold, opts.size or 10, "")
+    lbl:SetTextColor(textCol[1], textCol[2], textCol[3], 1.0)
+    lbl:SetText(Spaced(string.upper(opts.text or "")))
+    lbl:SetPoint("CENTER", chip, "CENTER", 0, 0)
+    chip._label = lbl
+
+    chip:SetWidth((opts.width) or (lbl:GetStringWidth() + (opts.padding or 24)))
+
+    -- Voll gerundet (Radius = halbe Hoehe) - im Entwurf sind Chips Pillen.
+    -- Liegt spaeter im Zeichenstapel als der Rahmen und deckt dessen Ecken ab.
+    WeintCodex.CutCorners(chip, math.floor(h / 2), opts.backdrop or "cardTop")
+
+    chip.SetText = function(self, t)
+        self._label:SetText(Spaced(string.upper(t or "")))
+        if not opts.width then
+            self:SetWidth(self._label:GetStringWidth() + (opts.padding or 20))
+        end
+    end
+    return chip
+end
+
+--------------------------------------------------
+-- Schaltflaechen
+--------------------------------------------------
+-- Drei Auspraegungen aus dem Entwurf:
+--   primary   - Bernstein-Verlauf, dunkler Text, 40 hoch (eine pro Ansicht)
+--   secondary - #17171C, heller Text, 34 hoch
+--   ghost     - ohne Flaeche, nur Text
+--   danger    - roter Rand auf 14-%-Fuellung (Loeschen)
+--------------------------------------------------
+
+function WeintCodex.CreateButton(parent, opts)
+    opts = opts or {}
+    local kind = opts.kind or "secondary"
+    local b = CreateFrame("Button", nil, parent)
+    b:SetHeight(opts.height or (kind == "primary" and 40 or 34))
+
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(b)
+    b._bg = bg
+
+    local textCol
+    local function paint(hovered)
+        if kind == "primary" then
+            if hovered then
+                ApplyVerticalGradient(bg, "accentBright", "accentBright")
+            else
+                ApplyVerticalGradient(bg, "accentBright", "accent")
+            end
+        elseif kind == "ghost" then
+            bg:SetColorTexture(1, 1, 1, hovered and 0.05 or 0)
+        elseif kind == "danger" then
+            bg:SetColorTexture(C.red[1], C.red[2], C.red[3], hovered and 0.22 or 0.14)
+        else
+            local s = hovered and C.borderStrong or C.surface3
+            bg:SetColorTexture(s[1], s[2], s[3], 1.0)
+        end
+    end
+    paint(false)
+
+    if kind == "primary" then
+        textCol = C.ink
+    elseif kind == "danger" then
+        textCol = C.dangerBright
+        DrawBorder(b, C.red[1], C.red[2], C.red[3], 0.50, 1)
+    elseif kind == "ghost" then
+        textCol = C.textMuted
+    else
+        textCol = C.textNormal
+    end
+
+    local lbl = b:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont(F.sansSemi, opts.size or 12, "")
+    lbl:SetTextColor(textCol[1], textCol[2], textCol[3], 1.0)
+    lbl:SetText(opts.text or "")
+    lbl:SetPoint("CENTER", b, "CENTER", 0, 0)
+    b._label = lbl
+
+    b:SetWidth(opts.width or (lbl:GetStringWidth() + (opts.padding or 36)))
+
+    if opts.radius ~= 0 then
+        WeintCodex.CutCorners(b, opts.radius or 6, opts.backdrop or "bgDark")
+    end
+
+    b:SetScript("OnEnter", function(self)
+        paint(true)
+        if opts.tooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(opts.tooltip, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+    end)
+    b:SetScript("OnLeave", function()
+        paint(false)
+        GameTooltip:Hide()
+    end)
+    if opts.onClick then b:SetScript("OnClick", opts.onClick) end
+
+    b.SetText = function(self, t)
+        self._label:SetText(t or "")
+        if not opts.width then
+            self:SetWidth(self._label:GetStringWidth() + (opts.padding or 36))
+        end
+    end
+    return b
+end
+
+--------------------------------------------------
+-- Segmented Control (Reiterleiste)
+--------------------------------------------------
+-- Ersetzt die frueheren Unternavigationen in der Seitenleiste. Muster aus dem
+-- Entwurf: Behaelter #08080A mit 4 px Innenabstand, aktives Segment #17171C.
+-- Ein Segment darf einen Statuspunkt tragen ({ text=, dot="danger" }).
+--
+-- opts: { items = { {text=, dot=, key=}, ... }, onSelect = function(key, i),
+--         selected = 1, backdrop = "bgDark" }
+--------------------------------------------------
+
+function WeintCodex.CreateSegmentedControl(parent, opts)
+    opts = opts or {}
+    local items = opts.items or {}
+
+    local bar = CreateFrame("Frame", nil, parent)
+    bar:SetHeight(38)
+    local bg = bar:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(bar)
+    bg:SetColorTexture(unpack(C.surface1))
+    WeintCodex.CutCorners(bar, 10, opts.backdrop or "bgDark")
+
+    local segs, total = {}, 8
+    for i, item in ipairs(items) do
+        local s = CreateFrame("Button", nil, bar)
+        s:SetHeight(30)
+
+        local sbg = s:CreateTexture(nil, "BACKGROUND")
+        sbg:SetAllPoints(s)
+        sbg:SetColorTexture(0, 0, 0, 0)
+
+        local lbl = s:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont(F.sansSemi, 12, "")
+        lbl:SetText(item.text or "")
+        lbl:SetPoint("LEFT", s, "LEFT", 14, 0)
+
+        local dot
+        if item.dot then
+            dot = WeintCodex.StatusDot(s, item.dot, 7)
+            dot:SetPoint("LEFT", lbl, "RIGHT", 8, 0)
+        end
+
+        local w = lbl:GetStringWidth() + 28 + (dot and 15 or 0)
+        s:SetWidth(w)
+        s:SetPoint("LEFT", bar, "LEFT", total - 4, 0)
+        total = total + w + 6
+
+        s._bg, s._label, s._key, s._index = sbg, lbl, item.key or i, i
+        segs[i] = s
+    end
+    bar:SetWidth(total - 6 + 8)
+
+    local selected = opts.selected or 1
+
+    local function apply()
+        for i, s in ipairs(segs) do
+            if i == selected then
+                s._bg:SetColorTexture(unpack(C.surface3))
+                s._label:SetTextColor(unpack(C.textBright))
+                if not s._rounded then
+                    WeintCodex.CutCorners(s, 6, "surface1")
+                    s._rounded = true
+                end
+                if s._corners then
+                    for _, t in pairs(s._corners) do t:Show() end
+                end
+            else
+                s._bg:SetColorTexture(0, 0, 0, 0)
+                s._label:SetTextColor(unpack(C.textMuted))
+                if s._corners then
+                    for _, t in pairs(s._corners) do t:Hide() end
+                end
+            end
+        end
+    end
+
+    for i, s in ipairs(segs) do
+        s:SetScript("OnEnter", function(self)
+            if i ~= selected then self._label:SetTextColor(unpack(C.textNormal)) end
+        end)
+        s:SetScript("OnLeave", function(self)
+            if i ~= selected then self._label:SetTextColor(unpack(C.textMuted)) end
+        end)
+        s:SetScript("OnClick", function(self)
+            selected = i
+            apply()
+            if opts.onSelect then opts.onSelect(self._key, i) end
+        end)
+    end
+    apply()
+
+    bar.Select = function(_, i)
+        selected = i
+        apply()
+    end
+    bar.GetSelected = function() return selected end
+    bar._segments = segs
+    return bar
+end
+
+--------------------------------------------------
+-- Fortschrittsbalken
+--------------------------------------------------
+
+function WeintCodex.CreateMeter(parent, opts)
+    opts = opts or {}
+    local h = opts.height or 6
+    local m = CreateFrame("Frame", nil, parent)
+    m:SetHeight(h)
+    if opts.width then m:SetWidth(opts.width) end
+
+    local track = m:CreateTexture(nil, "BACKGROUND")
+    track:SetAllPoints(m)
+    track:SetColorTexture(unpack(C.surface1))
+
+    local fill = m:CreateTexture(nil, "ARTWORK")
+    fill:SetPoint("TOPLEFT", m, "TOPLEFT", 0, 0)
+    fill:SetPoint("BOTTOMLEFT", m, "BOTTOMLEFT", 0, 0)
+    local col = Col(opts.tone or "accent")
+    fill:SetColorTexture(col[1], col[2], col[3], 1.0)
+    m._fill = fill
+
+    m.SetValue = function(self, pct, tone)
+        pct = math.max(0, math.min(1, pct or 0))
+        local w = (self:GetWidth() or 0) * pct
+        self._fill:SetWidth(math.max(pct > 0 and 1 or 0, w))
+        if tone then
+            local c = Col(tone)
+            self._fill:SetColorTexture(c[1], c[2], c[3], 1.0)
+        end
+    end
+    m:SetValue(opts.value or 0)
+    return m
+end
+
+--------------------------------------------------
+-- Zeilentrenner
+--------------------------------------------------
+
+function WeintCodex.RowLine(parent, offsetY, tone)
+    local col = Col(tone or "rowLine")
+    return DrawHLine(parent, col[1], col[2], col[3], col[4] or 1.0, offsetY or 0, "ARTWORK")
+end
+
+--------------------------------------------------
+-- Hex-Helper
+--------------------------------------------------
+
 function WeintCodex.ColorText(colorName, text)
     local col = C[colorName]
     if not col then return text end
@@ -155,29 +701,56 @@ end
 
 --------------------------------------------------
 -- Scrollbereich
--- Liefert das ScrollFrame und den Inhalts-Frame, in den Zeilen gehaengt
--- werden. Die Hoehe des Inhalts-Frames muss der Aufrufer setzen, sonst
--- scrollt nichts.
+--------------------------------------------------
+-- Die Standard-Bildlaufleiste (UIPanelScrollFrameTemplate) frisst 26 px. Der
+-- Entwurf zeichnet 8 px. `slim = true` blendet die Blizzard-Optik aus und
+-- setzt einen schlanken Griff darueber - dieselbe Loesung wie bei den
+-- Bossnotizen, nur an einer Stelle statt an zweien.
 --------------------------------------------------
 
-function WeintCodex.CreateScrollArea(parent, x, y, w, h)
+function WeintCodex.CreateScrollArea(parent, x, y, w, h, slim)
     local sf = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     sf:SetSize(w, h)
     sf:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+
     local inner = CreateFrame("Frame", nil, sf)
-    inner:SetSize(w - 20, h)
+    inner:SetSize(w - (slim and 10 or 20), h)
     sf:SetScrollChild(inner)
+
+    if slim then
+        local bar = _G[(sf:GetName() or "") .. "ScrollBar"] or sf.ScrollBar
+        if not bar then
+            for _, child in ipairs({ sf:GetChildren() }) do
+                if child:GetObjectType() == "Slider" then bar = child break end
+            end
+        end
+        if bar then
+            bar:SetWidth(8)
+            for _, region in ipairs({ bar:GetRegions() }) do
+                if region:GetObjectType() == "Texture" then region:SetTexture(nil) end
+            end
+            local up, down = bar:GetChildren()
+            if up   then up:Hide()   ; up:SetHeight(1)   end
+            if down then down:Hide() ; down:SetHeight(1) end
+            local thumb = bar:GetThumbTexture()
+            if thumb then
+                thumb:SetTexture(WHITE)
+                thumb:SetVertexColor(C.textFaint[1], C.textFaint[2], C.textFaint[3], 0.65)
+                thumb:SetSize(4, 40)
+            end
+        end
+    end
     return sf, inner
 end
 
 --------------------------------------------------
 -- Zahlen-/Zeitformate
--- Spiegeln die Darstellung der Companion-App (format_per_second,
--- MM:SS), damit dieselbe Auswertung ingame und auf dem Desktop
--- gleich aussieht. Dezimaltrennzeichen ist das deutsche Komma.
+--------------------------------------------------
+-- Spiegeln die Darstellung der Companion-App, damit dieselbe Auswertung
+-- ingame und auf dem Desktop gleich aussieht. Dezimaltrennzeichen ist das
+-- deutsche Komma.
 --------------------------------------------------
 
--- 950 -> "950", 12345 -> "12,3k", 1234567 -> "1,23M"
 function WeintCodex.FormatAmount(value)
     value = tonumber(value) or 0
     local sign = value < 0 and "-" or ""
@@ -193,7 +766,6 @@ function WeintCodex.FormatAmount(value)
     return sign .. (text:gsub("%.", ","))
 end
 
--- Sekunden -> "MM:SS" (auch jenseits einer Stunde, dann "H:MM:SS")
 function WeintCodex.FormatClock(seconds)
     seconds = math.floor(tonumber(seconds) or 0)
     if seconds < 0 then seconds = 0 end
@@ -204,15 +776,28 @@ function WeintCodex.FormatClock(seconds)
     return string.format("%02d:%02d", m, s)
 end
 
--- 92.4 -> "92 %"  (nachkomma nur, wenn ausdruecklich gewuenscht)
 function WeintCodex.FormatPercent(value, decimals)
     value = tonumber(value) or 0
     local text = string.format("%." .. (decimals or 0) .. "f", value)
     return (text:gsub("%.", ",")) .. " %"
 end
 
+-- Tausenderpunkt wie im Entwurf ("+14 210" mit schmalem Leerzeichen).
+function WeintCodex.FormatGrouped(value)
+    local n = math.floor(math.abs(tonumber(value) or 0))
+    local s = tostring(n)
+    local out = s:reverse():gsub("(%d%d%d)", "%1\194\160"):reverse()
+    out = out:gsub("^\194\160", "")
+    return ((tonumber(value) or 0) < 0 and "-" or "") .. out
+end
+
 --------------------------------------------------
--- Schlanker Einzel-Rahmen (Alternative zum zweilagigen Glow-DrawBorder)
+-- Altlasten der v1-Oberflaeche
+--------------------------------------------------
+-- Bleiben erhalten, weil rund 40 Aufrufstellen sie nutzen. Rahmen und
+-- Eck-Akzente sind in der neuen Sprache aber kein Gestaltungsmittel mehr:
+-- CreateCard liefert deshalb eine Karte im neuen Sinn, egal welchen `style`
+-- der Aufrufer noch mitgibt.
 --------------------------------------------------
 
 function WeintCodex.DrawSlimBorder(frame, colorName, alpha, thick)
@@ -222,109 +807,115 @@ function WeintCodex.DrawSlimBorder(frame, colorName, alpha, thick)
     DrawBorder(frame, col[1], col[2], col[3], alpha, thick)
 end
 
---------------------------------------------------
--- Dezente Eck-Akzente statt Vollrahmen
---------------------------------------------------
-
 function WeintCodex.DrawCornerAccents(frame, colorName, size, thick)
     size  = size  or 12
     thick = thick or 2
-    local col = C[colorName] or C.purple
-
-    local function Corner(hPoint, vPoint, hx, hy, vx, vy)
+    local col = C[colorName] or C.accent
+    local function Corner(point, hx, hy)
         local h = frame:CreateTexture(nil, "OVERLAY")
         h:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
-        h:SetPoint(hPoint, frame, hPoint, hx, hy)
+        h:SetPoint(point, frame, point, hx, hy)
         h:SetSize(size, thick)
-
         local v = frame:CreateTexture(nil, "OVERLAY")
         v:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
-        v:SetPoint(vPoint, frame, vPoint, vx, vy)
+        v:SetPoint(point, frame, point, hx, hy)
         v:SetSize(thick, size)
     end
-
-    Corner("TOPLEFT",     "TOPLEFT",     0, 0,  0, 0)
-    Corner("TOPRIGHT",    "TOPRIGHT",    0, 0,  0, 0)
-    Corner("BOTTOMLEFT",  "BOTTOMLEFT",  0, 0,  0, 0)
-    Corner("BOTTOMRIGHT", "BOTTOMRIGHT", 0, 0,  0, 0)
+    Corner("TOPLEFT", 0, 0)     Corner("TOPRIGHT", 0, 0)
+    Corner("BOTTOMLEFT", 0, 0)  Corner("BOTTOMRIGHT", 0, 0)
 end
 
---------------------------------------------------
--- Karten-Factory (flach, fuer Shell/Dashboard)
---------------------------------------------------
-
--- opts: { width, height, surface = "surface2", style = "flat"|"border"|"corners",
---         borderColor = "hairline", title, titleColor = "textBright" }
 function WeintCodex.CreateCard(parent, opts)
     opts = opts or {}
-    local card = CreateFrame(opts.buttonStyle and "Button" or "Frame", nil, parent)
-    if opts.width  then card:SetWidth(opts.width)   end
-    if opts.height then card:SetHeight(opts.height) end
-
-    local surfaceCol = C[opts.surface or "surface2"]
-    card._bg = SetSolidBg(card, surfaceCol[1], surfaceCol[2], surfaceCol[3], surfaceCol[4] or 1.0)
+    local card = WeintCodex.CreateSurface(parent, {
+        width    = opts.width,
+        height   = opts.height,
+        tone     = opts.tone or (opts.surface == "surface1" and "flat" or "plain"),
+        surface  = opts.surface,
+        radius   = opts.radius or 14,
+        backdrop = opts.backdrop or "bgDark",
+        button   = opts.buttonStyle,
+    })
     card._surface = opts.surface or "surface2"
 
-    -- Erlaubt Hover-Umfaerbung (z.B. surface2 -> surface3) ohne die
-    -- Rahmen-/Titel-Texturen neu zu erzeugen.
-    card.SetSurface = function(self, surfaceName)
-        local col = C[surfaceName]
-        if not col then return end
-        self._bg:SetColorTexture(col[1], col[2], col[3], col[4] or 1.0)
-    end
-
-    local style = opts.style or "border"
-    if style == "border" then
-        WeintCodex.DrawSlimBorder(card, opts.borderColor or "hairline", nil, 1)
-    elseif style == "corners" then
-        WeintCodex.DrawCornerAccents(card, opts.borderColor or "purple", 10, 2)
-    end
-
-    local titleStr = nil
+    local titleStr
     if opts.title then
         titleStr = card:CreateFontString(nil, "OVERLAY")
-        titleStr:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-        titleStr:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
-        titleStr:SetTextColor(unpack(C[opts.titleColor or "textBright"]))
+        titleStr:SetFont(F.sansSemi, 14, "")
+        titleStr:SetPoint("TOPLEFT", card, "TOPLEFT", 20, -16)
+        titleStr:SetTextColor(unpack(Col(opts.titleColor or "textBright")))
         titleStr:SetText(opts.title)
     end
-
     card.SetTitle = function(self, text)
         if titleStr then titleStr:SetText(text) end
     end
-
     return card
 end
 
 WeintCodex.SetSolidBg = SetSolidBg
-WeintCodex.DrawBorder  = DrawBorder
-WeintCodex.SetBorder   = DrawBorder
-WeintCodex.C           = C
+WeintCodex.DrawBorder = DrawBorder
+WeintCodex.SetBorder  = DrawBorder
+WeintCodex.DrawHLine  = DrawHLine
+WeintCodex.C          = C
 
 --------------------------------------------------
--- Main Frame
+-- Fenster
 --------------------------------------------------
--- Layout (Redesign v1.0): 4 Spalten statt Banner/Tabbar/Sidebar
---   Icon-Rail (64px) | Sub-Nav (240px) | Content (flex) | Inspector (300px)
+-- Aufbau nach Entwurf 1a: Titelleiste 40, Navigationsspalte 232 mit Gruppen,
+-- Inhalt daneben. Die frueheren vier Spalten (Rail 64 | Sub-Nav 240 | Inhalt |
+-- Inspector 340) sind damit auf zwei zusammengezogen.
+--
+-- Der Inspector verschwindet nicht als API: er wird zum Detailbereich INNERHALB
+-- der Seite (rechte Spalte, 380 breit). Neun Module liefern ueber
+-- Navigation.SetInspector Bloecke - die zeichnen jetzt dorthin, statt in eine
+-- eigene Fensterspalte. ContentPanel schrumpft dabei automatisch, sodass die
+-- vorhandene Positionierungslogik der Module unveraendert weiterlaeuft.
 --------------------------------------------------
 
-local FRAME_W   = 1500
-local FRAME_H   = 800
-local FRAME_MIN_W = 1180
-local FRAME_MIN_H = 780
-local FRAME_MAX_W = 1700
-local FRAME_MAX_H = 1000
+local FRAME_W, FRAME_H = 1500, 800
+local FRAME_MIN_W, FRAME_MIN_H = 1180, 780
+local FRAME_MAX_W, FRAME_MAX_H = 1700, 1000
 
-local RAIL_W       = 64
-local SIDEBAR_W    = 240
-local INSPECTOR_W  = 340
-local TITLEBAR_H   = 52
+local TITLEBAR_H = 40
+local NAV_W      = 232
+local DETAIL_W   = 372   -- Entwurf: Inhaltsraster "1fr 372px" auf 2c/2d
+local DETAIL_GAP = 16
+
+WeintCodex.Metrics = {
+    TITLEBAR_H = TITLEBAR_H,
+    NAV_W      = NAV_W,
+    DETAIL_W   = DETAIL_W,
+    PAD_X      = 32,   -- Innenabstand des Inhaltsbereichs, Entwurf: 24px 32px
+    PAD_Y      = 24,
+    GAP        = 16,
+    CARD_R     = 14,
+    ROW_H      = 30,
+}
 
 local frame = CreateFrame("Frame", "WeintCodexMainFrame", UIParent)
 frame:SetSize(FRAME_W, FRAME_H)
 frame:SetPoint("CENTER")
+frame:SetFrameStrata("FULLSCREEN_DIALOG")
+frame:SetToplevel(true)
+frame:SetMovable(true)
+frame:EnableMouse(true)
+frame:RegisterForDrag("LeftButton")
+frame:SetScript("OnDragStart", frame.StartMoving)
+frame:SetScript("OnDragStop",  frame.StopMovingOrSizing)
+frame:SetResizable(true)
+if frame.SetResizeBounds then
+    frame:SetResizeBounds(FRAME_MIN_W, FRAME_MIN_H, FRAME_MAX_W, FRAME_MAX_H)
+end
+frame:Hide()
 
--- Restore saved size
+local frameBg = frame:CreateTexture(nil, "BACKGROUND")
+frameBg:SetAllPoints(frame)
+frameBg:SetColorTexture(unpack(C.bgDark))
+-- Das Fenster selbst bekommt bewusst KEINE runden Ecken. CutCorners deckt die
+-- Ecke mit der Farbe des Untergrunds ab - hinter dem Hauptfenster liegt aber
+-- die Spielwelt, deren Farbe wir nicht kennen. Der Entwurf zeigt hier einen
+-- Radius, den WoW ohne echte Transparenz im Frame nicht liefern kann.
+
 local function ApplySavedWindow()
     if WeintCodex.SavedData and WeintCodex.SavedData.window then
         local w = WeintCodex.SavedData.window
@@ -334,188 +925,131 @@ local function ApplySavedWindow()
     end
 end
 
-frame:SetFrameStrata("FULLSCREEN_DIALOG")
-frame:SetToplevel(true)
-frame:SetMovable(true)
-frame:EnableMouse(true)
-frame:RegisterForDrag("LeftButton")
-frame:SetScript("OnDragStart", frame.StartMoving)
-frame:SetScript("OnDragStop",  frame.StopMovingOrSizing)
-frame:SetResizable(true)
-frame:SetResizeBounds(FRAME_MIN_W, FRAME_MIN_H, FRAME_MAX_W, FRAME_MAX_H)
-frame:Hide()
-
--- Sanfter vertikaler Verlauf (17130f -> 12100d), statt Vollton
-local frameBg = frame:CreateTexture(nil, "BACKGROUND")
-frameBg:SetAllPoints(frame)
-frameBg:SetTexture("Interface\\Buttons\\WHITE8X8")
-frameBg:SetGradient("VERTICAL",
-    CreateColor(C.bgDark[1], C.bgDark[2], C.bgDark[3], 1),
-    CreateColor(C.bgMid[1],  C.bgMid[2],  C.bgMid[3],  1)
-)
-DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.45, 1)
-
 --------------------------------------------------
--- Icon-Rail (linke Navigationsspalte)
+-- Titelleiste
 --------------------------------------------------
 
-local iconRail = CreateFrame("Frame", nil, frame)
-iconRail:SetWidth(RAIL_W)
-iconRail:SetPoint("TOPLEFT",    frame, "TOPLEFT",    1, -1)
-iconRail:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1,  1)
-SetSolidBg(iconRail, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
-
-local railDiv = iconRail:CreateTexture(nil, "OVERLAY")
-railDiv:SetPoint("TOPRIGHT",    iconRail, "TOPRIGHT",    0, 0)
-railDiv:SetPoint("BOTTOMRIGHT", iconRail, "BOTTOMRIGHT", 0, 0)
-railDiv:SetWidth(1)
-railDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
-
--- Markenzeichen "W"
-local brandBadge = CreateFrame("Frame", nil, iconRail)
-brandBadge:SetSize(36, 36)
-brandBadge:SetPoint("TOP", iconRail, "TOP", 0, -14)
-
-local brandTex = brandBadge:CreateTexture(nil, "BACKGROUND")
-brandTex:SetAllPoints(brandBadge)
-brandTex:SetTexture("Interface\\Buttons\\WHITE8X8")
-brandTex:SetGradient("VERTICAL",
-    CreateColor(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 1),
-    CreateColor(C.purple[1],    C.purple[2],    C.purple[3],    1)
-)
-
-local brandLabel = brandBadge:CreateFontString(nil, "OVERLAY")
-brandLabel:SetAllPoints(brandBadge)
-brandLabel:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
-brandLabel:SetJustifyH("CENTER")
-brandLabel:SetJustifyV("MIDDLE")
-brandLabel:SetTextColor(0.10, 0.06, 0.03, 1.0)
-brandLabel:SetText("W")
-
--- Versionsmarke am unteren Rand der Leiste
-local railVersion = iconRail:CreateFontString(nil, "OVERLAY")
-railVersion:SetFont(WeintCodex.Fonts.mono, 9, "")
-railVersion:SetPoint("BOTTOM", iconRail, "BOTTOM", 0, 10)
-railVersion:SetText(WeintCodex.ColorText("textGhost", "v" .. (WeintCodex.Version or "1.0")))
-
-WeintCodex.IconRail    = iconRail
-WeintCodex.RailIconTop = brandBadge
-
--- Close Button (oben rechts über der gesamten Fensterbreite)
-local closeBtn = CreateFrame("Button", nil, frame)
-closeBtn:SetSize(24, 24)
-closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
-closeBtn:SetFrameLevel(frame:GetFrameLevel() + 20)
-
-local closeX = closeBtn:CreateFontString(nil, "OVERLAY")
-closeX:SetAllPoints(closeBtn)
-closeX:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
-closeX:SetText("|cffff5555×|r")
-
-closeBtn:SetScript("OnClick", function() frame:Hide() end)
-closeBtn:SetScript("OnEnter", function()
-    closeX:SetText("|cffff9999×|r")
-    closeX:SetScale(1.15)
-end)
-closeBtn:SetScript("OnLeave", function()
-    closeX:SetText("|cffff5555×|r")
-    closeX:SetScale(1.0)
-end)
-
---------------------------------------------------
--- Sub-Nav (Sidebar) - kontextabhaengige Navigationsspalte
---------------------------------------------------
-
-local sidebar = CreateFrame("Frame", nil, frame)
-sidebar:SetWidth(SIDEBAR_W)
-sidebar:SetPoint("TOPLEFT",    iconRail, "TOPRIGHT",    0, 0)
-sidebar:SetPoint("BOTTOMLEFT", iconRail, "BOTTOMRIGHT", 0, 0)
-
-local sidebarDiv = sidebar:CreateTexture(nil, "OVERLAY")
-sidebarDiv:SetPoint("TOPRIGHT",    sidebar, "TOPRIGHT",    0,  0)
-sidebarDiv:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", 0,  0)
-sidebarDiv:SetWidth(1)
-sidebarDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
-
-local sidebarHeader = sidebar:CreateFontString(nil, "OVERLAY")
-sidebarHeader:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, -20)
-sidebarHeader:SetFont(WeintCodex.Fonts.mono, 10, "")
-sidebarHeader:SetText(WeintCodex.ColorText("textFaint", "NAVIGATION"))
-WeintCodex.SidebarHeader = sidebarHeader
-
---------------------------------------------------
--- Hauptspalte: Titelleiste + Content
---------------------------------------------------
-
-local mainColumn = CreateFrame("Frame", nil, frame)
-mainColumn:SetPoint("TOPLEFT",     sidebar, "TOPRIGHT",    0, 0)
-mainColumn:SetPoint("BOTTOMRIGHT", frame,   "BOTTOMRIGHT", -(INSPECTOR_W + 1), 1)
-
-local titleBar = CreateFrame("Frame", nil, mainColumn)
+local titleBar = CreateFrame("Frame", nil, frame)
 titleBar:SetHeight(TITLEBAR_H)
-titleBar:SetPoint("TOPLEFT",  mainColumn, "TOPLEFT",  0, 0)
-titleBar:SetPoint("TOPRIGHT", mainColumn, "TOPRIGHT", 0, 0)
+titleBar:SetPoint("TOPLEFT",  frame, "TOPLEFT",  0, 0)
+titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
 
-local titleDiv = titleBar:CreateTexture(nil, "OVERLAY")
-titleDiv:SetHeight(1)
-titleDiv:SetPoint("BOTTOMLEFT",  titleBar, "BOTTOMLEFT",  0, 0)
-titleDiv:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", 0, 0)
-titleDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+local tbBg = titleBar:CreateTexture(nil, "BACKGROUND")
+tbBg:SetAllPoints(titleBar)
+ApplyVerticalGradient(tbBg, { 0.047, 0.047, 0.063, 1 }, C.bgPanel)  -- 0C0C10 -> 08080A
+
+local tbLine = titleBar:CreateTexture(nil, "ARTWORK")
+tbLine:SetHeight(1)
+tbLine:SetPoint("BOTTOMLEFT",  titleBar, "BOTTOMLEFT",  0, 0)
+tbLine:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", 0, 0)
+tbLine:SetColorTexture(unpack(C.border))
+
+-- Markenzeichen: einziger Ort, an dem der Lila-Verlauf der Companion bleibt.
+local brand = CreateFrame("Frame", nil, titleBar)
+brand:SetSize(26, 26)
+brand:SetPoint("LEFT", titleBar, "LEFT", 12, 0)
+local brandTex = brand:CreateTexture(nil, "ARTWORK")
+brandTex:SetAllPoints(brand)
+ApplyVerticalGradient(brandTex, "brandA", "brandB")
+WeintCodex.CutCorners(brand, 8, "bgPanel")
+local brandLbl = brand:CreateFontString(nil, "OVERLAY")
+brandLbl:SetFont(F.monoBold, 12, "")
+brandLbl:SetPoint("CENTER", brand, "CENTER", 0, 0)
+brandLbl:SetTextColor(1, 1, 1, 1)
+brandLbl:SetText("W")
 
 local wordmark = titleBar:CreateFontString(nil, "OVERLAY")
-wordmark:SetFont(WeintCodex.Fonts.serif, 18, "")
-wordmark:SetPoint("LEFT", titleBar, "LEFT", 20, 0)
-wordmark:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+wordmark:SetFont(F.sansSemi, 13, "")
+wordmark:SetPoint("LEFT", brand, "RIGHT", 12, 0)
+wordmark:SetTextColor(unpack(C.textNormal))
 wordmark:SetText("WeintCodex")
 
-local wordDiv = titleBar:CreateTexture(nil, "OVERLAY")
-wordDiv:SetSize(1, 16)
-wordDiv:SetPoint("LEFT", wordmark, "RIGHT", 14, 0)
-wordDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+local wordDiv = titleBar:CreateTexture(nil, "ARTWORK")
+wordDiv:SetSize(1, 14)
+wordDiv:SetPoint("LEFT", wordmark, "RIGHT", 12, 0)
+wordDiv:SetColorTexture(unpack(C.borderStrong))
 
--- Globale Suche: fixe Breite, rechts mit Abstand zum Aktionsbereich verankert
--- (siehe titleActions weiter unten - dessen Inhalt ist je Modul unterschiedlich
--- breit, 280px Reserve deckt die breitesten Faelle, z.B. raids.lua, ab).
--- Logik/Datenindex/Strg+K-Abfangen sitzen in core/search.lua.
+local breadcrumb = titleBar:CreateFontString(nil, "OVERLAY")
+breadcrumb:SetFont(F.mono, 10, "")
+breadcrumb:SetPoint("LEFT", wordDiv, "RIGHT", 12, 0)
+breadcrumb:SetJustifyH("LEFT")
+breadcrumb:SetTextColor(unpack(C.textFaint))
+WeintCodex.Breadcrumb = breadcrumb
+
+function WeintCodex.SetBreadcrumb(...)
+    local parts = { ... }
+    local segs = {}
+    for i, p in ipairs(parts) do
+        segs[#segs + 1] = Spaced(string.upper(tostring(p)))
+        if i < #parts then segs[#segs + 1] = " \194\183 " end
+    end
+    breadcrumb:SetText(table.concat(segs))
+end
+
+-- Schliessen
+local closeBtn = CreateFrame("Button", nil, titleBar)
+closeBtn:SetSize(28, 24)
+closeBtn:SetPoint("RIGHT", titleBar, "RIGHT", -8, 0)
+local closeX = closeBtn:CreateFontString(nil, "OVERLAY")
+closeX:SetFont(F.sans, 14, "")
+closeX:SetPoint("CENTER", closeBtn, "CENTER", 0, 0)
+closeX:SetTextColor(unpack(C.textMuted))
+closeX:SetText("\195\151")
+closeBtn:SetScript("OnClick", function() frame:Hide() end)
+closeBtn:SetScript("OnEnter", function() closeX:SetTextColor(unpack(C.textBright)) end)
+closeBtn:SetScript("OnLeave", function() closeX:SetTextColor(unpack(C.textMuted)) end)
+
+local versionLbl = titleBar:CreateFontString(nil, "OVERLAY")
+versionLbl:SetFont(F.mono, 10, "")
+versionLbl:SetPoint("RIGHT", closeBtn, "LEFT", -8, 0)
+versionLbl:SetTextColor(unpack(C.textFaint))
+versionLbl:SetText(Spaced("V" .. (WeintCodex.Version or "2.0.0.0")))
+WeintCodex.VersionLabel = versionLbl
+
+-- Aktionsbereich je Modul, links neben der Versionsmarke.
+local titleActions = CreateFrame("Frame", nil, titleBar)
+titleActions:SetHeight(TITLEBAR_H)
+titleActions:SetPoint("RIGHT", versionLbl, "LEFT", -12, 0)
+titleActions:SetWidth(1)
+WeintCodex.TitleBarActions = titleActions
+
+--------------------------------------------------
+-- Suche
+--------------------------------------------------
+-- Logik/Datenindex/Strg+K sitzen in core/search.lua; hier nur das Feld.
+
 local searchBox = CreateFrame("EditBox", nil, titleBar)
-searchBox:SetHeight(28)
-searchBox:SetWidth(240)
-searchBox:SetPoint("RIGHT", titleBar, "RIGHT", -280, 0)
+searchBox:SetSize(260, 26)
+searchBox:SetPoint("CENTER", titleBar, "CENTER", 0, 0)
 searchBox:SetAutoFocus(false)
 searchBox:SetFontObject("ChatFontNormal")
-searchBox:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
-searchBox:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
-searchBox:SetTextInsets(22, 46, 0, 0)
+searchBox:SetFont(F.sans, 12, "")
+searchBox:SetTextColor(unpack(C.textNormal))
+searchBox:SetTextInsets(28, 52, 0, 0)
 searchBox:SetMaxLetters(80)
 
-SetSolidBg(searchBox, C.headerBg[1], C.headerBg[2], C.headerBg[3], 1.0)
-DrawBorder(searchBox, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+SetSolidBg(searchBox, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
+DrawBorder(searchBox, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
+WeintCodex.CutCorners(searchBox, 8, "bgPanel")
 
 local searchIcon = searchBox:CreateFontString(nil, "OVERLAY")
-searchIcon:SetFont("Fonts\\FRIZQT__.TTF", 13, "")
-searchIcon:SetPoint("LEFT", searchBox, "LEFT", 8, 0)
-searchIcon:SetText(WeintCodex.Icon("Interface\\Common\\UI-Searchbox-Icon", 13))
+searchIcon:SetFont(F.sans, 12, "")
+searchIcon:SetPoint("LEFT", searchBox, "LEFT", 10, 0)
+searchIcon:SetText(WeintCodex.Icon("Interface\\Common\\UI-Searchbox-Icon", 12))
 
 local searchPlaceholder = searchBox:CreateFontString(nil, "OVERLAY")
-searchPlaceholder:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
-searchPlaceholder:SetPoint("LEFT", searchBox, "LEFT", 22, 0)
-searchPlaceholder:SetPoint("RIGHT", searchBox, "RIGHT", -46, 0)
+searchPlaceholder:SetFont(F.sans, 12, "")
+searchPlaceholder:SetPoint("LEFT", searchBox, "LEFT", 28, 0)
+searchPlaceholder:SetPoint("RIGHT", searchBox, "RIGHT", -52, 0)
 searchPlaceholder:SetJustifyH("LEFT")
-searchPlaceholder:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-searchPlaceholder:SetText("Suche Boss, Verzauberung, Material…")
+searchPlaceholder:SetTextColor(unpack(C.textDim))
+searchPlaceholder:SetText("Suchen")
 
-local searchChip = CreateFrame("Frame", nil, searchBox)
-searchChip:SetSize(38, 16)
-searchChip:SetPoint("RIGHT", searchBox, "RIGHT", -8, 0)
-SetSolidBg(searchChip, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
-DrawBorder(searchChip, C.border[1], C.border[2], C.border[3], C.border[4], 1)
-local searchChipLbl = searchChip:CreateFontString(nil, "OVERLAY")
-searchChipLbl:SetAllPoints(searchChip)
-searchChipLbl:SetFont(WeintCodex.Fonts.mono, 9, "")
-searchChipLbl:SetJustifyH("CENTER")
-searchChipLbl:SetJustifyV("MIDDLE")
-searchChipLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
-searchChipLbl:SetText("Strg K")
+local searchChip = searchBox:CreateFontString(nil, "OVERLAY")
+searchChip:SetFont(F.mono, 9, "")
+searchChip:SetPoint("RIGHT", searchBox, "RIGHT", -10, 0)
+searchChip:SetTextColor(unpack(C.textFaint))
+searchChip:SetText(Spaced("STRG K"))
 
 searchBox:SetScript("OnEscapePressed", searchBox.ClearFocus)
 searchBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
@@ -531,147 +1065,155 @@ searchBox:SetScript("OnEditFocusLost", function(self)
     searchChip:Show()
     if WeintCodex.Search then WeintCodex.Search.OnFocusLost() end
 end)
-
 WeintCodex.SearchBox = searchBox
 
--- Ergebnis-Dropdown: eigener Frame ueber dem Content-Panel verankert (nicht
--- Kind von titleBar, damit es nicht am Titelleisten-Rand abgeschnitten wird).
--- Aufbau/Befuellung in core/search.lua.
 local searchResults = CreateFrame("Frame", nil, frame)
-searchResults:SetPoint("TOPLEFT",  searchBox, "BOTTOMLEFT",  0, -4)
-searchResults:SetPoint("TOPRIGHT", searchBox, "BOTTOMRIGHT", 0, -4)
+searchResults:SetPoint("TOPLEFT",  searchBox, "BOTTOMLEFT",  0, -6)
+searchResults:SetPoint("TOPRIGHT", searchBox, "BOTTOMRIGHT", 0, -6)
 searchResults:SetFrameStrata("DIALOG")
-SetSolidBg(searchResults, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
-DrawBorder(searchResults, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+SetSolidBg(searchResults, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+DrawBorder(searchResults, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
 searchResults:Hide()
 WeintCodex.SearchResults = searchResults
 
-local breadcrumb = titleBar:CreateFontString(nil, "OVERLAY")
-breadcrumb:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-breadcrumb:SetPoint("LEFT", wordDiv, "RIGHT", 14, 0)
-breadcrumb:SetPoint("RIGHT", searchBox, "LEFT", -16, 0)
-breadcrumb:SetJustifyH("LEFT")
-breadcrumb:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-WeintCodex.Breadcrumb = breadcrumb
+--------------------------------------------------
+-- Navigationsspalte
+--------------------------------------------------
+-- Befuellt wird sie von core/navigation.lua; hier entsteht nur die Flaeche.
 
--- Frei belegbarer Aktionsbereich rechts in der Titelleiste (z.B. Buttons je Modul)
-local titleActions = CreateFrame("Frame", nil, titleBar)
-titleActions:SetHeight(TITLEBAR_H)
-titleActions:SetPoint("TOPRIGHT", titleBar, "TOPRIGHT", -16, 0)
-titleActions:SetWidth(1)
-WeintCodex.TitleBarActions = titleActions
+local navColumn = CreateFrame("Frame", nil, frame)
+navColumn:SetWidth(NAV_W)
+navColumn:SetPoint("TOPLEFT",    titleBar, "BOTTOMLEFT", 0, 0)
+navColumn:SetPoint("BOTTOMLEFT", frame,    "BOTTOMLEFT", 0, 0)
+SetSolidBg(navColumn, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
 
-function WeintCodex.SetBreadcrumb(...)
-    local parts = { ... }
-    local segs = {}
-    for i, p in ipairs(parts) do
-        if i == #parts then
-            segs[#segs + 1] = WeintCodex.ColorText("textNormal", p)
-        else
-            segs[#segs + 1] = WeintCodex.ColorText("textDim", p)
-            segs[#segs + 1] = WeintCodex.ColorText("textGhost", "  ›  ")
-        end
-    end
-    breadcrumb:SetText(table.concat(segs))
+local navDiv = navColumn:CreateTexture(nil, "OVERLAY")
+navDiv:SetPoint("TOPRIGHT",    navColumn, "TOPRIGHT",    0, 0)
+navDiv:SetPoint("BOTTOMRIGHT", navColumn, "BOTTOMRIGHT", 0, 0)
+navDiv:SetWidth(1)
+navDiv:SetColorTexture(unpack(C.border))
+
+WeintCodex.NavColumn = navColumn
+-- Altname: core/access.lua und core/search.lua sprechen die Leiste noch so an.
+WeintCodex.IconRail = navColumn
+
+--------------------------------------------------
+-- Inhalt und Detailbereich
+--------------------------------------------------
+
+local contentHost = CreateFrame("Frame", nil, frame)
+contentHost:SetPoint("TOPLEFT",     navColumn, "TOPRIGHT",    0, 0)
+contentHost:SetPoint("BOTTOMRIGHT", frame,     "BOTTOMRIGHT", 0, 0)
+
+local contentPanel = CreateFrame("Frame", nil, contentHost)
+contentPanel:SetPoint("TOPLEFT", contentHost, "TOPLEFT", 0, 0)
+contentPanel:SetPoint("BOTTOMRIGHT", contentHost, "BOTTOMRIGHT", 0, 0)
+
+local inspector = CreateFrame("Frame", nil, contentHost)
+inspector:SetWidth(DETAIL_W)
+inspector:SetPoint("TOPRIGHT",    contentHost, "TOPRIGHT",    -WeintCodex.Metrics.PAD_X, -WeintCodex.Metrics.PAD_Y)
+inspector:SetPoint("BOTTOMRIGHT", contentHost, "BOTTOMRIGHT", -WeintCodex.Metrics.PAD_X,  WeintCodex.Metrics.PAD_Y)
+inspector:Hide()
+
+--------------------------------------------------
+-- Innenabstaende des Inhaltsbereichs
+--------------------------------------------------
+-- Drei Dinge koennen den Inhalt beschneiden: der Detailbereich rechts, eine
+-- Unternavigation links (lange Listen wie die Bosse) und die Reiterleiste
+-- oben. Alle drei laufen ueber EINEN Rechenweg, weil sie sich sonst
+-- gegenseitig die Verankerung ueberschreiben - ClearAllPoints/SetPoint je
+-- Aufrufer waere genau der Fehler, den man erst bei zwei gleichzeitig sieht.
+--
+-- Der Sinn dahinter: die Module rechnen unveraendert gegen ContentPanel. Sie
+-- merken vom Umbau nichts, ihre Flaeche wird nur kleiner.
+
+local detailShown, subNavW, subNavTop = false, 0, 0
+
+local function UpdateContentInsets()
+    contentPanel:ClearAllPoints()
+    contentPanel:SetPoint("TOPLEFT", contentHost, "TOPLEFT", subNavW, -subNavTop)
+    contentPanel:SetPoint("BOTTOMRIGHT", contentHost, "BOTTOMRIGHT",
+        detailShown and -(DETAIL_W + DETAIL_GAP + WeintCodex.Metrics.PAD_X) or 0, 0)
 end
 
---------------------------------------------------
--- Content Panel
---------------------------------------------------
+function WeintCodex.SetDetailShown(shown)
+    detailShown = shown and true or false
+    if detailShown then inspector:Show() else inspector:Hide() end
+    UpdateContentInsets()
+end
 
-local contentPanel = CreateFrame("Frame", nil, mainColumn)
-contentPanel:SetPoint("TOPLEFT",     titleBar,   "BOTTOMLEFT",  0, 0)
-contentPanel:SetPoint("BOTTOMRIGHT", mainColumn, "BOTTOMRIGHT", 0, 0)
+-- Breite einer Unternavigationsspalte links im Inhalt (0 = keine).
+function WeintCodex.SetSubNavWidth(w)
+    subNavW = w or 0
+    UpdateContentInsets()
+end
 
---------------------------------------------------
--- Inspector (rechte Kontext-Spalte)
---------------------------------------------------
+-- Hoehe der Reiterleiste ueber dem Inhalt (0 = keine).
+function WeintCodex.SetSubNavTop(h)
+    subNavTop = h or 0
+    UpdateContentInsets()
+end
 
-local inspector = CreateFrame("Frame", nil, frame)
-inspector:SetWidth(INSPECTOR_W)
-inspector:SetPoint("TOPRIGHT",    frame, "TOPRIGHT",    -1, -1)
-inspector:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1,  1)
-SetSolidBg(inspector, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
+UpdateContentInsets()
 
-local inspectorDiv = inspector:CreateTexture(nil, "OVERLAY")
-inspectorDiv:SetPoint("TOPLEFT",    inspector, "TOPLEFT",    0, 0)
-inspectorDiv:SetPoint("BOTTOMLEFT", inspector, "BOTTOMLEFT", 0, 0)
-inspectorDiv:SetWidth(1)
-inspectorDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
-
-WeintCodex.Inspector = inspector
+WeintCodex.ContentHost  = contentHost
+WeintCodex.ContentPanel = contentPanel
+WeintCodex.Inspector    = inspector
 
 --------------------------------------------------
--- Resize Grip (bottom-right corner)
+-- Groessengriff
 --------------------------------------------------
 
 local resizeBtn = CreateFrame("Button", nil, frame)
-resizeBtn:SetSize(18, 18)
-resizeBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
+resizeBtn:SetSize(16, 16)
+resizeBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
 resizeBtn:SetFrameLevel(frame:GetFrameLevel() + 10)
 
--- Visual: diagonal lines texture
-local resizeTex = resizeBtn:CreateTexture(nil, "OVERLAY")
-resizeTex:SetAllPoints(resizeBtn)
-resizeTex:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.0)
-
--- Draw grip lines manually with three short stripes
-local function MakeGripLine(parent, offsetX, offsetY, w, h)
-    local t = parent:CreateTexture(nil, "OVERLAY")
+local gripMarks = {}
+local function MakeGripLine(offsetX, offsetY, w, h)
+    local t = resizeBtn:CreateTexture(nil, "OVERLAY")
     t:SetSize(w, h)
-    t:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", offsetX, offsetY)
-    t:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-    return t
+    t:SetPoint("BOTTOMRIGHT", resizeBtn, "BOTTOMRIGHT", offsetX, offsetY)
+    t:SetColorTexture(C.textFaint[1], C.textFaint[2], C.textFaint[3], 0.80)
+    gripMarks[#gripMarks + 1] = t
 end
--- Three diagonal marks (bottom-right to top-left feel)
-MakeGripLine(resizeBtn,  0,  0, 10, 1)
-MakeGripLine(resizeBtn,  0,  4,  7, 1)
-MakeGripLine(resizeBtn,  0,  8,  4, 1)
-MakeGripLine(resizeBtn,  0,  0,  1, 10)
-MakeGripLine(resizeBtn,  4,  0,  1,  7)
-MakeGripLine(resizeBtn,  8,  0,  1,  4)
+MakeGripLine(0, 0, 9, 1)  MakeGripLine(0, 4, 6, 1)  MakeGripLine(0, 8, 3, 1)
+MakeGripLine(0, 0, 1, 9)  MakeGripLine(4, 0, 1, 6)  MakeGripLine(8, 0, 1, 3)
 
-resizeBtn:SetScript("OnEnter", function()
-    for _, t in ipairs({resizeBtn:GetRegions()}) do
-        if t.SetColorTexture then
-            t:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.90)
-        end
+local function TintGrip(col, alpha)
+    for _, t in ipairs(gripMarks) do
+        t:SetColorTexture(col[1], col[2], col[3], alpha)
     end
-end)
-resizeBtn:SetScript("OnLeave", function()
-    for _, t in ipairs({resizeBtn:GetRegions()}) do
-        if t.SetColorTexture then
-            t:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-        end
-    end
-end)
-resizeBtn:SetScript("OnMouseDown", function()
-    frame:StartSizing("BOTTOMRIGHT")
-end)
+end
+resizeBtn:SetScript("OnEnter", function() TintGrip(C.accent, 0.90) end)
+resizeBtn:SetScript("OnLeave", function() TintGrip(C.textFaint, 0.80) end)
+resizeBtn:SetScript("OnMouseDown", function() frame:StartSizing("BOTTOMRIGHT") end)
 resizeBtn:SetScript("OnMouseUp", function()
     frame:StopMovingOrSizing()
-    -- Persist new size
     if WeintCodex.SavedData and WeintCodex.SavedData.window then
         WeintCodex.SavedData.window.width  = math.floor(frame:GetWidth())
         WeintCodex.SavedData.window.height = math.floor(frame:GetHeight())
     end
 end)
 
--- Also save on drag stop
-local origDragStop = frame:GetScript("OnDragStop")
-frame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-end)
+frame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
 --------------------------------------------------
--- Global references
+-- Globale Referenzen
 --------------------------------------------------
 
-WeintCodex.MainFrame    = frame
-WeintCodex.TitleBar     = titleBar
-WeintCodex.Sidebar      = sidebar
-WeintCodex.ContentPanel = contentPanel
+WeintCodex.MainFrame        = frame
+WeintCodex.TitleBar         = titleBar
 WeintCodex.ApplySavedWindow = ApplySavedWindow
+
+-- Die frueheren Chrome-Spalten gibt es nicht mehr. Sidebar bleibt als leerer,
+-- versteckter Frame bestehen, damit vereinzelte Alt-Zugriffe nicht auf nil
+-- laufen - Unternavigation ist jetzt die Reiterleiste in der Seite.
+local legacySidebar = CreateFrame("Frame", nil, frame)
+legacySidebar:SetSize(1, 1)
+legacySidebar:Hide()
+WeintCodex.Sidebar = legacySidebar
+WeintCodex.SidebarHeader = legacySidebar:CreateFontString(nil, "OVERLAY")
 
 --------------------------------------------------
 -- Universeller Export-Dialog (Overlay)
@@ -681,50 +1223,45 @@ local exportFrame = nil
 function WeintCodex.ShowExportDialog(titleText, exportStr)
     if not exportFrame then
         local parent = WeintCodex.MainFrame
-        local f = CreateFrame("Frame", "WeintCodexExportDialog", parent)
-        f:SetSize(600, 260)
+        local f = WeintCodex.CreateSurface(parent, {
+            width = 620, height = 280, tone = "plain", radius = 14, backdrop = "bgDark",
+        })
         f:SetPoint("CENTER", parent, "CENTER", 0, 0)
         f:SetFrameStrata("TOOLTIP")
         f:EnableMouse(true)
 
-        SetSolidBg(f, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 0.98)
-        DrawBorder(f, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.55, 1)
+        local eyebrow = WeintCodex.Eyebrow(f, "Export")
+        eyebrow:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -20)
 
-        -- Title
         local t = f:CreateFontString(nil, "OVERLAY")
-        t:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
-        t:SetPoint("TOPLEFT", f, "TOPLEFT", 20, -18)
-        t:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
+        t:SetFont(F.sansBold, 20, "")
+        t:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+        t:SetTextColor(unpack(C.textBright))
         f._title = t
 
-        -- Subtitle
-        local sub = f:CreateFontString(nil, "OVERLAY")
-        sub:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        local sub = WeintCodex.Label(f, "Kopiere diesen String (Strg+C) und füge ihn bei deinem Discord-Bot ein:",
+            { color = "textMuted", size = 13 })
         sub:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -8)
-        sub:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
         sub:SetWidth(560)
-        sub:SetJustifyH("LEFT")
-        sub:SetText("Kopiere diesen String (Strg+C) und füge ihn bei deinem Discord-Bot ein:")
 
-        -- EditBox container
-        local ebBg = CreateFrame("Frame", nil, f)
-        ebBg:SetSize(560, 110)
-        ebBg:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -8)
-        SetSolidBg(ebBg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.95)
-        DrawBorder(ebBg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.60, 1)
+        local ebBg = WeintCodex.CreateSurface(f, {
+            width = 572, height = 110, tone = "flat", surface = "surface1",
+            radius = 10, backdrop = "cardTop",
+        })
+        ebBg:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -12)
 
         local eb = CreateFrame("EditBox", nil, ebBg)
-        eb:SetSize(540, 100)
-        eb:SetPoint("TOPLEFT", ebBg, "TOPLEFT", 6, -5)
+        eb:SetSize(552, 100)
+        eb:SetPoint("TOPLEFT", ebBg, "TOPLEFT", 10, -6)
         eb:SetMultiLine(true)
         eb:SetMaxLetters(0)
         eb:SetAutoFocus(false)
-        eb:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
-        eb:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+        eb:SetFont(F.mono, 11, "")
+        eb:SetTextColor(unpack(C.textNormal))
         eb:SetTextInsets(4, 4, 4, 4)
 
         local scroll = CreateFrame("ScrollFrame", nil, ebBg, "UIPanelScrollFrameTemplate")
-        scroll:SetSize(540, 100)
+        scroll:SetSize(552, 100)
         scroll:SetPoint("TOPLEFT", ebBg, "TOPLEFT", 0, 0)
         scroll:SetScrollChild(eb)
 
@@ -735,29 +1272,14 @@ function WeintCodex.ShowExportDialog(titleText, exportStr)
                 self:HighlightText()
             end)
         end)
-
         f.EditBox = eb
 
-        -- Close Button
-        local close = CreateFrame("Button", nil, f)
-        close:SetSize(120, 28)
-        close:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -20, 16)
-        SetSolidBg(close, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-        DrawBorder(close, C.purple[1], C.purple[2], C.purple[3], 0.80, 1)
-
-        local closeLbl = close:CreateFontString(nil, "OVERLAY")
-        closeLbl:SetAllPoints(close)
-        closeLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-        closeLbl:SetText("Schließen")
-        closeLbl:SetTextColor(1, 1, 1)
-
-        close:SetScript("OnClick", function() f:Hide() end)
-        close:SetScript("OnEnter", function(self)
-            SetSolidBg(self, C.purple[1], C.purple[2], C.purple[3], 0.90)
-        end)
-        close:SetScript("OnLeave", function(self)
-            SetSolidBg(self, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.80)
-        end)
+        local close = WeintCodex.CreateButton(f, {
+            text = "Schließen", kind = "primary", width = 140,
+            backdrop = "cardBottom",
+            onClick = function() f:Hide() end,
+        })
+        close:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -24, 20)
 
         exportFrame = f
     end

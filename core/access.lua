@@ -636,13 +636,19 @@ local function EnsureBadge()
     if badge then return badge end
     if not (WeintCodex.IconRail and WeintCodex.CreateCard) then return nil end
 
+    -- Sitzt in der Navigationsspalte ueber der Konto-Zeile. Die Spalte ist
+    -- seit 2.0.0.0 232 px breit statt 64 - die Marke laeuft deshalb ueber die
+    -- volle Breite statt als 52-px-Plaettchen mittig, und der Abstand von
+    -- unten haelt Platz fuer die Konto-Zeile (44 px + 12 px Rand) frei.
     badge = WeintCodex.CreateCard(WeintCodex.IconRail,
-        { width = 52, height = 16, surface = "surface2", style = "border" })
-    badge:SetPoint("BOTTOM", WeintCodex.IconRail, "BOTTOM", 0, 26)
+        { height = 20, tone = "flat", surface = "surface2", radius = 6,
+          backdrop = "bgPanel" })
+    badge:SetPoint("BOTTOMLEFT",  WeintCodex.IconRail, "BOTTOMLEFT",  12, 68)
+    badge:SetPoint("BOTTOMRIGHT", WeintCodex.IconRail, "BOTTOMRIGHT", -12, 68)
 
     badgeLabel = badge:CreateFontString(nil, "OVERLAY")
     badgeLabel:SetAllPoints(badge)
-    badgeLabel:SetFont(WeintCodex.Fonts.mono, 8, "")
+    badgeLabel:SetFont(WeintCodex.Fonts.mono, 9, "")
     badgeLabel:SetJustifyH("CENTER")
     badgeLabel:SetJustifyV("MIDDLE")
 

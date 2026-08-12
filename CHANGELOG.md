@@ -2,6 +2,26 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.0.0.0] – 2026-08-12
+
+### Geändert
+- **Das Addon trägt die Designsprache von WeintCompanion 2.0.** Grundlage ist der Entwurf „Adson neu – Seiten" (Richtung 1a): Flächen `#0A0A0C` / `#08080A`, Karten ohne Rahmen mit 1-px-Oberkante statt Kästen, Bernstein `#D4A24A` nur noch dort, wo es etwas bedeutet, Inter für gesetzten Text und JetBrains Mono für Zahlen und Kennwerte, Raster 4/8/12/16/24/32. Die Farbnamen der alten Palette bleiben alle gültig und zeigen auf die neuen Werte – rund 140 Aufrufstellen nennen Farben beim Namen, ein entfernter Name wäre ungefärbter Text und damit ein Fehler, den man erst im Spiel sieht
+- **Aus der 64-px-Symbolleiste wird eine ausgeschriebene Navigationsspalte (232 px)** mit den Gruppen *Raid*, *Charakter* und *Gilde*. Einträge tragen Zahl oder Statuspunkt aus echtem Zustand; am Fuß steht der angemeldete Charakter samt Companion-Stand. Ein gesperrter Bereich dunkelt jetzt Symbol **und** Beschriftung ab – das frühere Plättchen unten links war die Krücke einer Leiste, in der außer dem Symbol nichts da war, was den Zustand zeigen konnte
+- **Die Startseite beantwortet den Abend, nicht das Menü.** Handlungskarte zum nächsten Raid, darunter drei Spalten: was an der eigenen Ausrüstung offen ist, welche Bosse anstehen, wie es um die Gildenbank steht, unten eine Systemzeile zum Stand der letzten Companion-Lieferung. Die acht Modulkacheln sind entfallen – die Navigationsspalte schreibt dieselben Bereiche aus, eine zweite Liste derselben Namen war genau das Menü, das der Entwurf ablöst
+- **Die Unternavigation jeder Seite sitzt als Reiterleiste unter dem Titel** statt in einer eigenen Fensterspalte. `BuildSidebar` bleibt als API bestehen und entscheidet selbst: Reiterleiste für kurze, flache Listen, Listenspalte innerhalb der Seite, sobald Einträge Portrait, Statuszeile oder Gruppen tragen. Vierzehn Bosse mit Bild und „erledigt/offen" sind keine Reiter
+- **Die Inspector-Spalte ist Teil der Seite geworden** (rechte Spalte, 372 px, wie im Entwurfsraster `1fr 372px`) und erscheint nur noch, wenn es wirklich etwas zu zeigen gibt. Vorher stand sie auch leer im Fenster. `Navigation.SetInspector` und alle neun aufrufenden Module bleiben unverändert – der Inhaltsbereich schrumpft, die Module merken davon nichts
+- **Die Academy ist ein eigener Navigationspunkt.** Sie hing bis 1.3.3.3 in der Charakter-Unternavigation; ihre drei Ansichten sind jetzt die Reiterleiste ihrer eigenen Seite. Ebenso ist die Übersicht ein Navigationspunkt statt nur Startzustand
+
+### Neu
+- Gemeinsames Baukasten-Vokabular in `core/ui.lua` für die neue Sprache: `CreateSurface` (Karte mit Verlauf und Oberkante), `Chip`, `StatusDot`, `Eyebrow`, `MonoNumber`, `CreateButton`, `CreateSegmentedControl`, `CreateMeter`, `RowLine`
+- Inter (Regular/Medium/SemiBold/Bold) und JetBrains Mono Bold liegen unter `media/fonts` (SIL OFL 1.1). Die Navigationssymbole sind aus den Vektorpfaden des Entwurfs vorgerendert, weil WoW zur Laufzeit keine Pfade zeichnet
+
+### Technisch
+- **Runde Ecken ohne `border-radius`:** WoW-Frames können keinen Radius. Vier Viertelkreis-Masken (`media/ui/corner.tga`) in der Farbe des Untergrunds stanzen die Ecke aus; eine einzige 32×32-Textur deckt jeden Radius ab, weil die Form maßstabsunabhängig ist. Zweierpotenz, weil der Client keine andere Texturgröße lädt. Das Hauptfenster bleibt bewusst eckig – hinter ihm liegt die Spielwelt, deren Farbe niemand kennt
+- **Verläufe laufen andersherum:** `SetGradient("VERTICAL", min, max)` geht von unten nach oben, CSS `linear-gradient(180deg, …)` von oben nach unten. Die Farben werden deshalb getauscht übergeben (`ApplyVerticalGradient`)
+- `DrawBorder` verankert seine Kanten an zwei Punkten, statt sie aus `GetWidth()`/`GetHeight()` zur Bauzeit zu rechnen. Chips und Lösch-Schaltflächen bestimmen ihre Breite erst nach dem Rahmen aus der Textbreite – mit den alten Maßen wären ihre Kanten 0 breit gewesen
+- Detailbereich, Unternavigationsspalte und Reiterleiste beschneiden den Inhalt über **einen** gemeinsamen Rechenweg. Je Aufrufer eigene `ClearAllPoints`/`SetPoint` wäre genau der Fehler, den man erst sieht, wenn zwei davon gleichzeitig aktiv sind
+
 ## [1.3.3.3] – 2026-08-11
 
 ### Behoben
