@@ -178,10 +178,8 @@ local function CreateMatFrame()
     summaryDiv:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", 0, 0)
     summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    local eyebrow = summary:CreateFontString(nil, "OVERLAY")
-    eyebrow:SetFont(WeintCodex.Fonts.sans, 9, "")
+    local eyebrow = WeintCodex.Eyebrow(summary, "Gildenbankmaterialien", { size = 10 })
     eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
-    eyebrow:SetText(WeintCodex.ColorText("textFaint", "GILDENBANKMATERIALIEN"))
 
     local titleStr = summary:CreateFontString(nil, "OVERLAY")
     titleStr:SetFont(WeintCodex.Fonts.sansBold, 22, "")
@@ -196,34 +194,31 @@ local function CreateMatFrame()
 
     -- Stat-Quartett rechts: GUT / OK / NIEDRIG / GESAMT
     local statDefs = {
-        { key = "good",  label = "GUT",     color = "success" },
-        { key = "ok",    label = "OK",      color = "warning" },
-        { key = "low",   label = "NIEDRIG", color = "danger" },
-        { key = "total", label = "GESAMT",  color = "textBright" },
+        { key = "good",  label = "Gut",     color = "successBright" },
+        { key = "ok",    label = "Ok",      color = "accentBright" },
+        { key = "low",   label = "Niedrig", color = "dangerBright" },
+        { key = "total", label = "Gesamt",  color = "textNormal" },
     }
     local statStrs = {}
     local sx = -ROW_PAD
     for i = #statDefs, 1, -1 do
         local def = statDefs[i]
         local box = CreateFrame("Frame", nil, summary)
-        box:SetSize(64, 40)
+        box:SetSize(64, 42)
         box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
 
-        local lbl = box:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+        local lbl = WeintCodex.Eyebrow(box, def.label, { size = 9, justify = "RIGHT" })
         lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
-        lbl:SetJustifyH("RIGHT")
-        lbl:SetText(WeintCodex.ColorText("textFaint", def.label))
 
         local val = box:CreateFontString(nil, "OVERLAY")
-        val:SetFont(WeintCodex.Fonts.sansSemi, 18, "")
+        val:SetFont(WeintCodex.Fonts.monoBold, 22, "")
         val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
         val:SetJustifyH("RIGHT")
-        local col = C[def.color] or C.textBright
+        local col = C[def.color] or C.textNormal
         val:SetTextColor(col[1], col[2], col[3])
         statStrs[def.key] = val
 
-        sx = sx - 74
+        sx = sx - 78
     end
     f.StatStrs = statStrs
 
@@ -240,18 +235,18 @@ local function CreateMatFrame()
     colDiv:SetHeight(1)
     colDiv:SetPoint("BOTTOMLEFT",  colBar, "BOTTOMLEFT",  0, 0)
     colDiv:SetPoint("BOTTOMRIGHT", colBar, "BOTTOMRIGHT", 0, 0)
-    colDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+    colDiv:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
+    -- Spaltenkoepfe als gesperrte Mono-Versalie (Entwurf), nicht als
+    -- Fliesstext - sie sind Beschriftung der Tabelle, nicht ihr Inhalt.
     local function ColLbl(text, x)
-        local l = colBar:CreateFontString(nil, "OVERLAY")
-        l:SetFont(WeintCodex.Fonts.sans, 9, "")
+        local l = WeintCodex.Eyebrow(colBar, text, { size = 10 })
         l:SetPoint("LEFT", colBar, "LEFT", x, 0)
-        l:SetText(WeintCodex.ColorText("textFaint", text))
     end
-    ColLbl("MATERIAL",    COL_NAME_X)
-    ColLbl("BESTAND",     COL_COUNT_X)
-    ColLbl("FORTSCHRITT", COL_BAR_X)
-    ColLbl("KATEGORIE",   COL_CAT_X)
+    ColLbl("Material",    COL_NAME_X)
+    ColLbl("Bestand",     COL_COUNT_X)
+    ColLbl("Fortschritt", COL_BAR_X)
+    ColLbl("Kategorie",   COL_CAT_X)
 
     --------------------------------------------------
     -- Scroll-Bereich
@@ -328,7 +323,7 @@ local function RefreshMatDisplay(matData, filterCat)
 
         for _, item in ipairs(items) do
             local row = CreateFrame("Frame", nil, sc)
-            row:SetHeight(30)
+            row:SetHeight(36)
             row:SetPoint("TOPLEFT",  sc, "TOPLEFT",  0, offsetY)
             row:SetPoint("TOPRIGHT", sc, "TOPRIGHT", 0, offsetY)
 
@@ -355,51 +350,52 @@ local function RefreshMatDisplay(matData, filterCat)
             end
             local sColor = C[statusColor]
 
-            local dot = row:CreateTexture(nil, "OVERLAY")
-            dot:SetSize(6, 6)
+            local dot = WeintCodex.StatusDot(row, statusColor, 7)
             dot:SetPoint("LEFT", row, "LEFT", 6, 0)
-            dot:SetColorTexture(sColor[1], sColor[2], sColor[3], 1.0)
 
             local nameLbl = row:CreateFontString(nil, "OVERLAY")
-            nameLbl:SetFont(WeintCodex.Fonts.sans, 12, "")
+            nameLbl:SetFont(WeintCodex.Fonts.sans, 13, "")
             nameLbl:SetPoint("LEFT", row, "LEFT", COL_NAME_X, 0)
             nameLbl:SetWidth(COL_NAME_W)
             nameLbl:SetJustifyH("LEFT")
-            local nc = (statusColor == "danger") and C.textBright or C.textMuted
+            local nc = (statusColor == "danger") and C.textBright or C.textNormal
             nameLbl:SetTextColor(nc[1], nc[2], nc[3])
             nameLbl:SetText(item.name or "?")
 
             local cntLbl = row:CreateFontString(nil, "OVERLAY")
-            cntLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
+            cntLbl:SetFont(WeintCodex.Fonts.monoBold, 11, "")
             cntLbl:SetPoint("LEFT", row, "LEFT", COL_COUNT_X, 0)
+            local brightName = statusColor == "success" and "successBright"
+                or (statusColor == "warning" and "accentBright" or "dangerBright")
             if target > 0 then
-                cntLbl:SetText(WeintCodex.ColorText(statusColor, tostring(amount)) .. WeintCodex.ColorText("textFaint", " / " .. target))
+                cntLbl:SetText(WeintCodex.ColorText(brightName, tostring(amount))
+                    .. WeintCodex.ColorText("textDim", " / " .. target))
             else
-                cntLbl:SetText(WeintCodex.ColorText(statusColor, tostring(amount)))
+                cntLbl:SetText(WeintCodex.ColorText(brightName, tostring(amount)))
             end
 
             local track = row:CreateTexture(nil, "OVERLAY")
-            track:SetSize(COL_BAR_W, 4)
+            track:SetSize(COL_BAR_W, 6)
             track:SetPoint("LEFT", row, "LEFT", COL_BAR_X, 0)
-            track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+            track:SetColorTexture(C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
 
             local fillPct = math.max(0, math.min(1, pct))
             if fillPct > 0.005 then
                 local fill = row:CreateTexture(nil, "OVERLAY")
-                fill:SetSize(math.max(1, COL_BAR_W * fillPct), 4)
+                fill:SetSize(math.max(1, COL_BAR_W * fillPct), 6)
                 fill:SetPoint("LEFT", row, "LEFT", COL_BAR_X, 0)
                 fill:SetColorTexture(sColor[1], sColor[2], sColor[3], 1.0)
             end
 
             if item.category and item.category ~= "" then
                 local catLbl = row:CreateFontString(nil, "OVERLAY")
-                catLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+                catLbl:SetFont(WeintCodex.Fonts.sans, 12, "")
                 catLbl:SetPoint("LEFT", row, "LEFT", COL_CAT_X, 0)
-                catLbl:SetText(WeintCodex.ColorText("textFaint", item.category))
+                catLbl:SetText(WeintCodex.ColorText("textDim", item.category))
             end
 
             table.insert(activeMatRows, row)
-            offsetY = offsetY - 30
+            offsetY = offsetY - 36
         end
 
         sc:SetHeight(math.abs(offsetY) + 10)
