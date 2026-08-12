@@ -938,7 +938,7 @@ local function CreateFrameOnce()
     MakeDraggable(frame)
 
     SetSolidBg(frame, C.bgDark[1], C.bgDark[2], C.bgDark[3], 0.96)
-    DrawBorder(frame, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.6, 1)
+    DrawBorder(frame, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
 
     BuildHeader()
     BuildTabBar()

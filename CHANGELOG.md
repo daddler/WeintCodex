@@ -12,6 +12,10 @@ Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lo
 - **Die Inspector-Spalte ist Teil der Seite geworden** (rechte Spalte, 372 px, wie im Entwurfsraster `1fr 372px`) und erscheint nur noch, wenn es wirklich etwas zu zeigen gibt. Vorher stand sie auch leer im Fenster. `Navigation.SetInspector` und alle neun aufrufenden Module bleiben unverändert – der Inhaltsbereich schrumpft, die Module merken davon nichts
 - **Die Academy ist ein eigener Navigationspunkt.** Sie hing bis 1.3.3.3 in der Charakter-Unternavigation; ihre drei Ansichten sind jetzt die Reiterleiste ihrer eigenen Seite. Ebenso ist die Übersicht ein Navigationspunkt statt nur Startzustand
 
+### Nicht übernommen
+- **Der Entwurf zeigt für den Kalender ein Monatsraster — das Addon bekommt keines.** Die Kalenderseite ist keine Monatsansicht, sondern das Formular, mit dem aus einer Raidanmeldung ein Ingame-Kalendereintrag wird. Ein Raster zu bauen wäre neue Funktion gewesen, nicht neue Gestalt; dieses Release ändert ausschließlich die Oberfläche. Die Seite trägt die neue Sprache, bleibt aber ein Formular
+- Das Hauptfenster bleibt eckig. Die Eckmasken färben sich auf den Untergrund — hinter dem Fenster liegt die Spielwelt, deren Farbe niemand kennt
+
 ### Neu
 - Gemeinsames Baukasten-Vokabular in `core/ui.lua` für die neue Sprache: `CreateSurface` (Karte mit Verlauf und Oberkante), `Chip`, `StatusDot`, `Eyebrow`, `MonoNumber`, `CreateButton`, `CreateSegmentedControl`, `CreateMeter`, `RowLine`
 - Inter (Regular/Medium/SemiBold/Bold) und JetBrains Mono Bold liegen unter `media/fonts` (SIL OFL 1.1). Die Navigationssymbole sind aus den Vektorpfaden des Entwurfs vorgerendert, weil WoW zur Laufzeit keine Pfade zeichnet

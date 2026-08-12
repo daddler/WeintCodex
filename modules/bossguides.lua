@@ -93,8 +93,9 @@ local function CreateGuideFrame()
     local portraitBox = CreateFrame("Frame", nil, topBar)
     portraitBox:SetSize(86, 86)
     portraitBox:SetPoint("TOPLEFT", topBar, "TOPLEFT", 20, -18)
-    WeintCodex.SetSolidBg(portraitBox, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
-    WeintCodex.DrawSlimBorder(portraitBox, "hairline")
+    WeintCodex.SetSolidBg(portraitBox, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
+    WeintCodex.DrawSlimBorder(portraitBox, "borderStrong")
+    WeintCodex.CutCorners(portraitBox, 10, "bgDark")
 
     local portraitTexture = portraitBox:CreateTexture(nil, "ARTWORK")
     portraitTexture:SetAllPoints(portraitBox)
@@ -103,7 +104,7 @@ local function CreateGuideFrame()
 
     -- Encounter-Eyebrow + Boss-Name + Zitat
     local instanceStr = topBar:CreateFontString(nil, "OVERLAY")
-    instanceStr:SetFont(WeintCodex.Fonts.sans, 9, "")
+    instanceStr:SetFont(WeintCodex.Fonts.mono, 10, "")
     instanceStr:SetPoint("TOPLEFT", portraitBox, "TOPRIGHT", 16, -4)
     f.InstanceStr = instanceStr
 

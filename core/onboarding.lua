@@ -53,28 +53,14 @@ local TOUR_STEPS = {
 -- Buttons
 --------------------------------------------------
 
+-- Nutzt die gemeinsame Schaltflaeche der neuen Sprache. Das Popup ist das
+-- Erste, was nach einem Update zu sehen ist - es waere die falsche Stelle,
+-- eine eigene Knopfform zu pflegen.
 local function CreateButton(parent, text, width, onClick)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(width, 28)
-
-    SetSolidBg(btn, C.purple[1], C.purple[2], C.purple[3], 0.85)
-    DrawBorder(btn, C.purple[1], C.purple[2], C.purple[3], 1, 1)
-
-    local lbl = btn:CreateFontString(nil, "OVERLAY")
-    lbl:SetAllPoints(btn)
-    lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-    lbl:SetText(text)
-    lbl:SetTextColor(1, 1, 1)
-
-    btn:SetScript("OnEnter", function(self)
-        SetSolidBg(self, C.purple[1]*1.15, C.purple[2]*1.15, C.purple[3]*1.15, 0.95)
-    end)
-    btn:SetScript("OnLeave", function(self)
-        SetSolidBg(self, C.purple[1], C.purple[2], C.purple[3], 0.85)
-    end)
-    btn:SetScript("OnClick", onClick)
-
-    return btn
+    return WeintCodex.CreateButton(parent, {
+        text = text, width = width, kind = "primary",
+        height = 32, backdrop = "surface2", onClick = onClick,
+    })
 end
 
 local function ClearButtons()
@@ -126,8 +112,16 @@ local function EnsureFrame()
     window = CreateFrame("Frame", nil, overlay)
     window:SetSize(WINDOW_W, WINDOW_H)
     window:SetPoint("CENTER")
-    SetSolidBg(window, 0.10, 0.10, 0.13, 0.98)
-    DrawBorder(window, C.purple[1], C.purple[2], C.purple[3], 1, 2)
+    SetSolidBg(window, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+    DrawBorder(window, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
+    -- Bernstein nur als Oberkante, wie an jeder Karte der neuen Sprache -
+    -- ein umlaufender Akzentrahmen ist die alte Ornamentik.
+    local topEdge = window:CreateTexture(nil, "ARTWORK")
+    topEdge:SetHeight(1)
+    topEdge:SetPoint("TOPLEFT",  window, "TOPLEFT",   8, 0)
+    topEdge:SetPoint("TOPRIGHT", window, "TOPRIGHT", -8, 0)
+    topEdge:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.34)
+    WeintCodex.CutCorners(window, 14, "bgDark")
 
     local closeBtn = CreateFrame("Button", nil, window)
     closeBtn:SetSize(22, 22)
@@ -135,7 +129,7 @@ local function EnsureFrame()
     local closeX = closeBtn:CreateFontString(nil, "OVERLAY")
     closeX:SetAllPoints(closeBtn)
     closeX:SetFont(WeintCodex.Fonts.sansSemi, 15, "")
-    closeX:SetText("|cffff5555×|r")
+    closeX:SetText(WeintCodex.ColorText("textMuted", "\195\151"))
     closeBtn:SetScript("OnClick", Dismiss)
 
     iconStr = window:CreateFontString(nil, "OVERLAY")
@@ -144,15 +138,15 @@ local function EnsureFrame()
 
     titleStr = window:CreateFontString(nil, "OVERLAY")
     titleStr:SetPoint("TOP", iconStr, "BOTTOM", 0, -10)
-    titleStr:SetFont(WeintCodex.Fonts.sansSemi, 17, "")
+    titleStr:SetFont(WeintCodex.Fonts.sansBold, 20, "")
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
     stepStr = window:CreateFontString(nil, "OVERLAY")
     stepStr:SetPoint("TOP", titleStr, "BOTTOM", 0, -6)
-    stepStr:SetFont(WeintCodex.Fonts.sans, 10, "")
+    stepStr:SetFont(WeintCodex.Fonts.mono, 10, "")
 
     local divider = window:CreateTexture(nil, "ARTWORK")
-    divider:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.5)
+    divider:SetColorTexture(C.border[1], C.border[2], C.border[3], 1.0)
     divider:SetPoint("TOPLEFT", window, "TOPLEFT", 24, -112)
     divider:SetPoint("TOPRIGHT", window, "TOPRIGHT", -24, -112)
     divider:SetHeight(1)
@@ -162,7 +156,7 @@ local function EnsureFrame()
     bodyStr:SetPoint("TOPRIGHT", divider, "BOTTOMRIGHT", -4, -18)
     bodyStr:SetJustifyH("LEFT")
     bodyStr:SetJustifyV("TOP")
-    bodyStr:SetFont(WeintCodex.Fonts.sans, 12, "")
+    bodyStr:SetFont(WeintCodex.Fonts.sans, 13, "")
     bodyStr:SetSpacing(4)
     bodyStr:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 end

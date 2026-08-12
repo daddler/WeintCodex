@@ -182,7 +182,7 @@ local function MakeInputField(parent, label, x, y, w, defaultText)
     bg:SetSize(w, 26)
     bg:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 16)
     SetSolidBg(bg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.90)
-    DrawBorder(bg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50, 1)
+    DrawBorder(bg, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
 
     local eb = CreateFrame("EditBox", nil, bg)
     eb:SetSize(w - 8, 20)
@@ -210,29 +210,34 @@ local function CreateCalendarFrame()
     f:SetAllPoints(cp)
 
     -- Header
+    -- Kopf ohne gefuelltes Band: die neue Sprache trennt mit Weissraum und
+    -- einer Haarlinie, nicht mit einer abgesetzten Flaeche.
+    --
+    -- Der Entwurf zeigt an dieser Stelle ein Monatsraster. Diese Seite ist
+    -- aber keine Monatsansicht, sondern das Formular, mit dem aus einer
+    -- Raidanmeldung ein Ingame-Kalendereintrag wird - ein Raster zu bauen
+    -- waere neue Funktion, nicht neue Gestalt. Es bleibt beim Formular.
     local header = CreateFrame("Frame", nil, f)
-    header:SetHeight(54)
+    header:SetHeight(72)
     header:SetPoint("TOPLEFT",  f, "TOPLEFT",  0, 0)
     header:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
-    SetSolidBg(header, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.50)
 
-    local titleStr = header:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont(WeintCodex.Fonts.sansBold, 24, "")
-    titleStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -14)
-    titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-    titleStr:SetText("Kalender")
+    local eyebrowStr = WeintCodex.Eyebrow(header, "Gildentermine", { size = 10 })
+    eyebrowStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -16)
 
-    local subStr = header:CreateFontString(nil, "OVERLAY")
-    subStr:SetFont(WeintCodex.Fonts.sans, 10, "")
-    subStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 10, 2)
-    subStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-    subStr:SetText(WeintCodex.ColorText("textFaint", "Kalender-Eintrag aus Raidanmeldungen erstellen"))
+    local titleStr = WeintCodex.PageTitle(header, "Kalender", { size = 26 })
+    titleStr:SetPoint("TOPLEFT", eyebrowStr, "BOTTOMLEFT", 0, -6)
+
+    local subStr = WeintCodex.Label(header,
+        "Kalender-Eintrag aus Raidanmeldungen erstellen",
+        { color = "textDim", size = 13 })
+    subStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 12, 3)
 
     local headerDiv = header:CreateTexture(nil, "OVERLAY")
     headerDiv:SetHeight(1)
     headerDiv:SetPoint("BOTTOMLEFT",  header, "BOTTOMLEFT",  0, 0)
     headerDiv:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", 0, 0)
-    headerDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50)
+    headerDiv:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     -- Body: links Event-Einstellungen, rechts Spielervorschau
     local body = CreateFrame("Frame", nil, f)
@@ -259,7 +264,7 @@ local function CreateCalendarFrame()
     detailsLine:SetHeight(1)
     detailsLine:SetPoint("TOPLEFT",  leftPanel, "TOPLEFT",  16, -30)
     detailsLine:SetSize(LEFT_W - 32, 1)
-    detailsLine:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50)
+    detailsLine:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     -- Titel
     local titleInput = MakeInputField(leftPanel, "Titel", 16, -38, LEFT_W - 32, "Raid – WeintCodex")
@@ -291,7 +296,7 @@ local function CreateCalendarFrame()
     descBg:SetSize(LEFT_W - 32, 60)
     descBg:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -144)
     SetSolidBg(descBg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.90)
-    DrawBorder(descBg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50, 1)
+    DrawBorder(descBg, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
 
     local descBox = CreateFrame("EditBox", nil, descBg)
     descBox:SetSize(LEFT_W - 44, 54)
@@ -316,7 +321,7 @@ local function CreateCalendarFrame()
     autoFillBtn:SetSize(LEFT_W - 32, 30)
     autoFillBtn:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -216)
     SetSolidBg(autoFillBtn, C.bgCard[1], C.bgCard[2], C.bgCard[3], 0.80)
-    DrawBorder(autoFillBtn, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50, 1)
+    DrawBorder(autoFillBtn, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
 
     local autoFillLbl = autoFillBtn:CreateFontString(nil, "OVERLAY")
     autoFillLbl:SetAllPoints(autoFillBtn)
@@ -353,7 +358,7 @@ local function CreateCalendarFrame()
     invLine:SetHeight(1)
     invLine:SetSize(LEFT_W - 32, 1)
     invLine:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -276)
-    invLine:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50)
+    invLine:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     -- Checkboxes für Rollen-Filter
     local function MakeCheckbox(parent, label, x, y, default)
@@ -464,7 +469,7 @@ local function CreateCalendarFrame()
     bodyDiv:SetWidth(1)
     bodyDiv:SetPoint("TOPLEFT",    body, "TOPLEFT",    LEFT_W + 1, -6)
     bodyDiv:SetPoint("BOTTOMLEFT", body, "BOTTOMLEFT", LEFT_W + 1,  6)
-    bodyDiv:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.40)
+    bodyDiv:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     -- ============================
     -- RECHTE SEITE: Spielervorschau
@@ -484,7 +489,7 @@ local function CreateCalendarFrame()
     previewLine:SetHeight(1)
     previewLine:SetPoint("TOPLEFT",  rightPanel, "TOPLEFT",  10, -30)
     previewLine:SetPoint("TOPRIGHT", rightPanel, "TOPRIGHT", -10, -30)
-    previewLine:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.50)
+    previewLine:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     -- Spieler-Zähler
     local previewCount = rightPanel:CreateFontString(nil, "OVERLAY")

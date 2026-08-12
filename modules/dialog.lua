@@ -10,38 +10,12 @@ local overlay
 local window
 local textLabel
 
+-- Gemeinsame Schaltflaeche der neuen Sprache statt eigener Knopfform.
 local function CreateButton(parent, text, width, onClick)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(width, 30)
-
-    SetSolidBg(btn, C.purple[1], C.purple[2], C.purple[3], 0.85)
-    DrawBorder(btn, C.purple[1], C.purple[2], C.purple[3], 1, 1)
-
-    local lbl = btn:CreateFontString(nil, "OVERLAY")
-    lbl:SetAllPoints(btn)
-    lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-    lbl:SetText(text)
-    lbl:SetTextColor(1,1,1)
-
-    btn:SetScript("OnEnter", function(self)
-        SetSolidBg(self,
-            C.purple[1]*1.15,
-            C.purple[2]*1.15,
-            C.purple[3]*1.15,
-            0.95)
-    end)
-
-    btn:SetScript("OnLeave", function(self)
-        SetSolidBg(self,
-            C.purple[1],
-            C.purple[2],
-            C.purple[3],
-            0.85)
-    end)
-
-    btn:SetScript("OnClick", onClick)
-
-    return btn
+    return WeintCodex.CreateButton(parent, {
+        text = text, width = width, kind = "primary",
+        height = 32, backdrop = "surface2", onClick = onClick,
+    })
 end
 
 local function Create()
@@ -63,26 +37,28 @@ local function Create()
     window:SetSize(460,260)
     window:SetPoint("CENTER")
 
-    SetSolidBg(window, 0.10,0.10,0.13,0.98)
-    DrawBorder(window,
-        C.purple[1],
-        C.purple[2],
-        C.purple[3],
-        1,
-        2)
+    SetSolidBg(window, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
+    DrawBorder(window, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
+    -- Bernstein nur als Oberkante, wie an jeder Karte der neuen Sprache.
+    local winTop = window:CreateTexture(nil, "ARTWORK")
+    winTop:SetHeight(1)
+    winTop:SetPoint("TOPLEFT",  window, "TOPLEFT",   8, 0)
+    winTop:SetPoint("TOPRIGHT", window, "TOPRIGHT", -8, 0)
+    winTop:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.34)
+    WeintCodex.CutCorners(window, 14, "bgDark")
 
     local title = window:CreateFontString(nil,"OVERLAY")
     title:SetPoint("TOP",0,-18)
-    title:SetFont(WeintCodex.Fonts.sansSemi, 18, "")
-    title:SetTextColor(1,0.82,0)
+    title:SetFont(WeintCodex.Fonts.sansBold, 18, "")
+    title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     title:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 18) .. " Synchronisation")
 
     local divider = window:CreateTexture(nil,"ARTWORK")
     divider:SetColorTexture(
-        C.purple[1],
-        C.purple[2],
-        C.purple[3],
-        0.7
+        C.border[1],
+        C.border[2],
+        C.border[3],
+        1.0
     )
     divider:SetPoint("TOPLEFT",18,-48)
     divider:SetPoint("TOPRIGHT",-18,-48)

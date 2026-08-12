@@ -1062,7 +1062,7 @@ local function InspectorNotes(parent, y, opts)
 
         c.thumb = card:CreateTexture(nil, "OVERLAY")
         c.thumb:SetWidth(2)
-        c.thumb:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 1.0)
+        c.thumb:SetColorTexture(C.textFaint[1], C.textFaint[2], C.textFaint[3], 0.65)
         c.thumb:Hide()
 
         c.hint = card:CreateFontString(nil, "ARTWORK")
@@ -2318,5 +2318,14 @@ function WeintCodex.ShowHome()
 end
 
 function WeintCodex.ResetToHome()
+    -- Seit 2.0.0.0 ist die Uebersicht ein eigener Navigationspunkt. Ohne das
+    -- Zuruecksetzen bliebe der zuletzt besuchte Eintrag markiert, waehrend
+    -- rechts die Startseite steht - und ein Klick auf "Uebersicht" wuerde
+    -- nichts tun, weil activeTab noch auf dem alten Eintrag stuende.
+    for _, b in ipairs(tabButtons) do SetTabActive(b, false) end
+    local home = tabButtons["uebersicht"]
+    if home then SetTabActive(home, true) end
+    activeTab = "uebersicht"
+
     WeintCodex.ShowHome()
 end

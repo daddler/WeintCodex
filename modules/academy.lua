@@ -503,7 +503,7 @@ function WeintCodex.Academy.ShowOverview()
         if nextLesson then
             local nl = WeintCodex.CreateCard(frame, {
                 width = frame:GetWidth() - 32, height = 66,
-                surface = "surface2", style = "border", borderColor = "purpleDim",
+                surface = "surface2", tone = "plain", radius = 14, backdrop = "bgDark",
             })
             nl:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, y)
 
@@ -617,7 +617,7 @@ function WeintCodex.Academy.ShowPlan()
             local stripe = card:CreateTexture(nil, "BORDER")
             stripe:SetSize(3, cardH)
             stripe:SetPoint("LEFT", card, "LEFT", 0, 0)
-            local sc = isDone and C.green or (res and res.status == "failed" and C.red or C.purpleDim)
+            local sc = isDone and C.successBright or (res and res.status == "failed" and C.dangerBright or C.textFaint)
             stripe:SetColorTexture(sc[1], sc[2], sc[3], 0.80)
 
             local eyebrow = Text(card, 9, "TOPLEFT", card, "TOPLEFT", 14, -8)
