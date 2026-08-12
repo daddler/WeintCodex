@@ -46,7 +46,7 @@ if not cp then return end
             --------------------------------------------------
 
             local title = container:CreateFontString(nil, "OVERLAY")
-            title:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
+            title:SetFont(WeintCodex.Fonts.sansBold, 22, "")
             title:SetPoint("TOPLEFT", 15, -10)
             title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
@@ -70,7 +70,7 @@ if not cp then return end
                         WeintCodex.SetBreadcrumb("WeakAuras", categoryLabel)
 
                         local description = container:CreateFontString(nil, "OVERLAY")
-                        description:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+                        description:SetFont(WeintCodex.Fonts.sans, 11, "")
                         description:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
                         description:SetWidth(860)
                         description:SetJustifyH("LEFT")
@@ -95,7 +95,7 @@ if not cp then return end
                         header:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 0, -8)
 
                         local hName = header:CreateFontString(nil, "OVERLAY")
-                        hName:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                        hName:SetFont(WeintCodex.Fonts.sans, 11, "")
                         hName:SetPoint("LEFT", 42, 0)
                         hName:SetWidth(140)
                         hName:SetJustifyH("LEFT")
@@ -112,20 +112,20 @@ if not cp then return end
                                     hName:SetText(firstColumn)
 
                         local hDesc = header:CreateFontString(nil, "OVERLAY")
-                        hDesc:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                        hDesc:SetFont(WeintCodex.Fonts.sans, 11, "")
                         hDesc:SetPoint("LEFT", hName, "RIGHT", 10, 0)
                         hDesc:SetWidth(380)
                         hDesc:SetJustifyH("LEFT")
                         hDesc:SetText("Beschreibung")
 
                         local hVersion = header:CreateFontString(nil, "OVERLAY")
-                        hVersion:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                        hVersion:SetFont(WeintCodex.Fonts.sans, 11, "")
                         hVersion:SetPoint("LEFT", hDesc, "RIGHT", 10, 0)
                         hVersion:SetWidth(70)
                         hVersion:SetText("Version")
 
                         local hAction = header:CreateFontString(nil, "OVERLAY")
-                        hAction:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                        hAction:SetFont(WeintCodex.Fonts.sans, 11, "")
                         hAction:SetPoint("LEFT", hVersion, "RIGHT", 25, 0)
                         hAction:SetText("Aktion")
 
@@ -195,7 +195,7 @@ if not cp then return end
                         --------------------------------------------------
 
                         local name = row:CreateFontString(nil, "OVERLAY")
-                        name:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+                        name:SetFont(WeintCodex.Fonts.sans, 12, "")
                         name:SetPoint("LEFT", icon, "RIGHT", 12, 0)
                         name:SetWidth(140)
                         name:SetJustifyH("LEFT")
@@ -206,7 +206,7 @@ if not cp then return end
                         --------------------------------------------------
 
                         local desc = row:CreateFontString(nil, "OVERLAY")
-                        desc:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+                        desc:SetFont(WeintCodex.Fonts.sans, 11, "")
                         desc:SetPoint("LEFT", name, "RIGHT", 10, 0)
                         desc:SetWidth(380)
                         desc:SetJustifyH("LEFT")
@@ -217,7 +217,7 @@ if not cp then return end
                         --------------------------------------------------
 
                         local version = row:CreateFontString(nil, "OVERLAY")
-                        version:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+                        version:SetFont(WeintCodex.Fonts.sans, 11, "")
                         version:SetPoint("LEFT", desc, "RIGHT", 10, 0)
                         version:SetWidth(70)
                         version:SetText("v" .. (aura.version or "?"))
@@ -262,7 +262,7 @@ if not cp then return end
 
                         -- Text
                         local txt = btn:CreateFontString(nil, "OVERLAY")
-                        txt:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                        txt:SetFont(WeintCodex.Fonts.sans, 11, "")
                         txt:SetPoint("CENTER")
                         txt:SetText("Installieren")
 

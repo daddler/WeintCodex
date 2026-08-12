@@ -532,7 +532,7 @@ local function CreateRow(ruleIndex)
 
     row.cd = AttachCooldown(row, row.icon)
 
-    row.name = NewFont(row, "Fonts\\FRIZQT__.TTF", 11, "")
+    row.name = NewFont(row, WeintCodex.Fonts.sans, 11, "")
     row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -1)
     row.name:SetPoint("RIGHT", row, "RIGHT", -52, 0)
     row.name:SetJustifyH("LEFT")
@@ -713,7 +713,7 @@ local function BuildStatsPanel()
 
     statsPanel.lines = {}
     for i = 1, 6 do
-        local line = NewFont(statsPanel, "Fonts\\FRIZQT__.TTF", 10, "")
+        local line = NewFont(statsPanel, WeintCodex.Fonts.sans, 10, "")
         line:SetPoint("TOPLEFT", statsPanel, "TOPLEFT", 2, -132 - (i - 1) * 15)
         line:SetPoint("RIGHT", statsPanel, "RIGHT", -2, 0)
         line:SetJustifyH("LEFT")
@@ -841,7 +841,7 @@ local function CreateToggle(parent, offsetY, key, label, description)
     mark:SetSize(6, 6)
     mark:SetPoint("CENTER", box, "CENTER", 0, 0)
 
-    local title = NewFont(button, "Fonts\\FRIZQT__.TTF", 11, "")
+    local title = NewFont(button, WeintCodex.Fonts.sans, 11, "")
     title:SetPoint("TOPLEFT", button, "TOPLEFT", 17, 0)
     title:SetPoint("RIGHT", button, "RIGHT", 0, 0)
     title:SetJustifyH("LEFT")

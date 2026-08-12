@@ -103,12 +103,12 @@ local function CreateGuideFrame()
 
     -- Encounter-Eyebrow + Boss-Name + Zitat
     local instanceStr = topBar:CreateFontString(nil, "OVERLAY")
-    instanceStr:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    instanceStr:SetFont(WeintCodex.Fonts.sans, 9, "")
     instanceStr:SetPoint("TOPLEFT", portraitBox, "TOPRIGHT", 16, -4)
     f.InstanceStr = instanceStr
 
     local bossNameStr = topBar:CreateFontString(nil, "OVERLAY")
-    bossNameStr:SetFont("Fonts\\MORPHEUS.TTF", 23, "")
+    bossNameStr:SetFont(WeintCodex.Fonts.sansBold, 24, "")
     bossNameStr:SetPoint("TOPLEFT", instanceStr, "BOTTOMLEFT", 0, -6)
     bossNameStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.BossName = bossNameStr
@@ -123,7 +123,7 @@ local function CreateGuideFrame()
     progressBox:SetPoint("TOPRIGHT", topBar, "TOPRIGHT", -20, -20)
 
     local progressEyebrow = progressBox:CreateFontString(nil, "OVERLAY")
-    progressEyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    progressEyebrow:SetFont(WeintCodex.Fonts.sans, 9, "")
     progressEyebrow:SetPoint("TOPRIGHT", progressBox, "TOPRIGHT", 0, 0)
     progressEyebrow:SetJustifyH("RIGHT")
     progressEyebrow:SetText(WeintCodex.ColorText("textFaint", "FORTSCHRITT"))
@@ -147,7 +147,7 @@ local function CreateGuideFrame()
     f.ProgressTrackW = 120
 
     local quoteStr = topBar:CreateFontString(nil, "OVERLAY")
-    quoteStr:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    quoteStr:SetFont(WeintCodex.Fonts.sans, 11, "")
     quoteStr:SetPoint("TOPLEFT", bossNameStr, "BOTTOMLEFT", 0, -8)
     quoteStr:SetPoint("RIGHT", progressBox, "LEFT", -20, 0)
     quoteStr:SetJustifyH("LEFT")
@@ -182,7 +182,7 @@ local function CreateGuideFrame()
 
         local rlbl = rb:CreateFontString(nil, "OVERLAY")
         rlbl:SetAllPoints(rb)
-        rlbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        rlbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         rlbl:SetJustifyH("CENTER")
         rlbl:SetText(rd.label)
         rb._label = rlbl
@@ -221,7 +221,7 @@ local function CreateGuideFrame()
 
     -- GUIDE section header
     local guideHeader = bodyChild:CreateFontString(nil, "OVERLAY")
-    guideHeader:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    guideHeader:SetFont(WeintCodex.Fonts.sans, 10, "")
     guideHeader:SetPoint("TOPLEFT", bodyChild, "TOPLEFT", 20, -14)
     f.GuideHeader = guideHeader
 
@@ -233,7 +233,7 @@ local function CreateGuideFrame()
 
     -- Tip text
     local tipText = bodyChild:CreateFontString(nil, "OVERLAY")
-    tipText:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    tipText:SetFont(WeintCodex.Fonts.sans, 12, "")
     tipText:SetPoint("TOPLEFT", bodyChild, "TOPLEFT", 20, -40)
     tipText:SetWidth(520)
     tipText:SetJustifyH("LEFT")
@@ -244,7 +244,7 @@ local function CreateGuideFrame()
     -- AUFSTELLUNG section header (Positionierungsbild, optional - nur
     -- sichtbar wenn der Boss ein "positioning"-Feld in BossData.lua hat)
     local posHeader = bodyChild:CreateFontString(nil, "OVERLAY")
-    posHeader:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    posHeader:SetFont(WeintCodex.Fonts.sans, 10, "")
     posHeader:SetText(WeintCodex.ColorText("textFaint", "AUFSTELLUNG"))
     f.PosHeader = posHeader
 
@@ -256,7 +256,7 @@ local function CreateGuideFrame()
     -- Erklaerungstext zur Aufstellung (positioning.text in BossData.lua),
     -- steht zwischen PosLine und den Vorschaubildern.
     local posText = bodyChild:CreateFontString(nil, "OVERLAY")
-    posText:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    posText:SetFont(WeintCodex.Fonts.sans, 11, "")
     posText:SetJustifyH("LEFT")
     posText:SetSpacing(4)
     posText:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
@@ -268,7 +268,7 @@ local function CreateGuideFrame()
 
     -- FÄHIGKEITEN section header
     local abilHeader = bodyChild:CreateFontString(nil, "OVERLAY")
-    abilHeader:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    abilHeader:SetFont(WeintCodex.Fonts.sans, 10, "")
     abilHeader:SetText(WeintCodex.ColorText("textFaint", "WICHTIGE FÄHIGKEITEN"))
     f.AbilHeader = abilHeader
 
@@ -555,7 +555,7 @@ local function BuildAbilityRows(f, abilities, positioning)
         end
 
         local abName = row:CreateFontString(nil, "OVERLAY")
-        abName:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        abName:SetFont(WeintCodex.Fonts.sans, 12, "")
         abName:SetPoint("TOPLEFT", row, "TOPLEFT", 52, -8)
         abName:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
         abName:SetText(ab.name or "")
@@ -571,7 +571,7 @@ local function BuildAbilityRows(f, abilities, positioning)
 
             local tagLbl = badge:CreateFontString(nil, "OVERLAY")
             tagLbl:SetAllPoints(badge)
-            tagLbl:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+            tagLbl:SetFont(WeintCodex.Fonts.sans, 8, "")
             tagLbl:SetJustifyH("CENTER")
             tagLbl:SetJustifyV("MIDDLE")
             tagLbl:SetTextColor(tagCol[1], tagCol[2], tagCol[3])
@@ -581,7 +581,7 @@ local function BuildAbilityRows(f, abilities, positioning)
         end
 
         local abDesc = row:CreateFontString(nil, "OVERLAY")
-        abDesc:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+        abDesc:SetFont(WeintCodex.Fonts.sans, 11, "")
         abDesc:SetPoint("TOPLEFT", abName, "BOTTOMLEFT", 0, -3)
         abDesc:SetPoint("RIGHT", row, "RIGHT", descRightPad, 0)
         abDesc:SetJustifyH("LEFT")

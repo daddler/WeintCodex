@@ -195,7 +195,7 @@ local function CreateRaidFrame()
     reloadBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", -110, -11)
     local reloadLbl = reloadBtn:CreateFontString(nil, "OVERLAY")
     reloadLbl:SetAllPoints(reloadBtn)
-    reloadLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    reloadLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     reloadLbl:SetJustifyH("CENTER")
     reloadLbl:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Anmeldungen abrufen")
     reloadLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
@@ -220,7 +220,7 @@ local function CreateRaidFrame()
     clearBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", 0, -11)
     local clearLbl = clearBtn:CreateFontString(nil, "OVERLAY")
     clearLbl:SetAllPoints(clearBtn)
-    clearLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    clearLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     clearLbl:SetJustifyH("CENTER")
     clearLbl:SetText("Löschen")
     clearLbl:SetTextColor(C.danger[1], C.danger[2], C.danger[3])
@@ -251,52 +251,49 @@ local function CreateRaidFrame()
     summaryDiv:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", 0, 0)
     summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    local eyebrow = summary:CreateFontString(nil, "OVERLAY")
-    eyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    local eyebrow = WeintCodex.Eyebrow(summary, "Raidanmeldungen", { size = 10 })
     eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
-    eyebrow:SetText(WeintCodex.ColorText("textFaint", "RAIDANMELDUNGEN"))
 
     local titleStr = summary:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
+    titleStr:SetFont(WeintCodex.Fonts.sansBold, 22, "")
     titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.Title = titleStr
 
     local dateStr = summary:CreateFontString(nil, "OVERLAY")
-    dateStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    dateStr:SetFont(WeintCodex.Fonts.sans, 10, "")
     dateStr:SetPoint("TOPLEFT", titleStr, "BOTTOMLEFT", 2, -4)
     f.DateStr = dateStr
 
-    -- Stat-Quartett rechts: TANKS / HEILER / DPS / GESAMT
+    -- Kennzahlen rechts im Kopf: TANKS / HEILER / DPS / GESAMT, in Mono wie
+    -- im Entwurf. Die hellen Tonvarianten, weil die Grundfarben als Flaechen
+    -- gedacht sind und als Text auf Schwarz zu dunkel geraten.
     local statDefs = {
-        { key = "tank",  label = "TANKS",  color = "blue" },
-        { key = "heal",  label = "HEILER", color = "green" },
-        { key = "dps",   label = "DPS",    color = "red" },
-        { key = "total", label = "GESAMT", color = "textBright" },
+        { key = "tank",  label = "Tanks",  color = "infoBright" },
+        { key = "heal",  label = "Heiler", color = "successBright" },
+        { key = "dps",   label = "DPS",    color = "dangerBright" },
+        { key = "total", label = "Gesamt", color = "textNormal" },
     }
     local statStrs = {}
     local sx = -ROW_PAD
     for i = #statDefs, 1, -1 do
         local def = statDefs[i]
         local box = CreateFrame("Frame", nil, summary)
-        box:SetSize(64, 40)
+        box:SetSize(64, 42)
         box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
 
-        local lbl = box:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        local lbl = WeintCodex.Eyebrow(box, def.label, { size = 9, justify = "RIGHT" })
         lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
-        lbl:SetJustifyH("RIGHT")
-        lbl:SetText(WeintCodex.ColorText("textFaint", def.label))
 
         local val = box:CreateFontString(nil, "OVERLAY")
-        val:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        val:SetFont(WeintCodex.Fonts.monoBold, 22, "")
         val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
         val:SetJustifyH("RIGHT")
-        local col = C[def.color] or C.textBright
+        local col = C[def.color] or C.textNormal
         val:SetTextColor(col[1], col[2], col[3])
         statStrs[def.key] = val
 
-        sx = sx - 74
+        sx = sx - 78
     end
     f.StatStrs = statStrs
 
@@ -317,7 +314,7 @@ local function CreateRaidFrame()
 
     local function ColLbl(text, x)
         local l = colBar:CreateFontString(nil, "OVERLAY")
-        l:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        l:SetFont(WeintCodex.Fonts.sans, 9, "")
         l:SetPoint("LEFT", colBar, "LEFT", x, 0)
         l:SetText(WeintCodex.ColorText("textFaint", text))
     end
@@ -393,7 +390,7 @@ local function RefreshRaidDisplay(raidData)
 
     if not raidData or not raidData.players or #raidData.players == 0 then
         local noData = sc:CreateFontString(nil, "OVERLAY")
-        noData:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noData:SetFont(WeintCodex.Fonts.sans, 12, "")
         noData:SetPoint("TOPLEFT", sc, "TOPLEFT", ROW_PAD, -20)
         noData:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         noData:SetJustifyH("LEFT")
@@ -434,12 +431,22 @@ local function RefreshRaidDisplay(raidData)
     local function DrawSection(players, sectionLabel, colorName)
         if #players == 0 then return end
 
-        local sHdr = sc:CreateFontString(nil, "OVERLAY")
-        sHdr:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-        sHdr:SetPoint("TOPLEFT", sc, "TOPLEFT", ROW_PAD, offsetY - 6)
-        sHdr:SetText(WeintCodex.ColorText(colorName, string.upper(sectionLabel) .. " · " .. #players))
-        table.insert(activePlayerRows, sHdr)
-        offsetY = offsetY - 22
+        -- Abschnittskopf wie im Entwurf: Statuspunkt in der Rollenfarbe,
+        -- daneben "Tanks · 4" in gesperrter Mono-Versalie.
+        local sRow = CreateFrame("Frame", nil, sc)
+        sRow:SetHeight(20)
+        sRow:SetPoint("TOPLEFT",  sc, "TOPLEFT",  ROW_PAD, offsetY - 6)
+        sRow:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -ROW_PAD, offsetY - 6)
+
+        local sDot = WeintCodex.StatusDot(sRow, colorName, 7)
+        sDot:SetPoint("LEFT", sRow, "LEFT", 0, 0)
+
+        local sHdr = WeintCodex.Eyebrow(sRow, sectionLabel .. " \194\183 " .. #players,
+            { color = colorName .. "Bright", size = 10 })
+        sHdr:SetPoint("LEFT", sDot, "RIGHT", 8, 0)
+
+        table.insert(activePlayerRows, sRow)
+        offsetY = offsetY - 26
 
         for _, p in ipairs(players) do
             local row = CreateFrame("Frame", nil, sc)
@@ -461,7 +468,7 @@ local function RefreshRaidDisplay(raidData)
 
             local ccol = classColors[p.class] or "|cffdddddd"
             local nameLbl = row:CreateFontString(nil, "OVERLAY")
-            nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            nameLbl:SetFont(WeintCodex.Fonts.sans, 12, "")
             nameLbl:SetPoint("LEFT", row, "LEFT", COL_NAME_X, 0)
             nameLbl:SetWidth(COL_NAME_W)
             nameLbl:SetJustifyH("LEFT")
@@ -469,20 +476,20 @@ local function RefreshRaidDisplay(raidData)
 
             local cIcon = WeintCodex.ClassIcon(p.class, 14)
             local classLbl = row:CreateFontString(nil, "OVERLAY")
-            classLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            classLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
             classLbl:SetPoint("LEFT", row, "LEFT", COL_CLASS_X, 0)
             classLbl:SetText(WeintCodex.ColorText("textFaint", cIcon .. " " .. (p.class or "")))
             classLbl:SetWidth(140)
 
             local roleLbl = row:CreateFontString(nil, "OVERLAY")
-            roleLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            roleLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
             roleLbl:SetPoint("LEFT", row, "LEFT", COL_ROLE_X, 0)
             roleLbl:SetText(WeintCodex.ColorText(colorName, rc.label or p.role))
             roleLbl:SetWidth(110)
 
             if p.note and p.note ~= "" then
                 local noteLbl = row:CreateFontString(nil, "OVERLAY")
-                noteLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                noteLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
                 noteLbl:SetPoint("LEFT", row, "LEFT", COL_NOTE_X, 0)
                 noteLbl:SetPoint("RIGHT", row, "RIGHT", -30, 0)
                 noteLbl:SetJustifyH("LEFT")
@@ -498,7 +505,7 @@ local function RefreshRaidDisplay(raidData)
             editBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
 
             local editIcon = editBtn:CreateFontString(nil, "OVERLAY")
-            editIcon:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            editIcon:SetFont(WeintCodex.Fonts.sans, 12, "")
             editIcon:SetAllPoints(editBtn)
             editIcon:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_Note_01", 14))
 

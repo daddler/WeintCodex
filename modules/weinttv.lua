@@ -244,7 +244,9 @@ end
 
 local function Text(parent, size, x, y, width, justify)
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    fs:SetFont("Fonts\\FRIZQT__.TTF", size, "OUTLINE")
+    -- Groesse kommt vom Aufrufer; ab 14 die halbfette Schnitt-Variante,
+    -- wie im Entwurf (Kartentitel halbfett, Fliesstext normal).
+    fs:SetFont(size >= 14 and WeintCodex.Fonts.sansSemi or WeintCodex.Fonts.sans, size, "")
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     if width then fs:SetWidth(width) end
     fs:SetJustifyH(justify or "LEFT")
@@ -302,7 +304,7 @@ local function DrawNotice(frame, y, message)
     card:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, y)
 
     local fs = card:CreateFontString(nil, "OVERLAY")
-    fs:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    fs:SetFont(WeintCodex.Fonts.sans, 11, "")
     fs:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -14)
     fs:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -14, 12)
     fs:SetJustifyH("LEFT")
@@ -367,7 +369,7 @@ local function DrawTable(frame, y, columns, rows, emptyText)
         for i, col in ipairs(columns) do
             local cell = row.cells[i]
             local fs = rf:CreateFontString(nil, "OVERLAY")
-            fs:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            fs:SetFont(WeintCodex.Fonts.sans, 11, "")
             fs:SetPoint("LEFT", rf, "LEFT", cx, 0)
             fs:SetWidth(col.width)
             fs:SetJustifyH(col.align or "LEFT")
@@ -824,7 +826,7 @@ local function MakeFilterButton()
 
         filterLbl = filterBtn:CreateFontString(nil, "OVERLAY")
         filterLbl:SetAllPoints(filterBtn)
-        filterLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        filterLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         filterLbl:SetJustifyH("CENTER")
         filterLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 

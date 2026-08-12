@@ -58,7 +58,7 @@ local function MakeBtn(parent, label, w, h, onClick)
     SetSolidBg(btn, C.surface2[1], C.surface2[2], C.surface2[3], 0.92)
     DrawBorder(btn, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.70, 1)
     local lbl = btn:CreateFontString(nil, "OVERLAY")
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
     lbl:SetAllPoints(btn)
     lbl:SetJustifyH("CENTER")
     lbl:SetJustifyV("MIDDLE")
@@ -1849,7 +1849,7 @@ local function MakeRefreshButton(onRefresh)
 
         refreshLbl = refreshBtn:CreateFontString(nil, "OVERLAY")
         refreshLbl:SetAllPoints(refreshBtn)
-        refreshLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        refreshLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         refreshLbl:SetJustifyH("CENTER")
         refreshLbl:SetText("Aktualisieren")
         refreshLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
@@ -1934,7 +1934,7 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
     WeintCodex.SetBreadcrumb("Charakter", titleText)
 
     local specInfo = frame:CreateFontString(nil, "OVERLAY")
-    specInfo:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    specInfo:SetFont(WeintCodex.Fonts.sans, 10, "")
     specInfo:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
     if scan.profileKey then
         local styleHint = scan.tankStyle
@@ -1964,7 +1964,7 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
     DrawBorder(bg, C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.40, 1)
 
     local info = bg:CreateFontString(nil, "OVERLAY")
-    info:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    info:SetFont(WeintCodex.Fonts.sans, 10, "")
     info:SetPoint("LEFT", bg, "LEFT", 10, 0)
     info:SetText("|cffC8763ATank-Spielstil:|r |cff6B6259bestimmt Empfehlungen & Bewertung|r")
 
@@ -1978,7 +1978,7 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
         SetSolidBg(btn, bgCol[1], bgCol[2], bgCol[3], isActive and 0.35 or 0.95)
         DrawBorder(btn, brCol[1], brCol[2], brCol[3], 0.85, 1)
         local lbl = btn:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         lbl:SetAllPoints(btn)
         lbl:SetJustifyH("CENTER")
         lbl:SetJustifyV("MIDDLE")
@@ -2037,7 +2037,7 @@ function ShowEnchants()
     local headerY = -52 + toggleOffset
     local function MakeHeader(text, x, w)
         local h = enchantFrame:CreateFontString(nil, "OVERLAY")
-        h:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        h:SetFont(WeintCodex.Fonts.sans, 9, "")
         h:SetPoint("TOPLEFT", enchantFrame, "TOPLEFT", x, headerY)
         h:SetWidth(w)
         h:SetJustifyH("LEFT")
@@ -2079,14 +2079,14 @@ function ShowEnchants()
         AttachStatusIcon(rf, row.status, 10, 0)
 
         local stLbl = rf:CreateFontString(nil, "OVERLAY")
-        stLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        stLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
         stLbl:SetPoint("LEFT", rf, "LEFT", 30, 0)
         stLbl:SetWidth(60)
         stLbl:SetJustifyH("LEFT")
         stLbl:SetText(StatusColorStr(row.status) .. info.label .. "|r")
 
         local slotLbl = rf:CreateFontString(nil, "OVERLAY")
-        slotLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        slotLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         slotLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -6)
         slotLbl:SetWidth(140)
         slotLbl:SetWordWrap(false)
@@ -2096,7 +2096,7 @@ function ShowEnchants()
 
         if row.itemName then
             local itemLbl = rf:CreateFontString(nil, "OVERLAY")
-            itemLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            itemLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
             itemLbl:SetPoint("BOTTOMLEFT", rf, "BOTTOMLEFT", 92, 5)
             itemLbl:SetWordWrap(false)
             itemLbl:SetJustifyH("LEFT")
@@ -2107,7 +2107,7 @@ function ShowEnchants()
         end
 
         local curLbl = rf:CreateFontString(nil, "OVERLAY")
-        curLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        curLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         curLbl:SetPoint("LEFT", rf, "LEFT", 238, 0)
         curLbl:SetWidth(232)
         curLbl:SetJustifyH("LEFT")
@@ -2146,7 +2146,7 @@ function ShowEnchants()
                 row.bestList or { row.recId }, GetEnchantDisplayName, curName)
             if recName then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
-                recLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+                recLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
                 recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")
@@ -2159,7 +2159,7 @@ function ShowEnchants()
 
     if #scan.enchants.rows == 0 then
         local noSlot = inner:CreateFontString(nil, "OVERLAY")
-        noSlot:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noSlot:SetFont(WeintCodex.Fonts.sans, 12, "")
         noSlot:SetPoint("TOPLEFT", inner, "TOPLEFT", 10, -10)
         noSlot:SetText("|cffaaaaaa Keine Items angelegt (Charakter einloggen!).|r")
     end
@@ -2190,7 +2190,7 @@ function ShowGems()
 
     if scan.profile and scan.profile.gemNote then
         local noteBox = gemFrame:CreateFontString(nil, "OVERLAY")
-        noteBox:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        noteBox:SetFont(WeintCodex.Fonts.sans, 9, "")
         noteBox:SetPoint("TOPRIGHT", gemFrame, "TOPRIGHT", -140, -14)
         noteBox:SetWidth(300)
         noteBox:SetJustifyH("RIGHT")
@@ -2202,7 +2202,7 @@ function ShowGems()
     local headerY = -52 + toggleOffset
     local function MakeHeader(text, x, w)
         local h = gemFrame:CreateFontString(nil, "OVERLAY")
-        h:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        h:SetFont(WeintCodex.Fonts.sans, 9, "")
         h:SetPoint("TOPLEFT", gemFrame, "TOPLEFT", x, headerY)
         h:SetWidth(w)
         h:SetJustifyH("LEFT")
@@ -2233,7 +2233,7 @@ function ShowGems()
         if row.slotId ~= lastSlotId then
             lastSlotId = row.slotId
             local slotHeader = inner:CreateFontString(nil, "OVERLAY")
-            slotHeader:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            slotHeader:SetFont(WeintCodex.Fonts.sans, 10, "")
             slotHeader:SetPoint("TOPLEFT", inner, "TOPLEFT", 6, yOff - 4)
             slotHeader:SetText("|cffC8763A" .. row.slotName .. "|r"
                 .. (row.itemName and ("  |cff4A423A" .. row.itemName .. "|r") or ""))
@@ -2247,7 +2247,7 @@ function ShowGems()
                     and "|cff22C55Egenutzt (Farbe matchen)|r"
                     or  "|cffFFBB22ignoriert — reiner Primärstein stärker|r"
                 local bonusLine = inner:CreateFontString(nil, "OVERLAY")
-                bonusLine:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+                bonusLine:SetFont(WeintCodex.Fonts.sans, 9, "")
                 bonusLine:SetPoint("TOPLEFT", inner, "TOPLEFT", 16, yOff - 1)
                 bonusLine:SetText("|cff6B6259Sockelbonus: " .. dec.bonusText
                     .. " — " .. verdict)
@@ -2278,7 +2278,7 @@ function ShowGems()
         AttachStatusIcon(rf, row.status, 22, 0)
 
         local stLbl = rf:CreateFontString(nil, "OVERLAY")
-        stLbl:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+        stLbl:SetFont(WeintCodex.Fonts.sans, 8, "")
         stLbl:SetPoint("LEFT", rf, "LEFT", 42, 0)
         stLbl:SetWidth(62)
         stLbl:SetJustifyH("LEFT")
@@ -2293,7 +2293,7 @@ function ShowGems()
             sockName = (SOCKET_COLOR_LABEL[row.socket.color] or "?") .. " #" .. row.socket.index
         end
         local lbl = rf:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         lbl:SetPoint("LEFT", rf, "LEFT", 106, 0)
         lbl:SetWidth(120)
         lbl:SetJustifyH("LEFT")
@@ -2301,7 +2301,7 @@ function ShowGems()
         lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
 
         local curLbl = rf:CreateFontString(nil, "OVERLAY")
-        curLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        curLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         curLbl:SetPoint("LEFT", rf, "LEFT", 232, 0)
         curLbl:SetWidth(232)
         curLbl:SetJustifyH("LEFT")
@@ -2331,7 +2331,7 @@ function ShowGems()
             if recName and not recName:find("Unbekannt", 1, true)
                and not (curName and recName:lower() == curName:lower()) then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
-                recLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                recLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
                 recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")
@@ -2344,7 +2344,7 @@ function ShowGems()
 
     if #scan.gems.rows == 0 then
         local noSlot = inner:CreateFontString(nil, "OVERLAY")
-        noSlot:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noSlot:SetFont(WeintCodex.Fonts.sans, 12, "")
         noSlot:SetPoint("TOPLEFT", inner, "TOPLEFT", 10, -10)
         noSlot:SetText("|cffaaaaaa Keine Sockel gefunden (Charakter einloggen!).|r")
     end
@@ -2354,7 +2354,7 @@ function ShowGems()
 
     -- Klarstellung: Farbangaben beziehen sich auf den Sockelplatz
     local colorHint = gemFrame:CreateFontString(nil, "OVERLAY")
-    colorHint:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    colorHint:SetFont(WeintCodex.Fonts.sans, 9, "")
     colorHint:SetPoint("BOTTOMLEFT", gemFrame, "BOTTOMLEFT", 16, 20)
     colorHint:SetText("|cff6B6259Farbpunkt & Name = Farbe des SOCKELPLATZES im Item, nicht des Steins. Andersfarbige Steine (z.B. Lila in Blau) können optimal sein.|r")
 end
@@ -2366,7 +2366,7 @@ end
 
 local function DrawCapBar(parent, x, y, w, cs)
     local label = parent:CreateFontString(nil, "OVERLAY")
-    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    label:SetFont(WeintCodex.Fonts.sans, 9, "")
     label:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     label:SetWidth(w)
     label:SetJustifyH("LEFT")
@@ -2537,7 +2537,7 @@ function ShowUebersicht()
     end
 
     local sub = bc:CreateFontString(nil, "OVERLAY")
-    sub:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    sub:SetFont(WeintCodex.Fonts.sans, 11, "")
     sub:SetPoint("TOPLEFT", h1, "BOTTOMLEFT", 0, -8)
     sub:SetPoint("RIGHT", bc, "RIGHT", -20, 0)
     sub:SetJustifyH("LEFT")
@@ -2647,7 +2647,7 @@ function ShowUebersicht()
         num:SetText(mainText)
 
         local subLbl = card:CreateFontString(nil, "OVERLAY")
-        subLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        subLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
         subLbl:SetPoint("TOPLEFT", num, "BOTTOMLEFT", 0, -4)
         subLbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         subLbl:SetText(subText)
@@ -2684,13 +2684,13 @@ function ShowUebersicht()
     local rowY = hbY - 20
     if score.checks == 0 then
         local none = bc:CreateFontString(nil, "OVERLAY")
-        none:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        none:SetFont(WeintCodex.Fonts.sans, 11, "")
         none:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY)
         none:SetText(WeintCodex.ColorText("textFaint", "Keine Prüfdaten vorhanden."))
         rowY = rowY - 26
     elseif #scan.issues == 0 then
         local ok = bc:CreateFontString(nil, "OVERLAY")
-        ok:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        ok:SetFont(WeintCodex.Fonts.sans, 11, "")
         ok:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY)
         ok:SetText(WeintCodex.ColorText("success", "Alles top — keine offenen Punkte!"))
         rowY = rowY - 26
@@ -2711,14 +2711,14 @@ function ShowUebersicht()
 
             local badgeLbl = badge:CreateFontString(nil, "OVERLAY")
             badgeLbl:SetAllPoints(badge)
-            badgeLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            badgeLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
             badgeLbl:SetJustifyH("CENTER")
             badgeLbl:SetJustifyV("MIDDLE")
             badgeLbl:SetTextColor(info.color[1], info.color[2], info.color[3])
             badgeLbl:SetText(tostring(i))
 
             local txt = row:CreateFontString(nil, "OVERLAY")
-            txt:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            txt:SetFont(WeintCodex.Fonts.sans, 12, "")
             txt:SetPoint("LEFT",  badge, "RIGHT", 12, 0)
             txt:SetPoint("RIGHT", row, "RIGHT", -10, 0)
             txt:SetJustifyH("LEFT")
@@ -2751,7 +2751,7 @@ function ShowUebersicht()
 
     if #statEntries == 0 then
         local none = bc:CreateFontString(nil, "OVERLAY")
-        none:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        none:SetFont(WeintCodex.Fonts.sans, 11, "")
         none:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, wsTop)
         none:SetText(WeintCodex.ColorText("textFaint", "Keine Werte ermittelt (Charakter einloggen / Items anlegen)."))
         rowY = wsTop - 26
@@ -2769,7 +2769,7 @@ function ShowUebersicht()
             DrawBorder(box, C.border[1], C.border[2], C.border[3], C.border[4], 1)
 
             local lbl2 = box:CreateFontString(nil, "OVERLAY")
-            lbl2:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            lbl2:SetFont(WeintCodex.Fonts.sans, 9, "")
             lbl2:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -8)
             lbl2:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
             lbl2:SetText(entry.label)
@@ -2786,7 +2786,7 @@ function ShowUebersicht()
     end
 
     local foot = bc:CreateFontString(nil, "OVERLAY")
-    foot:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    foot:SetFont(WeintCodex.Fonts.sans, 9, "")
     foot:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY - 8)
     foot:SetText(WeintCodex.ColorText("textGhost", "Karten anklicken für Details. Scan läuft bei Itemwechsel automatisch."))
 
@@ -2842,14 +2842,14 @@ function ShowWerteverteilung()
     -- CAPS
     -- =============================================
     local capHdr = werteFrame:CreateFontString(nil, "OVERLAY")
-    capHdr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    capHdr:SetFont(WeintCodex.Fonts.sans, 10, "")
     capHdr:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
     capHdr:SetText("|cff6B6259— SEKUNDÄRSTAT-CAPS (live vom Charakterbogen) —|r")
     yOff = yOff - 20
 
     if #scan.caps == 0 then
         local none = werteFrame:CreateFontString(nil, "OVERLAY")
-        none:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        none:SetFont(WeintCodex.Fonts.sans, 10, "")
         none:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
         none:SetText(scan.profile
             and "|cff6B6259Für diese Spec gibt es keine Pflicht-Caps (Heiler).|r"
@@ -2860,7 +2860,7 @@ function ShowWerteverteilung()
             yOff = yOff - DrawCapBar(werteFrame, 16, yOff, 420, cs)
             if cs.note then
                 local note = werteFrame:CreateFontString(nil, "OVERLAY")
-                note:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+                note:SetFont(WeintCodex.Fonts.sans, 8, "")
                 note:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
                 note:SetText("|cff6B6259" .. cs.note .. "|r")
                 yOff = yOff - 14
@@ -2868,7 +2868,7 @@ function ShowWerteverteilung()
             if cs.overPct > 0.25 and #cs.wasted > 0 then
                 for _, w in ipairs(cs.wasted) do
                     local src = werteFrame:CreateFontString(nil, "OVERLAY")
-                    src:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+                    src:SetFont(WeintCodex.Fonts.sans, 8, "")
                     src:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 26, yOff)
                     local nm
                     if w.art == "Stein" then
@@ -2891,7 +2891,7 @@ function ShowWerteverteilung()
     -- STAT-SUMMEN
     -- =============================================
     local hdr = werteFrame:CreateFontString(nil, "OVERLAY")
-    hdr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    hdr:SetFont(WeintCodex.Fonts.sans, 10, "")
     hdr:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
     hdr:SetText("|cff6B6259— WERTE-SUMMEN DER AUSRÜSTUNG —|r")
     yOff = yOff - 22
@@ -2908,13 +2908,13 @@ function ShowWerteverteilung()
             SetSolidBg(row, C.surface2[1], C.surface2[2], C.surface2[3], 0.55)
 
             local lbl = row:CreateFontString(nil, "OVERLAY")
-            lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
             lbl:SetPoint("LEFT", row, "LEFT", 10, 0)
             lbl:SetText(STAT_LABELS[key])
             lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 
             local val = row:CreateFontString(nil, "OVERLAY")
-            val:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            val:SetFont(WeintCodex.Fonts.sans, 10, "")
             val:SetPoint("RIGHT", row, "RIGHT", -10, 0)
             val:SetText("|cffC8763A+" .. value .. "|r")
 
@@ -2924,13 +2924,13 @@ function ShowWerteverteilung()
 
     if not anyStat then
         local none = werteFrame:CreateFontString(nil, "OVERLAY")
-        none:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        none:SetFont(WeintCodex.Fonts.sans, 12, "")
         none:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
         none:SetText("|cffaaaaaaKeine Werte ermittelt (Charakter einloggen / Items anlegen).|r")
     end
 
     local hint = werteFrame:CreateFontString(nil, "OVERLAY")
-    hint:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    hint:SetFont(WeintCodex.Fonts.sans, 9, "")
     hint:SetPoint("BOTTOMLEFT", werteFrame, "BOTTOMLEFT", 16, 8)
     hint:SetText("|cff4A423ACap-Werte kommen live vom Charakterbogen (inkl. Rassenboni & Buffs). Summen = reine Item-Stats.|r")
 
@@ -3004,7 +3004,7 @@ function ShowPriorisierung()
 
     if not baseProfile then
         local warn = prioFrame:CreateFontString(nil, "OVERLAY")
-        warn:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        warn:SetFont(WeintCodex.Fonts.sans, 12, "")
         warn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -70)
         warn:SetText("|cffff9900Kein Spec-Profil gefunden — bitte einloggen bzw. Spec wählen.|r")
         return
@@ -3018,7 +3018,7 @@ function ShowPriorisierung()
     local current  = (entry and entry.weights) or {}
 
     local desc = prioFrame:CreateFontString(nil, "OVERLAY")
-    desc:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    desc:SetFont(WeintCodex.Fonts.sans, 9, "")
     desc:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -52)
     desc:SetWidth(math.max((cp:GetWidth() or 660) - 32, 400))
     desc:SetJustifyH("LEFT")
@@ -3033,7 +3033,7 @@ function ShowPriorisierung()
     cb:SetChecked(entry and entry.enabled and true or false)
 
     local cbLbl = prioFrame:CreateFontString(nil, "OVERLAY")
-    cbLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    cbLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     cbLbl:SetPoint("LEFT", cb, "RIGHT", 4, 0)
     cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff6B6259(für " .. (specDisplay or profileKey) .. ")|r")
 
@@ -3048,13 +3048,13 @@ function ShowPriorisierung()
         SetSolidBg(row, C.surface2[1], C.surface2[2], C.surface2[3], 0.55)
 
         local lbl = row:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         lbl:SetPoint("LEFT", row, "LEFT", 10, 0)
         lbl:SetText(st.label)
         lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
 
         local def = row:CreateFontString(nil, "OVERLAY")
-        def:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        def:SetFont(WeintCodex.Fonts.sans, 9, "")
         def:SetPoint("RIGHT", row, "RIGHT", -70, 0)
         def:SetText("|cff6B6259Standard: " .. (defaults[st.key] or 0) .. "|r")
 
@@ -3064,7 +3064,7 @@ function ShowPriorisierung()
         eb:SetAutoFocus(false)
         eb:SetNumeric(true)
         eb:SetMaxLetters(3)
-        eb:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        eb:SetFont(WeintCodex.Fonts.sans, 11, "")
         eb:SetJustifyH("CENTER")
         eb:SetTextInsets(4, 4, 0, 0)
         SetSolidBg(eb, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
@@ -3104,7 +3104,7 @@ function ShowPriorisierung()
     resetBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 186, yOff - 8)
 
     local hint = prioFrame:CreateFontString(nil, "OVERLAY")
-    hint:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    hint:SetFont(WeintCodex.Fonts.sans, 9, "")
     hint:SetPoint("BOTTOMLEFT", prioFrame, "BOTTOMLEFT", 16, 6)
     hint:SetText("|cff4A423AGilt pro Spec (Tanks: getrennt für Offensiv/Defensiv). Wird pro Account gespeichert.|r")
 
@@ -3166,12 +3166,12 @@ function ShowTwinkverwaltung()
     twinkFrame:SetAllPoints(cp)
 
     local title = twinkFrame:CreateFontString(nil, "OVERLAY")
-    title:SetFont("Fonts\\MORPHEUS.TTF", 17, "")
+    title:SetFont(WeintCodex.Fonts.sansBold, 22, "")
     title:SetPoint("TOPLEFT", twinkFrame, "TOPLEFT", 16, -14)
     title:SetText("|cffC8763ATwinkverwaltung|r")
 
     local sub = twinkFrame:CreateFontString(nil, "OVERLAY")
-    sub:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    sub:SetFont(WeintCodex.Fonts.sans, 10, "")
     sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
     sub:SetWidth(640)
     sub:SetJustifyH("LEFT")
@@ -3186,7 +3186,7 @@ function ShowTwinkverwaltung()
         twinkScanBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", -108, -11)
         local l1 = twinkScanBtn:CreateFontString(nil, "OVERLAY")
         l1:SetAllPoints(twinkScanBtn)
-        l1:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        l1:SetFont(WeintCodex.Fonts.sans, 11, "")
         l1:SetJustifyH("CENTER")
         l1:SetText("Gilde scannen")
         l1:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
@@ -3197,7 +3197,7 @@ function ShowTwinkverwaltung()
         twinkExportBtn:SetPoint("TOPRIGHT", WeintCodex.TitleBarActions, "TOPRIGHT", 0, -11)
         local l2 = twinkExportBtn:CreateFontString(nil, "OVERLAY")
         l2:SetAllPoints(twinkExportBtn)
-        l2:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        l2:SetFont(WeintCodex.Fonts.sans, 11, "")
         l2:SetJustifyH("CENTER")
         l2:SetText("Export")
         l2:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
@@ -3231,7 +3231,7 @@ function ShowTwinkverwaltung()
 
         if not IsInGuild() then
             local msg = inner:CreateFontString(nil, "OVERLAY")
-            msg:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            msg:SetFont(WeintCodex.Fonts.sans, 12, "")
             msg:SetPoint("TOPLEFT", inner, "TOPLEFT", 8, -8)
             msg:SetText("|cffff9900Du bist in keiner Gilde — bitte einer Gilde beitreten.|r")
             twinkRows[1] = msg
@@ -3291,7 +3291,7 @@ function ShowTwinkverwaltung()
                 end)
 
                 local nameLbl = row:CreateFontString(nil, "OVERLAY")
-                nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                nameLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
                 nameLbl:SetPoint("LEFT", row, "LEFT", 30, 0)
                 nameLbl:SetWidth(140)
                 nameLbl:SetJustifyH("LEFT")
@@ -3299,7 +3299,7 @@ function ShowTwinkverwaltung()
                 nameLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
                 local classLbl = row:CreateFontString(nil, "OVERLAY")
-                classLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                classLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
                 classLbl:SetPoint("LEFT", row, "LEFT", 180, 0)
                 classLbl:SetWidth(120)
                 classLbl:SetJustifyH("LEFT")
@@ -3307,13 +3307,13 @@ function ShowTwinkverwaltung()
                 classLbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
 
                 local lvlLbl = row:CreateFontString(nil, "OVERLAY")
-                lvlLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                lvlLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
                 lvlLbl:SetPoint("LEFT", row, "LEFT", 300, 0)
                 lvlLbl:SetText("Stufe " .. (level or "?"))
                 lvlLbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
 
                 local onlineLbl = row:CreateFontString(nil, "OVERLAY")
-                onlineLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+                onlineLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
                 onlineLbl:SetPoint("RIGHT", row, "RIGHT", -8, 0)
                 onlineLbl:SetText(online and "|cff22C55EOnline|r" or "|cff666666Offline|r")
 
@@ -3358,7 +3358,7 @@ function ShowTwinkverwaltung()
     twinkScanBtn:SetScript("OnClick", DrawRoster)
 
     local foot = twinkFrame:CreateFontString(nil, "OVERLAY")
-    foot:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    foot:SetFont(WeintCodex.Fonts.sans, 9, "")
     foot:SetPoint("BOTTOMLEFT", twinkFrame, "BOTTOMLEFT", 16, 8)
     foot:SetText("|cff4A423AFormat: WCEXPORT:TWINK:DATUM:Name|KLASSE|STUFE|NOTIZ,...|r")
 

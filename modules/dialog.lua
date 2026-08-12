@@ -19,7 +19,7 @@ local function CreateButton(parent, text, width, onClick)
 
     local lbl = btn:CreateFontString(nil, "OVERLAY")
     lbl:SetAllPoints(btn)
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     lbl:SetText(text)
     lbl:SetTextColor(1,1,1)
 
@@ -73,7 +73,7 @@ local function Create()
 
     local title = window:CreateFontString(nil,"OVERLAY")
     title:SetPoint("TOP",0,-18)
-    title:SetFont("Fonts\\FRIZQT__.TTF",18,"OUTLINE")
+    title:SetFont(WeintCodex.Fonts.sansSemi, 18, "")
     title:SetTextColor(1,0.82,0)
     title:SetText(WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 18) .. " Synchronisation")
 
@@ -92,7 +92,7 @@ local function Create()
     textLabel:SetPoint("TOPLEFT",30,-70)
     textLabel:SetPoint("TOPRIGHT",-30,-70)
     textLabel:SetJustifyH("CENTER")
-    textLabel:SetFont("Fonts\\FRIZQT__.TTF",12,"")
+    textLabel:SetFont(WeintCodex.Fonts.sans, 12, "")
     textLabel:SetTextColor(.92,.92,.92)
 
     local sync = CreateButton(

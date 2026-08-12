@@ -77,6 +77,15 @@ local C = {
     danger      = {0.898, 0.420, 0.420, 1.0},
     info        = {0.545, 0.584, 0.961, 1.0},
 
+    -- Helle Varianten auch unter den Grundfarbnamen, damit
+    -- `farbe .. "Bright"` fuer jeden der Toene aufgeht (z.B. Rollenkoepfe in
+    -- modules/raids.lua, die "blue"/"green"/"red" durchreichen).
+    blueBright    = {0.659, 0.690, 1.000, 1.0},
+    greenBright   = {0.561, 0.855, 0.502, 1.0},
+    redBright     = {0.945, 0.549, 0.549, 1.0},
+    goldBright    = {0.910, 0.788, 0.427, 1.0},
+    warningBright = {0.910, 0.788, 0.427, 1.0},
+
     -- Textstufen (bright > normal > muted > dim > faint > ghost)
     textBright  = {1.000, 1.000, 1.000, 1.0},   -- FFFFFF
     textNormal  = {0.910, 0.910, 0.918, 1.0},   -- E8E8EA
@@ -391,6 +400,61 @@ function WeintCodex.MonoNumber(parent, text, opts)
     fs:SetText(text or "")
     fs:SetJustifyH(opts.justify or "LEFT")
     return fs
+end
+
+--------------------------------------------------
+-- Seitenkopf
+--------------------------------------------------
+-- Das wiederkehrende Muster aller fuenf entworfenen Seiten: kleine
+-- Mono-Zeile, darunter die Ueberschrift, rechts davon Kennzahlen in Mono.
+-- Liefert die Hoehe zurueck, damit der Aufrufer darunter weiterbauen kann.
+--
+-- opts: { eyebrow, title, stats = { {label=, value=, tone=, sub=}, ... },
+--         x = PAD_X, y = PAD_Y }
+--------------------------------------------------
+
+function WeintCodex.PageHead(parent, opts)
+    opts = opts or {}
+    local x = opts.x or WeintCodex.Metrics.PAD_X
+    local y = opts.y or WeintCodex.Metrics.PAD_Y
+
+    local head = CreateFrame("Frame", nil, parent)
+    head:SetHeight(64)
+    head:SetPoint("TOPLEFT",  parent, "TOPLEFT",  x, -y)
+    head:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x, -y)
+
+    if opts.eyebrow then
+        local eb = WeintCodex.Eyebrow(head, opts.eyebrow, { size = 10 })
+        eb:SetPoint("TOPLEFT", head, "TOPLEFT", 0, 0)
+    end
+
+    local title = WeintCodex.PageTitle(head, opts.title or "", { size = 26 })
+    title:SetPoint("TOPLEFT", head, "TOPLEFT", 0, opts.eyebrow and -20 or -4)
+    head._title = title
+
+    -- Kennzahlen von rechts nach links, jede als Label ueber Zahl.
+    local anchor, gap = head, 0
+    for i = #(opts.stats or {}), 1, -1 do
+        local st = opts.stats[i]
+        local group = CreateFrame("Frame", nil, head)
+        group:SetSize(10, 44)
+        group:SetPoint("BOTTOMRIGHT", anchor, i == #opts.stats and "BOTTOMRIGHT" or "BOTTOMLEFT",
+            i == #opts.stats and 0 or -gap, 0)
+
+        local val = group:CreateFontString(nil, "OVERLAY")
+        val:SetFont(F.monoBold, 22, "")
+        val:SetPoint("BOTTOMRIGHT", group, "BOTTOMRIGHT", 0, 0)
+        val:SetTextColor(unpack(Col(st.tone or "textNormal")))
+        val:SetText(tostring(st.value))
+
+        local lbl = WeintCodex.Eyebrow(group, st.label or "", { size = 9, justify = "RIGHT" })
+        lbl:SetPoint("BOTTOMRIGHT", val, "TOPRIGHT", 0, 4)
+
+        group:SetWidth(math.max(val:GetStringWidth(), lbl:GetStringWidth()))
+        anchor, gap = group, 26
+    end
+
+    return head
 end
 
 --------------------------------------------------

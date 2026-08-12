@@ -126,7 +126,7 @@ local function CreateMatFrame()
 
     local companionLbl = companionBtn:CreateFontString(nil, "OVERLAY")
     companionLbl:SetAllPoints(companionBtn)
-    companionLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    companionLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     companionLbl:SetJustifyH("CENTER")
     companionLbl:SetText("Companion")
     companionLbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
@@ -179,18 +179,18 @@ local function CreateMatFrame()
     summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
     local eyebrow = summary:CreateFontString(nil, "OVERLAY")
-    eyebrow:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    eyebrow:SetFont(WeintCodex.Fonts.sans, 9, "")
     eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
     eyebrow:SetText(WeintCodex.ColorText("textFaint", "GILDENBANKMATERIALIEN"))
 
     local titleStr = summary:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 19, "")
+    titleStr:SetFont(WeintCodex.Fonts.sansBold, 22, "")
     titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     f.Title = titleStr
 
     local updateStr = summary:CreateFontString(nil, "OVERLAY")
-    updateStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    updateStr:SetFont(WeintCodex.Fonts.sans, 10, "")
     updateStr:SetPoint("TOPLEFT", titleStr, "BOTTOMLEFT", 2, -4)
     f.UpdateStr = updateStr
 
@@ -210,13 +210,13 @@ local function CreateMatFrame()
         box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
 
         local lbl = box:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.sans, 9, "")
         lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
         lbl:SetJustifyH("RIGHT")
         lbl:SetText(WeintCodex.ColorText("textFaint", def.label))
 
         local val = box:CreateFontString(nil, "OVERLAY")
-        val:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+        val:SetFont(WeintCodex.Fonts.sansSemi, 18, "")
         val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
         val:SetJustifyH("RIGHT")
         local col = C[def.color] or C.textBright
@@ -244,7 +244,7 @@ local function CreateMatFrame()
 
     local function ColLbl(text, x)
         local l = colBar:CreateFontString(nil, "OVERLAY")
-        l:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        l:SetFont(WeintCodex.Fonts.sans, 9, "")
         l:SetPoint("LEFT", colBar, "LEFT", x, 0)
         l:SetText(WeintCodex.ColorText("textFaint", text))
     end
@@ -317,7 +317,7 @@ local function RefreshMatDisplay(matData, filterCat)
 
     if #items == 0 then
         local noData = sc:CreateFontString(nil, "OVERLAY")
-        noData:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noData:SetFont(WeintCodex.Fonts.sans, 12, "")
         noData:SetPoint("TOPLEFT", sc, "TOPLEFT", ROW_PAD, -20)
         noData:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         noData:SetText("Keine Einträge in dieser Kategorie.")
@@ -361,7 +361,7 @@ local function RefreshMatDisplay(matData, filterCat)
             dot:SetColorTexture(sColor[1], sColor[2], sColor[3], 1.0)
 
             local nameLbl = row:CreateFontString(nil, "OVERLAY")
-            nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            nameLbl:SetFont(WeintCodex.Fonts.sans, 12, "")
             nameLbl:SetPoint("LEFT", row, "LEFT", COL_NAME_X, 0)
             nameLbl:SetWidth(COL_NAME_W)
             nameLbl:SetJustifyH("LEFT")
@@ -370,7 +370,7 @@ local function RefreshMatDisplay(matData, filterCat)
             nameLbl:SetText(item.name or "?")
 
             local cntLbl = row:CreateFontString(nil, "OVERLAY")
-            cntLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+            cntLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
             cntLbl:SetPoint("LEFT", row, "LEFT", COL_COUNT_X, 0)
             if target > 0 then
                 cntLbl:SetText(WeintCodex.ColorText(statusColor, tostring(amount)) .. WeintCodex.ColorText("textFaint", " / " .. target))
@@ -393,7 +393,7 @@ local function RefreshMatDisplay(matData, filterCat)
 
             if item.category and item.category ~= "" then
                 local catLbl = row:CreateFontString(nil, "OVERLAY")
-                catLbl:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+                catLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
                 catLbl:SetPoint("LEFT", row, "LEFT", COL_CAT_X, 0)
                 catLbl:SetText(WeintCodex.ColorText("textFaint", item.category))
             end

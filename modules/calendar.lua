@@ -173,7 +173,7 @@ end
 
 local function MakeInputField(parent, label, x, y, w, defaultText)
     local labelStr = parent:CreateFontString(nil, "OVERLAY")
-    labelStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    labelStr:SetFont(WeintCodex.Fonts.sans, 10, "")
     labelStr:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     labelStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     labelStr:SetText(label)
@@ -188,7 +188,7 @@ local function MakeInputField(parent, label, x, y, w, defaultText)
     eb:SetSize(w - 8, 20)
     eb:SetPoint("LEFT", bg, "LEFT", 4, 0)
     eb:SetAutoFocus(false)
-    eb:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    eb:SetFont(WeintCodex.Fonts.sans, 11, "")
     eb:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     eb:SetTextInsets(2, 2, 2, 2)
     eb:SetText(defaultText or "")
@@ -217,13 +217,13 @@ local function CreateCalendarFrame()
     SetSolidBg(header, C.bgMid[1], C.bgMid[2], C.bgMid[3], 0.50)
 
     local titleStr = header:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont("Fonts\\MORPHEUS.TTF", 21, "")
+    titleStr:SetFont(WeintCodex.Fonts.sansBold, 24, "")
     titleStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -14)
     titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     titleStr:SetText("Kalender")
 
     local subStr = header:CreateFontString(nil, "OVERLAY")
-    subStr:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    subStr:SetFont(WeintCodex.Fonts.sans, 10, "")
     subStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 10, 2)
     subStr:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     subStr:SetText(WeintCodex.ColorText("textFaint", "Kalender-Eintrag aus Raidanmeldungen erstellen"))
@@ -251,7 +251,7 @@ local function CreateCalendarFrame()
 
     -- Section: Event-Details
     local detailsSect = leftPanel:CreateFontString(nil, "OVERLAY")
-    detailsSect:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    detailsSect:SetFont(WeintCodex.Fonts.sans, 11, "")
     detailsSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -16)
     detailsSect:SetText("|cffC8763AEVENT-DETAILS|r")
 
@@ -276,13 +276,13 @@ local function CreateCalendarFrame()
     f.MinuteInput = minuteInput
 
     local timeSep = leftPanel:CreateFontString(nil, "OVERLAY")
-    timeSep:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    timeSep:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
     timeSep:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 276, -100)
     timeSep:SetText("|cff6B6259:|r")
 
     -- Beschreibung
     local descLabel = leftPanel:CreateFontString(nil, "OVERLAY")
-    descLabel:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    descLabel:SetFont(WeintCodex.Fonts.sans, 10, "")
     descLabel:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -130)
     descLabel:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     descLabel:SetText("Beschreibung")
@@ -299,7 +299,7 @@ local function CreateCalendarFrame()
     descBox:SetMultiLine(true)
     descBox:SetMaxLetters(0)
     descBox:SetAutoFocus(false)
-    descBox:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+    descBox:SetFont(WeintCodex.Fonts.sans, 11, "")
     descBox:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
     descBox:SetTextInsets(4, 4, 4, 4)
     descBox:SetText("Raidabend mit WeintCodex.\nAnmeldung via Discord-Bot.")
@@ -320,7 +320,7 @@ local function CreateCalendarFrame()
 
     local autoFillLbl = autoFillBtn:CreateFontString(nil, "OVERLAY")
     autoFillLbl:SetAllPoints(autoFillBtn)
-    autoFillLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    autoFillLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     autoFillLbl:SetText("|cff8A8177" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Felder aus Raidanmeldung befüllen|r")
 
     autoFillBtn:SetScript("OnEnter", function(self)
@@ -345,7 +345,7 @@ local function CreateCalendarFrame()
 
     -- Section: Einladungsoptionen
     local invSect = leftPanel:CreateFontString(nil, "OVERLAY")
-    invSect:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    invSect:SetFont(WeintCodex.Fonts.sans, 11, "")
     invSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -262)
     invSect:SetText("|cffC8763AEINLADUNGEN|r")
 
@@ -363,7 +363,7 @@ local function CreateCalendarFrame()
         cb:SetChecked(default ~= false)
 
         local lbl = parent:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         lbl:SetPoint("LEFT", cb, "RIGHT", 2, 0)
         lbl:SetText(label)
         lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
@@ -406,7 +406,7 @@ local function CreateCalendarFrame()
 
     local createBtnLbl = createBtn:CreateFontString(nil, "OVERLAY")
     createBtnLbl:SetAllPoints(createBtn)
-    createBtnLbl:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    createBtnLbl:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
     createBtnLbl:SetText("|cffffffff" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16) .. "  Kalender-Eintrag erstellen|r")
 
     createBtn:SetScript("OnEnter", function(self)
@@ -420,7 +420,7 @@ local function CreateCalendarFrame()
 
     -- Status text
     local statusText = leftPanel:CreateFontString(nil, "OVERLAY")
-    statusText:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    statusText:SetFont(WeintCodex.Fonts.sans, 11, "")
     statusText:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -448)
     statusText:SetWidth(LEFT_W - 32)
     statusText:SetJustifyH("LEFT")
@@ -430,7 +430,7 @@ local function CreateCalendarFrame()
 
     -- API info text
     local apiInfo = leftPanel:CreateFontString(nil, "OVERLAY")
-    apiInfo:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    apiInfo:SetFont(WeintCodex.Fonts.sans, 10, "")
     apiInfo:SetPoint("BOTTOMLEFT", leftPanel, "BOTTOMLEFT", 16, 10)
     apiInfo:SetWidth(LEFT_W - 32)
     apiInfo:SetJustifyH("LEFT")
@@ -475,7 +475,7 @@ local function CreateCalendarFrame()
     rightPanel:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", 0,           0)
 
     local previewSect = rightPanel:CreateFontString(nil, "OVERLAY")
-    previewSect:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    previewSect:SetFont(WeintCodex.Fonts.sans, 11, "")
     previewSect:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 10, -16)
     previewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r")
     f.PreviewSect = previewSect
@@ -488,7 +488,7 @@ local function CreateCalendarFrame()
 
     -- Spieler-Zähler
     local previewCount = rightPanel:CreateFontString(nil, "OVERLAY")
-    previewCount:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    previewCount:SetFont(WeintCodex.Fonts.sans, 11, "")
     previewCount:SetPoint("TOPRIGHT", rightPanel, "TOPRIGHT", -10, -16)
     previewCount:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     previewCount:SetText("")
@@ -635,7 +635,7 @@ RefreshPlayerPreview = function(f, raidData)
 
     if #players == 0 then
         local noData = pc:CreateFontString(nil, "OVERLAY")
-        noData:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        noData:SetFont(WeintCodex.Fonts.sans, 12, "")
         noData:SetPoint("TOPLEFT", pc, "TOPLEFT", 0, -10)
         noData:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         noData:SetText(
@@ -698,14 +698,14 @@ RefreshPlayerPreview = function(f, raidData)
         -- Name
         local ccol = classColors[p.class] or "|cffdddddd"
         local nameLbl = row:CreateFontString(nil, "OVERLAY")
-        nameLbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        nameLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         nameLbl:SetPoint("LEFT", row, "LEFT", 18, 0)
         nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
         nameLbl:SetWidth(160)
 
         -- Class
         local classLbl = row:CreateFontString(nil, "OVERLAY")
-        classLbl:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        classLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         classLbl:SetPoint("LEFT", row, "LEFT", 190, 0)
         classLbl:SetText("|cff6B6259" .. (p.class or "") .. "|r")
         classLbl:SetWidth(120)

@@ -146,7 +146,7 @@ local function GetRow(i)
     row._tag = tag
 
     local label = row:CreateFontString(nil, "OVERLAY")
-    label:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+    label:SetFont(WeintCodex.Fonts.sans, 12, "")
     label:SetPoint("LEFT",  row, "LEFT",  92, 0)
     label:SetPoint("RIGHT", row, "RIGHT", -10, 0)
     label:SetJustifyH("LEFT")

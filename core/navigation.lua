@@ -597,7 +597,7 @@ end
 
 local function InspectorHeader(parent, y, text)
     local h = parent:CreateFontString(nil, "OVERLAY")
-    h:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    h:SetFont(WeintCodex.Fonts.sans, 9, "")
     h:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
     h:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
     h:SetJustifyH("LEFT")
@@ -619,14 +619,14 @@ end
 local function InspectorRows(parent, y, rows)
     for _, row in ipairs(rows) do
         local lbl = parent:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         lbl:SetPoint("TOPLEFT", parent, "TOPLEFT", INSPECTOR_PAD, y)
         lbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         lbl:SetText(row.label or "")
         table.insert(inspectorWidgets, lbl)
 
         local val = parent:CreateFontString(nil, "OVERLAY")
-        val:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        val:SetFont(WeintCodex.Fonts.sans, 11, "")
         val:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
         val:SetJustifyH("RIGHT")
         local vc = C[row.valueColor or "textNormal"] or C.textNormal
@@ -648,7 +648,7 @@ local function InspectorListCard(parent, y, item)
     WeintCodex.DrawSlimBorder(card, "hairline")
 
     local lbl = card:CreateFontString(nil, "OVERLAY")
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -7)
     lbl:SetPoint("RIGHT", card, "RIGHT", -70, 0)
     lbl:SetJustifyH("LEFT")
@@ -657,7 +657,7 @@ local function InspectorListCard(parent, y, item)
     lbl:SetText(item.label or "")
 
     local val = card:CreateFontString(nil, "OVERLAY")
-    val:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    val:SetFont(WeintCodex.Fonts.sans, 10, "")
     val:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -7)
     val:SetJustifyH("RIGHT")
     local vc = C[item.valueColor or "textDim"] or C.textDim
@@ -710,7 +710,7 @@ local function InspectorChecklistItem(parent, y, item)
     check:SetColorTexture(C.green[1], C.green[2], C.green[3], 0.70)
 
     local lbl = card:CreateFontString(nil, "OVERLAY")
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     lbl:SetPoint("LEFT",  box, "RIGHT", 10, 0)
     lbl:SetPoint("RIGHT", card, "RIGHT", -10, 0)
     lbl:SetJustifyH("LEFT")
@@ -738,7 +738,7 @@ local function InspectorCard(parent, y, opts)
     local yy = -10
     if opts.title then
         local t = card:CreateFontString(nil, "OVERLAY")
-        t:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        t:SetFont(WeintCodex.Fonts.sans, 12, "")
         t:SetPoint("TOPLEFT", card, "TOPLEFT", 10, yy)
         t:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
         t:SetText(opts.title)
@@ -746,7 +746,7 @@ local function InspectorCard(parent, y, opts)
     end
     if opts.subtitle then
         local s = card:CreateFontString(nil, "OVERLAY")
-        s:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        s:SetFont(WeintCodex.Fonts.sans, 9, "")
         s:SetPoint("TOPLEFT", card, "TOPLEFT", 10, yy)
         s:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
         s:SetText(opts.subtitle)
@@ -754,7 +754,7 @@ local function InspectorCard(parent, y, opts)
     end
     for _, line in ipairs(opts.lines or {}) do
         local l = card:CreateFontString(nil, "OVERLAY")
-        l:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+        l:SetFont(WeintCodex.Fonts.sans, 10, "")
         l:SetPoint("TOPLEFT",  card, "TOPLEFT",  10, yy)
         l:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, yy)
         l:SetJustifyH("LEFT")
@@ -780,7 +780,7 @@ local function InspectorButton(parent, y, opts)
 
     local lbl = btn:CreateFontString(nil, "OVERLAY")
     lbl:SetAllPoints(btn)
-    lbl:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    lbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     lbl:SetJustifyH("CENTER")
     lbl:SetJustifyV("MIDDLE")
     lbl:SetText(opts.label or "")
@@ -857,7 +857,7 @@ local function NotesSegment(parent, label, width)
 
     local l = b:CreateFontString(nil, "OVERLAY")
     l:SetAllPoints(b)
-    l:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    l:SetFont(WeintCodex.Fonts.sans, 9, "")
     l:SetJustifyH("CENTER")
     l:SetText(label)
     b._label = l
@@ -893,7 +893,7 @@ local function NotesPromptButton(parent, label, width)
 
     local l = b:CreateFontString(nil, "OVERLAY")
     l:SetAllPoints(b)
-    l:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+    l:SetFont(WeintCodex.Fonts.sans, 10, "")
     l:SetJustifyH("CENTER")
     l:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
     l:SetText(label)
@@ -949,7 +949,7 @@ local function InspectorNotes(parent, y, opts)
     if headH > 0 then
         if opts.title then
             local t = holder:CreateFontString(nil, "OVERLAY")
-            t:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            t:SetFont(WeintCodex.Fonts.sans, 9, "")
             t:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, -3)
             t:SetJustifyH("LEFT")
             t:SetText(WeintCodex.ColorText("textFaint", string.upper(opts.title)))
@@ -981,12 +981,12 @@ local function InspectorNotes(parent, y, opts)
     colDivider:Hide()
 
     local footLeft = holder:CreateFontString(nil, "OVERLAY")
-    footLeft:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    footLeft:SetFont(WeintCodex.Fonts.sans, 9, "")
     footLeft:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", 1, 1)
     footLeft:SetJustifyH("LEFT")
 
     local footRight = holder:CreateFontString(nil, "OVERLAY")
-    footRight:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    footRight:SetFont(WeintCodex.Fonts.sans, 9, "")
     footRight:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -1, 1)
     footRight:SetJustifyH("RIGHT")
 
@@ -1049,7 +1049,7 @@ local function InspectorNotes(parent, y, opts)
         box:SetMultiLine(true)
         box:SetMaxLetters(0)
         box:SetAutoFocus(false)
-        box:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+        box:SetFont(WeintCodex.Fonts.sans, 11, "")
         box:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
         box:SetTextInsets(0, 0, 0, 0)
         box:SetHeight(textH)
@@ -1066,7 +1066,7 @@ local function InspectorNotes(parent, y, opts)
         c.thumb:Hide()
 
         c.hint = card:CreateFontString(nil, "ARTWORK")
-        c.hint:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+        c.hint:SetFont(WeintCodex.Fonts.sans, 10, "")
         c.hint:SetTextColor(C.textGhost[1], C.textGhost[2], C.textGhost[3])
         c.hint:SetJustifyH("LEFT")
         c.hint:SetJustifyV("TOP")
@@ -1243,7 +1243,7 @@ local function InspectorNotes(parent, y, opts)
         topEdge:SetColorTexture(C.purpleDim[1], C.purpleDim[2], C.purpleDim[3], 0.85)
 
         local q = prompt:CreateFontString(nil, "OVERLAY")
-        q:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+        q:SetFont(WeintCodex.Fonts.sans, 10, "")
         q:SetPoint("TOPLEFT",  prompt, "TOPLEFT",   8, -7)
         q:SetPoint("TOPRIGHT", prompt, "TOPRIGHT", -8, -7)
         q:SetJustifyH("LEFT")
@@ -1397,7 +1397,7 @@ local function CreateItemRow(parent, item, width, offsetY)
     local nameTop = hasSub and -5 or -9
 
     local name = row:CreateFontString(nil, "OVERLAY")
-    name:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    name:SetFont(WeintCodex.Fonts.sans, 11, "")
     name:SetPoint("TOPLEFT",  row, "TOPLEFT",  30, nameTop)
     name:SetPoint("TOPRIGHT", row, "TOPRIGHT", -(state.size + 12), nameTop)
     name:SetJustifyH("LEFT")
@@ -1406,7 +1406,7 @@ local function CreateItemRow(parent, item, width, offsetY)
 
     if hasSub then
         local sub = row:CreateFontString(nil, "OVERLAY")
-        sub:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+        sub:SetFont(WeintCodex.Fonts.sans, 9, "")
         sub:SetPoint("TOPLEFT",  row, "TOPLEFT",  30, -18)
         sub:SetPoint("TOPRIGHT", row, "TOPRIGHT", -(state.size + 12), -18)
         sub:SetJustifyH("LEFT")
@@ -1473,7 +1473,7 @@ local function InspectorItemList(parent, y, opts)
 
     if #items == 0 then
         local empty = container:CreateFontString(nil, "OVERLAY")
-        empty:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+        empty:SetFont(WeintCodex.Fonts.sans, 11, "")
         empty:SetPoint("TOPLEFT",  container, "TOPLEFT",  0, -2)
         empty:SetPoint("TOPRIGHT", container, "TOPRIGHT", 0, -2)
         empty:SetJustifyH("LEFT")
@@ -1654,13 +1654,13 @@ function WeintCodex.Navigation.ShowPlaceholder(title, msg)
         pf:SetAllPoints(WeintCodex.ContentPanel)
 
         local t = pf:CreateFontString(nil, "OVERLAY")
-        t:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+        t:SetFont(WeintCodex.Fonts.sansSemi, 20, "")
         t:SetPoint("CENTER", pf, "CENTER", 0, 30)
         t:SetTextColor(C.purple[1], C.purple[2], C.purple[3])
         pf._title = t
 
         local sub = pf:CreateFontString(nil, "OVERLAY")
-        sub:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        sub:SetFont(WeintCodex.Fonts.sans, 12, "")
         sub:SetPoint("TOP", t, "BOTTOM", 0, -12)
         sub:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
         sub:SetWidth(600)
@@ -1706,13 +1706,13 @@ function WeintCodex.Navigation.ShowAccessLock(tabId, featureKey)
         card:SetPoint("TOPRIGHT", lf, "TOPRIGHT", -24, -32)
 
         local title = card:CreateFontString(nil, "OVERLAY")
-        title:SetFont("Fonts\\MORPHEUS.TTF", 17, "")
+        title:SetFont(WeintCodex.Fonts.sansBold, 22, "")
         title:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -14)
         title:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
         lf._title = title
 
         local reason = card:CreateFontString(nil, "OVERLAY")
-        reason:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        reason:SetFont(WeintCodex.Fonts.sans, 12, "")
         reason:SetPoint("TOPLEFT",  title, "BOTTOMLEFT", 0, -10)
         reason:SetPoint("RIGHT",    card,  "RIGHT",     -16, 0)
         reason:SetJustifyH("LEFT")
@@ -1721,7 +1721,7 @@ function WeintCodex.Navigation.ShowAccessLock(tabId, featureKey)
         lf._reason = reason
 
         local hint = card:CreateFontString(nil, "OVERLAY")
-        hint:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+        hint:SetFont(WeintCodex.Fonts.sans, 11, "")
         hint:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 16, 12)
         hint:SetPoint("RIGHT",      card, "RIGHT",     -16, 0)
         hint:SetJustifyH("LEFT")
@@ -2052,9 +2052,13 @@ function WeintCodex.ShowHome()
         t:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
         t:SetText(titleText)
         if chipText then
+            -- Fuellung im Grundton, Beschriftung in der hellen Variante -
+            -- aber nur, wenn es sie gibt. "textMuted" hat keine, und ein
+            -- nicht existierender Name faerbt still auf Normaltext zurueck.
+            local tone = chipTone or "textMuted"
+            local bright = C[tone .. "Bright"] and (tone .. "Bright") or tone
             local chip = WeintCodex.Chip(card, {
-                text = chipText, tone = chipTone or "textMuted",
-                textColor = chipTone and (chipTone .. "Bright") or nil,
+                text = chipText, tone = tone, textColor = bright,
                 backdrop = "cardTop", height = 22, size = 9,
             })
             chip:SetPoint("TOPRIGHT", card, "TOPRIGHT", -16, -14)
