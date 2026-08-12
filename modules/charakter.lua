@@ -80,13 +80,16 @@ local CreateScrollArea = WeintCodex.CreateScrollArea
 
 local PURPLE = C.violet
 
+-- `color` ist der Flaechen-/Symbolton, `bright` derselbe Ton als Text auf
+-- schwarzem Grund. Der Entwurf trennt das durchgaengig: eine Fuellung mit 13 %
+-- Deckung vertraegt den satten Wert, eine Beschriftung daneben nicht.
 local STATUS = {
-    optimal = { icon = "Interface\\RaidFrame\\ReadyCheck-Ready",       size = 16, label = "Optimal",  color = C.green },
-    ok      = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 18, label = "OK",       color = C.gold },
-    wrong   = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 18, label = "Falsch",   color = C.red,  tint = { 1.0, 0.45, 0.35 } },
-    overcap = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 18, label = "Über Cap", color = PURPLE, tint = { 0.75, 0.50, 1.0 } },
-    missing = { icon = "Interface\\RaidFrame\\ReadyCheck-NotReady",    size = 16, label = "Fehlt",    color = C.red },
-    neutral = { icon = "Interface\\Buttons\\UI-MinusButton-UP",        size = 14, label = "—",        color = C.textDim },
+    optimal = { icon = "Interface\\RaidFrame\\ReadyCheck-Ready",       size = 16, label = "Optimal",  color = C.green,  bright = C.successBright },
+    ok      = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 18, label = "OK",       color = C.gold,   bright = C.accentBright },
+    wrong   = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 18, label = "Falsch",   color = C.red,    bright = C.dangerBright,  tint = { 1.0, 0.45, 0.35 } },
+    overcap = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-Alert", size = 18, label = "Über Cap", color = PURPLE,   bright = C.violetBright,  tint = { 0.75, 0.50, 1.0 } },
+    missing = { icon = "Interface\\RaidFrame\\ReadyCheck-NotReady",    size = 16, label = "Fehlt",    color = C.red,    bright = C.dangerBright },
+    neutral = { icon = "Interface\\Buttons\\UI-MinusButton-UP",        size = 14, label = "—",        color = C.textDim, bright = C.textMuted },
 }
 
 local STATUS_POINTS = {
@@ -2511,25 +2514,24 @@ function ShowUebersicht()
     portrait:SetSize(86, 86)
     portrait:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, -18)
     portrait:SetUnit("player")
-    SetSolidBg(portrait, C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
-    DrawBorder(portrait, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+    SetSolidBg(portrait, C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
+    DrawBorder(portrait, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
+    WeintCodex.CutCorners(portrait, 10, "bgDark")
 
-    local eyebrow = bc:CreateFontString(nil, "OVERLAY")
-    eyebrow:SetFont(WeintCodex.Fonts.mono, 10, "")
-    eyebrow:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 16, -4)
+    local eyebrow
     if scan.profileKey then
         local styleHint = scan.tankStyle
             and (" · " .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv")) or ""
-        eyebrow:SetText(WeintCodex.ColorText("textFaint", string.upper((scan.specDisplay or scan.profileKey) .. styleHint)))
+        eyebrow = WeintCodex.Eyebrow(bc,
+            (scan.specDisplay or scan.profileKey) .. styleHint, { size = 10 })
     else
-        eyebrow:SetText(WeintCodex.ColorText("warning", "KEIN SPEC-PROFIL GEFUNDEN"))
+        eyebrow = WeintCodex.Eyebrow(bc, "Kein Spec-Profil gefunden",
+            { size = 10, color = "warning" })
     end
+    eyebrow:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 16, -4)
 
-    local h1 = bc:CreateFontString(nil, "OVERLAY")
-    h1:SetFont(WeintCodex.Fonts.serif, 28, "")
+    local h1 = WeintCodex.PageTitle(bc, "Ausrüstungs-Check", { size = 26 })
     h1:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -8)
-    h1:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-    h1:SetText("Ausrüstungs-Check")
 
     local nIssues = 0
     for _, is in ipairs(scan.issues) do
@@ -2550,46 +2552,52 @@ function ShowUebersicht()
             nIssues .. " Problem" .. (nIssues == 1 and "" or "e") .. " gefunden · Details unter Handlungsbedarf."))
     end
 
-    local gradeCol
-    if score.grade == "S" or score.grade == "A" then gradeCol = C.green
-    elseif score.grade == "B" or score.grade == "C" then gradeCol = C.gold
-    else gradeCol = C.red end
-    if score.checks == 0 then gradeCol = C.textDim end
+    -- Bewertung rechts im Kopf: helle Tonvariante, weil die Grundfarben als
+    -- Flaeche gedacht sind und als grosse Zahl auf Schwarz zu dunkel geraten.
+    local gradeTone
+    if score.grade == "S" or score.grade == "A" then gradeTone = "successBright"
+    elseif score.grade == "B" or score.grade == "C" then gradeTone = "accentBright"
+    else gradeTone = "dangerBright" end
+    if score.checks == 0 then gradeTone = "textDim" end
+    local gradeCol = C[gradeTone]
 
-    local scoreNum = bc:CreateFontString(nil, "OVERLAY")
-    scoreNum:SetFont(WeintCodex.Fonts.serifBold, 38, "")
-    scoreNum:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -66, -20)
-    scoreNum:SetJustifyH("RIGHT")
-    scoreNum:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
-    scoreNum:SetText(score.checks > 0 and (score.total .. " / 100") or "—")
-
+    -- 44er Notenkachel ganz rechts, davor die Zahl - Reihenfolge wie im Entwurf.
     local gradeBadge = CreateFrame("Frame", nil, bc)
-    gradeBadge:SetSize(34, 30)
-    gradeBadge:SetPoint("LEFT", scoreNum, "RIGHT", 12, 1)
-    SetSolidBg(gradeBadge, gradeCol[1] * 0.12, gradeCol[2] * 0.12, gradeCol[3] * 0.12, 1.0)
-    DrawBorder(gradeBadge, gradeCol[1], gradeCol[2], gradeCol[3], 0.80, 1)
+    gradeBadge:SetSize(44, 44)
+    gradeBadge:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, -26)
+    SetSolidBg(gradeBadge, gradeCol[1], gradeCol[2], gradeCol[3], 0.13)
+    DrawBorder(gradeBadge, gradeCol[1], gradeCol[2], gradeCol[3], 0.38, 1)
+    WeintCodex.CutCorners(gradeBadge, 10, "bgDark")
+
     local gradeLbl = gradeBadge:CreateFontString(nil, "OVERLAY")
-    gradeLbl:SetAllPoints(gradeBadge)
-    gradeLbl:SetFont(WeintCodex.Fonts.serif, 17, "")
-    gradeLbl:SetJustifyH("CENTER")
-    gradeLbl:SetJustifyV("MIDDLE")
+    gradeLbl:SetPoint("CENTER", gradeBadge, "CENTER", 0, 0)
+    gradeLbl:SetFont(WeintCodex.Fonts.sansBold, 19, "")
     gradeLbl:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
     gradeLbl:SetText(score.checks > 0 and score.grade or "?")
 
-    local headerDiv = bc:CreateTexture(nil, "OVERLAY")
-    headerDiv:SetHeight(1)
-    headerDiv:SetPoint("TOPLEFT",  bc, "TOPLEFT",  20, -132)
-    headerDiv:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, -132)
-    headerDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
+    local scoreNum = bc:CreateFontString(nil, "OVERLAY")
+    scoreNum:SetFont(WeintCodex.Fonts.monoBold, 34, "")
+    scoreNum:SetPoint("RIGHT", gradeBadge, "LEFT", -12, -2)
+    scoreNum:SetJustifyH("RIGHT")
+    scoreNum:SetTextColor(gradeCol[1], gradeCol[2], gradeCol[3])
+    scoreNum:SetText(score.checks > 0 and tostring(score.total) or "—")
+
+    -- "/ 100" bewusst kleiner und stumpfer: der Nenner ist Bezug, nicht Wert.
+    local scoreMax = bc:CreateFontString(nil, "OVERLAY")
+    scoreMax:SetFont(WeintCodex.Fonts.monoBold, 15, "")
+    scoreMax:SetPoint("BOTTOMLEFT", scoreNum, "BOTTOMRIGHT", 4, 2)
+    scoreMax:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+    scoreMax:SetText(score.checks > 0 and "/ 100" or "")
+
+    local scoreCap = WeintCodex.Eyebrow(bc, "Bewertung", { size = 9, justify = "RIGHT" })
+    scoreCap:SetPoint("BOTTOMRIGHT", scoreNum, "TOPRIGHT", 0, 2)
 
     -- =============================================
     -- AUSRÜSTUNGS-STATUS (Karten-Raster mit Fortschrittsbalken)
     -- =============================================
-    local gridLabel = bc:CreateFontString(nil, "OVERLAY")
-    gridLabel:SetFont(WeintCodex.Fonts.mono, 10, "")
-    gridLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, -148)
-    gridLabel:SetText(WeintCodex.ColorText("textFaint", "AUSRÜSTUNGS-STATUS"))
-
+    -- Der Entwurf setzt die Kennzahlenkarten direkt unter den Kopf; die
+    -- frueher vorangestellte Zeile "AUSRÜSTUNGS-STATUS" benennt nur, was die
+    -- vier Karten ohnehin beschriften.
     local cardDefs = {
         { kind = "counts", label = "Verzauberungen",  counts = scan.enchants.counts, onClick = ShowEnchants },
         { kind = "counts", label = "Sockel & Steine",  counts = scan.gems.counts,     onClick = ShowGems },
@@ -2598,21 +2606,19 @@ function ShowUebersicht()
         cardDefs[#cardDefs + 1] = { kind = "cap", cap = cs, onClick = ShowWerteverteilung }
     end
 
-    local GRID_TOP, GRID_H, GRID_GAP = -168, 112, 14
+    local GRID_TOP, GRID_H, GRID_GAP = -124, 112, 16
     local colW = (UEBERSICHT_W - 40 - GRID_GAP * (#cardDefs - 1)) / #cardDefs
 
     for i, def in ipairs(cardDefs) do
-        local card = CreateFrame("Button", nil, bc)
-        card:SetSize(colW, GRID_H)
+        local card = WeintCodex.CreateSurface(bc, {
+            width = colW, height = GRID_H, tone = "plain",
+            radius = 14, backdrop = "bgDark", button = true,
+        })
         card:SetPoint("TOPLEFT", bc, "TOPLEFT", 20 + (i - 1) * (colW + GRID_GAP), GRID_TOP)
-        SetSolidBg(card, C.surface2[1], C.surface2[2], C.surface2[3], 1.0)
-        DrawBorder(card, C.border[1], C.border[2], C.border[3], C.border[4], 1)
 
-        local lbl = card:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont(WeintCodex.Fonts.mono, 10, "")
-        lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
-        lbl:SetPoint("RIGHT", card, "RIGHT", -10, 0)
-        lbl:SetJustifyH("LEFT")
+        local lbl = WeintCodex.Eyebrow(card, "", { size = 10 })
+        lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -14)
+        lbl:SetPoint("RIGHT", card, "RIGHT", -16, 0)
 
         local mainCol, mainText, subText, pct
         if def.kind == "counts" then
@@ -2622,18 +2628,18 @@ function ShowUebersicht()
             local qual = (filled > 0) and math.floor(counts.points / filled + 0.5) or 0
             if qual > 100 then qual = 100 end
             if counts.total == 0 then mainCol = C.textDim
-            elseif counts.missing == 0 then mainCol = (counts.overcap > 0) and PURPLE or C.green
-            else mainCol = (pct >= 0.75) and C.gold or C.red end
-            lbl:SetText(WeintCodex.ColorText("textFaint", string.upper(def.label)))
+            elseif counts.missing == 0 then mainCol = (counts.overcap > 0) and C.violetBright or C.successBright
+            else mainCol = (pct >= 0.75) and C.accentBright or C.dangerBright end
+            lbl:SetText(WeintCodex.Spaced(string.upper(def.label)))
             mainText = filled .. " / " .. counts.total
             subText  = "Qualität " .. qual .. "%"
         else
             local cs = def.cap
-            if cs.overPct > 0.25 then mainCol = PURPLE
-            elseif cs.overPct < -0.3 then mainCol = C.red
-            else mainCol = C.green end
+            if cs.overPct > 0.25 then mainCol = C.violetBright
+            elseif cs.overPct < -0.3 then mainCol = C.dangerBright
+            else mainCol = C.successBright end
             pct = (cs.capPct > 0) and math.max(0, math.min(1, cs.current / cs.capPct)) or 0
-            lbl:SetText(WeintCodex.ColorText("textFaint", string.upper(cs.label)))
+            lbl:SetText(WeintCodex.Spaced(string.upper(cs.label)))
             mainText = string.format("%.1f%%", cs.current)
             if cs.overPct > 0.25 then subText = string.format("Cap %.1f%% · über", cs.capPct)
             elseif cs.overPct < -0.3 then subText = string.format("Cap %.1f%% · fehlt", cs.capPct)
@@ -2641,105 +2647,170 @@ function ShowUebersicht()
         end
 
         local num = card:CreateFontString(nil, "OVERLAY")
-        num:SetFont(WeintCodex.Fonts.serif, 22, "")
-        num:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -8)
+        num:SetFont(WeintCodex.Fonts.monoBold, 23, "")
+        num:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -10)
         num:SetTextColor(mainCol[1], mainCol[2], mainCol[3])
         num:SetText(mainText)
 
         local subLbl = card:CreateFontString(nil, "OVERLAY")
-        subLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+        subLbl:SetFont(WeintCodex.Fonts.sans, 12, "")
         subLbl:SetPoint("TOPLEFT", num, "BOTTOMLEFT", 0, -4)
-        subLbl:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+        subLbl:SetTextColor(C.textMuted[1], C.textMuted[2], C.textMuted[3])
         subLbl:SetText(subText)
 
         local track = card:CreateTexture(nil, "OVERLAY")
         track:SetHeight(3)
-        track:SetPoint("BOTTOMLEFT",  card, "BOTTOMLEFT",  10, 10)
-        track:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -10, 10)
-        track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+        track:SetPoint("BOTTOMLEFT",  card, "BOTTOMLEFT",  16, 14)
+        track:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -16, 14)
+        track:SetColorTexture(C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
 
         if pct > 0.01 then
             local fill = card:CreateTexture(nil, "OVERLAY")
             fill:SetHeight(3)
-            fill:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 10, 10)
-            fill:SetWidth(math.max(1, (colW - 20) * math.min(pct, 1)))
+            fill:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 16, 14)
+            fill:SetWidth(math.max(1, (colW - 32) * math.min(pct, 1)))
             fill:SetColorTexture(mainCol[1], mainCol[2], mainCol[3], 1.0)
         end
 
-        card:SetScript("OnEnter", function(self) SetSolidBg(self, C.surface3[1], C.surface3[2], C.surface3[3], 1.0) end)
-        card:SetScript("OnLeave", function(self) SetSolidBg(self, C.surface2[1], C.surface2[2], C.surface2[3], 1.0) end)
+        card:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+        card:SetScript("OnLeave", function(self) self:SetTone("plain") end)
         if def.onClick then card:SetScript("OnClick", def.onClick) end
     end
 
     -- =============================================
     -- HANDLUNGSBEDARF · NACH PRIORITÄT
     -- =============================================
-    local hbY = GRID_TOP - GRID_H - 26
+    -- Der Entwurf stellt beide Bloecke nebeneinander (Raster 1.35fr / 1fr):
+    -- links, was zu tun ist, rechts die Summen zum Nachschlagen. Die
+    -- Reihenfolge ist die Aussage - Handlungsbedarf zuerst, Zahlen danach.
+    local PAIR_TOP  = GRID_TOP - GRID_H - 20
+    local PAIR_GAP  = 16
+    local pairW     = UEBERSICHT_W - 40
+    local leftW     = math.floor((pairW - PAIR_GAP) * 0.575)
+    local rightW    = pairW - PAIR_GAP - leftW
 
-    local hbLabel = bc:CreateFontString(nil, "OVERLAY")
-    hbLabel:SetFont(WeintCodex.Fonts.mono, 10, "")
-    hbLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, hbY)
-    hbLabel:SetText(WeintCodex.ColorText("textFaint", "HANDLUNGSBEDARF · NACH PRIORITÄT"))
+    local ISSUE_ROW_H, ISSUE_GAP = 52, 8
+    local shownIssues = math.min(#scan.issues, 4)
+    local leftH = 96 + math.max(1, shownIssues) * (ISSUE_ROW_H + ISSUE_GAP)
 
-    local rowY = hbY - 20
+    --------------------------------------------------
+    -- Links: Handlungsbedarf (Akzentkarte)
+    --------------------------------------------------
+
+    local hbCard = WeintCodex.CreateSurface(bc, {
+        width = leftW, height = leftH, tone = "accent",
+        radius = 14, backdrop = "bgDark",
+    })
+    hbCard:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, PAIR_TOP)
+
+    local hbTitle = hbCard:CreateFontString(nil, "OVERLAY")
+    hbTitle:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
+    hbTitle:SetPoint("TOPLEFT", hbCard, "TOPLEFT", 20, -16)
+    hbTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    hbTitle:SetText("Handlungsbedarf · nach Priorität")
+
+    local openCount = 0
+    for _, is in ipairs(scan.issues) do
+        if is.prio <= 3 then openCount = openCount + 1 end
+    end
+
+    local hbChip = WeintCodex.Chip(hbCard, {
+        text = openCount > 0 and (openCount .. " offen") or "nichts offen",
+        tone = openCount > 0 and "danger" or "success",
+        textColor = openCount > 0 and "dangerBright" or "successBright",
+        backdrop = "accentCardTop", height = 22, size = 9,
+    })
+    hbChip:SetPoint("TOPRIGHT", hbCard, "TOPRIGHT", -16, -14)
+
+    local rowY = -52
     if score.checks == 0 then
-        local none = bc:CreateFontString(nil, "OVERLAY")
-        none:SetFont(WeintCodex.Fonts.sans, 11, "")
-        none:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY)
-        none:SetText(WeintCodex.ColorText("textFaint", "Keine Prüfdaten vorhanden."))
-        rowY = rowY - 26
+        local none = WeintCodex.Label(hbCard, "Keine Prüfdaten vorhanden.",
+            { color = "textMuted", size = 13 })
+        none:SetPoint("TOPLEFT", hbCard, "TOPLEFT", 20, rowY)
     elseif #scan.issues == 0 then
-        local ok = bc:CreateFontString(nil, "OVERLAY")
-        ok:SetFont(WeintCodex.Fonts.sans, 11, "")
-        ok:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY)
-        ok:SetText(WeintCodex.ColorText("success", "Alles top — keine offenen Punkte!"))
-        rowY = rowY - 26
+        local ok = WeintCodex.Label(hbCard, "Alles versorgt — keine offenen Punkte.",
+            { color = "successBright", size = 13 })
+        ok:SetPoint("TOPLEFT", hbCard, "TOPLEFT", 20, rowY)
     else
-        for i, issue in ipairs(scan.issues) do
-            local row = CreateFrame("Frame", nil, bc)
-            row:SetHeight(34)
-            row:SetPoint("TOPLEFT",  bc, "TOPLEFT",  20, rowY)
-            row:SetPoint("TOPRIGHT", bc, "TOPRIGHT", -20, rowY)
-            SetSolidBg(row, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
-            DrawBorder(row, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+        for i = 1, shownIssues do
+            local issue = scan.issues[i]
+            local info  = STATUS[issue.status] or STATUS.neutral
 
-            local info = STATUS[issue.status] or STATUS.neutral
+            -- Eigene Flaeche je Zeile (Entwurf: #0C0C0F, Radius 10) statt
+            -- Rahmen - der Entwurf kennt keine umrandeten Zeilen.
+            local row = WeintCodex.CreateSurface(hbCard, {
+                height = ISSUE_ROW_H, tone = "flat", surface = "cardBottom",
+                radius = 10, backdrop = "accentCardTop",
+            })
+            row:SetPoint("TOPLEFT",  hbCard, "TOPLEFT",  20, rowY)
+            row:SetPoint("TOPRIGHT", hbCard, "TOPRIGHT", -20, rowY)
+
             local badge = CreateFrame("Frame", nil, row)
             badge:SetSize(22, 22)
-            badge:SetPoint("LEFT", row, "LEFT", 6, 0)
-            SetSolidBg(badge, info.color[1] * 0.20, info.color[2] * 0.20, info.color[3] * 0.20, 1.0)
+            badge:SetPoint("LEFT", row, "LEFT", 12, 0)
+            SetSolidBg(badge, info.color[1], info.color[2], info.color[3], 0.20)
+            WeintCodex.CutCorners(badge, 6, "cardBottom")
 
             local badgeLbl = badge:CreateFontString(nil, "OVERLAY")
-            badgeLbl:SetAllPoints(badge)
-            badgeLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
-            badgeLbl:SetJustifyH("CENTER")
-            badgeLbl:SetJustifyV("MIDDLE")
-            badgeLbl:SetTextColor(info.color[1], info.color[2], info.color[3])
+            badgeLbl:SetPoint("CENTER", badge, "CENTER", 0, 0)
+            badgeLbl:SetFont(WeintCodex.Fonts.monoBold, 11, "")
+            local bc2 = info.bright or info.color
+            badgeLbl:SetTextColor(bc2[1], bc2[2], bc2[3])
             badgeLbl:SetText(tostring(i))
 
+            local tag = row:CreateFontString(nil, "OVERLAY")
+            tag:SetFont(WeintCodex.Fonts.monoBold, 10, "")
+            tag:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+            tag:SetTextColor(bc2[1], bc2[2], bc2[3])
+            tag:SetText(WeintCodex.Spaced(string.upper(info.label or "")))
+
             local txt = row:CreateFontString(nil, "OVERLAY")
-            txt:SetFont(WeintCodex.Fonts.sans, 12, "")
+            txt:SetFont(WeintCodex.Fonts.sans, 13, "")
             txt:SetPoint("LEFT",  badge, "RIGHT", 12, 0)
-            txt:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+            txt:SetPoint("RIGHT", tag, "LEFT", -10, 0)
             txt:SetJustifyH("LEFT")
             txt:SetWordWrap(false)
             txt:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
             txt:SetText(issue.text or "")
 
-            rowY = rowY - 38
+            rowY = rowY - ISSUE_ROW_H - ISSUE_GAP
         end
     end
 
-    -- =============================================
-    -- WERTE-SUMMEN DER AUSRÜSTUNG
-    -- =============================================
-    local wsY = rowY - 18
-    local wsLabel = bc:CreateFontString(nil, "OVERLAY")
-    wsLabel:SetFont(WeintCodex.Fonts.mono, 10, "")
-    wsLabel:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, wsY)
-    wsLabel:SetText(WeintCodex.ColorText("textFaint", "WERTE-SUMMEN DER AUSRÜSTUNG"))
+    -- Zwei Wege raus, wie im Entwurf: der wichtigere als Bernstein-Flaeche.
+    local hbBtn1 = WeintCodex.CreateButton(hbCard, {
+        text = "Verzauberungen öffnen", kind = "primary",
+        backdrop = "accentCardBot", onClick = ShowEnchants,
+    })
+    hbBtn1:SetPoint("BOTTOMLEFT", hbCard, "BOTTOMLEFT", 20, 14)
 
-    local wsTop = wsY - 20
+    local hbBtn2 = WeintCodex.CreateButton(hbCard, {
+        text = "Sockel öffnen", kind = "secondary",
+        backdrop = "accentCardBot", onClick = ShowGems,
+    })
+    hbBtn2:SetPoint("LEFT", hbBtn1, "RIGHT", 10, 0)
+
+    local hbHint = WeintCodex.Eyebrow(hbCard, "Scan bei Itemwechsel",
+        { size = 9, color = "textFaint", justify = "RIGHT" })
+    hbHint:SetPoint("BOTTOMRIGHT", hbCard, "BOTTOMRIGHT", -20, 24)
+
+    hbCard:SetHeight(math.abs(rowY) + 68)
+
+    --------------------------------------------------
+    -- Rechts: Werte-Summen
+    --------------------------------------------------
+
+    local wsCard = WeintCodex.CreateSurface(bc, {
+        width = rightW, tone = "plain", radius = 14, backdrop = "bgDark",
+    })
+    wsCard:SetPoint("TOPLEFT", bc, "TOPLEFT", 20 + leftW + PAIR_GAP, PAIR_TOP)
+
+    local wsTitle = wsCard:CreateFontString(nil, "OVERLAY")
+    wsTitle:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
+    wsTitle:SetPoint("TOPLEFT", wsCard, "TOPLEFT", 20, -16)
+    wsTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
+    wsTitle:SetText("Werte-Summen der Ausrüstung")
+
     local totals = CollectEquippedStats()
     local statEntries = {}
     for _, key in ipairs(STAT_ORDER) do
@@ -2749,48 +2820,63 @@ function ShowUebersicht()
         end
     end
 
+    local wsY = -48
     if #statEntries == 0 then
-        local none = bc:CreateFontString(nil, "OVERLAY")
-        none:SetFont(WeintCodex.Fonts.sans, 11, "")
-        none:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, wsTop)
-        none:SetText(WeintCodex.ColorText("textFaint", "Keine Werte ermittelt (Charakter einloggen / Items anlegen)."))
-        rowY = wsTop - 26
+        local none = WeintCodex.Label(wsCard,
+            "Keine Werte ermittelt (Charakter einloggen / Items anlegen).",
+            { color = "textMuted", size = 13 })
+        none:SetPoint("TOPLEFT",  wsCard, "TOPLEFT",  20, wsY)
+        none:SetPoint("RIGHT",    wsCard, "RIGHT",   -20, 0)
+        wsY = wsY - 40
     else
-        local WS_COLS, WS_GAP, WS_ROW_H = 4, 14, 64
-        local wsColW = (UEBERSICHT_W - 40 - WS_GAP * (WS_COLS - 1)) / WS_COLS
+        -- Zweispaltig als Beschriftung links / Zahl rechts mit Zeilenlinie -
+        -- der Entwurf listet, statt Kaestchen zu setzen.
+        local WS_COLS  = 2
+        local wsColW   = (rightW - 40 - 20) / WS_COLS
+        local WS_ROW_H = 26
 
         for i, entry in ipairs(statEntries) do
             local col = (i - 1) % WS_COLS
-            local row = math.floor((i - 1) / WS_COLS)
-            local box = CreateFrame("Frame", nil, bc)
-            box:SetSize(wsColW, WS_ROW_H)
-            box:SetPoint("TOPLEFT", bc, "TOPLEFT", 20 + col * (wsColW + WS_GAP), wsTop - row * (WS_ROW_H + WS_GAP))
-            SetSolidBg(box, C.bgCard[1], C.bgCard[2], C.bgCard[3], 1.0)
-            DrawBorder(box, C.border[1], C.border[2], C.border[3], C.border[4], 1)
+            local rw  = math.floor((i - 1) / WS_COLS)
+            local line = CreateFrame("Frame", nil, wsCard)
+            line:SetSize(wsColW, WS_ROW_H)
+            line:SetPoint("TOPLEFT", wsCard, "TOPLEFT",
+                20 + col * (wsColW + 20), wsY - rw * WS_ROW_H)
 
-            local lbl2 = box:CreateFontString(nil, "OVERLAY")
-            lbl2:SetFont(WeintCodex.Fonts.sans, 9, "")
-            lbl2:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -8)
-            lbl2:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
-            lbl2:SetText(entry.label)
+            local lbl2 = WeintCodex.Label(line, entry.label,
+                { color = "textMuted", size = 12 })
+            lbl2:SetPoint("LEFT", line, "LEFT", 0, 0)
 
-            local val = box:CreateFontString(nil, "OVERLAY")
-            val:SetFont(WeintCodex.Fonts.serif, 18, "")
-            val:SetPoint("TOPLEFT", lbl2, "BOTTOMLEFT", 0, -4)
-            val:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-            val:SetText("+" .. entry.value)
+            local val = line:CreateFontString(nil, "OVERLAY")
+            val:SetFont(WeintCodex.Fonts.monoBold, 12, "")
+            val:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+            val:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+            val:SetText("+" .. WeintCodex.FormatGrouped(entry.value))
+
+            WeintCodex.RowLine(line, -(WS_ROW_H - 1))
         end
 
-        local wsRows = math.ceil(#statEntries / WS_COLS)
-        rowY = wsTop - wsRows * (WS_ROW_H + WS_GAP)
+        wsY = wsY - math.ceil(#statEntries / WS_COLS) * WS_ROW_H - 12
     end
 
-    local foot = bc:CreateFontString(nil, "OVERLAY")
-    foot:SetFont(WeintCodex.Fonts.sans, 9, "")
-    foot:SetPoint("TOPLEFT", bc, "TOPLEFT", 20, rowY - 8)
-    foot:SetText(WeintCodex.ColorText("textGhost", "Karten anklicken für Details. Scan läuft bei Itemwechsel automatisch."))
+    local wsFoot = WeintCodex.Label(wsCard,
+        "Bewertet wird gegen das Spec-Profil aus spec_profiles.lua — das Addon "
+        .. "urteilt, die Companion zeichnet nur.",
+        { color = "textDim", size = 12 })
+    wsFoot:SetPoint("TOPLEFT",  wsCard, "TOPLEFT",  20, wsY - 4)
+    wsFoot:SetPoint("RIGHT",    wsCard, "RIGHT",   -20, 0)
+    wsFoot:SetJustifyV("TOP")
 
-    bc:SetHeight(math.abs(rowY) + 40)
+    wsCard:SetHeight(math.max(hbCard:GetHeight(), math.abs(wsY) + 56))
+
+    -- Der Scrollbereich richtet sich nach der hoeheren der beiden Karten.
+    rowY = PAIR_TOP - math.max(hbCard:GetHeight(), wsCard:GetHeight())
+
+    -- Die frueher hier stehende Fusszeile ("Karten anklicken fuer Details,
+    -- Scan laeuft bei Itemwechsel") ist entfallen: beide Aussagen stehen jetzt
+    -- dort, wo sie gelten - der Scan-Hinweis in der Akzentkarte, die
+    -- Klickbarkeit zeigen die Kennzahlenkarten selbst beim Ueberfahren.
+    bc:SetHeight(math.abs(rowY) + 32)
 
     local combined = {
         total   = scan.enchants.counts.total   + scan.gems.counts.total,
