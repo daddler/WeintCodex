@@ -161,7 +161,7 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
         "Eingeladen: " .. invited .. "/" .. total
 
     if #failed > 0 then
-        msg = msg .. "\n|cffC85A3AFehlgeschlagen:|r " .. table.concat(failed, ", ")
+        msg = msg .. "\n|cffE56B6BFehlgeschlagen:|r " .. table.concat(failed, ", ")
     end
 
     statusCallback(true, msg)
@@ -253,7 +253,7 @@ local function CreateCalendarFrame()
     local detailsSect = leftPanel:CreateFontString(nil, "OVERLAY")
     detailsSect:SetFont(WeintCodex.Fonts.sans, 11, "")
     detailsSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -16)
-    detailsSect:SetText("|cffC8763AEVENT-DETAILS|r")
+    detailsSect:SetText("|cffD4A24AEVENT-DETAILS|r")
 
     local detailsLine = leftPanel:CreateTexture(nil, "OVERLAY")
     detailsLine:SetHeight(1)
@@ -278,7 +278,7 @@ local function CreateCalendarFrame()
     local timeSep = leftPanel:CreateFontString(nil, "OVERLAY")
     timeSep:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
     timeSep:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 276, -100)
-    timeSep:SetText("|cff6B6259:|r")
+    timeSep:SetText("|cff4A4A52:|r")
 
     -- Beschreibung
     local descLabel = leftPanel:CreateFontString(nil, "OVERLAY")
@@ -321,7 +321,7 @@ local function CreateCalendarFrame()
     local autoFillLbl = autoFillBtn:CreateFontString(nil, "OVERLAY")
     autoFillLbl:SetAllPoints(autoFillBtn)
     autoFillLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-    autoFillLbl:SetText("|cff8A8177" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Felder aus Raidanmeldung befüllen|r")
+    autoFillLbl:SetText("|cff6B6B74" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. "  Felder aus Raidanmeldung befüllen|r")
 
     autoFillBtn:SetScript("OnEnter", function(self)
         SetSolidBg(self, C.purple[1] * 0.15, C.purple[2] * 0.15, C.purple[3] * 0.15, 0.90)
@@ -336,7 +336,7 @@ local function CreateCalendarFrame()
         if data and data.date and data.date ~= "" then
             AutoFillFromData(f, data)
         else
-            f.StatusText:SetText("|cffC85A3A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 14) .. " Keine Raidanmeldung für " ..
+            f.StatusText:SetText("|cffE56B6B" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 14) .. " Keine Raidanmeldung für " ..
                 ((activeDay == "thursday") and "Donnerstag" or "Mittwoch") ..
                 " vorhanden. Bitte zuerst importieren.|r")
         end
@@ -347,7 +347,7 @@ local function CreateCalendarFrame()
     local invSect = leftPanel:CreateFontString(nil, "OVERLAY")
     invSect:SetFont(WeintCodex.Fonts.sans, 11, "")
     invSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -262)
-    invSect:SetText("|cffC8763AEINLADUNGEN|r")
+    invSect:SetText("|cffD4A24AEINLADUNGEN|r")
 
     local invLine = leftPanel:CreateTexture(nil, "OVERLAY")
     invLine:SetHeight(1)
@@ -371,10 +371,10 @@ local function CreateCalendarFrame()
         return cb
     end
 
-    local cbTank   = MakeCheckbox(leftPanel, "|cff6BA0D9" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks einladen|r",   16, -284, true)
-    local cbHealer = MakeCheckbox(leftPanel, "|cff4A7C59" .. WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler einladen|r",  16, -308, true)
-    local cbDps    = MakeCheckbox(leftPanel, "|cffC85A3A" .. WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS einladen|r",     16, -332, true)
-    local cbMerge  = MakeCheckbox(leftPanel, "|cffC8763A" .. WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Raidtage zusammenführen|r", 16, -356, false)
+    local cbTank   = MakeCheckbox(leftPanel, "|cff8B95F5" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks einladen|r",   16, -284, true)
+    local cbHealer = MakeCheckbox(leftPanel, "|cff7CC06E" .. WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler einladen|r",  16, -308, true)
+    local cbDps    = MakeCheckbox(leftPanel, "|cffE56B6B" .. WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS einladen|r",     16, -332, true)
+    local cbMerge  = MakeCheckbox(leftPanel, "|cffD4A24A" .. WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Raidtage zusammenführen|r", 16, -356, false)
     f.CbMerge  = cbMerge
     f.CbTank   = cbTank
     f.CbHealer = cbHealer
@@ -442,7 +442,7 @@ local function CreateCalendarFrame()
         if ok then
             apiInfo:SetText("|cff33D65E" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Kalender-API (C_Calendar) verfügbar|r")
         else
-            apiInfo:SetText("|cffC85A3A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 14) .. " Kalender-API nicht erkannt – manuelles Erstellen nötig|r")
+            apiInfo:SetText("|cffE56B6B" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 14) .. " Kalender-API nicht erkannt – manuelles Erstellen nötig|r")
         end
         f.ApiAvailable = ok
         WeintCodex.Navigation.SetInspector({
@@ -477,7 +477,7 @@ local function CreateCalendarFrame()
     local previewSect = rightPanel:CreateFontString(nil, "OVERLAY")
     previewSect:SetFont(WeintCodex.Fonts.sans, 11, "")
     previewSect:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 10, -16)
-    previewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r")
+    previewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r")
     f.PreviewSect = previewSect
 
     local previewLine = rightPanel:CreateTexture(nil, "OVERLAY")
@@ -563,18 +563,18 @@ local function CreateCalendarFrame()
             AddInvitees(data)
         end
 
-        f.StatusText:SetText("|cffC8763A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Kalender wird vorbereitet...|r")
+        f.StatusText:SetText("|cffD4A24A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Kalender wird vorbereitet...|r")
 
         CreateIngameCalendarEvent(
             title, descText, dateStr, hour, minute, invitePlayers,
             function(success, msg)
                 if success then
                     f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
-                    print("|cffC8763A[WeintCodex Kalender]|r |cff33D65E" ..
+                    print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
                         "Eintrag '" .. title .. "' vorbereitet (" ..
                         #invitePlayers .. " Spieler).|r")
                 else
-                    f.StatusText:SetText("|cffC85A3A" .. msg .. "|r")
+                    f.StatusText:SetText("|cffE56B6B" .. msg .. "|r")
                 end
             end
         )
@@ -707,7 +707,7 @@ RefreshPlayerPreview = function(f, raidData)
         local classLbl = row:CreateFontString(nil, "OVERLAY")
         classLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         classLbl:SetPoint("LEFT", row, "LEFT", 190, 0)
-        classLbl:SetText("|cff6B6259" .. (p.class or "") .. "|r")
+        classLbl:SetText("|cff4A4A52" .. (p.class or "") .. "|r")
         classLbl:SetWidth(120)
 
         table.insert(activePreviewRows, row)
@@ -717,9 +717,9 @@ RefreshPlayerPreview = function(f, raidData)
     pc:SetHeight(math.abs(offsetY) + 10)
 
     f.PreviewCount:SetText(
-        "|cff6BA0D9" .. tanks .. "T|r  " ..
-        "|cff4A7C59" .. healers .. "H|r  " ..
-        "|cffC85A3A" .. dps .. "D|r  " ..
+        "|cff8B95F5" .. tanks .. "T|r  " ..
+        "|cff7CC06E" .. healers .. "H|r  " ..
+        "|cffE56B6B" .. dps .. "D|r  " ..
         "|cff888888" .. total .. " gesamt|r"
     )
 end
@@ -797,7 +797,7 @@ function WeintCodex.Calendar.Show()
             onClick = function()
                 activeDay = "wednesday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-                f.PreviewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r  |cff6B6259Mittwoch|r")
+                f.PreviewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r  |cff4A4A52Mittwoch|r")
                 WeintCodex.SetBreadcrumb("Kalender", "Mittwoch")
                 AutoFillFromData(f, data)
                 RefreshPlayerPreview(f, data)
@@ -809,7 +809,7 @@ function WeintCodex.Calendar.Show()
             onClick = function()
                 activeDay = "thursday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidThursday
-                f.PreviewSect:SetText("|cffC8763AEINZULADENDE SPIELER|r  |cff6B6259Donnerstag|r")
+                f.PreviewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r  |cff4A4A52Donnerstag|r")
                 WeintCodex.SetBreadcrumb("Kalender", "Donnerstag")
                 AutoFillFromData(f, data)
                 RefreshPlayerPreview(f, data)

@@ -557,19 +557,24 @@ function WeintCodex.Materials.Show()
         end
     end
 
-    -- Sidebar: "Alle" + each category
+    -- "Alle" + je Kategorie ein Eintrag, flach und ohne Gruppenueberschrift:
+    -- der Entwurf zeigt das als Reiterleiste unter dem Titel. Die frueher
+    -- vorangestellte Zeile "KATEGORIEN" gliederte eine hohe, schmale Spalte
+    -- und haette die Leiste in die Listendarstellung gezwungen.
+    --
+    -- Die Kategorien kommen aus den importierten Daten. Sind es sehr viele,
+    -- entscheidet BuildSidebar selbst auf die Listenspalte - eine Leiste mit
+    -- fuenfzehn Reitern waere schlechter als eine Liste.
     local sidebarItems = {
         {
             label   = "Alle Materialien",
             onClick = function() RefreshMatDisplay(matData, "Alle") end,
         },
-        { isGroup = true, label = "KATEGORIEN" },
     }
     for _, cat in ipairs(cats) do
         local cn = cat
         sidebarItems[#sidebarItems + 1] = {
             label   = cn,
-            indent  = true,
             onClick = function() RefreshMatDisplay(matData, cn) end,
         }
     end

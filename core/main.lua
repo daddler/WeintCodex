@@ -222,7 +222,7 @@ local function OnEvent(self, event, addonName)
         WeintCodex.ResetToHome()
     end
 
-    print("|cffC8763A[WeintCodex]|r |cff22C55Ev" .. WeintCodex.Version .. "|r geladen. |cffaaaaaa/wc zum Öffnen.|r")
+    print("|cffD4A24A[WeintCodex]|r |cff22C55Ev" .. WeintCodex.Version .. "|r geladen. |cffaaaaaa/wc zum Öffnen.|r")
 end
 
 local loader = CreateFrame("Frame")

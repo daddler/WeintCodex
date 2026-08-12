@@ -1516,7 +1516,7 @@ end
 function WeintCodex.RotationTrainer.PrintCheck()
     RefreshSpec()
     if not currentSpecKey then
-        print("|cffC8763A[WeintCodex]|r Keine Spec erkannt.")
+        print("|cffD4A24A[WeintCodex]|r Keine Spec erkannt.")
         return
     end
     RE.PrintDiagnostics(currentSpecKey)
@@ -1527,11 +1527,11 @@ end
 function WeintCodex.RotationTrainer.PrintTargetId()
     local guid = UnitGUID("target")
     if not guid then
-        print("|cffC8763A[WeintCodex]|r Kein Ziel ausgewählt.")
+        print("|cffD4A24A[WeintCodex]|r Kein Ziel ausgewählt.")
         return
     end
     local unitType, _, _, _, _, npcId = strsplit("-", guid)
-    print(string.format("|cffC8763A[WeintCodex]|r Ziel: %s (%s), NPC-ID %s",
+    print(string.format("|cffD4A24A[WeintCodex]|r Ziel: %s (%s), NPC-ID %s",
         UnitName("target") or "?", unitType or "?", tostring(npcId)))
 end
 

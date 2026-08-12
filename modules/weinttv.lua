@@ -259,7 +259,7 @@ local function DrawHeader(frame, titleText, report)
     local title = frame:CreateFontString(nil, "OVERLAY")
     title:SetFont(WeintCodex.Fonts.serif, 19, "")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
-    title:SetText("|cffC8763A" .. titleText .. "|r")
+    title:SetText("|cffD4A24A" .. titleText .. "|r")
 
     WeintCodex.SetBreadcrumb("WeintTV", titleText)
 
@@ -869,16 +869,18 @@ end
 function WeintCodex.WeintTV.Show()
     MakeFilterButton()
 
-    WeintCodex.Navigation.BuildSidebar("WEINTTV", {
-        { isGroup = true, label = "— SCHADEN —" },
-        { label = "Erhaltener Schaden",  onClick = ShowDamageTaken, indent = true },
-        { label = "Vermeidbarer Schaden", onClick = ShowAvoidable,  indent = true },
-        { isGroup = true, label = "— SPIELWEISE —" },
-        { label = "Wirkungsdauern",      onClick = ShowUptimes,   indent = true },
-        { label = "Aktivzeit & Laufwege", onClick = ShowActivity, indent = true },
-        { label = "Cooldown-Nutzung",    onClick = ShowCooldowns, indent = true },
-        { isGroup = true, label = "— RAID —" },
-        { label = "Unterbrechungen & Mechaniken", onClick = ShowSupport, indent = true },
+    -- Flach und ohne Gruppen: der Entwurf zeigt die sechs Seiten als
+    -- Reiterleiste unter dem Titel. Die frueheren Zwischenueberschriften
+    -- (— SCHADEN — / — SPIELWEISE — / — RAID —) waren Gliederung fuer eine
+    -- hohe, schmale Spalte; in einer Leiste haben sie keine Entsprechung und
+    -- wuerden sie ausserdem in die Listendarstellung zwingen.
+    WeintCodex.Navigation.BuildSidebar("WeintTV", {
+        { label = "Erhaltener Schaden",    onClick = ShowDamageTaken },
+        { label = "Vermeidbarer Schaden",  onClick = ShowAvoidable   },
+        { label = "Wirkungsdauern",        onClick = ShowUptimes     },
+        { label = "Aktivzeit",             onClick = ShowActivity    },
+        { label = "Cooldowns",             onClick = ShowCooldowns   },
+        { label = "Unterbrechungen",       onClick = ShowSupport     },
     })
 
     WeintCodex.Navigation.ActivateFirst()

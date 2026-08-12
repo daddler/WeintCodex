@@ -1417,7 +1417,7 @@ local function ScanCharacter()
                     print(WeintCodex.ColorText("danger", "[WeintCodex]")
                         .. " Verzauberungs-ID " .. tostring(enchId) .. " (" .. slotDef.name
                         .. ") passt nicht zur Datenbank - angezeigt wird der Wert aus dem"
-                        .. " Item-Tooltip. Bitte einmal |cffC8763A/wc vz|r ausführen und die"
+                        .. " Item-Tooltip. Bitte einmal |cffD4A24A/wc vz|r ausführen und die"
                         .. " Ausgabe melden.")
                 end
                 local status, bestList = EvaluateEnchant(
@@ -1709,7 +1709,7 @@ end
 --------------------------------------------------
 
 function WeintCodex.Charakter.DumpEnchants()
-    print("|cffC8763A[WeintCodex]|r Ausrüstungs-Dump (Zeilen bitte kopieren und melden):")
+    print("|cffD4A24A[WeintCodex]|r Ausrüstungs-Dump (Zeilen bitte kopieren und melden):")
     local any = false
     for _, slotDef in ipairs(EQUIP_SLOTS) do
         local link = GetInventoryItemLink("player", slotDef.id)
@@ -1744,7 +1744,7 @@ function WeintCodex.Charakter.DumpEnchants()
                         parts[#parts + 1] = key .. "=" .. value
                     end
                     table.sort(parts)
-                    statStr = "  |cff6B6259[" .. table.concat(parts, ", ") .. "]|r"
+                    statStr = "  |cff4A4A52[" .. table.concat(parts, ", ") .. "]|r"
                 end
 
                 print(string.format("  %s: VZ-ID %d = %s%s%s",
@@ -1928,7 +1928,7 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
     local title = frame:CreateFontString(nil, "OVERLAY")
     title:SetFont(WeintCodex.Fonts.serif, 19, "")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
-    title:SetText("|cffC8763A" .. titleText .. "|r")
+    title:SetText("|cffD4A24A" .. titleText .. "|r")
 
     MakeRefreshButton(onRefresh)
     WeintCodex.SetBreadcrumb("Charakter", titleText)
@@ -1938,12 +1938,12 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
     specInfo:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
     if scan.profileKey then
         local styleHint = scan.tankStyle
-            and (" |cffC8763A[" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]|r")
+            and (" |cffD4A24A[" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]|r")
             or ""
         local customHint = (scan.profile and scan.profile.customWeights)
             and "  |cffFFBB22[eigene Gewichtung aktiv]|r" or ""
         local profWarn = (not scan.profile) and "  |cffff9900(kein Profil hinterlegt!)|r" or ""
-        specInfo:SetText("|cff6B6259Spec: " .. (scan.specDisplay or scan.profileKey) .. styleHint .. "|r" .. customHint .. profWarn)
+        specInfo:SetText("|cff4A4A52Spec: " .. (scan.specDisplay or scan.profileKey) .. styleHint .. "|r" .. customHint .. profWarn)
     else
         specInfo:SetText("|cffff9900Spec konnte nicht ermittelt werden — einloggen bzw. Spec wählen!|r")
     end
@@ -1966,7 +1966,7 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
     local info = bg:CreateFontString(nil, "OVERLAY")
     info:SetFont(WeintCodex.Fonts.sans, 10, "")
     info:SetPoint("LEFT", bg, "LEFT", 10, 0)
-    info:SetText("|cffC8763ATank-Spielstil:|r |cff6B6259bestimmt Empfehlungen & Bewertung|r")
+    info:SetText("|cffD4A24ATank-Spielstil:|r |cff4A4A52bestimmt Empfehlungen & Bewertung|r")
 
     local function StyleBtn(label, style, xOff)
         local isActive = (currentStyle == style)
@@ -1982,7 +1982,7 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
         lbl:SetAllPoints(btn)
         lbl:SetJustifyH("CENTER")
         lbl:SetJustifyV("MIDDLE")
-        lbl:SetText(isActive and ("|cffC8763A" .. label .. "|r") or ("|cff6B6259" .. label .. "|r"))
+        lbl:SetText(isActive and ("|cffD4A24A" .. label .. "|r") or ("|cff4A4A52" .. label .. "|r"))
         btn:SetScript("OnClick", function()
             SetTankStyle(profileKey, style)
             if onSwitch then onSwitch() end
@@ -2041,7 +2041,7 @@ function ShowEnchants()
         h:SetPoint("TOPLEFT", enchantFrame, "TOPLEFT", x, headerY)
         h:SetWidth(w)
         h:SetJustifyH("LEFT")
-        h:SetText("|cff6B6259" .. text .. "|r")
+        h:SetText("|cff4A4A52" .. text .. "|r")
     end
     MakeHeader("STATUS",                 24, 70)
     MakeHeader("SLOT / GEGENSTAND",      94, 140)
@@ -2103,7 +2103,7 @@ function ShowEnchants()
             -- Einzeilig kuerzen statt umbrechen zu lassen, sonst kollidiert
             -- eine 2. Zeile mit dem Slotnamen darueber (siehe TruncateOneLine).
             local shortName = TruncateOneLine(itemLbl, row.itemName, 138)
-            itemLbl:SetText("|cff4A423A" .. shortName .. "|r")
+            itemLbl:SetText("|cff3A3A42" .. shortName .. "|r")
         end
 
         local curLbl = rf:CreateFontString(nil, "OVERLAY")
@@ -2114,7 +2114,7 @@ function ShowEnchants()
         if row.status == "missing" then
             curLbl:SetText("|cffff5555— Keine Verzauberung! —|r")
         elseif row.status == "neutral" and not row.enchId then
-            curLbl:SetText("|cff6B6259— (keine Empfehlung für diese Spec)|r")
+            curLbl:SetText("|cff4A4A52— (keine Empfehlung für diese Spec)|r")
         else
             -- Was der Client sagt, hat Vorrang vor unserer ID-Tabelle
             -- (siehe ResolveEnchant) — sonst zeigen wir bei falsch
@@ -2127,7 +2127,7 @@ function ShowEnchants()
                 -- Item war beim Scan noch nicht im Client-Cache: Name
                 -- stammt ungeprüft aus der DB (Neuscan läuft automatisch,
                 -- sobald der Client die Itemdaten nachliefert).
-                curLbl:SetText(n .. " |cff6B6259(?)|r")
+                curLbl:SetText(n .. " |cff4A4A52(?)|r")
             elseif row.mismatch then
                 curLbl:SetText(n .. " |cffFFBB22(ID " .. tostring(row.enchId)
                     .. " abweichend – /wc vz)|r")
@@ -2150,7 +2150,7 @@ function ShowEnchants()
                 recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")
-                recLbl:SetText("|cffC8763A> " .. recName .. "|r")
+                recLbl:SetText("|cffD4A24A> " .. recName .. "|r")
             end
         end
 
@@ -2194,7 +2194,7 @@ function ShowGems()
         noteBox:SetPoint("TOPRIGHT", gemFrame, "TOPRIGHT", -140, -14)
         noteBox:SetWidth(300)
         noteBox:SetJustifyH("RIGHT")
-        noteBox:SetText("|cff6B6259" .. scan.profile.gemNote .. "|r")
+        noteBox:SetText("|cff4A4A52" .. scan.profile.gemNote .. "|r")
     end
 
     local toggleOffset = DrawTankStyleToggle(gemFrame, scan.profileKey, scan.tankStyle, ShowGems)
@@ -2206,7 +2206,7 @@ function ShowGems()
         h:SetPoint("TOPLEFT", gemFrame, "TOPLEFT", x, headerY)
         h:SetWidth(w)
         h:SetJustifyH("LEFT")
-        h:SetText("|cff6B6259" .. text .. "|r")
+        h:SetText("|cff4A4A52" .. text .. "|r")
     end
     MakeHeader("STATUS",             24, 80)
     MakeHeader("SOCKELPLATZ (FARBE)", 108, 122)
@@ -2235,8 +2235,8 @@ function ShowGems()
             local slotHeader = inner:CreateFontString(nil, "OVERLAY")
             slotHeader:SetFont(WeintCodex.Fonts.sans, 10, "")
             slotHeader:SetPoint("TOPLEFT", inner, "TOPLEFT", 6, yOff - 4)
-            slotHeader:SetText("|cffC8763A" .. row.slotName .. "|r"
-                .. (row.itemName and ("  |cff4A423A" .. row.itemName .. "|r") or ""))
+            slotHeader:SetText("|cffD4A24A" .. row.slotName .. "|r"
+                .. (row.itemName and ("  |cff3A3A42" .. row.itemName .. "|r") or ""))
             yOff = yOff - 20
 
             -- Sockelbonus + Entscheidung (genutzt / ignoriert)
@@ -2249,7 +2249,7 @@ function ShowGems()
                 local bonusLine = inner:CreateFontString(nil, "OVERLAY")
                 bonusLine:SetFont(WeintCodex.Fonts.sans, 9, "")
                 bonusLine:SetPoint("TOPLEFT", inner, "TOPLEFT", 16, yOff - 1)
-                bonusLine:SetText("|cff6B6259Sockelbonus: " .. dec.bonusText
+                bonusLine:SetText("|cff4A4A52Sockelbonus: " .. dec.bonusText
                     .. " — " .. verdict)
                 yOff = yOff - 15
             end
@@ -2335,7 +2335,7 @@ function ShowGems()
                 recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")
-                recLbl:SetText("|cffC8763A> " .. recName .. "|r")
+                recLbl:SetText("|cffD4A24A> " .. recName .. "|r")
             end
         end
 
@@ -2356,7 +2356,7 @@ function ShowGems()
     local colorHint = gemFrame:CreateFontString(nil, "OVERLAY")
     colorHint:SetFont(WeintCodex.Fonts.sans, 9, "")
     colorHint:SetPoint("BOTTOMLEFT", gemFrame, "BOTTOMLEFT", 16, 20)
-    colorHint:SetText("|cff6B6259Farbpunkt & Name = Farbe des SOCKELPLATZES im Item, nicht des Steins. Andersfarbige Steine (z.B. Lila in Blau) können optimal sein.|r")
+    colorHint:SetText("|cff4A4A52Farbpunkt & Name = Farbe des SOCKELPLATZES im Item, nicht des Steins. Andersfarbige Steine (z.B. Lila in Blau) können optimal sein.|r")
 end
 
 --------------------------------------------------
@@ -2844,7 +2844,7 @@ function ShowWerteverteilung()
     local capHdr = werteFrame:CreateFontString(nil, "OVERLAY")
     capHdr:SetFont(WeintCodex.Fonts.sans, 10, "")
     capHdr:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
-    capHdr:SetText("|cff6B6259— SEKUNDÄRSTAT-CAPS (live vom Charakterbogen) —|r")
+    capHdr:SetText("|cff4A4A52— SEKUNDÄRSTAT-CAPS (live vom Charakterbogen) —|r")
     yOff = yOff - 20
 
     if #scan.caps == 0 then
@@ -2852,7 +2852,7 @@ function ShowWerteverteilung()
         none:SetFont(WeintCodex.Fonts.sans, 10, "")
         none:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
         none:SetText(scan.profile
-            and "|cff6B6259Für diese Spec gibt es keine Pflicht-Caps (Heiler).|r"
+            and "|cff4A4A52Für diese Spec gibt es keine Pflicht-Caps (Heiler).|r"
             or  "|cffff9900Kein Spec-Profil — Caps können nicht geprüft werden.|r")
         yOff = yOff - 24
     else
@@ -2862,7 +2862,7 @@ function ShowWerteverteilung()
                 local note = werteFrame:CreateFontString(nil, "OVERLAY")
                 note:SetFont(WeintCodex.Fonts.sans, 8, "")
                 note:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
-                note:SetText("|cff6B6259" .. cs.note .. "|r")
+                note:SetText("|cff4A4A52" .. cs.note .. "|r")
                 yOff = yOff - 14
             end
             if cs.overPct > 0.25 and #cs.wasted > 0 then
@@ -2893,7 +2893,7 @@ function ShowWerteverteilung()
     local hdr = werteFrame:CreateFontString(nil, "OVERLAY")
     hdr:SetFont(WeintCodex.Fonts.sans, 10, "")
     hdr:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
-    hdr:SetText("|cff6B6259— WERTE-SUMMEN DER AUSRÜSTUNG —|r")
+    hdr:SetText("|cff4A4A52— WERTE-SUMMEN DER AUSRÜSTUNG —|r")
     yOff = yOff - 22
 
     local totals = CollectEquippedStats()
@@ -2916,7 +2916,7 @@ function ShowWerteverteilung()
             local val = row:CreateFontString(nil, "OVERLAY")
             val:SetFont(WeintCodex.Fonts.sans, 10, "")
             val:SetPoint("RIGHT", row, "RIGHT", -10, 0)
-            val:SetText("|cffC8763A+" .. value .. "|r")
+            val:SetText("|cffD4A24A+" .. value .. "|r")
 
             yOff = yOff - 22
         end
@@ -2932,7 +2932,7 @@ function ShowWerteverteilung()
     local hint = werteFrame:CreateFontString(nil, "OVERLAY")
     hint:SetFont(WeintCodex.Fonts.sans, 9, "")
     hint:SetPoint("BOTTOMLEFT", werteFrame, "BOTTOMLEFT", 16, 8)
-    hint:SetText("|cff4A423ACap-Werte kommen live vom Charakterbogen (inkl. Rassenboni & Buffs). Summen = reine Item-Stats.|r")
+    hint:SetText("|cff3A3A42Cap-Werte kommen live vom Charakterbogen (inkl. Rassenboni & Buffs). Summen = reine Item-Stats.|r")
 
     local capRows = {}
     for _, cs in ipairs(scan.caps) do
@@ -3022,7 +3022,7 @@ function ShowPriorisierung()
     desc:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -52)
     desc:SetWidth(math.max((cp:GetWidth() or 660) - 32, 400))
     desc:SetJustifyH("LEFT")
-    desc:SetText("|cff6B6259Gewichte 0-999: je höher, desto wichtiger ist der Wert für DICH (0 = egal). "
+    desc:SetText("|cff4A4A52Gewichte 0-999: je höher, desto wichtiger ist der Wert für DICH (0 = egal). "
         .. "Wirkt auf die Stein-Bewertung (Qualitäts-%, OK/Falsch) und die Empfehlungsauswahl bei Cap-Überschuss. "
         .. "Empfehlungslisten der Spec und Treffer-/Waffenkunde-Caps bleiben unverändert.|r")
 
@@ -3035,7 +3035,7 @@ function ShowPriorisierung()
     local cbLbl = prioFrame:CreateFontString(nil, "OVERLAY")
     cbLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     cbLbl:SetPoint("LEFT", cb, "RIGHT", 4, 0)
-    cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff6B6259(für " .. (specDisplay or profileKey) .. ")|r")
+    cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff4A4A52(für " .. (specDisplay or profileKey) .. ")|r")
 
     -- Eingabefelder
     local boxes = {}
@@ -3056,7 +3056,7 @@ function ShowPriorisierung()
         local def = row:CreateFontString(nil, "OVERLAY")
         def:SetFont(WeintCodex.Fonts.sans, 9, "")
         def:SetPoint("RIGHT", row, "RIGHT", -70, 0)
-        def:SetText("|cff6B6259Standard: " .. (defaults[st.key] or 0) .. "|r")
+        def:SetText("|cff4A4A52Standard: " .. (defaults[st.key] or 0) .. "|r")
 
         local eb = CreateFrame("EditBox", nil, row)
         eb:SetSize(48, 18)
@@ -3090,7 +3090,7 @@ function ShowPriorisierung()
             enabled = cb:GetChecked() and true or false,
             weights = w,
         }
-        print("|cffC8763A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " gespeichert"
+        print("|cffD4A24A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " gespeichert"
             .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert)."))
         ShowPriorisierung()
     end)
@@ -3098,7 +3098,7 @@ function ShowPriorisierung()
 
     local resetBtn = MakeBtn(prioFrame, "Auf Standard zurücksetzen", 180, 24, function()
         sd.customWeights[effKey] = nil
-        print("|cffC8763A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " auf Standard zurückgesetzt.")
+        print("|cffD4A24A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " auf Standard zurückgesetzt.")
         ShowPriorisierung()
     end)
     resetBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 186, yOff - 8)
@@ -3106,7 +3106,7 @@ function ShowPriorisierung()
     local hint = prioFrame:CreateFontString(nil, "OVERLAY")
     hint:SetFont(WeintCodex.Fonts.sans, 9, "")
     hint:SetPoint("BOTTOMLEFT", prioFrame, "BOTTOMLEFT", 16, 6)
-    hint:SetText("|cff4A423AGilt pro Spec (Tanks: getrennt für Offensiv/Defensiv). Wird pro Account gespeichert.|r")
+    hint:SetText("|cff3A3A42Gilt pro Spec (Tanks: getrennt für Offensiv/Defensiv). Wird pro Account gespeichert.|r")
 
     ShowScoreInspector(nil, {
         { type = "header", text = "Eigene Gewichtung" },
@@ -3168,14 +3168,14 @@ function ShowTwinkverwaltung()
     local title = twinkFrame:CreateFontString(nil, "OVERLAY")
     title:SetFont(WeintCodex.Fonts.sansBold, 22, "")
     title:SetPoint("TOPLEFT", twinkFrame, "TOPLEFT", 16, -14)
-    title:SetText("|cffC8763ATwinkverwaltung|r")
+    title:SetText("|cffD4A24ATwinkverwaltung|r")
 
     local sub = twinkFrame:CreateFontString(nil, "OVERLAY")
     sub:SetFont(WeintCodex.Fonts.sans, 10, "")
     sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
     sub:SetWidth(640)
     sub:SetJustifyH("LEFT")
-    sub:SetText("|cff6B6259Gildenmitglieder scannen und eigene Twinks auswählen. Export für den WeintCodex Discord-Bot.|r")
+    sub:SetText("|cff4A4A52Gildenmitglieder scannen und eigene Twinks auswählen. Export für den WeintCodex Discord-Bot.|r")
 
     WeintCodex.SetBreadcrumb("Charakter", "Twinkverwaltung")
 
@@ -3250,7 +3250,7 @@ function ShowTwinkverwaltung()
         end
         local numMembers = GetNumGuildMembers()
         title:SetText(string.format(
-            "|cffC8763ATwinkverwaltung|r |cff888888(%d Mitglieder gefunden)|r",
+            "|cffD4A24ATwinkverwaltung|r |cff888888(%d Mitglieder gefunden)|r",
             numMembers or 0))
 
         local yOff = 0
@@ -3295,7 +3295,7 @@ function ShowTwinkverwaltung()
                 nameLbl:SetPoint("LEFT", row, "LEFT", 30, 0)
                 nameLbl:SetWidth(140)
                 nameLbl:SetJustifyH("LEFT")
-                nameLbl:SetText(shortName .. (shortName == playerName and " |cffC8763A(Du)|r" or ""))
+                nameLbl:SetText(shortName .. (shortName == playerName and " |cffD4A24A(Du)|r" or ""))
                 nameLbl:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
 
                 local classLbl = row:CreateFontString(nil, "OVERLAY")
@@ -3360,7 +3360,7 @@ function ShowTwinkverwaltung()
     local foot = twinkFrame:CreateFontString(nil, "OVERLAY")
     foot:SetFont(WeintCodex.Fonts.sans, 9, "")
     foot:SetPoint("BOTTOMLEFT", twinkFrame, "BOTTOMLEFT", 16, 8)
-    foot:SetText("|cff4A423AFormat: WCEXPORT:TWINK:DATUM:Name|KLASSE|STUFE|NOTIZ,...|r")
+    foot:SetText("|cff3A3A42Format: WCEXPORT:TWINK:DATUM:Name|KLASSE|STUFE|NOTIZ,...|r")
 
     DrawRoster()
     twinkFrame:Show()
@@ -3372,30 +3372,21 @@ end
 
 function WeintCodex.Charakter.Show()
     activeCharakterView = nil
-    WeintCodex.Navigation.BuildSidebar("CHARAKTER", {
+    -- Sechs Reiter, flach, in der Reihenfolge des Entwurfs (2a). Die
+    -- Zwischenueberschriften (— AUSRÜSTUNG — usw.) gliederten die alte hohe
+    -- Spalte; in einer Leiste haben sie keine Entsprechung.
+    --
+    -- Die drei Academy-Eintraege sind hier raus: die Academy ist seit
+    -- 2.0.0.0 ein eigener Navigationspunkt mit eigener Reiterleiste. Sie
+    -- hing hier, weil Bewertung und Lektionen zum Charakter gehoeren - das
+    -- traegt jetzt die Navigationsgruppe "Charakter", die beide enthaelt.
+    WeintCodex.Navigation.BuildSidebar("Charakter", {
         { label = "Übersicht",       onClick = ShowUebersicht },
-        { isGroup = true, label = "— AUSRÜSTUNG —" },
-        { label = "Verzauberungen",  onClick = ShowEnchants,  indent = true },
-        { label = "Sockel",          onClick = ShowGems,      indent = true },
-        { isGroup = true, label = "— ANALYSE —" },
+        { label = "Verzauberungen",  onClick = ShowEnchants },
+        { label = "Sockel",          onClick = ShowGems },
         { label = "Werteverteilung", onClick = ShowWerteverteilung },
         { label = "Priorisierung",   onClick = ShowPriorisierung },
-        { isGroup = true, label = "— ACADEMY —" },
-        -- Eigenes Modul (modules/academy.lua), haengt aber bewusst hier:
-        -- Bewertung und Lektionen gehoeren zum Charakter, nicht in einen
-        -- eigenen Tab. Aufloesung zur Laufzeit, damit die Ladereihenfolge
-        -- keine Rolle spielt.
-        { label = "Lernzentrum",   indent = true, onClick = function()
-            if WeintCodex.Academy then WeintCodex.Academy.ShowOverview() end
-        end },
-        { label = "Trainingsplan", indent = true, onClick = function()
-            if WeintCodex.Academy then WeintCodex.Academy.ShowPlan() end
-        end },
-        { label = "Lektionskatalog", indent = true, onClick = function()
-            if WeintCodex.Academy then WeintCodex.Academy.ShowCatalog() end
-        end },
-        { isGroup = true, label = "— VERWALTUNG —" },
-        { label = "Twinkverwaltung", onClick = ShowTwinkverwaltung },
+        { label = "Twinks",          onClick = ShowTwinkverwaltung },
     })
     WeintCodex.Navigation.ActivateFirst()
 end

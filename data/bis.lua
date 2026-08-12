@@ -838,7 +838,7 @@ function WeintCodex_ValidateBiSData()
     end
 
     if #problems > 0 then
-        print("|cffC8763A[WeintCodex]|r |cffff5555BiS-Daten unvollständig:|r")
+        print("|cffD4A24A[WeintCodex]|r |cffff5555BiS-Daten unvollständig:|r")
         for _, problem in ipairs(problems) do
             print("  |cffaaaaaa" .. problem .. "|r")
         end

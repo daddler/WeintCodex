@@ -1459,7 +1459,7 @@ function WeintCodex_ValidateSpecData()
     end
 
     if #problems > 0 then
-        print("|cffC8763A[WeintCodex]|r |cffff5555Datenprüfung: "
+        print("|cffD4A24A[WeintCodex]|r |cffff5555Datenprüfung: "
             .. #problems .. " ungültige ID-Referenz(en):|r")
         for _, msg in ipairs(problems) do
             print("  |cffff9900" .. msg .. "|r")

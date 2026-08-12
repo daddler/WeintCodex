@@ -298,7 +298,7 @@ local function DrawPageHeader(frame, titleText)
     local title = frame:CreateFontString(nil, "OVERLAY")
     title:SetFont(WeintCodex.Fonts.serif, 19, "")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
-    title:SetText("|cffC8763A" .. titleText .. "|r")
+    title:SetText("|cffD4A24A" .. titleText .. "|r")
 
     WeintCodex.SetBreadcrumb("Charakter", "Academy", titleText)
 

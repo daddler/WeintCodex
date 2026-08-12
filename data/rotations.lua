@@ -841,7 +841,7 @@ function WeintCodex_ValidateRotationData(currentSpecKey)
     end
 
     if #problems > 0 then
-        print("|cffC8763A[WeintCodex]|r |cffff5555Datenprüfung (Rotationen): "
+        print("|cffD4A24A[WeintCodex]|r |cffff5555Datenprüfung (Rotationen): "
             .. #problems .. " Problem(e):|r")
         for _, msg in ipairs(problems) do
             print("  |cffff9900" .. msg .. "|r")

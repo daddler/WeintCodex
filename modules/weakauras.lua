@@ -56,7 +56,7 @@ if not cp then return end
             if category == "class" then
                 categoryLabel = "Klassenauren"
                 title:SetText(categoryLabel)
-                descriptionText = "Hier findest du die vollständigen Klassenauren für alle Spezialisierungen. Mit einem Klick auf |cffC8763AInstallieren|r wird die Aura automatisch an WeakAuras übergeben."
+                descriptionText = "Hier findest du die vollständigen Klassenauren für alle Spezialisierungen. Mit einem Klick auf |cffD4A24AInstallieren|r wird die Aura automatisch an WeakAuras übergeben."
                 elseif category == "raid" then
                     categoryLabel = "Raidauren"
                     title:SetText(categoryLabel)

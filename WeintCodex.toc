@@ -1,5 +1,5 @@
 ## Interface: 50504
-## Title: |cffC8763AWeintCodex|r
+## Title: |cffD4A24AWeintCodex|r
 ## Notes: Raid Guide & Intelligence System
 ## Author: Fabian
 ## Version: 2.0.0.0

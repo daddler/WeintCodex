@@ -136,7 +136,7 @@ if not WeintCodex.MainFrame then
 
                                                     OnTooltipShow = function(tt)
 
-                                                    tt:AddLine("|cffC8763AWeintCodex|r")
+                                                    tt:AddLine("|cffD4A24AWeintCodex|r")
                                                     tt:AddLine("|cffFFD100Raid Guide & Intelligence System|r")
                                                     tt:AddLine(" ")
 

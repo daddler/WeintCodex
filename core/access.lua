@@ -208,7 +208,7 @@ local RESET_CONFIRM = "Verknuepfung mit \"%s\" wirklich aufheben?\n"
 
 local RESET_DONE = "Verknuepfung aufgehoben. Alle Bereiche sind wieder offen."
 
-local PREFIX = "|cffC8763A[WeintCodex]|r "
+local PREFIX = "|cffD4A24A[WeintCodex]|r "
 
 local function Say(text)
     print(PREFIX .. text)

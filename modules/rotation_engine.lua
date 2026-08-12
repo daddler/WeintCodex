@@ -1101,12 +1101,12 @@ function RE.PrintDiagnostics(specKey)
     local spec = WeintCodex_GetRotation and WeintCodex_GetRotation(specKey)
 
     if not spec then
-        print("|cffC8763A[WeintCodex]|r Für " .. tostring(specKey)
+        print("|cffD4A24A[WeintCodex]|r Für " .. tostring(specKey)
             .. " ist keine Rotation hinterlegt.")
         return
     end
 
-    print("|cffC8763A[WeintCodex]|r Rotationsprüfung " .. specKey
+    print("|cffD4A24A[WeintCodex]|r Rotationsprüfung " .. specKey
         .. " (Ressource: " .. tostring(spec.resource) .. ")")
 
     local sections = { { "Regel", spec.rules }, { "Extra", spec.extras } }
