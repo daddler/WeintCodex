@@ -14,7 +14,7 @@ Comments and in-game UI text are in German; Lua identifiers are in English/mixed
 
 ## Working with this codebase
 
-There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `1.1.0.0` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
+There are no commands to run — verification happens by loading the addon in-game (`/wc` or `/weintcodex` toggles the main window) and watching for Lua errors. A local Lua 5.1 install (`luac5.1 -p <file>`) catches syntax errors before that, which is worth doing for every changed file since there's no other safety net. `WeintCodex.toc` defines load order; when adding a new file it must be added there in the right place (libraries → core → data → modules) or it silently won't load. Bump `## Version` in the `.toc` and `WeintCodex.Version` in `core/main.lua` together when cutting a release — they're currently `2.0.0.0` and should stay in sync since the desktop Companion compares them against `SavedVariables` for the update check.
 
 ### Releases
 
@@ -50,7 +50,22 @@ Everything hangs off the global `WeintCodex` table. Each module does `WeintCodex
 
 ### UI structure
 
-`core/ui.lua` defines the theme (a dark "Codex" amber palette in `WeintCodex.Colors`, `C` locally) and builds the main frame/icon-rail/content-panel/inspector-column chrome. `core/navigation.lua` is a tab system: each entry in its `tabs` table (charakter, bossguides, raids, materials, calendar, weakauras, weinttv, import — three of them carrying a `feature` for access gating) maps to a module that renders into the shared `ContentPanel` when selected, plus an `Inspector` side column (`WeintCodex.Navigation.SetInspector`) for contextual detail. `core/search.lua` provides cross-module search; `core/minimap.lua` uses `LibDBIcon`/`LibDataBroker` (in `libs/`) for the minimap button.
+`core/ui.lua` defines the theme and builds the chrome; `core/navigation.lua` is the tab system. Each entry in its `tabs` table (uebersicht, bossguides, raids, calendar, weinttv, charakter, academy, materials, weakauras, import — three carrying a `feature` for access gating) maps to a module that renders into the shared `ContentPanel`. `core/search.lua` provides cross-module search; `core/minimap.lua` uses `LibDBIcon`/`LibDataBroker` (in `libs/`) for the minimap button.
+
+Since **2.0.0.0** the surface follows the WeintCompanion 2.0 design language (source of truth: the `Adson neu – Seiten` design doc, direction 1a). What that changed structurally, and why the changes are not cosmetic:
+
+- **Two columns, not four.** Title bar 40 + navigation column 232 + content. The old icon rail (64) / sub-nav (240) / content / inspector (340) split is gone. Navigation entries are written out and grouped *Raid* / *Charakter* / *Gilde*.
+- **The inspector is part of the page**, not a window column: right-hand 372 px (the design's `1fr 372px` grid), shown *only* when there are blocks. `Navigation.SetInspector` and all nine calling modules are unchanged — `ContentPanel` shrinks instead, so module layout code never learned about any of this.
+- **`BuildSidebar(title, items)` survives as the API** and picks its own form: a segmented control under the page title for short flat lists (the design's rule), a list column inside the page as soon as entries carry a portrait, a status line or groups. Fourteen bosses with artwork and "down/open" are not tabs — that is the one place the design has to be extrapolated, since it never shows Bossguides.
+- **Detail region, sub-nav column and tab strip inset the content through one shared code path** (`SetDetailShown` / `SetSubNavWidth` / `SetSubNavTop` in `core/ui.lua`). Per-caller `ClearAllPoints`/`SetPoint` is exactly the bug you only see when two of them are active at once.
+
+Three WoW-specific translations in `core/ui.lua` that are not taste:
+
+- **Radius.** Frames have none. Four quarter-circle masks (`media/ui/corner.tga`) tinted to the colour *behind* the card punch the corners out — so every surface takes a `backdrop`. One 32×32 texture covers every radius because the shape is scale-invariant; it is a power of two because the client will not load anything else. The main window deliberately stays square: behind it is the game world, whose colour nothing can know.
+- **Gradient direction.** `SetGradient("VERTICAL", min, max)` runs bottom→top, CSS `linear-gradient(180deg, …)` top→bottom. `ApplyVerticalGradient` swaps them; do not "fix" it.
+- **`DrawBorder` anchors its edges at two points** rather than computing from `GetWidth()` at build time. Chips and danger buttons derive their width from their label *after* the border exists — with build-time sizes their edges are zero wide.
+
+Every colour name of the v1 palette still resolves, now pointing at the new values. That is deliberate: ~140 `ColorText` call sites name colours as strings, and a removed name returns *unstyled text* rather than an error — the kind of bug that only surfaces in-game.
 
 ### Data vs. logic split
 
@@ -66,7 +81,7 @@ Der `notes`-Inspector-Block ist das einzige frei beschreibbare Feld des Addons u
 
 Gespeichert wird pro Boss als `SavedData.bossNotes[boss] = { col1, col2 }`; ältere Einträge sind ein blanker String und wandern beim ersten Schreiben nach `col1`. **Invariante: im `single`-Modus darf `col2` nie gefüllt sein.** `InspectorNotes` ruft deshalb bei jedem Aufbau *und* bei jedem Wechsel auf `single` `mergeColumns()` auf, das `col2` ans Ende von `col1` hängt — sonst läge Text unerreichbar in den SavedData und der Nutzer hielte seine Notizen für verloren.
 
-Zwei Umsetzungsdetails, die nicht nach Geschmack sind: die Bildlaufanzeige ist selbst gezeichnet (8 px) statt `UIPanelScrollFrameTemplate` (26 px), weil von 137 px Spaltenbreite sonst kaum Text übrig bliebe; und die EditBox löst ihren Fokus in `OnHide` selbst — `ClearInspector` versteckt Widgets nur, und ein verstecktes Feld mit Tastaturfokus würde die Bewegungstasten schlucken.
+Zwei Umsetzungsdetails, die nicht nach Geschmack sind: die Bildlaufanzeige ist selbst gezeichnet (8 px) statt `UIPanelScrollFrameTemplate` (26 px) — die Begründung war die 137 px schmale Spalte der alten Inspector-Säule, und sie gilt seit 2.0.0.0 nur noch abgeschwächt (der Detailbereich ist 372 px breit), aber die schlanke Leiste ist inzwischen die Hausform und steht als `slim`-Schalter auch an `WeintCodex.CreateScrollArea`; und die EditBox löst ihren Fokus in `OnHide` selbst — `ClearInspector` versteckt Widgets nur, und ein verstecktes Feld mit Tastaturfokus würde die Bewegungstasten schlucken.
 
 ### Companion bridge (bidirectional sync)
 
@@ -105,7 +120,7 @@ Four things about it that are not taste:
 
 Only the Discord bot *could* enforce more, by refusing to emit a payload a role isn't entitled to — and it currently does not. So the system delivers exactly the three things above and nothing further; **it does not provide confidentiality.** Say so in any doc or comment you write about this system — that framing is the whole point. The role→feature mapping lives in WeintCompanion, which puts it on the player's disk too, under the same caveat for the same reason.
 
-`core/access.lua` loads between `core/ui.lua` (it needs `Colors`/`CreateCard`/`IconRail`) and `core/navigation.lua`. It must **never** capture `WeintCodex.Navigation` in a file-local, since that file loads later — access it inside function bodies only.
+`core/access.lua` loads between `core/ui.lua` (it needs `Colors`/`CreateCard` and the navigation column, still reachable under the legacy name `IconRail`) and `core/navigation.lua`. It must **never** capture `WeintCodex.Navigation` in a file-local, since that file loads later — access it inside function bodies only.
 
 WeintCompanion (**1.4.0 or newer**) delivers an `access_profile` inbox message with `community`, `identity`, `tier`, `tierLabel`, `roles`, `features`, `issuedAt`/`expiresAt`, `companionVersion` and an optional free-text `notice`. The full schema and the binding rules are in the file's header comment. `community.id` is a **string** — a Discord snowflake as a Lua 5.1 number stringifies to `1.23e+18` and would never compare equal to the Companion's decimal string.
 
@@ -149,7 +164,7 @@ Die drei Dateien sind strikt getrennt und müssen es bleiben: `data/rotations.lu
 Slimmed-down in-game versions of the two WeintCompanion desktop features, for players on a single monitor. They need **WeintCompanion 1.3.0 or newer** — that is the version which builds and delivers the three payloads (`addon/addon_payloads.py`, `core/addon_analysis_sync.py` over there). Both are **pure renderers**: every judgement (avoidable vs. unavoidable damage, movement in metres, cooldown efficiency, the six star ratings, the training-plan order) is computed in the Companion and arrives finished over the inbox. Nothing is recalculated here, so desktop and addon cannot disagree.
 
 - `modules/weinttv.lua` is its own nav tab (registered in the three usual places in `core/navigation.lua`: `tabs`, `SwitchTo`, `dashboardTiles`). Six table pages plus a "Nur ich / Ganzer Raid" toggle in `TitleBarActions`. The per-page entry points are exported on `WeintCodex.WeintTV` for deep links, same pattern as `WeintCodex.Charakter.ShowEnchants`.
-- `modules/academy.lua` deliberately has **no** tab — it hangs in the *Charakter* sidebar (`WeintCodex.Charakter.Show`), because ratings and lessons belong to the character. Since it renders into the shared `ContentPanel` from outside `charakter.lua`, it calls `WeintCodex.Charakter.LeaveView()` so the equipment watcher does not redraw a Charakter page over it.
+- `modules/academy.lua` **has its own tab since 2.0.0.0**. Until 1.3.3.3 it deliberately had none and hung in the *Charakter* sidebar, because ratings and lessons belong to the character; the 2.0 design puts it in the navigation column instead, and its three views (`ShowOverview`/`ShowPlan`/`ShowCatalog`) became the page's own tab strip. The reason it hung off Charakter is now carried by the *Charakter* nav group containing both. It still renders into the shared `ContentPanel` from outside `charakter.lua`, so it still calls `WeintCodex.Charakter.LeaveView()` — otherwise the equipment watcher redraws a Charakter page over it. That call is load-bearing, not legacy.
 
 Two conventions inherited from the Companion must not be broken: `stars == 0` means *no data*, not *bad* (zero ratings are excluded from the average and from the weakest-area pick), and `at == -1` means *no timestamp known*, not second 0. Lesson progress is stored per character as **exclusions**, not inclusions, so newly delivered lessons are active without a migration. The log result (`results`) and the player's own checkbox (`completed`) are never written into each other — a lesson counts as done if either applies.
 
