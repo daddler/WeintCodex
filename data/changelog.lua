@@ -15,6 +15,7 @@ WeintCodex_ChangelogData = {
             "Die Startseite beantwortet den Abend statt das Menue: naechster Raid, was an deiner Ausruestung offen ist, welche Bosse anstehen und wie es um die Gildenbank steht.",
             "Die Unternavigation jeder Seite sitzt als Reiterleiste unter dem Titel; die rechte Detailspalte ist Teil der Seite geworden und erscheint nur, wenn es etwas zu zeigen gibt.",
             "Die Academy ist ein eigener Navigationspunkt und haengt nicht mehr in der Charakter-Unternavigation.",
+            "Der Kalender hat eine Monatsansicht mit Terminen und Tagesdetails - das Einladungsformular bleibt daneben unveraendert erreichbar.",
         },
     },
     {

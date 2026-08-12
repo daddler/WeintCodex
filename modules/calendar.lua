@@ -585,6 +585,339 @@ local function CreateCalendarFrame()
         )
     end)
 
+    --------------------------------------------------
+    -- Monatsansicht (Entwurf 2d)
+    --------------------------------------------------
+    -- Zweite Ansicht derselben Seite, NEBEN dem Einladungsformular - nicht
+    -- an dessen Stelle. Die Reiterleiste schaltet um; "Mittwoch"/"Donnerstag"
+    -- zeigen unveraendert das Formular.
+    --
+    -- Woher die Termine kommen:
+    --   1. Die beiden Raidtermine aus den SavedData (raidWednesday/-Thursday).
+    --      Die kennt das Addon immer, ohne jede Spiel-API.
+    --   2. Zusaetzlich, wenn der Client sie hergibt, die echten
+    --      Kalendereintraege ueber C_Calendar. Das ist bewusst nur eine
+    --      Anreicherung: das Lesen der Blizzard-Kalenderdaten ist an den
+    --      Ladezustand des Kalenders gebunden und in MoP Classic nicht
+    --      zugesichert. Alles laeuft in pcall - faellt es aus, steht das
+    --      Raster trotzdem, nur eben mit den Raidterminen allein.
+    --
+    -- Kein SetAbsMonth: das wuerde den Monat der Blizzard-Kalenderoberflaeche
+    -- global umstellen. Gelesen wird ueber den relativen Monatsversatz, den
+    -- die Ansicht ohnehin fuehrt.
+    --------------------------------------------------
+
+    local monthView = CreateFrame("Frame", nil, f)
+    monthView:SetPoint("TOPLEFT",     header, "BOTTOMLEFT",  0, 0)
+    monthView:SetPoint("BOTTOMRIGHT", f,      "BOTTOMRIGHT", 0, 0)
+    monthView:Hide()
+    f.MonthView = monthView
+    f.Body = body
+
+    local MONTH_NAMES = { "Januar", "Februar", "März", "April", "Mai", "Juni",
+        "Juli", "August", "September", "Oktober", "November", "Dezember" }
+    local WEEKDAYS = { "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So" }
+
+    local monthOffset = 0   -- 0 = laufender Monat
+
+    local function DaysInMonth(m, y)
+        local d = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+        if m == 2 and ((y % 4 == 0 and y % 100 ~= 0) or y % 400 == 0) then
+            return 29
+        end
+        return d[m]
+    end
+
+    -- Verschobener Monat als (Monat, Jahr)
+    local function ShiftedMonth(offset)
+        local now = date("*t")
+        local m = now.month + offset
+        local y = now.year
+        while m > 12 do m = m - 12; y = y + 1 end
+        while m < 1  do m = m + 12; y = y - 1 end
+        return m, y
+    end
+
+    -- Termine des angezeigten Monats einsammeln -> { [tag] = { {text=, tone=}, ... } }
+    local function CollectEvents(m, y)
+        local byDay = {}
+        local function Add(day, text, tone)
+            byDay[day] = byDay[day] or {}
+            table.insert(byDay[day], { text = text, tone = tone })
+        end
+
+        -- 1) Eigene Raidtermine
+        local sd = WeintCodex.SavedData
+        local function AddRaid(data, label)
+            if not (data and data.date) then return end
+            local dm, dd, dy = ParseDate(data.date)
+            if dm == m and dy == y then
+                local n = data.players and #data.players or 0
+                Add(dd, label .. (n > 0 and (" · " .. n) or ""), "accent")
+            end
+        end
+        AddRaid(sd and sd.raidWednesday, "Raid Mi")
+        AddRaid(sd and sd.raidThursday,  "Raid Do")
+
+        -- 2) Blizzard-Kalender, falls lesbar
+        if C_Calendar and C_Calendar.GetNumDayEvents and C_Calendar.GetDayEvent then
+            pcall(function()
+                if C_Calendar.OpenCalendar then C_Calendar.OpenCalendar() end
+                local days = DaysInMonth(m, y)
+                for day = 1, days do
+                    local n = C_Calendar.GetNumDayEvents(monthOffset, day) or 0
+                    for i = 1, n do
+                        local ev = C_Calendar.GetDayEvent(monthOffset, day, i)
+                        if ev and ev.title then
+                            local t = ev.title
+                            if ev.startTime and ev.startTime.hour then
+                                t = string.format("%s %d:%02d", t,
+                                    ev.startTime.hour, ev.startTime.minute or 0)
+                            end
+                            Add(day, t, "info")
+                        end
+                    end
+                end
+            end)
+        end
+        return byDay
+    end
+
+    --------------------------------------------------
+    -- Kopfzeile der Monatsansicht
+    --------------------------------------------------
+
+    local mEyebrow = WeintCodex.Eyebrow(monthView, "Gildentermine", { size = 10 })
+    mEyebrow:SetPoint("TOPLEFT", monthView, "TOPLEFT", 20, -16)
+
+    local mTitle = WeintCodex.PageTitle(monthView, "", { size = 26 })
+    mTitle:SetPoint("TOPLEFT", mEyebrow, "BOTTOMLEFT", 0, -6)
+
+    local RenderMonth   -- vorwaerts, die Knoepfe rufen sie auf
+
+    local nextBtn = WeintCodex.CreateButton(monthView, {
+        text = "\226\128\186", width = 34, height = 34, kind = "secondary",
+        backdrop = "bgDark", tooltip = "Nächster Monat",
+        onClick = function() monthOffset = monthOffset + 1; RenderMonth() end,
+    })
+    nextBtn:SetPoint("TOPRIGHT", monthView, "TOPRIGHT", -20, -22)
+
+    local todayBtn = WeintCodex.CreateButton(monthView, {
+        text = "Heute", height = 34, kind = "secondary", backdrop = "bgDark",
+        onClick = function() monthOffset = 0; RenderMonth() end,
+    })
+    todayBtn:SetPoint("RIGHT", nextBtn, "LEFT", -8, 0)
+
+    local prevBtn = WeintCodex.CreateButton(monthView, {
+        text = "\226\128\185", width = 34, height = 34, kind = "secondary",
+        backdrop = "bgDark", tooltip = "Voriger Monat",
+        onClick = function() monthOffset = monthOffset - 1; RenderMonth() end,
+    })
+    prevBtn:SetPoint("RIGHT", todayBtn, "LEFT", -8, 0)
+
+    --------------------------------------------------
+    -- Wochentagszeile und Raster
+    --------------------------------------------------
+
+    local GRID_TOP  = -92
+    local HEAD_H    = 22
+
+    local weekRow = CreateFrame("Frame", nil, monthView)
+    weekRow:SetHeight(HEAD_H)
+    weekRow:SetPoint("TOPLEFT",  monthView, "TOPLEFT",  20, GRID_TOP)
+    weekRow:SetPoint("TOPRIGHT", monthView, "TOPRIGHT", -20, GRID_TOP)
+
+    local weekLabels = {}
+    for i = 1, 7 do
+        weekLabels[i] = WeintCodex.Eyebrow(weekRow, WEEKDAYS[i], { size = 9 })
+    end
+
+    local gridHost = CreateFrame("Frame", nil, monthView)
+    gridHost:SetPoint("TOPLEFT",     weekRow,   "BOTTOMLEFT",  0, -6)
+    gridHost:SetPoint("BOTTOMRIGHT", monthView, "BOTTOMRIGHT", -20, 20)
+
+    -- 7 x 6 Zellen einmal bauen und danach nur noch befuellen. Ein Neuaufbau
+    -- bei jedem Monatswechsel wuerde bei jedem Klick Frames erzeugen, die WoW
+    -- nie wieder freigibt.
+    local cells = {}
+    for i = 1, 42 do
+        local cell = WeintCodex.CreateSurface(gridHost, {
+            tone = "flat", surface = "surface1", radius = 10,
+            backdrop = "bgDark", button = true,
+        })
+
+        local dayLbl = cell:CreateFontString(nil, "OVERLAY")
+        dayLbl:SetFont(WeintCodex.Fonts.monoBold, 12, "")
+        dayLbl:SetPoint("TOPLEFT", cell, "TOPLEFT", 8, -6)
+        cell._day = dayLbl
+
+        -- Zwei Terminzeilen je Zelle plus Ueberlaufmarke; mehr passt in eine
+        -- Tageszelle nicht lesbar hinein. Der Rest steht im Detailbereich.
+        cell._chips = {}
+        for c = 1, 2 do
+            local chip = cell:CreateFontString(nil, "OVERLAY")
+            chip:SetFont(WeintCodex.Fonts.sans, 11, "")
+            chip:SetPoint("TOPLEFT",  cell, "TOPLEFT",  8, -22 - (c - 1) * 15)
+            chip:SetPoint("RIGHT",    cell, "RIGHT",   -6, 0)
+            chip:SetJustifyH("LEFT")
+            chip:SetWordWrap(false)
+            chip:Hide()
+            cell._chips[c] = chip
+        end
+
+        local more = cell:CreateFontString(nil, "OVERLAY")
+        more:SetFont(WeintCodex.Fonts.mono, 9, "")
+        more:SetPoint("BOTTOMRIGHT", cell, "BOTTOMRIGHT", -6, 5)
+        more:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        more:Hide()
+        cell._more = more
+
+        -- Markierung fuer "heute": Bernsteinlinie an der Oberkante, dasselbe
+        -- Mittel, mit dem jede Akzentkarte sich auszeichnet.
+        local mark = cell:CreateTexture(nil, "OVERLAY")
+        mark:SetHeight(1)
+        mark:SetPoint("TOPLEFT",  cell, "TOPLEFT",   8, 0)
+        mark:SetPoint("TOPRIGHT", cell, "TOPRIGHT", -8, 0)
+        mark:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 1.0)
+        mark:Hide()
+        cell._mark = mark
+
+        cells[i] = cell
+    end
+
+    -- Zellen relativ zur Rasterbreite platzieren; das Fenster ist in der
+    -- Groesse veraenderbar, feste Breiten waeren nach dem ersten Ziehen falsch.
+    local function LayoutGrid()
+        local w = gridHost:GetWidth() or 0
+        local h = gridHost:GetHeight() or 0
+        if w <= 0 or h <= 0 then return end
+        local gap  = 6
+        local cw   = (w - gap * 6) / 7
+        local ch   = (h - gap * 5) / 6
+        for i = 1, 42 do
+            local col = (i - 1) % 7
+            local rowI = math.floor((i - 1) / 7)
+            cells[i]:ClearAllPoints()
+            cells[i]:SetPoint("TOPLEFT", gridHost, "TOPLEFT",
+                col * (cw + gap), -rowI * (ch + gap))
+            cells[i]:SetSize(cw, ch)
+        end
+        for i = 1, 7 do
+            weekLabels[i]:ClearAllPoints()
+            weekLabels[i]:SetPoint("LEFT", weekRow, "LEFT", (i - 1) * (cw + gap) + 8, 0)
+        end
+    end
+    gridHost:HookScript("OnSizeChanged", LayoutGrid)
+    -- Beim ersten Aufbau steht die Breite des Rasters noch nicht fest;
+    -- LayoutGrid steigt dann aus. Der Anker beim Einblenden holt das nach,
+    -- sonst blieben die Zellen ohne Groesse und damit unsichtbar.
+    monthView:HookScript("OnShow", LayoutGrid)
+
+    --------------------------------------------------
+    -- Tagesdetails im Detailbereich
+    --------------------------------------------------
+
+    local function ShowDayDetail(day, m, y, events)
+        local blocks = {
+            { type = "header", text = string.format("%d. %s %d", day, MONTH_NAMES[m], y) },
+        }
+        if not events or #events == 0 then
+            blocks[#blocks + 1] = { type = "rows",
+                rows = { { label = "Termine", value = "keine" } } }
+        else
+            local rows = {}
+            for _, ev in ipairs(events) do
+                rows[#rows + 1] = { label = ev.text, value = "" }
+            end
+            blocks[#blocks + 1] = { type = "rows", rows = rows }
+        end
+        WeintCodex.Navigation.SetInspector(blocks)
+    end
+
+    --------------------------------------------------
+    -- Zeichnen
+    --------------------------------------------------
+
+    RenderMonth = function()
+        local m, y = ShiftedMonth(monthOffset)
+        local events = CollectEvents(m, y)
+
+        local total = 0
+        for _, list in pairs(events) do total = total + #list end
+        mEyebrow:SetText(WeintCodex.Spaced(string.upper(
+            "Gildentermine · " .. total .. (total == 1 and " Termin" or " Termine"))))
+        mTitle:SetText(MONTH_NAMES[m] .. " " .. y)
+
+        -- Wochentag des Ersten, montagsbasiert (date() liefert 1 = Sonntag)
+        local firstW = date("*t", time({ year = y, month = m, day = 1, hour = 12 })).wday
+        local startCol = (firstW + 5) % 7          -- 0 = Montag
+        local days = DaysInMonth(m, y)
+
+        local today = date("*t")
+        local isThisMonth = (today.month == m and today.year == y)
+
+        LayoutGrid()
+
+        for i = 1, 42 do
+            local cell = cells[i]
+            local dayNum = i - startCol
+            local inMonth = (dayNum >= 1 and dayNum <= days)
+
+            cell._mark:Hide()
+            for _, chip in ipairs(cell._chips) do chip:Hide() end
+            cell._more:Hide()
+
+            if not inMonth then
+                -- Tage der Nachbarmonate bleiben sichtbar, aber stumm: das
+                -- Raster soll seine Form behalten, ohne etwas zu behaupten.
+                cell._day:SetText("")
+                cell:SetAlpha(0.35)
+                cell:SetScript("OnClick", nil)
+                cell:SetScript("OnEnter", nil)
+                cell:SetScript("OnLeave", nil)
+            else
+                cell:SetAlpha(1)
+                cell._day:SetText(tostring(dayNum))
+
+                local dayEvents = events[dayNum]
+                local isToday = isThisMonth and today.day == dayNum
+
+                if isToday then
+                    cell._mark:Show()
+                    cell._day:SetTextColor(C.accentBright[1], C.accentBright[2], C.accentBright[3])
+                elseif dayEvents then
+                    cell._day:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+                else
+                    cell._day:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
+                end
+
+                if dayEvents then
+                    for c = 1, math.min(2, #dayEvents) do
+                        local ev = dayEvents[c]
+                        local col = C[(ev.tone == "accent") and "accentBright" or "infoBright"]
+                        cell._chips[c]:SetTextColor(col[1], col[2], col[3])
+                        cell._chips[c]:SetText(ev.text)
+                        cell._chips[c]:Show()
+                    end
+                    if #dayEvents > 2 then
+                        cell._more:SetText("+" .. (#dayEvents - 2))
+                        cell._more:Show()
+                    end
+                end
+
+                cell:SetScript("OnEnter", function(self) self:SetSurface("surface3") end)
+                cell:SetScript("OnLeave", function(self)
+                    self:SetSurface("surface1")
+                end)
+                cell:SetScript("OnClick", function()
+                    ShowDayDetail(dayNum, m, y, dayEvents)
+                end)
+            end
+        end
+    end
+
+    f.RenderMonth = RenderMonth
+
     calFrame = f
     return f
 end
@@ -796,10 +1129,29 @@ function WeintCodex.Calendar.Show()
         .. "  Kalender-Eintrag erstellen|r"
     )
 
+    -- Umschalten zwischen Monatsraster und Einladungsformular. Das Formular
+    -- ist unveraendert - die Monatsansicht kommt daneben, nicht an seine Stelle.
+    local function ShowForm()
+        f.MonthView:Hide()
+        f.Body:Show()
+        WeintCodex.Navigation.ClearInspector()
+    end
+
     local sidebarItems = {
+        {
+            label   = "Monat",
+            onClick = function()
+                f.Body:Hide()
+                f.MonthView:Show()
+                WeintCodex.SetBreadcrumb("Kalender", "Monat")
+                f.StatusText:SetText("")
+                f.RenderMonth()
+            end,
+        },
         {
             label   = "Mittwoch",
             onClick = function()
+                ShowForm()
                 activeDay = "wednesday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
                 f.PreviewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r  |cff4A4A52Mittwoch|r")
@@ -812,6 +1164,7 @@ function WeintCodex.Calendar.Show()
         {
             label   = "Donnerstag",
             onClick = function()
+                ShowForm()
                 activeDay = "thursday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidThursday
                 f.PreviewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r  |cff4A4A52Donnerstag|r")
@@ -824,10 +1177,13 @@ function WeintCodex.Calendar.Show()
     }
 
     WeintCodex.Navigation.BuildSidebar("Kalender", sidebarItems)
-    WeintCodex.SetBreadcrumb("Kalender", "Mittwoch")
 
-    -- Default: Mittwoch
+    -- Das Formular schon befuellen, damit der Wechsel auf "Mittwoch" nicht
+    -- erst beim Klick Daten nachzieht (Verhalten wie bisher).
     local initData = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
     AutoFillFromData(f, initData)
     RefreshPlayerPreview(f, initData)
+
+    -- Startansicht ist das Monatsraster (Entwurf 2d).
+    WeintCodex.Navigation.ActivateFirst()
 end

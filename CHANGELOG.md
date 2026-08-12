@@ -13,10 +13,10 @@ Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lo
 - **Die Academy ist ein eigener Navigationspunkt.** Sie hing bis 1.3.3.3 in der Charakter-Unternavigation; ihre drei Ansichten sind jetzt die Reiterleiste ihrer eigenen Seite. Ebenso ist die Übersicht ein Navigationspunkt statt nur Startzustand
 
 ### Nicht übernommen
-- **Der Entwurf zeigt für den Kalender ein Monatsraster — das Addon bekommt keines.** Die Kalenderseite ist keine Monatsansicht, sondern das Formular, mit dem aus einer Raidanmeldung ein Ingame-Kalendereintrag wird. Ein Raster zu bauen wäre neue Funktion gewesen, nicht neue Gestalt; dieses Release ändert ausschließlich die Oberfläche. Die Seite trägt die neue Sprache, bleibt aber ein Formular
 - Das Hauptfenster bleibt eckig. Die Eckmasken färben sich auf den Untergrund — hinter dem Fenster liegt die Spielwelt, deren Farbe niemand kennt
 
 ### Neu
+- **Der Kalender hat eine Monatsansicht** (Entwurf 2d): 7×6-Raster mit Wochentagszeile, Monatsnavigation und *Heute*, Termine als Zeilen in der Tageszelle, Klick auf einen Tag zeigt seine Termine im Detailbereich. Sie kommt **neben** das Einladungsformular, nicht an dessen Stelle — die Reiterleiste schaltet zwischen *Monat*, *Mittwoch* und *Donnerstag*, und das Formular ist unverändert geblieben. Termine stammen aus den beiden eigenen Raidterminen der `SavedData` und, wo der Client sie hergibt, zusätzlich aus dem Spielkalender über `C_Calendar`. Letzteres ist bewusst nur Anreicherung: das Lesen der Blizzard-Kalenderdaten hängt am Ladezustand des Kalenders und ist in MoP Classic nicht zugesichert, läuft deshalb vollständig in `pcall` — fällt es aus, steht das Raster trotzdem, nur mit den Raidterminen allein. `SetAbsMonth` wird nicht verwendet, das würde den Monat der Blizzard-Kalenderoberfläche global umstellen
 - Gemeinsames Baukasten-Vokabular in `core/ui.lua` für die neue Sprache: `CreateSurface` (Karte mit Verlauf und Oberkante), `Chip`, `StatusDot`, `Eyebrow`, `MonoNumber`, `CreateButton`, `CreateSegmentedControl`, `CreateMeter`, `RowLine`
 - Inter (Regular/Medium/SemiBold/Bold) und JetBrains Mono Bold liegen unter `media/fonts` (SIL OFL 1.1). Die Navigationssymbole sind aus den Vektorpfaden des Entwurfs vorgerendert, weil WoW zur Laufzeit keine Pfade zeichnet
 
