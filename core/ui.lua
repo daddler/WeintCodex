@@ -345,16 +345,108 @@ function WeintCodex.CreateSurface(parent, opts)
 end
 
 --------------------------------------------------
+-- UTF-8-Textwerkzeuge
+--------------------------------------------------
+-- Der Client liefert und erwartet UTF-8, Lua 5.1 kennt aber nur Bytes. Jede
+-- Stelle, die Text ZEICHENWEISE anfasst - sperren, kuerzen, versalisieren -
+-- muss deshalb selbst wissen, wo ein Zeichen anfaengt. Tut sie das nicht,
+-- zerfaellt ein Umlaut in seine zwei Bytes, und der Client zeichnet fuer
+-- jedes ein leeres Kaestchen: genau so wurde in 2.0.0.0 aus "ÜBERSICHT"
+-- ein "<>BERSICHT" und aus "ENGPÄSSE" ein "ENGP<>SSE".
+--
+-- Deshalb hat jede dieser drei Operationen hier ihre eigene Fassung, und
+-- kein Aufrufer darf string.upper/#/:sub direkt auf Anzeigetext anwenden.
+--------------------------------------------------
+
+-- Bytelaenge des UTF-8-Zeichens, das an Position i beginnt. Unbekannte
+-- Bytes zaehlen als 1, damit eine kaputte Eingabe keine Endlosschleife
+-- ausloest, sondern nur haesslich aussieht.
+local function Utf8CharLen(s, i)
+    local b = s:byte(i)
+    if not b then return 0 end
+    if b < 0xC0 then return 1
+    elseif b < 0xE0 then return 2
+    elseif b < 0xF0 then return 3
+    else return 4 end
+end
+
+-- Laenge in Zeichen (nicht in Bytes).
+function WeintCodex.Utf8Len(s)
+    if not s then return 0 end
+    s = tostring(s)
+    local n, i = 0, 1
+    while i <= #s do
+        i = i + Utf8CharLen(s, i)
+        n = n + 1
+    end
+    return n
+end
+
+-- Teilkette in Zeichen. `to = nil` heisst "bis zum Ende".
+function WeintCodex.Utf8Sub(s, from, to)
+    if not s then return "" end
+    s = tostring(s)
+    from = from or 1
+    local i, n, startByte, endByte = 1, 0, nil, #s
+    while i <= #s do
+        n = n + 1
+        if n == from then startByte = i end
+        local nextI = i + Utf8CharLen(s, i)
+        if to and n == to then endByte = nextI - 1; break end
+        i = nextI
+    end
+    if not startByte then return "" end
+    return s:sub(startByte, math.min(endByte, #s))
+end
+
+-- Versalien. string.upper faellt hier aus: es arbeitet byteweise und wuerde
+-- bei gesetztem Gebietsschema auch die Folgebytes eines UTF-8-Zeichens
+-- anfassen und es damit zerstoeren. ASCII geht deshalb ueber ein Muster,
+-- der Rest ueber die Tabelle.
+--
+-- "ß" bleibt "ß": die Versalform waere "SS" und macht die Zeile laenger,
+-- als der Aufrufer sie gemessen hat.
+local UTF8_UPPER = {
+    ["ä"] = "Ä", ["ö"] = "Ö", ["ü"] = "Ü",
+    ["à"] = "À", ["á"] = "Á", ["â"] = "Â", ["ã"] = "Ã", ["å"] = "Å",
+    ["è"] = "È", ["é"] = "É", ["ê"] = "Ê", ["ë"] = "Ë",
+    ["ì"] = "Ì", ["í"] = "Í", ["î"] = "Î", ["ï"] = "Ï",
+    ["ò"] = "Ò", ["ó"] = "Ó", ["ô"] = "Ô", ["õ"] = "Õ", ["ø"] = "Ø",
+    ["ù"] = "Ù", ["ú"] = "Ú", ["û"] = "Û",
+    ["ñ"] = "Ñ", ["ç"] = "Ç", ["æ"] = "Æ", ["ý"] = "Ý",
+}
+
+function WeintCodex.Upper(s)
+    if not s then return "" end
+    s = tostring(s):gsub("[a-z]+", string.upper)
+    return (s:gsub("[\194-\244][\128-\191]*", function(ch)
+        return UTF8_UPPER[ch]
+    end))
+end
+local Upper = WeintCodex.Upper
+
+-- Kuerzt auf hoechstens maxChars ZEICHEN und setzt ein Auslassungszeichen.
+function WeintCodex.Truncate(text, maxChars)
+    text = tostring(text or "")
+    if WeintCodex.Utf8Len(text) <= maxChars then return text end
+    return WeintCodex.Utf8Sub(text, 1, math.max(1, maxChars - 1)) .. "…"
+end
+
+--------------------------------------------------
 -- Textbausteine
 --------------------------------------------------
 
 -- Eyebrow: mono, versal, weit gesperrt. WoW kennt kein letter-spacing, die
--- Sperrung wird deshalb durch eingefuegte Haarspatien nachgebildet.
+-- Sperrung wird deshalb durch eingefuegte Haarspatien nachgebildet - je
+-- Zeichen eine, nicht je Byte (siehe oben).
 local function Spaced(text)
     if not text then return "" end
-    local out = {}
-    for i = 1, #text do
-        out[#out + 1] = text:sub(i, i)
+    local s = tostring(text)
+    local out, i = {}, 1
+    while i <= #s do
+        local n = Utf8CharLen(s, i)
+        out[#out + 1] = s:sub(i, i + n - 1)
+        i = i + n
     end
     return table.concat(out, "\194\160")
 end
@@ -365,7 +457,7 @@ function WeintCodex.Eyebrow(parent, text, opts)
     local fs = parent:CreateFontString(nil, "OVERLAY")
     fs:SetFont(F.mono, opts.size or 10, "")
     fs:SetTextColor(unpack(Col(opts.color or "textDim")))
-    fs:SetText(Spaced(string.upper(text or "")))
+    fs:SetText(Spaced(Upper(text or "")))
     fs:SetJustifyH(opts.justify or "LEFT")
     return fs
 end
@@ -557,7 +649,7 @@ function WeintCodex.Chip(parent, opts)
     local lbl = chip:CreateFontString(nil, "OVERLAY")
     lbl:SetFont(F.monoBold, opts.size or 10, "")
     lbl:SetTextColor(textCol[1], textCol[2], textCol[3], 1.0)
-    lbl:SetText(Spaced(string.upper(opts.text or "")))
+    lbl:SetText(Spaced(Upper(opts.text or "")))
     lbl:SetPoint("CENTER", chip, "CENTER", 0, 0)
     chip._label = lbl
 
@@ -568,7 +660,7 @@ function WeintCodex.Chip(parent, opts)
     WeintCodex.CutCorners(chip, math.floor(h / 2), opts.backdrop or "cardTop")
 
     chip.SetText = function(self, t)
-        self._label:SetText(Spaced(string.upper(t or "")))
+        self._label:SetText(Spaced(Upper(t or "")))
         if not opts.width then
             self:SetWidth(self._label:GetStringWidth() + (opts.padding or 20))
         end
@@ -1098,7 +1190,7 @@ function WeintCodex.SetBreadcrumb(...)
     local parts = { ... }
     local segs = {}
     for i, p in ipairs(parts) do
-        segs[#segs + 1] = Spaced(string.upper(tostring(p)))
+        segs[#segs + 1] = Spaced(Upper(tostring(p)))
         if i < #parts then segs[#segs + 1] = " \194\183 " end
     end
     breadcrumb:SetText(table.concat(segs))

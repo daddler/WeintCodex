@@ -576,7 +576,7 @@ local function BuildAbilityRows(f, abilities, positioning)
             tagLbl:SetJustifyH("CENTER")
             tagLbl:SetJustifyV("MIDDLE")
             tagLbl:SetTextColor(tagCol[1], tagCol[2], tagCol[3])
-            tagLbl:SetText(string.upper(ab.tag.label))
+            tagLbl:SetText(WeintCodex.Upper(ab.tag.label))
 
             descRightPad = -68
         end
@@ -944,7 +944,7 @@ function ShowRoleTips(roleKey)
         end
     end
 
-    f.GuideHeader:SetText(WeintCodex.ColorText("textFaint", string.upper(roleLabels[roleKey] or "GUIDE")))
+    f.GuideHeader:SetText(WeintCodex.ColorText("textFaint", WeintCodex.Upper(roleLabels[roleKey] or "GUIDE")))
 
     local rc = C[ROLE_COLOR_NAME[roleKey] or "purple"]
     f.GuideLine:SetColorTexture(rc[1], rc[2], rc[3], 0.60)
@@ -1000,7 +1000,7 @@ local function ShowBoss(bossName)
     local data = WeintCodex_BossData and WeintCodex_BossData[bossName]
 
     f.BossName:SetText(bossName)
-    f.InstanceStr:SetText(WeintCodex.ColorText("textFaint", string.upper(data and data.instance or "Belagerung von Orgrimmar")))
+    f.InstanceStr:SetText(WeintCodex.ColorText("textFaint", WeintCodex.Upper(data and data.instance or "Belagerung von Orgrimmar")))
 
     if data and data.quote then
         f.QuoteStr:SetText(data.quote)

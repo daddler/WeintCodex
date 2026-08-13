@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.0.1",
+        date    = "13.08.2026",
+        notes   = {
+            "Umlaute in gesperrten Versalien wurden als leere Kaestchen gezeichnet (\"UEBERSICHT\", \"NAECHSTER RAID\", \"3 ENGPAESSE\") - die Sperrung trennte Bytes statt Zeichen und zerlegte damit jeden Umlaut. Aus demselben Grund endete gekuerzter Text auf der Startseite mit einem Kaestchen.",
+            "Kleine Umlaute werden jetzt richtig zu grossen: aus \"Flaeschchen\" wurde vorher \"FLaeSCHCHEN\".",
+            "Auf der Charakter-Uebersicht liefen die Kennzahlenkarten aus der Seite - \"Trefferwertung\" war abgeschnitten, \"Waffenkunde\" gar nicht zu sehen. Sie stehen jetzt in zwei Spalten: oben Verzauberungen und Sockel & Steine, darunter Trefferwertung und Waffenkunde.",
+            "In der Materialtabelle fehlte der gelbe Balken - zu sehen waren nur gruen und rot. Die mittlere Stufe zeichnet wieder, und die leere Rille ist als leer erkennbar.",
+        },
+    },
+    {
         version = "2.0.0.0",
         date    = "12.08.2026",
         notes   = {

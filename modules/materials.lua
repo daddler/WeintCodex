@@ -347,17 +347,28 @@ local function RefreshMatDisplay(matData, filterCat)
                 cntLbl:SetText(WeintCodex.ColorText(brightName, tostring(amount)))
             end
 
-            local track = row:CreateTexture(nil, "OVERLAY")
+            -- Rille und Fuellung liegen in GETRENNTEN Zeichenebenen. Lagen
+            -- beide auf OVERLAY, war nicht festgelegt, welche der beiden
+            -- gleich grossen Flaechen oben liegt - in 2.0.0.0 blieb die
+            -- mittlere Stufe ("ok") dadurch unsichtbar, die Tabelle zeigte
+            -- nur gruen und rot. Die Rille ist ausserdem wieder sichtbar
+            -- (surface3 statt bgPanel): ein leerer Balken soll als leer
+            -- lesbar sein und nicht als fehlender Balken.
+            local track = row:CreateTexture(nil, "ARTWORK")
             track:SetSize(COL_BAR_W, 6)
             track:SetPoint("LEFT", row, "LEFT", COL_BAR_X, 0)
-            track:SetColorTexture(C.bgPanel[1], C.bgPanel[2], C.bgPanel[3], 1.0)
+            track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
 
             local fillPct = math.max(0, math.min(1, pct))
             if fillPct > 0.005 then
+                -- Heller Ton wie die Zahl daneben (brightName): der Balken
+                -- sagt dasselbe wie sie und darf nicht dunkler sein als die
+                -- Rille, auf der er liegt.
+                local fc   = C[brightName] or sColor
                 local fill = row:CreateTexture(nil, "OVERLAY")
-                fill:SetSize(math.max(1, COL_BAR_W * fillPct), 6)
+                fill:SetSize(math.max(2, COL_BAR_W * fillPct), 6)
                 fill:SetPoint("LEFT", row, "LEFT", COL_BAR_X, 0)
-                fill:SetColorTexture(sColor[1], sColor[2], sColor[3], 1.0)
+                fill:SetColorTexture(fc[1], fc[2], fc[3], 1.0)
             end
 
             if item.category and item.category ~= "" then

@@ -511,7 +511,7 @@ function WeintCodex.Academy.ShowOverview()
 
             local eyebrow = Text(nl, 9, "TOPLEFT", nl, "TOPLEFT", 14, -10)
             eyebrow:SetText(WeintCodex.ColorText("purple",
-                "NÄCHSTE LEKTION · " .. string.upper(CategoryLabel(nextLesson.category))))
+                "NÄCHSTE LEKTION · " .. WeintCodex.Upper(CategoryLabel(nextLesson.category))))
 
             local t = Text(nl, 12, "TOPLEFT", nl, "TOPLEFT", 14, -26, nl:GetWidth() - 28)
             t:SetWordWrap(false)
@@ -625,7 +625,7 @@ function WeintCodex.Academy.ShowPlan()
             local eyebrow = Text(card, 9, "TOPLEFT", card, "TOPLEFT", 14, -8)
             local prefix  = (first and not isDone) and "NÄCHSTE LEKTION · " or ""
             eyebrow:SetText(WeintCodex.ColorText("purple",
-                prefix .. string.upper(CategoryLabel(lesson.category))))
+                prefix .. WeintCodex.Upper(CategoryLabel(lesson.category))))
             if not isDone then first = false end
 
             local title = Text(card, 12, "TOPLEFT", card, "TOPLEFT", 14, -22,
@@ -649,7 +649,7 @@ function WeintCodex.Academy.ShowPlan()
                 line:SetWordWrap(false)
                 line:SetText(WeintCodex.ColorText(
                         STATUS_COLOR[res.status] or "textDim",
-                        string.upper(STATUS_LABEL[res.status] or "?"))
+                        WeintCodex.Upper(STATUS_LABEL[res.status] or "?"))
                     .. (details[1] and ("  " .. WeintCodex.ColorText("textMuted",
                         table.concat(details, " · "))) or ""))
                 rowY = rowY - 18
@@ -772,7 +772,7 @@ function WeintCodex.Academy.ShowCatalog()
 
                 local head = Text(inner, 10, "TOPLEFT", inner, "TOPLEFT", 6, yOff)
                 head:SetText(WeintCodex.ColorText("purple",
-                        string.upper(CategoryLabel(category)))
+                        WeintCodex.Upper(CategoryLabel(category)))
                     .. "   " .. WeintCodex.ColorText("textFaint",
                         active .. " von " .. #group .. " aktiv"))
                 yOff = yOff - 20

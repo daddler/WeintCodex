@@ -694,7 +694,7 @@ function WeintCodex.Access.UpdateBadge()
 
     local col = C[colorName] or C.textDim
     badgeLabel:SetTextColor(col[1], col[2], col[3])
-    badgeLabel:SetText(WeintCodex.Access.TierLabel():upper())
+    badgeLabel:SetText(WeintCodex.Upper(WeintCodex.Access.TierLabel()))
 
     badge:Show()
 

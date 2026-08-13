@@ -240,13 +240,13 @@ do
 
     function WeintCodex.Navigation.RefreshAccount()
         local who = UnitName("player") or "?"
-        initial:SetText(who:sub(1, 1):upper())
+        initial:SetText(WeintCodex.Upper(WeintCodex.Utf8Sub(who, 1, 1)))
         name:SetText(who)
 
         local inbox = _G.WeintCompanionInboxDB
         local ver = inbox and inbox.companionVersion
         if ver then
-            state:SetText(WeintCodex.Spaced(string.upper("Companion " .. tostring(ver))))
+            state:SetText(WeintCodex.Spaced(WeintCodex.Upper("Companion " .. tostring(ver))))
             state:SetTextColor(C.successBright[1], C.successBright[2], C.successBright[3])
         else
             state:SetText(WeintCodex.Spaced("KEINE LIEFERUNG"))
@@ -490,7 +490,7 @@ local function BuildColumn(sectionTitle, items)
                 st:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
                 local sc = C[itemDef.status.color or "textFaint"] or C.textFaint
                 st:SetTextColor(sc[1], sc[2], sc[3])
-                st:SetText(WeintCodex.Spaced(string.upper(itemDef.status.text or "")))
+                st:SetText(WeintCodex.Spaced(WeintCodex.Upper(itemDef.status.text or "")))
                 btn._statusLbl = st
             end
 
@@ -556,7 +556,7 @@ function WeintCodex.Navigation.UpdateSidebarStatus(index, status)
     if not (btn and btn._statusLbl and status) then return end
     local sc = C[status.color or "textFaint"] or C.textFaint
     btn._statusLbl:SetTextColor(sc[1], sc[2], sc[3])
-    btn._statusLbl:SetText(WeintCodex.Spaced(string.upper(status.text or "")))
+    btn._statusLbl:SetText(WeintCodex.Spaced(WeintCodex.Upper(status.text or "")))
 end
 
 function WeintCodex.Navigation.ActivateFirst()
@@ -601,7 +601,7 @@ local function InspectorHeader(parent, y, text)
     h:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
     h:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
     h:SetJustifyH("LEFT")
-    h:SetText(WeintCodex.ColorText("textFaint", string.upper(text or "")))
+    h:SetText(WeintCodex.ColorText("textFaint", WeintCodex.Upper(text or "")))
     table.insert(inspectorWidgets, h)
     return y - 18
 end
@@ -952,7 +952,7 @@ local function InspectorNotes(parent, y, opts)
             t:SetFont(WeintCodex.Fonts.sans, 9, "")
             t:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, -3)
             t:SetJustifyH("LEFT")
-            t:SetText(WeintCodex.ColorText("textFaint", string.upper(opts.title)))
+            t:SetText(WeintCodex.ColorText("textFaint", WeintCodex.Upper(opts.title)))
         end
         if allowColumns then
             segColumns = NotesSegment(holder, "2 SPALTEN", 62)
@@ -1890,10 +1890,11 @@ end
 local homeFrame = nil
 
 -- Bricht Text in der Karte nicht mittig ab, sondern kuerzt sauber.
+-- Kuerzt in ZEICHEN, nicht in Bytes: ein byteweiser Schnitt trennt einen
+-- Umlaut oder Gedankenstrich in der Mitte auf, und der Client zeichnet den
+-- Rest als leeres Kaestchen ("... 15.0% <>…" auf der Startseite).
 local function Ellipsis(text, maxChars)
-    text = tostring(text or "")
-    if #text <= maxChars then return text end
-    return text:sub(1, maxChars - 1) .. "…"
+    return WeintCodex.Truncate(text, maxChars)
 end
 
 function WeintCodex.ShowHome()
@@ -2083,7 +2084,7 @@ function WeintCodex.ShowHome()
             val:SetPoint("RIGHT", row, "RIGHT", 0, 0)
             local vc = C[valueTone or "textMuted"] or C.textMuted
             val:SetTextColor(vc[1], vc[2], vc[3])
-            val:SetText(WeintCodex.Spaced(string.upper(value)))
+            val:SetText(WeintCodex.Spaced(WeintCodex.Upper(value)))
         end
 
         local lbl = row:CreateFontString(nil, "OVERLAY")

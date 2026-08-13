@@ -835,7 +835,7 @@ local function CreateCalendarFrame()
 
         local total = 0
         for _, list in pairs(events) do total = total + #list end
-        mEyebrow:SetText(WeintCodex.Spaced(string.upper(
+        mEyebrow:SetText(WeintCodex.Spaced(WeintCodex.Upper(
             "Gildentermine · " .. total .. (total == 1 and " Termin" or " Termine"))))
         mTitle:SetText(MONTH_NAMES[m] .. " " .. y)
 

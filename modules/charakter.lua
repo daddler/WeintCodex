@@ -2027,8 +2027,13 @@ local function TruncateOneLine(fs, text, maxWidth)
     if fs:GetStringWidth() <= maxWidth then
         return text
     end
-    while #text > 1 and fs:GetStringWidth() > maxWidth do
-        text = text:sub(1, #text - 1)
+    -- Zeichenweise kuerzen, nicht byteweise - sonst bleibt bei einem
+    -- Itemnamen mit Umlaut ein halbes UTF-8-Zeichen stehen, das der Client
+    -- als leeres Kaestchen zeichnet.
+    local len = WeintCodex.Utf8Len(text)
+    while len > 1 and fs:GetStringWidth() > maxWidth do
+        len  = len - 1
+        text = WeintCodex.Utf8Sub(text, 1, len)
         fs:SetText(text .. "…")
     end
     return text .. "…"
@@ -2496,14 +2501,6 @@ function ShowUebersicht()
     if not cp then return end
     for _, child in pairs({ cp:GetChildren() }) do child:Hide() end
 
-    -- Content nutzt die tatsaechliche Panelbreite statt einer festen Spalte,
-    -- damit Kacheln/Grids den verfuegbaren Platz fuellen statt Leerraum
-    -- rechts stehen zu lassen (siehe Fensterbreite in core/ui.lua). -26 fuer
-    -- die Scrollleiste, die "body" unten rechts abzieht (siehe SetPoint dort) -
-    -- sonst ist der Scroll-Child breiter als sein sichtbarer Viewport und der
-    -- rechte Rand von Kacheln/Headerzeile wird abgeschnitten.
-    local UEBERSICHT_W = math.max(560, cp:GetWidth() - 26)
-
     if uebersichtFrame then uebersichtFrame:Hide(); uebersichtFrame = nil end
     uebersichtFrame = CreateFrame("Frame", nil, cp)
     uebersichtFrame:SetAllPoints(cp)
@@ -2513,6 +2510,34 @@ function ShowUebersicht()
 
     local scan  = ScanCharacter()
     local score = scan.score
+
+    -- Der Detailbereich wird ZUERST gesetzt, erst danach wird gemessen: er
+    -- ist seit 2.0.0.0 die rechte Spalte der Seite, ContentPanel schrumpft
+    -- also um seine 372 px, sobald er erscheint. Stand der Aufruf wie
+    -- vorher am Ende der Funktion, rechnete die ganze Seite mit der
+    -- Breite von VOR dem Schrumpfen - und Kennzahlenkarten wie
+    -- "Trefferwertung" liefen unter dem Detailbereich ins Nichts.
+    local combined = {
+        total   = scan.enchants.counts.total   + scan.gems.counts.total,
+        missing = scan.enchants.counts.missing + scan.gems.counts.missing,
+        optimal = scan.enchants.counts.optimal + scan.gems.counts.optimal,
+        ok      = scan.enchants.counts.ok      + scan.gems.counts.ok,
+        overcap = scan.enchants.counts.overcap + scan.gems.counts.overcap,
+        wrong   = scan.enchants.counts.wrong   + scan.gems.counts.wrong,
+        points  = scan.enchants.counts.points  + scan.gems.counts.points,
+    }
+    ShowScoreInspector(combined, {
+        { type = "button", label = "Verzauberungen", onClick = ShowEnchants },
+        { type = "button", label = "Sockel & Steine", onClick = ShowGems },
+    })
+
+    -- Content nutzt die tatsaechliche Panelbreite statt einer festen Spalte,
+    -- damit Kacheln/Grids den verfuegbaren Platz fuellen statt Leerraum
+    -- rechts stehen zu lassen (siehe Fensterbreite in core/ui.lua). -26 fuer
+    -- die Scrollleiste, die "body" unten rechts abzieht (siehe SetPoint dort) -
+    -- sonst ist der Scroll-Child breiter als sein sichtbarer Viewport und der
+    -- rechte Rand von Kacheln/Headerzeile wird abgeschnitten.
+    local UEBERSICHT_W = math.max(560, cp:GetWidth() - 26)
 
     local body = CreateFrame("ScrollFrame", nil, uebersichtFrame, "UIPanelScrollFrameTemplate")
     body:SetPoint("TOPLEFT",     uebersichtFrame, "TOPLEFT",     0, 0)
@@ -2622,15 +2647,28 @@ function ShowUebersicht()
         cardDefs[#cardDefs + 1] = { kind = "cap", cap = cs, onClick = ShowWerteverteilung }
     end
 
+    -- Zwei Spalten, nicht eine Reihe: die Beschriftungen sind verschieden
+    -- lang, und "TREFFERWERTUNG (NAHKAMPF)" ist als gesperrte Versalie mehr
+    -- als doppelt so breit wie "SOCKEL & STEINE". Bei vier Karten
+    -- nebeneinander bestimmt die laengste, ob ALLE lesbar sind - in 2.0.0.0
+    -- war sie es nicht, die Karte lief rechts aus der Seite. Gepaart stehen
+    -- oben die beiden Bestandskarten (Verzauberungen / Sockel) und darunter
+    -- die Caps (Trefferwertung / Waffenkunde), was ohnehin die Lesart ist.
     local GRID_TOP, GRID_H, GRID_GAP = -124, 112, 16
-    local colW = (UEBERSICHT_W - 40 - GRID_GAP * (#cardDefs - 1)) / #cardDefs
+    local GRID_COLS = 2
+    local gridRows  = math.ceil(#cardDefs / GRID_COLS)
+    local colW = (UEBERSICHT_W - 40 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS
 
     for i, def in ipairs(cardDefs) do
         local card = WeintCodex.CreateSurface(bc, {
             width = colW, height = GRID_H, tone = "plain",
             radius = 14, backdrop = "bgDark", button = true,
         })
-        card:SetPoint("TOPLEFT", bc, "TOPLEFT", 20 + (i - 1) * (colW + GRID_GAP), GRID_TOP)
+        local gCol = (i - 1) % GRID_COLS
+        local gRow = math.floor((i - 1) / GRID_COLS)
+        card:SetPoint("TOPLEFT", bc, "TOPLEFT",
+            20 + gCol * (colW + GRID_GAP),
+            GRID_TOP - gRow * (GRID_H + GRID_GAP))
 
         local lbl = WeintCodex.Eyebrow(card, "", { size = 10 })
         lbl:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -14)
@@ -2646,7 +2684,7 @@ function ShowUebersicht()
             if counts.total == 0 then mainCol = C.textDim
             elseif counts.missing == 0 then mainCol = (counts.overcap > 0) and C.violetBright or C.successBright
             else mainCol = (pct >= 0.75) and C.accentBright or C.dangerBright end
-            lbl:SetText(WeintCodex.Spaced(string.upper(def.label)))
+            lbl:SetText(WeintCodex.Spaced(WeintCodex.Upper(def.label)))
             mainText = filled .. " / " .. counts.total
             subText  = "Qualität " .. qual .. "%"
         else
@@ -2655,7 +2693,7 @@ function ShowUebersicht()
             elseif cs.overPct < -0.3 then mainCol = C.dangerBright
             else mainCol = C.successBright end
             pct = (cs.capPct > 0) and math.max(0, math.min(1, cs.current / cs.capPct)) or 0
-            lbl:SetText(WeintCodex.Spaced(string.upper(cs.label)))
+            lbl:SetText(WeintCodex.Spaced(WeintCodex.Upper(cs.label)))
             mainText = string.format("%.1f%%", cs.current)
             if cs.overPct > 0.25 then subText = string.format("Cap %.1f%% · über", cs.capPct)
             elseif cs.overPct < -0.3 then subText = string.format("Cap %.1f%% · fehlt", cs.capPct)
@@ -2699,7 +2737,7 @@ function ShowUebersicht()
     -- Der Entwurf stellt beide Bloecke nebeneinander (Raster 1.35fr / 1fr):
     -- links, was zu tun ist, rechts die Summen zum Nachschlagen. Die
     -- Reihenfolge ist die Aussage - Handlungsbedarf zuerst, Zahlen danach.
-    local PAIR_TOP  = GRID_TOP - GRID_H - 20
+    local PAIR_TOP  = GRID_TOP - gridRows * GRID_H - (gridRows - 1) * GRID_GAP - 20
     local PAIR_GAP  = 16
     local pairW     = UEBERSICHT_W - 40
     local leftW     = math.floor((pairW - PAIR_GAP) * 0.575)
@@ -2778,7 +2816,7 @@ function ShowUebersicht()
             tag:SetFont(WeintCodex.Fonts.monoBold, 10, "")
             tag:SetPoint("RIGHT", row, "RIGHT", -12, 0)
             tag:SetTextColor(bc2[1], bc2[2], bc2[3])
-            tag:SetText(WeintCodex.Spaced(string.upper(info.label or "")))
+            tag:SetText(WeintCodex.Spaced(WeintCodex.Upper(info.label or "")))
 
             local txt = row:CreateFontString(nil, "OVERLAY")
             txt:SetFont(WeintCodex.Fonts.sans, 13, "")
@@ -2893,20 +2931,6 @@ function ShowUebersicht()
     -- dort, wo sie gelten - der Scan-Hinweis in der Akzentkarte, die
     -- Klickbarkeit zeigen die Kennzahlenkarten selbst beim Ueberfahren.
     bc:SetHeight(math.abs(rowY) + 32)
-
-    local combined = {
-        total   = scan.enchants.counts.total   + scan.gems.counts.total,
-        missing = scan.enchants.counts.missing + scan.gems.counts.missing,
-        optimal = scan.enchants.counts.optimal + scan.gems.counts.optimal,
-        ok      = scan.enchants.counts.ok      + scan.gems.counts.ok,
-        overcap = scan.enchants.counts.overcap + scan.gems.counts.overcap,
-        wrong   = scan.enchants.counts.wrong   + scan.gems.counts.wrong,
-        points  = scan.enchants.counts.points  + scan.gems.counts.points,
-    }
-    ShowScoreInspector(combined, {
-        { type = "button", label = "Verzauberungen", onClick = ShowEnchants },
-        { type = "button", label = "Sockel & Steine", onClick = ShowGems },
-    })
 
     uebersichtFrame:Show()
 end
@@ -3121,8 +3145,12 @@ function ShowPriorisierung()
 
     local desc = prioFrame:CreateFontString(nil, "OVERLAY")
     desc:SetFont(WeintCodex.Fonts.sans, 9, "")
-    desc:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -HEAD_H)
-    desc:SetWidth(math.max((cp:GetWidth() or 660) - 32, 400))
+    desc:SetPoint("TOPLEFT",  prioFrame, "TOPLEFT",  16, -HEAD_H)
+    -- Rechte Kante verankert statt Breite aus cp:GetWidth() gerechnet: der
+    -- Detailbereich erscheint erst am Ende dieser Funktion und nimmt dem
+    -- Inhalt dann 372 px weg. Eine zur Bauzeit gemessene Breite laege
+    -- danach darunter.
+    desc:SetPoint("TOPRIGHT", prioFrame, "TOPRIGHT", -16, -HEAD_H)
     desc:SetJustifyH("LEFT")
     desc:SetText("|cff4A4A52Gewichte 0-999: je höher, desto wichtiger ist der Wert für DICH (0 = egal). "
         .. "Wirkt auf die Stein-Bewertung (Qualitäts-%, OK/Falsch) und die Empfehlungsauswahl bei Cap-Überschuss. "

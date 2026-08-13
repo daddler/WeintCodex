@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.0.0.1] – 2026-08-13
+
+### Behoben
+- **Umlaute in gesperrten Versalien wurden als leere Kästchen gezeichnet** – aus „ÜBERSICHT" wurde „□□BERSICHT", aus „NÄCHSTER RAID" ein „N□□CHSTER RAID", aus „3 ENGPÄSSE" ein „3 ENGP□□SSE". Die Sperrung fügte ihre Haarspatie zwischen je zwei **Bytes** ein statt zwischen je zwei **Zeichen**; ein Umlaut besteht in UTF-8 aus zwei Bytes und zerfiel dabei in zwei ungültige Hälften, für die der Client je ein Kästchen zeichnet. Betroffen war jede Überzeile, jeder Chip, jede Reiterleiste und die Brotkrumenzeile. Aus demselben Grund endete der abgeschnittene Text auf der Startseite mit einem Kästchen („… 15.0% □…"): auch das Kürzen zählte Bytes. Beides zählt jetzt Zeichen, ebenso das Kürzen langer Itemnamen im Ausrüstungs-Check
+- **Versalien machten aus „ä/ö/ü" kein „Ä/Ö/Ü".** `string.upper` arbeitet byteweise und lässt alles über ASCII unangetastet – „Fläschchen" wurde zu „FLäSCHCHEN". Kleingeschriebene Umlaute werden jetzt richtig umgesetzt; „ß" bleibt bewusst „ß", weil „SS" die Zeile länger machen würde, als der Aufrufer sie gemessen hat
+- **Auf der Charakter-Übersicht liefen die Kennzahlenkarten aus der Seite heraus** – „Trefferwertung (Nahkampf)" war abgeschnitten, „Waffenkunde" gar nicht mehr zu sehen. Zwei Ursachen: die Seite maß ihre Breite, **bevor** der Detailbereich rechts eingeblendet war, rechnete also mit 372 px zu viel; und vier Karten nebeneinander lassen der längsten Beschriftung keinen Platz. Der Detailbereich steht jetzt vor der Messung fest, und die Karten stehen in zwei Spalten: oben Verzauberungen und Sockel & Steine, darunter Trefferwertung und Waffenkunde
+- **In der Materialtabelle fehlte der gelbe Balken** – zu sehen waren nur grün und rot, die mittlere Stufe („ok", ≥ 30 % vom Soll) blieb leer. Rille und Füllung lagen beide auf derselben Zeichenebene, womit nicht festgelegt war, welche der beiden gleich großen Flächen oben liegt. Sie liegen jetzt in getrennten Ebenen, die Füllung trägt denselben hellen Ton wie die Zahl daneben, und die Rille ist wieder sichtbar – ein leerer Balken soll als leer lesbar sein und nicht als fehlender
+
 ## [2.0.0.0] – 2026-08-12
 
 ### Geändert
