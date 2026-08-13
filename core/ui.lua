@@ -405,12 +405,32 @@ end
 --------------------------------------------------
 -- Seitenkopf
 --------------------------------------------------
--- Das wiederkehrende Muster aller fuenf entworfenen Seiten: kleine
--- Mono-Zeile, darunter die Ueberschrift, rechts davon Kennzahlen in Mono.
--- Liefert die Hoehe zurueck, damit der Aufrufer darunter weiterbauen kann.
+-- Das wiederkehrende Muster aller entworfenen Seiten: kleine Mono-Zeile
+-- (Eyebrow), darunter die Ueberschrift, optional eine Unterzeile und rechts
+-- Kennzahlen in Mono. Der einzige Ort, an dem ein Seitenkopf entsteht -
+-- vorher baute ihn jede Seite selbst, und im selben Stand standen deshalb
+-- drei Titelformen nebeneinander: bernsteinfarbene 19er (WeintTV, Academy,
+-- Charakter), neutrale 22er (Raids, Materialien) und neutrale 26er
+-- (Kalender).
 --
--- opts: { eyebrow, title, stats = { {label=, value=, tone=, sub=}, ... },
---         x = PAD_X, y = PAD_Y }
+-- Die Bausteine haengen bewusst *aneinander* (Titel unter dem Eyebrow,
+-- Unterzeile unter dem Titel) statt an gerechneten Y-Werten: eine
+-- Ankerkette liefert bei gleichen Abstaenden exakt dasselbe Bild wie der
+-- handgebaute Kopf, den sie ersetzt, ohne dass Schriftmetriken geschaetzt
+-- werden muessen.
+--
+-- opts:
+--   eyebrow, eyebrowSize   Mono-Versalie ueber dem Titel
+--   title, titleSize       Ueberschrift (Inter Bold, textBright)
+--   titleGap               Abstand Eyebrow -> Titel (Vorgabe 6)
+--   sub, subSize, subColor Unterzeile; subInline setzt sie neben den Titel
+--   stats                  { { key=, label=, value=, tone= }, ... }, rechts
+--   statWidth, statGap     Vorgabe 64 / 78 (Mass der Kennzahlenblocks)
+--   height                 Hoehe, die der Kopf im Layout belegt
+--   x, y                   Innenabstand (Vorgabe PAD_X / PAD_Y)
+--
+-- Rueckgabe: der Kopf-Frame mit .Title / .Sub / .Stats[key] zum Nachtragen
+-- lebender Werte und .Height als belegte Hoehe.
 --------------------------------------------------
 
 function WeintCodex.PageHead(parent, opts)
@@ -419,41 +439,75 @@ function WeintCodex.PageHead(parent, opts)
     local y = opts.y or WeintCodex.Metrics.PAD_Y
 
     local head = CreateFrame("Frame", nil, parent)
-    head:SetHeight(64)
-    head:SetPoint("TOPLEFT",  parent, "TOPLEFT",  x, -y)
+    head:SetPoint("TOPLEFT",  parent, "TOPLEFT",   x, -y)
     head:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x, -y)
 
+    local eyebrowSize = opts.eyebrowSize or 10
+    local titleSize   = opts.titleSize or 26
+    local subSize     = opts.subSize or 10
+
+    local anchor
     if opts.eyebrow then
-        local eb = WeintCodex.Eyebrow(head, opts.eyebrow, { size = 10 })
+        local eb = WeintCodex.Eyebrow(head, opts.eyebrow, { size = eyebrowSize })
         eb:SetPoint("TOPLEFT", head, "TOPLEFT", 0, 0)
+        head.EyebrowStr = eb
+        anchor = eb
     end
 
-    local title = WeintCodex.PageTitle(head, opts.title or "", { size = 26 })
-    title:SetPoint("TOPLEFT", head, "TOPLEFT", 0, opts.eyebrow and -20 or -4)
-    head._title = title
+    local title = WeintCodex.PageTitle(head, opts.title or "", { size = titleSize })
+    if anchor then
+        title:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -(opts.titleGap or 6))
+    else
+        title:SetPoint("TOPLEFT", head, "TOPLEFT", 0, 0)
+    end
+    head.Title = title
 
-    -- Kennzahlen von rechts nach links, jede als Label ueber Zahl.
-    local anchor, gap = head, 0
+    -- Die Unterzeile traegt haeufig schon eingefaerbte Textstuecke (Spec,
+    -- Warnungen). Sie wird deshalb nur angelegt und bleibt leer, wenn der
+    -- Aufrufer sie selbst fuellt.
+    if opts.sub ~= nil then
+        local sub = head:CreateFontString(nil, "OVERLAY")
+        sub:SetFont(F.sans, subSize, "")
+        sub:SetTextColor(unpack(Col(opts.subColor or "textDim")))
+        sub:SetJustifyH("LEFT")
+        sub:SetText(opts.sub)
+        if opts.subInline then
+            sub:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 12, 3)
+        else
+            sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -(opts.subGap or 4))
+        end
+        if opts.subWidth then sub:SetWidth(opts.subWidth) end
+        head.Sub = sub
+    end
+
+    -- Kennzahlen rechts, von rechts nach links gesetzt: Label als gesperrte
+    -- Versalie ueber der Mono-Zahl.
+    head.Stats = {}
+    local statW  = opts.statWidth or 64
+    local statGap = opts.statGap or 78
+    local sx = 0
     for i = #(opts.stats or {}), 1, -1 do
         local st = opts.stats[i]
-        local group = CreateFrame("Frame", nil, head)
-        group:SetSize(10, 44)
-        group:SetPoint("BOTTOMRIGHT", anchor, i == #opts.stats and "BOTTOMRIGHT" or "BOTTOMLEFT",
-            i == #opts.stats and 0 or -gap, 0)
+        local box = CreateFrame("Frame", nil, head)
+        box:SetSize(statW, 42)
+        box:SetPoint("TOPRIGHT", head, "TOPRIGHT", sx, 0)
 
-        local val = group:CreateFontString(nil, "OVERLAY")
-        val:SetFont(F.monoBold, 22, "")
-        val:SetPoint("BOTTOMRIGHT", group, "BOTTOMRIGHT", 0, 0)
+        local lbl = WeintCodex.Eyebrow(box, st.label or "", { size = 9, justify = "RIGHT" })
+        lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
+
+        local val = box:CreateFontString(nil, "OVERLAY")
+        val:SetFont(F.monoBold, opts.statSize or 22, "")
+        val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
+        val:SetJustifyH("RIGHT")
         val:SetTextColor(unpack(Col(st.tone or "textNormal")))
-        val:SetText(tostring(st.value))
+        val:SetText(st.value ~= nil and tostring(st.value) or "")
 
-        local lbl = WeintCodex.Eyebrow(group, st.label or "", { size = 9, justify = "RIGHT" })
-        lbl:SetPoint("BOTTOMRIGHT", val, "TOPRIGHT", 0, 4)
-
-        group:SetWidth(math.max(val:GetStringWidth(), lbl:GetStringWidth()))
-        anchor, gap = group, 26
+        head.Stats[st.key or i] = val
+        sx = sx - statGap
     end
 
+    head.Height = opts.height or 64
+    head:SetHeight(head.Height)
     return head
 end
 

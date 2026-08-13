@@ -295,15 +295,17 @@ local function DrawRatingBar(parent, x, y, stars)
 end
 
 local function DrawPageHeader(frame, titleText)
-    local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(WeintCodex.Fonts.serif, 19, "")
-    title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
-    title:SetText("|cffD4A24A" .. titleText .. "|r")
-
     WeintCodex.SetBreadcrumb("Charakter", "Academy", titleText)
 
+    local head = WeintCodex.PageHead(frame, {
+        eyebrow = "Academy",
+        title = titleText, titleSize = 20,
+        sub = "", subSize = 10,
+        x = 16, y = 14, height = 64,
+    })
+
     local state = State()
-    local sub = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 16, -40)
+    local sub = head.Sub
     if state then
         local parts = {}
         if state.encounter then parts[#parts + 1] = state.encounter end
@@ -317,7 +319,7 @@ local function DrawPageHeader(frame, titleText)
             "Noch keine Auswertung von WeintCompanion erhalten"))
     end
 
-    return -62
+    return -(14 + head.Height)
 end
 
 local function DrawNotice(frame, y, message, height)

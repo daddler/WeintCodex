@@ -222,16 +222,13 @@ local function CreateCalendarFrame()
     header:SetPoint("TOPLEFT",  f, "TOPLEFT",  0, 0)
     header:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
 
-    local eyebrowStr = WeintCodex.Eyebrow(header, "Gildentermine", { size = 10 })
-    eyebrowStr:SetPoint("TOPLEFT", header, "TOPLEFT", 20, -16)
-
-    local titleStr = WeintCodex.PageTitle(header, "Kalender", { size = 26 })
-    titleStr:SetPoint("TOPLEFT", eyebrowStr, "BOTTOMLEFT", 0, -6)
-
-    local subStr = WeintCodex.Label(header,
-        "Kalender-Eintrag aus Raidanmeldungen erstellen",
-        { color = "textDim", size = 13 })
-    subStr:SetPoint("BOTTOMLEFT", titleStr, "BOTTOMRIGHT", 12, 3)
+    WeintCodex.PageHead(header, {
+        eyebrow = "Gildentermine",
+        title = "Kalender",
+        sub = "Kalender-Eintrag aus Raidanmeldungen erstellen",
+        subSize = 13, subInline = true,
+        x = 20, y = 16, height = 56,
+    })
 
     local headerDiv = header:CreateTexture(nil, "OVERLAY")
     headerDiv:SetHeight(1)
@@ -255,10 +252,8 @@ local function CreateCalendarFrame()
     leftPanel:SetPoint("BOTTOMLEFT", body, "BOTTOMLEFT", 0,   0)
 
     -- Section: Event-Details
-    local detailsSect = leftPanel:CreateFontString(nil, "OVERLAY")
-    detailsSect:SetFont(WeintCodex.Fonts.sans, 11, "")
+    local detailsSect = WeintCodex.Eyebrow(leftPanel, "Event-Details", { color = "textFaint" })
     detailsSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -16)
-    detailsSect:SetText("|cffD4A24AEVENT-DETAILS|r")
 
     local detailsLine = leftPanel:CreateTexture(nil, "OVERLAY")
     detailsLine:SetHeight(1)
@@ -349,10 +344,8 @@ local function CreateCalendarFrame()
     f.AutoFillBtn = autoFillBtn
 
     -- Section: Einladungsoptionen
-    local invSect = leftPanel:CreateFontString(nil, "OVERLAY")
-    invSect:SetFont(WeintCodex.Fonts.sans, 11, "")
+    local invSect = WeintCodex.Eyebrow(leftPanel, "Einladungen", { color = "textFaint" })
     invSect:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -262)
-    invSect:SetText("|cffD4A24AEINLADUNGEN|r")
 
     local invLine = leftPanel:CreateTexture(nil, "OVERLAY")
     invLine:SetHeight(1)
@@ -379,7 +372,7 @@ local function CreateCalendarFrame()
     local cbTank   = MakeCheckbox(leftPanel, "|cff8B95F5" .. WeintCodex.Icon("Interface\\Icons\\Ability_Warrior_DefensiveStance", 14) .. "  Tanks einladen|r",   16, -284, true)
     local cbHealer = MakeCheckbox(leftPanel, "|cff7CC06E" .. WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler einladen|r",  16, -308, true)
     local cbDps    = MakeCheckbox(leftPanel, "|cffE56B6B" .. WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS einladen|r",     16, -332, true)
-    local cbMerge  = MakeCheckbox(leftPanel, "|cffD4A24A" .. WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Raidtage zusammenführen|r", 16, -356, false)
+    local cbMerge  = MakeCheckbox(leftPanel, WeintCodex.ColorText("textNormal", WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Raidtage zusammenführen"), 16, -356, false)
     f.CbMerge  = cbMerge
     f.CbTank   = cbTank
     f.CbHealer = cbHealer
@@ -479,10 +472,8 @@ local function CreateCalendarFrame()
     rightPanel:SetPoint("TOPLEFT",     body, "TOPLEFT",     LEFT_W + 6,  0)
     rightPanel:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", 0,           0)
 
-    local previewSect = rightPanel:CreateFontString(nil, "OVERLAY")
-    previewSect:SetFont(WeintCodex.Fonts.sans, 11, "")
+    local previewSect = WeintCodex.Eyebrow(rightPanel, "Einzuladende Spieler", { color = "textFaint" })
     previewSect:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 10, -16)
-    previewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r")
     f.PreviewSect = previewSect
 
     local previewLine = rightPanel:CreateTexture(nil, "OVERLAY")
@@ -1154,7 +1145,9 @@ function WeintCodex.Calendar.Show()
                 ShowForm()
                 activeDay = "wednesday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidWednesday
-                f.PreviewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r  |cff4A4A52Mittwoch|r")
+                f.PreviewSect:SetText(WeintCodex.ColorText("textFaint",
+                    WeintCodex.Spaced("EINZULADENDE SPIELER"))
+                    .. "  " .. WeintCodex.ColorText("textGhost", WeintCodex.Spaced("MITTWOCH")))
                 WeintCodex.SetBreadcrumb("Kalender", "Mittwoch")
                 AutoFillFromData(f, data)
                 RefreshPlayerPreview(f, data)
@@ -1167,7 +1160,9 @@ function WeintCodex.Calendar.Show()
                 ShowForm()
                 activeDay = "thursday"
                 local data = WeintCodex.SavedData and WeintCodex.SavedData.raidThursday
-                f.PreviewSect:SetText("|cffD4A24AEINZULADENDE SPIELER|r  |cff4A4A52Donnerstag|r")
+                f.PreviewSect:SetText(WeintCodex.ColorText("textFaint",
+                    WeintCodex.Spaced("EINZULADENDE SPIELER"))
+                    .. "  " .. WeintCodex.ColorText("textGhost", WeintCodex.Spaced("DONNERSTAG")))
                 WeintCodex.SetBreadcrumb("Kalender", "Donnerstag")
                 AutoFillFromData(f, data)
                 RefreshPlayerPreview(f, data)

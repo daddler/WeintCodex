@@ -1927,18 +1927,32 @@ local function ShowScoreInspector(counts, extraBlocks)
     WeintCodex.Navigation.SetInspector(blocks)
 end
 
-local function DrawPageHeader(frame, titleText, scan, onRefresh)
-    local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(WeintCodex.Fonts.serif, 19, "")
-    title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
-    title:SetText("|cffD4A24A" .. titleText .. "|r")
+-- Hoehe, die der Seitenkopf im Layout belegt. Die Unterseiten haengen ihren
+-- Inhalt daran statt an einer eigenen Zahl - vorher stand die 52 fuenfmal
+-- einzeln im Modul, und der Spielstil-Umschalter setzte bei 44 an und lief
+-- damit in die Spec-Zeile hinein.
+--
+-- 78 = 14 Einzug + Eyebrow 10 + 6 + Titel 20 + 4 + Spec-Zeile 10, jeweils
+-- mit der Zeilenhoehe der Schrift (rund das 1,15-fache der Punktzahl), plus
+-- etwas Luft. Zu knapp gerechnet legt sich die Spec-Zeile auf die erste
+-- Inhaltszeile - im Spiel sieht man das erst, wenn eine Spec einen langen
+-- Namen hat.
+local HEAD_H     = 78
+local TOGGLE_H   = 28
+local TOGGLE_GAP = 16
 
+local function DrawPageHeader(frame, titleText, scan, onRefresh)
     MakeRefreshButton(onRefresh)
     WeintCodex.SetBreadcrumb("Charakter", titleText)
 
-    local specInfo = frame:CreateFontString(nil, "OVERLAY")
-    specInfo:SetFont(WeintCodex.Fonts.sans, 10, "")
-    specInfo:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
+    local head = WeintCodex.PageHead(frame, {
+        eyebrow = "Charakter",
+        title = titleText, titleSize = 20,
+        sub = "", subSize = 10,
+        x = 16, y = 14, height = HEAD_H - 14,
+    })
+
+    local specInfo = head.Sub
     if scan.profileKey then
         local styleHint = scan.tankStyle
             and (" |cffD4A24A[" .. (scan.tankStyle == "OFF" and "Offensiv" or "Defensiv") .. "]|r")
@@ -1951,7 +1965,7 @@ local function DrawPageHeader(frame, titleText, scan, onRefresh)
         specInfo:SetText("|cffff9900Spec konnte nicht ermittelt werden — einloggen bzw. Spec wählen!|r")
     end
 
-    return title
+    return head
 end
 
 -- Tank-Spielstil-Umschalter; gibt genutzte Y-Höhe zurück (negativ)
@@ -1961,15 +1975,16 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
     local W = parent:GetWidth() - 32
 
     local bg = CreateFrame("Frame", nil, parent)
-    bg:SetSize(math.max(W, 200), 28)
-    bg:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -44)
+    bg:SetSize(math.max(W, 200), TOGGLE_H)
+    bg:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -HEAD_H)
     SetSolidBg(bg, C.headerBg[1], C.headerBg[2], C.headerBg[3], 0.80)
     DrawBorder(bg, C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0, 1)
 
     local info = bg:CreateFontString(nil, "OVERLAY")
     info:SetFont(WeintCodex.Fonts.sans, 10, "")
     info:SetPoint("LEFT", bg, "LEFT", 10, 0)
-    info:SetText("|cffD4A24ATank-Spielstil:|r |cff4A4A52bestimmt Empfehlungen & Bewertung|r")
+    info:SetText(WeintCodex.ColorText("textNormal", "Tank-Spielstil:")
+        .. " " .. WeintCodex.ColorText("textFaint", "bestimmt Empfehlungen & Bewertung"))
 
     local function StyleBtn(label, style, xOff)
         local isActive = (currentStyle == style)
@@ -1996,7 +2011,7 @@ local function DrawTankStyleToggle(parent, profileKey, currentStyle, onSwitch)
     StyleBtn("Offensiv", "OFF", -4)
     StyleBtn("Defensiv", "DEF", -98)
 
-    return -36
+    return -(TOGGLE_H + TOGGLE_GAP)
 end
 
 --------------------------------------------------
@@ -2037,7 +2052,7 @@ function ShowEnchants()
     local toggleOffset = DrawTankStyleToggle(enchantFrame, scan.profileKey, scan.tankStyle, ShowEnchants)
 
     -- Spalten-Header
-    local headerY = -52 + toggleOffset
+    local headerY = -HEAD_H + toggleOffset
     local function MakeHeader(text, x, w)
         local h = enchantFrame:CreateFontString(nil, "OVERLAY")
         h:SetFont(WeintCodex.Fonts.sans, 9, "")
@@ -2202,7 +2217,7 @@ function ShowGems()
 
     local toggleOffset = DrawTankStyleToggle(gemFrame, scan.profileKey, scan.tankStyle, ShowGems)
 
-    local headerY = -52 + toggleOffset
+    local headerY = -HEAD_H + toggleOffset
     local function MakeHeader(text, x, w)
         local h = gemFrame:CreateFontString(nil, "OVERLAY")
         h:SetFont(WeintCodex.Fonts.sans, 9, "")
@@ -2238,8 +2253,9 @@ function ShowGems()
             local slotHeader = inner:CreateFontString(nil, "OVERLAY")
             slotHeader:SetFont(WeintCodex.Fonts.sans, 10, "")
             slotHeader:SetPoint("TOPLEFT", inner, "TOPLEFT", 6, yOff - 4)
-            slotHeader:SetText("|cffD4A24A" .. row.slotName .. "|r"
-                .. (row.itemName and ("  |cff3A3A42" .. row.itemName .. "|r") or ""))
+            slotHeader:SetText(WeintCodex.ColorText("textNormal", row.slotName)
+                .. (row.itemName
+                    and ("  " .. WeintCodex.ColorText("textGhost", row.itemName)) or ""))
             yOff = yOff - 20
 
             -- Sockelbonus + Entscheidung (genutzt / ignoriert)
@@ -2917,12 +2933,12 @@ function ShowWerteverteilung()
     DrawPageHeader(werteFrame, "Werteverteilung & Caps", scan, ShowWerteverteilung)
 
     local divider = werteFrame:CreateTexture(nil, "OVERLAY")
-    divider:SetPoint("TOPLEFT",  werteFrame, "TOPLEFT",  16, -52)
-    divider:SetPoint("TOPRIGHT", werteFrame, "TOPRIGHT", -16, -52)
+    divider:SetPoint("TOPLEFT",  werteFrame, "TOPLEFT",  16, -HEAD_H)
+    divider:SetPoint("TOPRIGHT", werteFrame, "TOPRIGHT", -16, -HEAD_H)
     divider:SetHeight(1)
     divider:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
-    local yOff = -66
+    local yOff = -(HEAD_H + 14)
 
     -- =============================================
     -- CAPS
@@ -3105,7 +3121,7 @@ function ShowPriorisierung()
 
     local desc = prioFrame:CreateFontString(nil, "OVERLAY")
     desc:SetFont(WeintCodex.Fonts.sans, 9, "")
-    desc:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -52)
+    desc:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, -HEAD_H)
     desc:SetWidth(math.max((cp:GetWidth() or 660) - 32, 400))
     desc:SetJustifyH("LEFT")
     desc:SetText("|cff4A4A52Gewichte 0-999: je höher, desto wichtiger ist der Wert für DICH (0 = egal). "
@@ -3251,19 +3267,16 @@ function ShowTwinkverwaltung()
     twinkFrame = CreateFrame("Frame", nil, cp)
     twinkFrame:SetAllPoints(cp)
 
-    local title = twinkFrame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(WeintCodex.Fonts.sansBold, 22, "")
-    title:SetPoint("TOPLEFT", twinkFrame, "TOPLEFT", 16, -14)
-    title:SetText("|cffD4A24ATwinkverwaltung|r")
-
-    local sub = twinkFrame:CreateFontString(nil, "OVERLAY")
-    sub:SetFont(WeintCodex.Fonts.sans, 10, "")
-    sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
-    sub:SetWidth(640)
-    sub:SetJustifyH("LEFT")
-    sub:SetText("|cff4A4A52Gildenmitglieder scannen und eigene Twinks auswählen. Export für den WeintCodex Discord-Bot.|r")
-
     WeintCodex.SetBreadcrumb("Charakter", "Twinkverwaltung")
+
+    local twinkHead = WeintCodex.PageHead(twinkFrame, {
+        eyebrow = "Charakter",
+        title = "Twinkverwaltung", titleSize = 20,
+        sub = "Gildenmitglieder scannen und eigene Twinks auswählen. Export für den WeintCodex Discord-Bot.",
+        subSize = 10, subColor = "textFaint", subWidth = 640,
+        x = 16, y = 14, height = HEAD_H - 14,
+    })
+    local title = twinkHead.Title
 
     if refreshBtn then refreshBtn:Hide() end
 
@@ -3299,9 +3312,9 @@ function ShowTwinkverwaltung()
     twinkScanBtn:Show()
     twinkExportBtn:Show()
 
-    local sf, inner = CreateScrollArea(twinkFrame, 14, -52, 20, 400)
+    local sf, inner = CreateScrollArea(twinkFrame, 14, -HEAD_H, 20, 400)
     sf:ClearAllPoints()
-    sf:SetPoint("TOPLEFT",     twinkFrame, "TOPLEFT",     14, -52)
+    sf:SetPoint("TOPLEFT",     twinkFrame, "TOPLEFT",     14, -HEAD_H)
     sf:SetPoint("BOTTOMRIGHT", twinkFrame, "BOTTOMRIGHT", -26, 36)
     inner:SetWidth(sf:GetWidth() - 22)
 
@@ -3336,8 +3349,9 @@ function ShowTwinkverwaltung()
         end
         local numMembers = GetNumGuildMembers()
         title:SetText(string.format(
-            "|cffD4A24ATwinkverwaltung|r |cff888888(%d Mitglieder gefunden)|r",
-            numMembers or 0))
+            "Twinkverwaltung %s",
+            WeintCodex.ColorText("textFaint",
+                "(" .. (numMembers or 0) .. " Mitglieder gefunden)")))
 
         local yOff = 0
         local count = 0

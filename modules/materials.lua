@@ -178,49 +178,22 @@ local function CreateMatFrame()
     summaryDiv:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", 0, 0)
     summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    local eyebrow = WeintCodex.Eyebrow(summary, "Gildenbankmaterialien", { size = 10 })
-    eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
-
-    local titleStr = summary:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont(WeintCodex.Fonts.sansBold, 22, "")
-    titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
-    titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-    f.Title = titleStr
-
-    local updateStr = summary:CreateFontString(nil, "OVERLAY")
-    updateStr:SetFont(WeintCodex.Fonts.sans, 10, "")
-    updateStr:SetPoint("TOPLEFT", titleStr, "BOTTOMLEFT", 2, -4)
-    f.UpdateStr = updateStr
-
     -- Stat-Quartett rechts: GUT / OK / NIEDRIG / GESAMT
-    local statDefs = {
-        { key = "good",  label = "Gut",     color = "successBright" },
-        { key = "ok",    label = "Ok",      color = "accentBright" },
-        { key = "low",   label = "Niedrig", color = "dangerBright" },
-        { key = "total", label = "Gesamt",  color = "textNormal" },
-    }
-    local statStrs = {}
-    local sx = -ROW_PAD
-    for i = #statDefs, 1, -1 do
-        local def = statDefs[i]
-        local box = CreateFrame("Frame", nil, summary)
-        box:SetSize(64, 42)
-        box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
-
-        local lbl = WeintCodex.Eyebrow(box, def.label, { size = 9, justify = "RIGHT" })
-        lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
-
-        local val = box:CreateFontString(nil, "OVERLAY")
-        val:SetFont(WeintCodex.Fonts.monoBold, 22, "")
-        val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
-        val:SetJustifyH("RIGHT")
-        local col = C[def.color] or C.textNormal
-        val:SetTextColor(col[1], col[2], col[3])
-        statStrs[def.key] = val
-
-        sx = sx - 78
-    end
-    f.StatStrs = statStrs
+    local head = WeintCodex.PageHead(summary, {
+        eyebrow = "Gildenbankmaterialien",
+        title = "", titleSize = 22,
+        sub = "",
+        x = ROW_PAD, y = 14, height = 56,
+        stats = {
+            { key = "good",  label = "Gut",     tone = "successBright" },
+            { key = "ok",    label = "Ok",      tone = "accentBright" },
+            { key = "low",   label = "Niedrig", tone = "dangerBright" },
+            { key = "total", label = "Gesamt",  tone = "textNormal" },
+        },
+    })
+    f.Title     = head.Title
+    f.UpdateStr = head.Sub
+    f.StatStrs  = head.Stats
 
     --------------------------------------------------
     -- Tabellenkopf

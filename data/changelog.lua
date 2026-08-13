@@ -16,6 +16,7 @@ WeintCodex_ChangelogData = {
             "Die Unternavigation jeder Seite sitzt als Reiterleiste unter dem Titel; die rechte Detailspalte ist Teil der Seite geworden und erscheint nur, wenn es etwas zu zeigen gibt.",
             "Die Academy ist ein eigener Navigationspunkt und haengt nicht mehr in der Charakter-Unternavigation.",
             "Der Kalender hat eine Monatsansicht mit Terminen und Tagesdetails - das Einladungsformular bleibt daneben unveraendert erreichbar.",
+            "Alle Seiten tragen denselben Kopf: Ueberzeile, Titel und Kennzahlen in einer Form. Vorher standen drei verschiedene Titelformen nebeneinander, sieben davon bernsteinfarben - Bernstein bleibt jetzt dem vorbehalten, was einen Zustand anzeigt.",
         },
     },
     {

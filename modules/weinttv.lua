@@ -256,14 +256,16 @@ end
 -- Kopfzeile: welcher Pull, welche Quelle, wie alt. Gibt die verbrauchte
 -- Hoehe zurueck (negativ), damit die Tabelle darunter andocken kann.
 local function DrawHeader(frame, titleText, report)
-    local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(WeintCodex.Fonts.serif, 19, "")
-    title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
-    title:SetText("|cffD4A24A" .. titleText .. "|r")
-
     WeintCodex.SetBreadcrumb("WeintTV", titleText)
 
-    local sub = Text(frame, 10, 16, -40)
+    local head = WeintCodex.PageHead(frame, {
+        eyebrow = "WeintTV",
+        title = titleText, titleSize = 20,
+        sub = "", subSize = 10,
+        x = 16, y = 14, height = 78,
+    })
+
+    local sub = head.Sub
     if report then
         local enc   = report.encounter or {}
         local parts = {}
@@ -280,7 +282,10 @@ local function DrawHeader(frame, titleText, report)
         sub:SetText(WeintCodex.ColorText("textDim", "Keine Auswertung geladen"))
     end
 
-    local meta = Text(frame, 9, 16, -56)
+    local meta = head:CreateFontString(nil, "OVERLAY")
+    meta:SetFont(WeintCodex.Fonts.sans, 9, "")
+    meta:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -4)
+    meta:SetJustifyH("LEFT")
     if report then
         local stamp = report.capturedAt
             and date("%d.%m.%Y %H:%M", report.capturedAt) or "unbekannt"
@@ -292,7 +297,7 @@ local function DrawHeader(frame, titleText, report)
         meta:SetText("")
     end
 
-    return -78
+    return -(14 + head.Height)
 end
 
 -- Hinweiskarte statt leerer Tabelle.

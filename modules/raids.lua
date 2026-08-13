@@ -251,51 +251,24 @@ local function CreateRaidFrame()
     summaryDiv:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", 0, 0)
     summaryDiv:SetColorTexture(C.border[1], C.border[2], C.border[3], C.border[4])
 
-    local eyebrow = WeintCodex.Eyebrow(summary, "Raidanmeldungen", { size = 10 })
-    eyebrow:SetPoint("TOPLEFT", summary, "TOPLEFT", ROW_PAD, -14)
-
-    local titleStr = summary:CreateFontString(nil, "OVERLAY")
-    titleStr:SetFont(WeintCodex.Fonts.sansBold, 22, "")
-    titleStr:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
-    titleStr:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-    f.Title = titleStr
-
-    local dateStr = summary:CreateFontString(nil, "OVERLAY")
-    dateStr:SetFont(WeintCodex.Fonts.sans, 10, "")
-    dateStr:SetPoint("TOPLEFT", titleStr, "BOTTOMLEFT", 2, -4)
-    f.DateStr = dateStr
-
     -- Kennzahlen rechts im Kopf: TANKS / HEILER / DPS / GESAMT, in Mono wie
     -- im Entwurf. Die hellen Tonvarianten, weil die Grundfarben als Flaechen
     -- gedacht sind und als Text auf Schwarz zu dunkel geraten.
-    local statDefs = {
-        { key = "tank",  label = "Tanks",  color = "infoBright" },
-        { key = "heal",  label = "Heiler", color = "successBright" },
-        { key = "dps",   label = "DPS",    color = "dangerBright" },
-        { key = "total", label = "Gesamt", color = "textNormal" },
-    }
-    local statStrs = {}
-    local sx = -ROW_PAD
-    for i = #statDefs, 1, -1 do
-        local def = statDefs[i]
-        local box = CreateFrame("Frame", nil, summary)
-        box:SetSize(64, 42)
-        box:SetPoint("TOPRIGHT", summary, "TOPRIGHT", sx, -14)
-
-        local lbl = WeintCodex.Eyebrow(box, def.label, { size = 9, justify = "RIGHT" })
-        lbl:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
-
-        local val = box:CreateFontString(nil, "OVERLAY")
-        val:SetFont(WeintCodex.Fonts.monoBold, 22, "")
-        val:SetPoint("TOPRIGHT", lbl, "BOTTOMRIGHT", 0, -4)
-        val:SetJustifyH("RIGHT")
-        local col = C[def.color] or C.textNormal
-        val:SetTextColor(col[1], col[2], col[3])
-        statStrs[def.key] = val
-
-        sx = sx - 78
-    end
-    f.StatStrs = statStrs
+    local head = WeintCodex.PageHead(summary, {
+        eyebrow = "Raidanmeldungen",
+        title = "", titleSize = 22,
+        sub = "",
+        x = ROW_PAD, y = 14, height = 56,
+        stats = {
+            { key = "tank",  label = "Tanks",  tone = "infoBright" },
+            { key = "heal",  label = "Heiler", tone = "successBright" },
+            { key = "dps",   label = "DPS",    tone = "dangerBright" },
+            { key = "total", label = "Gesamt", tone = "textNormal" },
+        },
+    })
+    f.Title    = head.Title
+    f.DateStr  = head.Sub
+    f.StatStrs = head.Stats
 
     --------------------------------------------------
     -- Tabellenkopf
