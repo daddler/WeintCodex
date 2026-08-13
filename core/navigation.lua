@@ -18,25 +18,28 @@ local activeTab = nil
 -- "uebersicht" und "academy" sind mit 2.0 dazugekommen: die Startseite ist im
 -- Entwurf ein eigener Navigationspunkt, und die Academy haengt nicht mehr in
 -- der Charakter-Unternavigation, sondern steht gleichberechtigt daneben.
+--
+-- `label` ist die Beschriftung in der Spalte UND der Kopf des Sperr-Tooltips;
+-- die Reihenfolge dieser Tabelle ist die Reihenfolge der Spalte.
 local ICON_PATH = "Interface\\AddOns\\WeintCodex\\media\\icons\\"
 local tabs = {
-    { id = "uebersicht", icon = ICON_PATH .. "nav_uebersicht", tooltip = "Übersicht",
+    { id = "uebersicht", icon = ICON_PATH .. "nav_uebersicht", label = "Übersicht",
       group = "Raid" },
-    { id = "bossguides", icon = ICON_PATH .. "nav_bossguides", tooltip = "Bossguides" },
-    { id = "raids",      icon = ICON_PATH .. "nav_raids",      tooltip = "Raids",
+    { id = "bossguides", icon = ICON_PATH .. "nav_bossguides", label = "Bossguides" },
+    { id = "raids",      icon = ICON_PATH .. "nav_raids",      label = "Raids",
       feature = "raids.view" },
-    { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   tooltip = "Kalender",
+    { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   label = "Kalender",
       feature = "calendar.view" },
-    { id = "weinttv",    icon = ICON_PATH .. "nav_weinttv",    tooltip = "WeintTV" },
+    { id = "weinttv",    icon = ICON_PATH .. "nav_weinttv",    label = "WeintTV" },
 
-    { id = "charakter",  icon = ICON_PATH .. "nav_charakter",  tooltip = "Charakter",
+    { id = "charakter",  icon = ICON_PATH .. "nav_charakter",  label = "Charakter",
       group = "Charakter" },
-    { id = "academy",    icon = ICON_PATH .. "nav_academy",    tooltip = "Academy" },
+    { id = "academy",    icon = ICON_PATH .. "nav_academy",    label = "Academy" },
 
-    { id = "materials",  icon = ICON_PATH .. "nav_materials",  tooltip = "Materialien",
+    { id = "materials",  icon = ICON_PATH .. "nav_materials",  label = "Materialien",
       group = "Gilde", feature = "materials.view" },
-    { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  tooltip = "WeakAuras" },
-    { id = "import",     icon = ICON_PATH .. "nav_import",     tooltip = "Import" },
+    { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  label = "WeakAuras" },
+    { id = "import",     icon = ICON_PATH .. "nav_import",     label = "Import" },
 }
 
 -- tabId -> Feature, einzige Quelle bleibt die tabs-Tabelle oben.
@@ -141,10 +144,17 @@ do
         icon:SetTexture(tabDef.icon)
         btn._icon = icon
 
+        -- Der Entwurf schreibt die Eintraege aus - ohne diesen SetText blieb
+        -- die Spalte eine reine Icon-Reihe, also genau die 1.x-Rail, die 2.0
+        -- abloesen sollte.
         local label = btn:CreateFontString(nil, "OVERLAY")
         label:SetFont(WeintCodex.Fonts.sans, 13, "")
         label:SetPoint("LEFT", icon, "RIGHT", 10, 0)
+        -- Rechte Kante freihalten: dort sitzen Zahl bzw. Statuspunkt.
+        label:SetPoint("RIGHT", btn, "RIGHT", -28, 0)
         label:SetJustifyH("LEFT")
+        label:SetWordWrap(false)
+        label:SetText(tabDef.label)
         btn._label = label
 
         -- Rechter Rand: entweder eine Zahl (Bossanzahl, Warteschlange) oder
@@ -169,7 +179,7 @@ do
             end
             if self._locked and WeintCodex.Access then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText(tabDef.tooltip)
+                GameTooltip:SetText(tabDef.label)
                 GameTooltip:AddLine(WeintCodex.Access.Reason(tabDef.feature),
                     C.textFaint[1], C.textFaint[2], C.textFaint[3], true)
                 GameTooltip:Show()
@@ -2145,38 +2155,45 @@ function WeintCodex.ShowHome()
 
     local bosses = Column(2)
 
-    local prog = WeintCodex.SavedData and WeintCodex.SavedData.encounterProgress
-    local downCount, totalCount = 0, 0
-    local pending = {}
-    for _, inst in pairs(prog or {}) do
-        for bossName, state in pairs(inst.bosses or {}) do
-            totalCount = totalCount + 1
-            if state.killed then
-                downCount = downCount + 1
-            elseif #pending < 3 then
-                pending[#pending + 1] = bossName
-            end
-        end
-    end
+    -- Der Fortschritt kommt aus modules/bossguides.lua, weil dort die
+    -- Bossreihenfolge und der Instanzname liegen. Frueher las diese Stelle
+    -- SavedData.encounterProgress selbst - und zwar falsch: der Zweig ist
+    -- positionsbasiert (bosses[<Index>] mit dem Feld `cleared`), gelesen wurde
+    -- aber ueber pairs() nach einem Feld `killed`, das es nicht gibt. Damit war
+    -- die Zahl links immer 0, die Zahl rechts die Menge der beruehrten Bosse
+    -- ("0/8") statt der Bossanzahl der Instanz, und die Zeilen darunter trugen
+    -- Encounter-Indizes als Namen.
+    local prog = WeintCodex.BossGuides and WeintCodex.BossGuides.GetProgress
+                 and WeintCodex.BossGuides.GetProgress()
+    local totalCount = (prog and prog.total) or 0
+    local downCount  = (prog and prog.cleared) or 0
+    local openBosses = (prog and prog.open) or {}
+    local allDown    = totalCount > 0 and downCount >= totalCount
 
     CardHeader(bosses, "Heute geplant",
-        totalCount > 0 and (downCount .. "/" .. totalCount .. " down") or nil,
-        "textMuted")
+        totalCount > 0 and (downCount .. "/" .. totalCount .. " gelegt") or nil,
+        allDown and "success" or (downCount > 0 and "warning" or "textMuted"))
 
+    -- Bezugsrahmen ist die laufende Raid-ID, nicht der Kalendertag: der
+    -- Lockout laeuft bis zum Mittwochs-Reset, "heute geplant" ist genau das,
+    -- was davon noch offen ist.
     local noteLine = WeintCodex.Eyebrow(bosses,
-        totalCount > 0 and "Fortschritt dieser Woche" or "Noch kein Fortschritt erfasst",
+        Ellipsis(prog and prog.instance or "Kein Raid hinterlegt", 24),
         { size = 10 })
     noteLine:SetPoint("TOPLEFT", bosses, "TOPLEFT", 20, -44)
 
     y = -66
-    for _, bossName in ipairs(pending) do
-        y = StateRow(bosses, y, nil, Ellipsis(bossName, 40), nil)
+    for i = 1, math.min(3, #openBosses) do
+        y = StateRow(bosses, y, "warning", Ellipsis(openBosses[i], 34), "offen", "accentBright")
     end
-    if #pending == 0 then
+    if #openBosses == 0 then
         y = StateRow(bosses, y,
-            totalCount > 0 and "success" or nil,
-            totalCount > 0 and "Alle bekannten Bosse liegen" or "Noch keine Daten",
+            allDown and "success" or nil,
+            allDown and "Alle Bosse dieser ID liegen" or "Noch keine Bossdaten",
             nil)
+    elseif #openBosses > 3 then
+        y = StateRow(bosses, y, nil,
+            "und " .. (#openBosses - 3) .. " weitere", nil)
     end
 
     local bossBtn = WeintCodex.CreateButton(bosses, {

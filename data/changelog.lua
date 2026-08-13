@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.0.2",
+        date    = "13.08.2026",
+        notes   = {
+            "Die Navigationsspalte war unbeschriftet - zu sehen waren nur zehn Symbole. Sie schreibt jetzt wieder aus, was sie oeffnet: Uebersicht, Bossguides, Raids, Kalender, WeintTV, Charakter, Academy, Materialien, WeakAuras, Import.",
+            "\"Heute geplant\" auf der Startseite zeigte \"0/8\" und keine Bossnamen, auch nach einem Raidabend mit gelegten Bossen. Jetzt steht dort der echte Stand der laufenden ID (z.B. \"8/14 gelegt\") samt den naechsten offenen Bossen mit Namen.",
+            "Die Werte-Summen der Ausruestung standen als \"+18<>056\" statt \"+18 056\" - das Trennzeichen der Tausenderstellen zerfiel beim Setzen in zwei ungueltige Haelften.",
+            "Auf der Charakter-Uebersicht verdeckten die Schaltflaechen \"Verzauberungen oeffnen\" und \"Sockel oeffnen\" den Hinweis \"Scan bei Itemwechsel\" daneben.",
+        },
+    },
+    {
         version = "2.0.0.1",
         date    = "13.08.2026",
         notes   = {

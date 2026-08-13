@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.0.0.2] – 2026-08-13
+
+### Behoben
+- **Die Navigationsspalte war unbeschriftet.** Jeder Eintrag legte seine Beschriftung an, bekam aber nie einen Text gesetzt – übrig blieb eine Reihe aus zehn Symbolen, also genau die Leiste, die 2.0 ablösen sollte. Die Spalte schreibt jetzt aus, was sie öffnet: *Übersicht, Bossguides, Raids, Kalender, WeintTV, Charakter, Academy, Materialien, WeakAuras, Import*. Zahl und Statuspunkt am rechten Rand haben ihren Platz behalten, die Beschriftung endet davor
+- **„Heute geplant" auf der Startseite zeigte „0/8" und keine Bossnamen** – und blieb auch nach einem Raidabend mit gelegten Bossen dabei. Die Startseite las den Fortschritt selbst aus den SavedVariables, und zwar zweifach falsch: der Zweig ist positionsbasiert (`bosses[<Index>]` mit dem Feld `cleared`), gelesen wurde aber über `pairs()` nach einem Feld `killed`, das es dort nie gab. Die linke Zahl war deshalb immer 0, die rechte die Anzahl der *berührten* Bosse statt der 14 der Instanz, und die Zeilen darunter trugen Encounter-Indizes als Namen. Der Fortschritt kommt jetzt aus `modules/bossguides.lua`, wo Instanz und Bossreihenfolge liegen: „8/14 gelegt" samt den nächsten offenen Bossen mit Namen, und der Lockout wird beim Öffnen der Startseite nachgezogen – auch ohne den Bossguide einmal geöffnet zu haben
+- **Die Werte-Summen der Ausrüstung standen als „+18◊◊056"** statt „+18 056". Das schmale Leerzeichen wurde vor dem Umdrehen der Ziffernfolge eingesetzt – `string.reverse` dreht Bytes, nicht Zeichen, und aus den zwei Bytes des Leerzeichens wurde dabei eine ungültige Folge, für die der Client zwei Ersatzkästchen zeichnet. Betroffen war jede so gesetzte Zahl
+- **Auf der Charakter-Übersicht verdeckten „Verzauberungen öffnen" und „Sockel öffnen" den Hinweis „Scan bei Itemwechsel"** in derselben Fußzeile. Die Breite der beiden Schaltflächen steht erst nach ihrer Beschriftung fest; sie wird jetzt gegen den Platz gerechnet, und passt der Hinweis nicht daneben, rückt er eine Zeile darunter
+
 ## [2.0.0.1] – 2026-08-13
 
 ### Behoben

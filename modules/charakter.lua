@@ -2836,7 +2836,6 @@ function ShowUebersicht()
         text = "Verzauberungen öffnen", kind = "primary",
         backdrop = "accentCardBot", onClick = ShowEnchants,
     })
-    hbBtn1:SetPoint("BOTTOMLEFT", hbCard, "BOTTOMLEFT", 20, 14)
 
     local hbBtn2 = WeintCodex.CreateButton(hbCard, {
         text = "Sockel öffnen", kind = "secondary",
@@ -2846,9 +2845,27 @@ function ShowUebersicht()
 
     local hbHint = WeintCodex.Eyebrow(hbCard, "Scan bei Itemwechsel",
         { size = 9, color = "textFaint", justify = "RIGHT" })
-    hbHint:SetPoint("BOTTOMRIGHT", hbCard, "BOTTOMRIGHT", -20, 24)
 
-    hbCard:SetHeight(math.abs(rowY) + 68)
+    -- Hinweis und Schaltflaechen teilen sich die Fusszeile nur, wenn beide
+    -- nebeneinander passen. Beide Breiten stehen erst nach ihrer Beschriftung
+    -- fest (CreateButton misst den Text, der gesperrte Eyebrow ist breiter als
+    -- er aussieht), deshalb wird hier gerechnet statt geschaetzt: vorher lag
+    -- die Zeile fest bei BOTTOMRIGHT und "Sockel öffnen" schob sich ueber
+    -- "SCAN BEI ITEMWECHSEL". Passt es nicht, ruecken die Knoepfe eine Zeile
+    -- hoch und der Hinweis sitzt darunter.
+    local HINT_ROW_H = 20
+    local footRoom   = leftW - 40 - (hbBtn1:GetWidth() + 10 + hbBtn2:GetWidth())
+    local sideBySide = footRoom >= (hbHint:GetStringWidth() + 16)
+
+    if sideBySide then
+        hbBtn1:SetPoint("BOTTOMLEFT", hbCard, "BOTTOMLEFT", 20, 14)
+        hbHint:SetPoint("BOTTOMRIGHT", hbCard, "BOTTOMRIGHT", -20, 24)
+    else
+        hbBtn1:SetPoint("BOTTOMLEFT", hbCard, "BOTTOMLEFT", 20, 14 + HINT_ROW_H)
+        hbHint:SetPoint("BOTTOMRIGHT", hbCard, "BOTTOMRIGHT", -20, 14)
+    end
+
+    hbCard:SetHeight(math.abs(rowY) + 68 + (sideBySide and 0 or HINT_ROW_H))
 
     --------------------------------------------------
     -- Rechts: Werte-Summen

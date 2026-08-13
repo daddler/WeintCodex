@@ -1060,6 +1060,44 @@ if WeintCodex.EncounterTracking then
 end
 
 --------------------------------------------------
+-- Fortschritt der laufenden ID als Zusammenfassung (Startseite)
+--------------------------------------------------
+-- Instanzname und Bossreihenfolge liegen hier, nicht in core/navigation.lua.
+-- Der rohe SavedVariables-Zweig ist positionsbasiert (`bosses[<Index>]` mit
+-- dem Feld `cleared`) und ohne diese Liste weder zu benennen noch zu zaehlen:
+-- er enthaelt nur beruehrte Bosse, ein `#` darauf ist also nie die Groesse
+-- der Instanz. Genau daran scheiterte die Startseite bis 2.0.0.1 - sie las
+-- den Zweig direkt, fragte nach einem Feld `killed`, das es nicht gibt, und
+-- zeigte darum "0/<Zahl der beruehrten Bosse>".
+--
+-- Rueckgabe: { instance, total, cleared, open = { Name, ... } } - `open` in
+-- Raid-Reihenfolge, damit die Startseite die naechsten Bosse nennen kann.
+function WeintCodex.BossGuides.GetProgress()
+    local et = WeintCodex.EncounterTracking
+    local out = {
+        instance = INSTANCE_NAME,
+        total    = #bossOrder,
+        cleared  = 0,
+        open     = {},
+    }
+    if not et then return out end
+
+    -- Wie in Show(): erst den Lockout nachziehen, damit die Startseite auch
+    -- ohne einmal geoeffneten Bossguide den Stand von gestern Abend kennt.
+    et.RefreshFromLockout(INSTANCE_NAME, INSTANCE_MATCH)
+
+    for i, bossInfo in ipairs(bossOrder) do
+        local status = et.GetStatus(INSTANCE_NAME, i)
+        if status and status.cleared then
+            out.cleared = out.cleared + 1
+        else
+            out.open[#out.open + 1] = bossInfo.name
+        end
+    end
+    return out
+end
+
+--------------------------------------------------
 -- Modul anzeigen
 --------------------------------------------------
 

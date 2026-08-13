@@ -993,12 +993,18 @@ function WeintCodex.FormatPercent(value, decimals)
 end
 
 -- Tausenderpunkt wie im Entwurf ("+14 210" mit schmalem Leerzeichen).
+-- Gruppiert wird rueckwaerts, das Trennzeichen aber erst NACH dem zweiten
+-- reverse() eingesetzt: `string.reverse` dreht Bytes, nicht Zeichen. Ein
+-- direkt eingefuegtes NBSP (\194\160) kam als \160\194 wieder heraus - eine
+-- ungueltige UTF-8-Folge, die der Client als zwei Ersatzkaestchen zeichnet
+-- ("+18<><>056" in den Werte-Summen der Charakteruebersicht). Der
+-- Platzhalter \1 ist einbytig und uebersteht das Drehen unbeschadet.
 function WeintCodex.FormatGrouped(value)
-    local n = math.floor(math.abs(tonumber(value) or 0))
-    local s = tostring(n)
-    local out = s:reverse():gsub("(%d%d%d)", "%1\194\160"):reverse()
-    out = out:gsub("^\194\160", "")
-    return ((tonumber(value) or 0) < 0 and "-" or "") .. out
+    local num = tonumber(value) or 0
+    local s = tostring(math.floor(math.abs(num)))
+    local out = s:reverse():gsub("(%d%d%d)", "%1\1"):reverse()
+    out = out:gsub("^\1", ""):gsub("\1", "\194\160")
+    return (num < 0 and "-" or "") .. out
 end
 
 --------------------------------------------------
