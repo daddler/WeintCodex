@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.0.1.0] – 2026-08-17
+
+### Neu
+- **Anmeldungen ohne Charakternamen sind jetzt sichtbar – vor dem Kalender-Eintrag, nicht danach.** Der Bot kannte den echten WoW-Namen eines Mitspielers nur, wenn dieser die Companion verknüpft **und** seine Twinkverwaltung gepflegt hatte. Für alle anderen – Gildenfremde, die die Companion nur bedingt nutzen können, und jeden, der die Twinkverwaltung noch nicht durchgearbeitet hat – schickte er den Discord-Anzeigenamen. Ingame gibt es diesen Namen nicht: `C_Calendar.EventInvite` lief ins Leere, meldete das aber nicht, und die Einladung zählte sogar als erfolgreich mit. Die Lücke fiel damit frühestens am leeren Kalender auf. Der Bot sagt jetzt zu jeder Zeile, woher ihr Name stammt, und das Addon zieht daraus drei Konsequenzen:
+  - In der **Anmeldeliste** steht so eine Zeile in gedämpfter Schrift mit Fragezeichen und dem Hinweis „Discord-Name · kein Charakter" statt in Klassenfarbe. Ein Platzhalter sah bisher aus wie ein Charakter
+  - Die **Vorschau im Kalender** zählt „21 von 25" statt „25 gesamt" und nennt die Zahl der offenen Zuordnungen. Die Zahl, der man vertraut, stimmt jetzt mit der Zahl der tatsächlichen Einladungen überein
+  - Der **Kalender-Eintrag** überspringt diese Zeilen und nennt sie beim Namen, statt eine Einladung abzuschicken, die nie ankommt. Eine sichtbar fehlende Einladung ist besser als eine, die stillschweigend verschwindet
+- **Nachtragen geht an zwei Stellen.** Dauerhaft für alle künftigen Raids in Discord mit dem neuen Befehl `/weintcharakter setzen` (Raidleitung; `/weintcharakter liste` zeigt vorab, wer noch offen ist) – oder wie bisher für den eigenen Client über das Stift-Symbol in der Anmeldeliste
+
+### Behoben
+- **Die Selbst-Erkennung in der Anmeldeliste gab bei zwei Mitspielern derselben Klasse auf.** Sie setzt den eigenen Charakternamen automatisch ein, wenn genau ein Kandidat der eigenen Klasse übrig bleibt – bei zweien tat sie gar nichts. Steht für einen davon inzwischen ein echter Charaktername fest, kommt er als „ich" nicht mehr in Frage; gewertet werden jetzt nur noch die ungeklärten Zeilen
+- **Ein Discord-Anzeigename mit Doppelpunkt, Komma oder Pipe zerlegte die Anmeldeliste.** Diese drei Zeichen sind die Feldtrenner des Importformats, und der Anzeigename wanderte ungeprüft hinein: ein Komma machte aus einer Zeile zwei Spieler, ein Doppelpunkt verschob den Kopf der Nachricht samt Datum und Titel. Behoben auf Bot-Seite, wirkt ohne Addon-Update
+
+### Technisch
+- Das WCIMPORT-Format der Raidanmeldung trägt ein sechstes Feld je Spieler: die Herkunft des Namens (`raidlead` / `companion` / `discord`). Bewusst ein neues Feld statt einer Umbelegung des freien Notizfelds – die Änderung ist damit in beide Richtungen additiv: ein älteres Addon liest nur bis Feld fünf und verhält sich unverändert, dieses Addon behandelt ein fehlendes sechstes Feld wie einen echten Charakternamen. Ein Bot-Update allein ändert also nichts, ein Addon-Update allein auch nicht
+- `WeintCodex.Raids.IsResolved(p)` ist der eine Ort, an dem „steht hier ein echter Charaktername" beantwortet wird; Anmeldeliste, Kalender-Vorschau und Einladungslauf lesen ihn. Eine manuelle Korrektur über das Stift-Symbol gilt darin als aufgelöst, ein fehlendes Feld ebenfalls
+
 ## [2.0.0.4] – 2026-08-17
 
 ### Behoben

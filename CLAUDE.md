@@ -161,6 +161,22 @@ WeintCompanion (**1.4.0 or newer**) delivers an `access_profile` inbox message w
 
 A second, independent channel: the Discord bot generates a `WCIMPORT:<TYPE>:<payload>` string via bot slash commands (`/export boss|raidwed|raidthu|mat|wa`), which the player pastes into the in-game Import dialog (`/wc import`, or `WeintCodex.Sync.QuickImport(str)`). Each `<TYPE>` (`BOSS`, `RAIDWED`/`RAIDTHU`/legacy `RAID`, `MAT`, `WA`) has its own hand-rolled colon/pipe/comma-delimited parser in `sync.lua` (`ParseBossImport`, `ParseRaidImport`, `ParseMatImport`, `ParseWAImport`) — these are position-based string formats, not JSON, so field order matters and is documented in the file header comment. `ProcessImport` dispatches by type tag and writes results straight into `WeintCodex.SavedData`, then calls the owning module's `Refresh`/`ResolveNames`/`RefreshDay` to update the UI.
 
+#### Wer steckt hinter dieser Anmeldezeile? (`source`, seit 2.0.1.0)
+
+Die Spielerzeile der Raidanmeldung ist `name|ROLE|CLASS|realm|note|source|`. Das sechste Feld ist neu und beantwortet die eine Frage, die das Addon bis dahin nicht stellen konnte: **steht in `name` überhaupt ein Charaktername?**
+
+Der Bot kennt den echten WoW-Namen eines Mitspielers nur, wenn dieser die Companion verknüpft *und* seine Twinkverwaltung gepflegt hat, oder wenn die Raidleitung ihn von Hand zugeordnet hat (`/weintcharakter setzen`, `services/character_links.py` drüben). Für alle anderen schickt er den **Discord-Anzeigenamen**. Der existiert ingame nicht — und `C_Calendar.EventInvite` meldet den Fehlschlag nicht, sondern läuft still ins Leere, sodass die Einladung sogar als gelungen mitgezählt wurde. Ein Platzhaltername ist syntaktisch von einem Charakternamen nicht zu unterscheiden; ohne dieses Feld war die Lücke frühestens am leeren Kalender zu bemerken.
+
+`WeintCodex.Raids.IsResolved(p)` ist der eine Ort, an dem die Frage beantwortet wird — `modules/raids.lua` (Anmeldeliste), `modules/calendar.lua` (Vorschau *und* Einladungslauf) lesen ihn. Zwei Fälle gelten trotz `source == "discord"` als aufgelöst: eine manuelle Korrektur über das Stift-Symbol (`rosterNameOverrides`), und ein **fehlendes** Feld. Letzteres ist tragend: ein älterer Bot schickt es nicht, und ohne diese Annahme wäre nach einem Addon-Update schlagartig das ganze Roster „unbekannt". In die andere Richtung gilt dasselbe — deshalb ein neues Feld statt einer Umbelegung des freien `note`-Felds: ein älteres Addon liest nur bis Feld fünf und verhält sich unverändert.
+
+Was daraus folgt, ist bewusst dreifach und nicht nur kosmetisch:
+
+- Die **Anmeldeliste** zeichnet die Zeile gedämpft mit Fragezeichen statt in Klassenfarbe. Der Discord-Name bleibt sichtbar — er ist der einzige Anhaltspunkt, wer gemeint ist.
+- Die **Kalender-Vorschau** zählt „21 von 25" statt „25 gesamt". Eine Gesamtzahl, die die Einladungen nicht trifft, ist genau die Zahl, der man vertraut.
+- Der **Einladungslauf** überspringt die Zeile und nennt sie in der Statusmeldung. Eine sichtbar fehlende Einladung ist besser als eine, die stillschweigend verschwindet.
+
+Die Selbst-Erkennung in `ResolveNames` liest es ebenfalls: bei mehreren Kandidaten der eigenen Klasse zählen nur noch die *ungeklärten* Zeilen. Vorher gab sie bei zweien auf — obwohl eine davon nachweislich ein Platzhalter ist und die andere ein gemeldeter Charakter, der einem gar nicht gehört.
+
 The type tag may carry an optional community suffix — `WCIMPORT:RAIDWED@<id>:<payload>` — read by splitting the tag *after* the envelope match and *before* `:upper()`. Do not widen the envelope regex to parse it: it already captures `RAIDWED@1234` whole because `@` isn't `:`, and touching it risks all five position-based formats. A tag from another community is rejected, and every guild-internal type additionally requires the feature that gates its display (`IMPORT_FEATURE`); `WA` is free.
 
 ### Rotationshelfer (`data/rotations.lua` + `modules/rotation_engine.lua` + `modules/rotationtrainer.lua`)

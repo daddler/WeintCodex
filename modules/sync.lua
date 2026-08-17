@@ -155,6 +155,20 @@ local function ParseRaidImport(payload)
                     class = (pparts[3] or ""):upper(),
                     realm = pparts[4] or "",
                     note  = pparts[5] or "",
+                    -- Feld 6: woher der Name stammt ("raidlead",
+                    -- "companion", "discord"). "discord" heisst, dass
+                    -- der Bot keinen Charakter kennt und den
+                    -- Discord-Anzeigenamen als Platzhalter geschickt
+                    -- hat - der existiert ingame nicht, eine Einladung
+                    -- dorthin geht ins Leere. Ohne dieses Feld waren
+                    -- beide Faelle nicht unterscheidbar, ein
+                    -- Platzhaltername sieht aus wie ein Charaktername.
+                    --
+                    -- Ein aelterer Bot schickt das Feld nicht; leer
+                    -- gilt deshalb als echter Charaktername, sonst
+                    -- waere nach einem Addon-Update ploetzlich das
+                    -- ganze Roster "unbekannt".
+                    source = (pparts[6] or ""):lower(),
                 }
             end
         end

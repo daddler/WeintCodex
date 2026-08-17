@@ -533,6 +533,17 @@ local function CreateCalendarFrame()
         local invitePlayers = {}
         local seen = {}
 
+        -- Zeilen ohne echten Charakternamen tragen den
+        -- Discord-Anzeigenamen des Spielers (der Bot sagt das im
+        -- sechsten Feld, siehe WeintCodex.Raids.IsResolved). Ingame
+        -- gibt es diesen Namen nicht: C_Calendar.EventInvite laeuft
+        -- ins Leere, und weil der Client den Fehlschlag nicht meldet,
+        -- zaehlte er bisher sogar als erfolgreiche Einladung. Solche
+        -- Zeilen werden hier uebersprungen und stattdessen genannt -
+        -- eine Einladung, die nie ankommt, ist schlimmer als eine, die
+        -- sichtbar fehlt.
+        local skipped = {}
+
         local function AddInvitees(dayData)
             if dayData and dayData.players then
                 for _, p in ipairs(dayData.players) do
@@ -544,8 +555,13 @@ local function CreateCalendarFrame()
                         elseif (p.role ~= "TANK" and p.role ~= "HEALER") and f.CbDps:GetChecked() then include = true
                         end
                         if include then
-                            table.insert(invitePlayers, p)
                             seen[nameKey] = true
+                            if WeintCodex.Raids and WeintCodex.Raids.IsResolved
+                               and not WeintCodex.Raids.IsResolved(p) then
+                                table.insert(skipped, p.name)
+                            else
+                                table.insert(invitePlayers, p)
+                            end
                         end
                     end
                 end
@@ -565,10 +581,24 @@ local function CreateCalendarFrame()
             title, descText, dateStr, hour, minute, invitePlayers,
             function(success, msg)
                 if success then
+                    if #skipped > 0 then
+                        msg = msg .. "\n|cffD4A24AOhne Charakternamen ("
+                            .. #skipped .. "), nicht eingeladen:|r "
+                            .. table.concat(skipped, ", ")
+                            .. "\n|cff888888In Discord nachtragen: "
+                            .. "/weintcharakter setzen - oder hier in der "
+                            .. "Anmeldeliste ueber das Stift-Symbol.|r"
+                    end
                     f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
                     print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
                         "Eintrag '" .. title .. "' vorbereitet (" ..
                         #invitePlayers .. " Spieler).|r")
+                    if #skipped > 0 then
+                        print("|cffD4A24A[WeintCodex Kalender]|r |cffE56B6B"
+                            .. #skipped .. " Anmeldung(en) ohne "
+                            .. "Charakternamen uebersprungen:|r "
+                            .. table.concat(skipped, ", "))
+                    end
                 else
                     f.StatusText:SetText("|cffE56B6B" .. msg .. "|r")
                 end
@@ -978,10 +1008,11 @@ RefreshPlayerPreview = function(f, raidData)
         return
     end
 
-    local total    = #players
-    local tanks    = 0
-    local healers  = 0
-    local dps      = 0
+    local total      = #players
+    local tanks      = 0
+    local healers    = 0
+    local dps        = 0
+    local unresolved = 0
 
     local offsetY  = -4
     local altRow   = false
@@ -1024,19 +1055,37 @@ RefreshPlayerPreview = function(f, raidData)
         dot:SetPoint("LEFT", row, "LEFT", 4, 0)
         dot:SetColorTexture(rc[1], rc[2], rc[3], 0.90)
 
-        -- Name
+        -- Name. Ohne echten Charakternamen steht hier der
+        -- Discord-Anzeigename - diese Zeile wird gar nicht eingeladen
+        -- (siehe der Klick-Handler des Erstellen-Knopfs), und das muss
+        -- in der Vorschau stehen, nicht erst in der Erfolgsmeldung.
+        local resolved = not (WeintCodex.Raids and WeintCodex.Raids.IsResolved)
+            or WeintCodex.Raids.IsResolved(p)
+
+        if not resolved then
+            unresolved = unresolved + 1
+        end
+
         local ccol = classColors[p.class] or "|cffdddddd"
         local nameLbl = row:CreateFontString(nil, "OVERLAY")
         nameLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         nameLbl:SetPoint("LEFT", row, "LEFT", 18, 0)
-        nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
+        if resolved then
+            nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
+        else
+            nameLbl:SetText("|cff6A6A72" .. (p.name or "?") .. "|r")
+        end
         nameLbl:SetWidth(160)
 
         -- Class
         local classLbl = row:CreateFontString(nil, "OVERLAY")
         classLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         classLbl:SetPoint("LEFT", row, "LEFT", 190, 0)
-        classLbl:SetText("|cff4A4A52" .. (p.class or "") .. "|r")
+        if resolved then
+            classLbl:SetText("|cff4A4A52" .. (p.class or "") .. "|r")
+        else
+            classLbl:SetText("|cffD4A24Akein Charakter|r")
+        end
         classLbl:SetWidth(120)
 
         table.insert(activePreviewRows, row)
@@ -1045,12 +1094,23 @@ RefreshPlayerPreview = function(f, raidData)
 
     pc:SetHeight(math.abs(offsetY) + 10)
 
-    f.PreviewCount:SetText(
+    -- Gezaehlt wird, wer tatsaechlich eingeladen wird. "25 gesamt" bei
+    -- 21 Einladungen waere genau die Zahl, der man vertraut und die
+    -- dann nicht stimmt.
+    local invitable = total - unresolved
+
+    local countText =
         "|cff8B95F5" .. tanks .. "T|r  " ..
         "|cff7CC06E" .. healers .. "H|r  " ..
         "|cffE56B6B" .. dps .. "D|r  " ..
-        "|cff888888" .. total .. " gesamt|r"
-    )
+        "|cff888888" .. invitable .. " von " .. total .. "|r"
+
+    if unresolved > 0 then
+        countText = countText ..
+            "  |cffD4A24A" .. unresolved .. " ohne Charakter|r"
+    end
+
+    f.PreviewCount:SetText(countText)
 end
 
 --------------------------------------------------

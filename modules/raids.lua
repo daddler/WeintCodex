@@ -72,6 +72,42 @@ local function IsKnownOtherCharacter(name, myName)
     return false
 end
 
+--------------------------------------------------
+-- Steht in dieser Zeile ein echter Charaktername?
+--
+-- Der Bot sagt es im sechsten Feld der Anmeldezeile (siehe
+-- ParseRaidImport in modules/sync.lua): "discord" heisst, dass er
+-- keinen Charakter kennt und den Discord-Anzeigenamen geschickt hat.
+-- Der existiert ingame nicht - eine Einladung dorthin geht ins Leere,
+-- und genau das war bisher nicht erkennbar.
+--
+-- Zwei Faelle gelten trotzdem als aufgeloest:
+--   * eine manuelle Korrektur ueber das Stift-Symbol (dann steht in
+--     p.name der von Hand gesetzte Charaktername),
+--   * eine fehlende Angabe (aelterer Bot). Sonst waere nach einem
+--     Addon-Update ploetzlich das ganze Roster "unbekannt".
+--------------------------------------------------
+
+function WeintCodex.Raids.IsResolved(p)
+    if not p then return true end
+    if p.source ~= "discord" then return true end
+    return p.originalName ~= nil and p.name ~= p.originalName
+end
+
+function WeintCodex.Raids.CountUnresolved(data)
+    if not data or not data.players then return 0 end
+
+    local count = 0
+
+    for _, p in ipairs(data.players) do
+        if not WeintCodex.Raids.IsResolved(p) then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
 function WeintCodex.Raids.ResolveNames(data)
     if not data or not data.players then return end
 
@@ -106,6 +142,24 @@ function WeintCodex.Raids.ResolveNames(data)
         then
             table.insert(candidates, p)
         end
+    end
+
+    -- Kennt der Bot fuer einige Zeilen einen echten Charakternamen und
+    -- fuer andere nicht, kommen nur die unaufgeloesten in Frage. Ohne
+    -- diese Einschraenkung wuerde die Selbst-Erkennung bei zwei
+    -- Kandidaten derselben Klasse gar nichts tun - obwohl einer davon
+    -- nachweislich ein Discord-Platzhalter ist und der andere ein
+    -- gemeldeter Charakter, der einem gar nicht gehoert.
+    local unresolved = {}
+
+    for _, p in ipairs(candidates) do
+        if not WeintCodex.Raids.IsResolved(p) then
+            table.insert(unresolved, p)
+        end
+    end
+
+    if #unresolved > 0 then
+        candidates = unresolved
     end
 
     if #candidates == 1 then
@@ -439,13 +493,28 @@ local function RefreshRaidDisplay(raidData)
             strip:SetPoint("LEFT", row, "LEFT", 0, 0)
             strip:SetColorTexture(rc.r, rc.g, rc.b, 0.80)
 
+            -- Zeilen, fuer die der Bot keinen Charakternamen kennt,
+            -- tragen den Discord-Anzeigenamen. Der wird bewusst
+            -- angezeigt (er ist der einzige Anhaltspunkt, wer gemeint
+            -- ist), aber nicht in Klassenfarbe und mit Warnzeichen -
+            -- sonst sieht ein Platzhalter aus wie ein Charakter, und
+            -- der Kalender-Invite scheitert erst am leeren Kalender.
+            local resolved = WeintCodex.Raids.IsResolved(p)
+
             local ccol = classColors[p.class] or "|cffdddddd"
             local nameLbl = row:CreateFontString(nil, "OVERLAY")
             nameLbl:SetFont(WeintCodex.Fonts.sans, 12, "")
             nameLbl:SetPoint("LEFT", row, "LEFT", COL_NAME_X, 0)
             nameLbl:SetWidth(COL_NAME_W)
             nameLbl:SetJustifyH("LEFT")
-            nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
+
+            if resolved then
+                nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
+            else
+                nameLbl:SetText(
+                    WeintCodex.Icon("Interface\\Icons\\INV_Misc_QuestionMark", 12)
+                    .. " " .. WeintCodex.ColorText("textDim", p.name or "?"))
+            end
 
             local cIcon = WeintCodex.ClassIcon(p.class, 14)
             local classLbl = row:CreateFontString(nil, "OVERLAY")
@@ -460,13 +529,20 @@ local function RefreshRaidDisplay(raidData)
             roleLbl:SetText(WeintCodex.ColorText(colorName, rc.label or p.role))
             roleLbl:SetWidth(110)
 
-            if p.note and p.note ~= "" then
+            local noteText = p.note
+
+            if not resolved then
+                noteText = "Discord-Name \194\183 kein Charakter"
+            end
+
+            if noteText and noteText ~= "" then
                 local noteLbl = row:CreateFontString(nil, "OVERLAY")
                 noteLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
                 noteLbl:SetPoint("LEFT", row, "LEFT", COL_NOTE_X, 0)
                 noteLbl:SetPoint("RIGHT", row, "RIGHT", -30, 0)
                 noteLbl:SetJustifyH("LEFT")
-                noteLbl:SetText(WeintCodex.ColorText("textFaint", p.note))
+                noteLbl:SetText(WeintCodex.ColorText(
+                    resolved and "textFaint" or "warning", noteText))
             end
 
             -- Namen manuell korrigieren (falls Bot/Auto-Erkennung den
@@ -485,6 +561,16 @@ local function RefreshRaidDisplay(raidData)
             editBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_LEFT")
                 GameTooltip:SetText("Charaktername korrigieren")
+                if not resolved then
+                    GameTooltip:AddLine(
+                        "Der Bot kennt zu diesem Discord-Account keinen",
+                        1, 1, 1)
+                    GameTooltip:AddLine(
+                        "Charakter. Trage ihn hier ein - oder dauerhaft",
+                        1, 1, 1)
+                    GameTooltip:AddLine(
+                        "in Discord mit /weintcharakter setzen.", 1, 1, 1)
+                end
                 GameTooltip:Show()
             end)
             editBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)

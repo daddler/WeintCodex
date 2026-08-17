@@ -7,6 +7,18 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.1.0",
+        date    = "17.08.2026",
+        notes   = {
+            "Anmeldungen, zu denen der Bot keinen echten Charakternamen kennt, sind jetzt als solche zu erkennen. Bisher stand dort der Discord-Anzeigename - ingame gibt es den nicht, die Einladung lief ins Leere, und der Client meldete das nicht einmal. Auffallen konnte das damit fruehestens am leeren Kalender.",
+            "In der Anmeldeliste steht so eine Zeile gedaempft mit Fragezeichen und dem Hinweis \"Discord-Name - kein Charakter\" statt in Klassenfarbe.",
+            "Die Kalender-Vorschau zaehlt jetzt \"21 von 25\" statt \"25 gesamt\" und nennt, wie viele Zuordnungen offen sind - die angezeigte Zahl stimmt damit mit der Zahl der tatsaechlichen Einladungen ueberein.",
+            "Der Kalender-Eintrag ueberspringt diese Zeilen und nennt sie beim Namen, statt eine Einladung abzuschicken, die nie ankommt.",
+            "Nachtragen kann die Raidleitung dauerhaft in Discord mit \"/weintcharakter setzen\" (\"/weintcharakter liste\" zeigt vorab, wer noch offen ist) - oder wie bisher fuer den eigenen Client ueber das Stift-Symbol in der Anmeldeliste.",
+            "Die Selbst-Erkennung des eigenen Charakters gab bei zwei Mitspielern derselben Klasse bisher auf. Steht fuer einen davon schon ein echter Name fest, kommt nur noch der ungeklaerte in Frage.",
+        },
+    },
+    {
         version = "2.0.0.4",
         date    = "17.08.2026",
         notes   = {
