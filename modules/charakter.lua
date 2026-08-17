@@ -21,6 +21,12 @@ WeintCodex.Charakter = {}
 
 local C = WeintCodex.Colors
 
+-- Werteabgleich (modules/stat_match.lua, lädt davor). Beantwortet "welche
+-- Werte bringt das, was da draufliegt" und vergleicht sie mit den
+-- Empfehlungen — der Rettungsanker, wenn ID und Name aus data/enchants.lua
+-- nicht taugen. Siehe Kopfkommentar dort.
+local SM = WeintCodex.StatMatch
+
 --------------------------------------------------
 -- HILFSFUNKTIONEN (UI)
 --------------------------------------------------
@@ -217,6 +223,10 @@ local function ClearCharakterCache()
     WeintCodex._enchantDbNameCache = {}
     WeintCodex._enchantTooltipCache = {}
     enchantingKnown = nil
+    -- Der Werteabgleich hält seine eigenen Caches (Stein-/Verzauberungs-
+    -- Stats vom Client). Bleiben sie stehen, bewertet der nächste Scan mit
+    -- den Werten von vorhin — dieselbe Falle wie bei den Tooltip-Namen.
+    SM.ClearCache()
 end
 
 --------------------------------------------------
@@ -522,61 +532,14 @@ local SOCKET_BONUS_PREFIX = (_G.ITEM_SOCKET_BONUS or "Sockelbonus: %s")
     :gsub("%%s.*$", ""):gsub("%s+$", "")
 
 -- Deutsche Stat-Bezeichnungen -> interne Keys (identisch zu statWeights).
--- Reihenfolge = Priorität: spezifischere Begriffe zuerst
--- ("kritische Trefferwertung" vor "Trefferwertung").
-local STAT_KEYWORDS = {
-    { "kritische trefferwertung", "crit" },
-    { "tempowertung",             "haste" },
-    { "meisterschaftswertung",    "mastery" },
-    { "ausweichwertung",          "dodge" },
-    { "parierwertung",            "parry" },
-    { "trefferwertung",           "hit" },
-    { "waffenkunde",              "expertise" },
-    { "beweglichkeit",            "agility" },
-    { "intelligenz",              "intellect" },
-    { "ausdauer",                 "stamina" },
-    { "willenskraft",             "spirit" },
-    { "stärke",                   "strength" },
-}
-
-local function MatchStatKeyword(text)
-    if not text then return nil end
-    local lower = text:lower()
-    for _, entry in ipairs(STAT_KEYWORDS) do
-        if lower:find(entry[1], 1, true) then
-            return entry[2]
-        end
-    end
-    return nil
-end
-
-local function ParseStatText(text)
-    if not text then return nil end
-    local value = tonumber(text:match("(%d+)"))
-    if not value then return nil end
-    local stat = MatchStatKeyword(text)
-    if not stat then return nil end
-    return stat, value
-end
-
--- Alle "+<Wert> <Stat>"-Paare einer Zeile einsammeln. Verzauberungen mit
--- zwei Stats ("+285 Beweglichkeit und +165 kritische Trefferwertung",
--- Beinrüstungen) würden mit ParseStatText sonst falsch zusammengesetzt
--- (erster Wert + zuletzt gefundenes Schlüsselwort).
-local function ParseAllStats(text)
-    if not text then return nil end
-    local stats, count = {}, 0
-    for value, label in text:gmatch("%+(%d+)%s*([^%+]+)") do
-        local key = MatchStatKeyword(label)
-        local num = tonumber(value)
-        if key and num then
-            stats[key] = (stats[key] or 0) + num
-            count = count + 1
-        end
-    end
-    if count == 0 then return nil end
-    return stats
-end
+-- Die Tabelle und die drei Parser wohnen seit 2.0.0.3 in
+-- modules/stat_match.lua: der Werteabgleich dort braucht exakt dieselbe
+-- Zuordnung, und zwei Kopien wären genau die Doppelpflege, an der die
+-- Verzauberungserkennung schon einmal gescheitert ist. Hier nur noch die
+-- lokalen Namen, damit der Rest der Datei unverändert bleibt.
+local MatchStatKeyword = SM.MatchStatKeyword
+local ParseStatText    = SM.ParseStatText
+local ParseAllStats    = SM.ParseAllStats
 
 -- Gibt zurück: bonus = { stat=<key>, value=<num> } | nil, sowie den
 -- rohen Tooltip-Text der Sockelbonus-Zeile (für die Anzeige).
@@ -641,128 +604,6 @@ local function LooksLikeEnchantText(text, enchSlot)
     return false
 end
 
--- Liefert { name = <Tooltiptext>, stats = { key = value } | nil } oder nil,
--- wenn im Tooltip keine Verzauberungszeile gefunden wurde.
-local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
-    if not enchantId then return nil end
-    local cached = WeintCodex._enchantTooltipCache[enchantId]
-    if cached then return cached end
-
-    scanTip:SetOwner(UIParent, "ANCHOR_NONE")
-    scanTip:ClearLines()
-    scanTip:SetInventoryItem("player", slotId)
-    local n = scanTip:NumLines() or 0
-
-    local found = nil
-
-    -- Weg A zuerst über alle Zeilen (eindeutig, hat Vorrang)
-    for i = 2, n do
-        local line = _G["WeintCodexScanTipTextLeft" .. i]
-        local txt  = line and line:GetText()
-        if txt then
-            local name = txt:match(ENCHANT_LINE_PATTERN)
-            if name and name ~= "" then
-                found = name
-                break
-            end
-        end
-    end
-
-    -- Weg B: erste grüne, plausible Zeile.
-    --
-    -- HINTERGRUND: In MoP Classic sind Item-Sekundärwerte (Trefferwert,
-    -- Ausweichen, Parieren, Kritischer Trefferwert …) ebenfalls grüne
-    -- "+Zahl"-Zeilen. Sie erscheinen IM TOOLTIP VOR der eigentlichen
-    -- Verzauberungszeile und würden ohne weitere Prüfung fälschlicherweise
-    -- eingelesen.
-    --
-    -- Der Client verwendet für Item-Stats KURZFORMEN der deutschen
-    -- Stat-Bezeichnungen ("Trefferwert", "Ausweichen", "Parieren",
-    -- "Kritischer Trefferwert"), die NICHT in STAT_KEYWORDS stehen →
-    -- ParseAllStats liefert nil für diese Zeilen, obwohl "+Zahl" enthalten ist.
-    -- Echte Verzauberungszeilen nutzen LANGFORMEN ("Trefferwertung",
-    -- "Stärke", "Beweglichkeit" usw.) → ParseAllStats liefert erkannte Stats.
-    --
-    -- Entscheidungslogik pro Kandidat-Zeile:
-    --   (1) Zeile hat "+Zahl", aber KEIN erkanntes Stat-Keyword
-    --       → Kurzform-Item-Sekundärwert → ÜBERSPRINGEN.
-    --   (2) Zeile hat kein "+Zahl" überhaupt (Proc- oder Namens-Enchant)
-    --       → AKZEPTIEREN (kein DB-Abgleich nötig).
-    --   (3) Zeile hat "+Zahl" UND erkannte Stats:
-    --       • Kein DB-Eintrag            → ersten Treffer nehmen.
-    --       • DB hat stats               → Stat-Schlüssel-Überlapp prüfen.
-    --       • DB hat keinen stats-Eintrag → AKZEPTIEREN.
-    if not found then
-        local db      = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
-        local dbStats = db and db.stats
-
-        for i = 2, n do
-            local line = _G["WeintCodexScanTipTextLeft" .. i]
-            local txt  = line and line:GetText()
-            if txt and txt ~= ""
-               and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
-               and IsGreenLine(line)
-               and LooksLikeEnchantText(txt, enchSlot) then
-
-                local hasNumStat = txt:find("%+%d") ~= nil
-                local scanned    = hasNumStat and ParseAllStats(txt) or nil
-
-                if hasNumStat and not scanned then
-                    -- Fall (1): "+Zahl" vorhanden, aber kein bekanntes Keyword
-                    -- → Kurzform-Item-Sekundärwert ("Trefferwert", "Ausweichen" …)
-                    -- → überspringen, weitersuchen.
-
-                elseif not hasNumStat then
-                    -- Fall (2): Kein "+Zahl" → Proc-/Namens-Enchant → akzeptieren.
-                    found = txt
-                    break
-
-                elseif not db then
-                    -- Fall (3a): Kein DB-Eintrag → ersten Treffer nehmen.
-                    found = txt
-                    break
-
-                elseif not dbStats then
-                    -- Fall (3b): DB-Eintrag ohne stats (z.B. isDkRune/Proc) →
-                    -- Langform-"+Zahl"-Zeile: kein Abgleich, akzeptieren.
-                    found = txt
-                    break
-
-                else
-                    -- Fall (3c): DB hat stats → Stat-Schlüssel-Überlapp prüfen.
-                    local anyMatch = false
-                    for k in pairs(scanned) do
-                        if dbStats[k] then anyMatch = true; break end
-                    end
-                    if anyMatch then
-                        found = txt
-                        break
-                    end
-                    -- Kein Überlapp → Zeile gehört nicht zu dieser Verzauberung,
-                    -- weitersuchen (kein break).
-                end
-            end
-        end
-    end
-
-    if not found then
-        -- Scan lieferte keine Verzauberungszeile. Wenn die BASIS-Itemdaten
-        -- selbst noch nicht im Client-Cache liegen (GetItemInfo == nil), ist
-        -- der Tooltip nur unvollständig ("Wird abgerufen...") — das ist die
-        -- Ursache, nicht ein falscher/fehlender DB-Eintrag. Für diese Item-ID
-        -- auf Nachlieferung warten (GET_ITEM_INFO_RECEIVED, s.u.).
-        local itemId = link and tonumber(link:match("item:(%d+):"))
-        if itemId and not GetItemInfo(itemId) then
-            pendingItemInfoIds[itemId] = true
-        end
-        return nil
-    end
-
-    local info = { name = found, stats = ParseAllStats(found) }
-    WeintCodex._enchantTooltipCache[enchantId] = info
-    return info
-end
-
 -- Prüft, ob alle gescannten Stats im DB-Eintrag vorhanden sind
 -- (Subset-Matching). Der Client zeigt bei mehrteiligen Enchants
 -- manchmal nicht alle Stats mit erkanntem Keyword an (z.B. fehlt
@@ -808,24 +649,200 @@ end
 -- Sucht den Verzauberungseintrag desselben Slots, der zu den gescannten
 -- Stats passt. Mehrdeutig (mehrere Treffer mit unterschiedlichem Namen)
 -- => nil, dann lieber nichts korrigieren.
+--
+-- ZWEI DURCHGÄNGE (seit 2.0.0.3): erst wertgenau (StatsMatch), dann
+-- toleranter über SM.SameFamily. Der zweite Durchgang existiert, weil in
+-- data/enchants.lua mehrfach ein leicht falscher Zahlenwert stand — die
+-- Handgelenks-Stärke etwa jahrelang als 170 statt der tatsächlichen 180.
+-- Wertgenau betrachtet war die angelegte Verzauberung damit "unbekannt",
+-- obwohl Slot und Stat eindeutig auf genau diesen Eintrag zeigten. Der
+-- Toleranzdurchgang erkennt ihn wieder; angezeigt und gerechnet wird
+-- danach trotzdem mit den Werten aus dem Tooltip, nicht mit unseren.
 local function FindEnchantByStats(enchSlot, scanned)
     if not (WeintCodex_Enchants and enchSlot and scanned) then return nil end
-    local foundId, foundDb = nil, nil
-    for id, db in pairs(WeintCodex_Enchants) do
-        if db.slot == enchSlot and StatsMatch(db.stats, scanned) then
-            if foundDb and (foundDb.name or "") ~= (db.name or "") then
-                return nil
+
+    local function Search(predicate)
+        local foundId, foundDb = nil, nil
+        for id, db in pairs(WeintCodex_Enchants) do
+            if db.slot == enchSlot and db.stats and predicate(db.stats, scanned) then
+                if foundDb and (foundDb.name or "") ~= (db.name or "") then
+                    return nil
+                end
+                foundId, foundDb = foundId or id, foundDb or db
             end
-            foundId, foundDb = foundId or id, foundDb or db
+        end
+        return foundId, foundDb
+    end
+
+    local id, db = Search(StatsMatch)
+    if db then return id, db end
+    return Search(function(dbStats, s) return SM.SameFamily(s, dbStats) end)
+end
+
+--------------------------------------------------
+-- KANDIDATENBEWERTUNG FÜR WEG B (s.u.)
+--
+-- Rang 1 ist der sicherste Treffer, Rang 5 die Notlösung, nil = verwerfen.
+-- Ohne diese Rangfolge nahm der Scan die ERSTE plausible grüne Zeile, deren
+-- Statschlüssel sich mit dem DB-Eintrag überschnitten — und die Primärwerte
+-- des Gegenstands selbst ("+1300 Beweglichkeit") tragen dieselben deutschen
+-- Langformen wie eine Verzauberung. Auf einem Beweglichkeitsteil mit
+-- Beweglichkeits-Verzauberung gewann deshalb die Item-Zeile, und im
+-- Charakterfenster stand als "Verzauberung" der Primärwert des Items.
+--------------------------------------------------
+
+-- Höchster Statwert, den eine MoP-Verzauberung liefert (Eisenschuppen-
+-- beinrüstung, +430 Ausdauer) plus Reserve für Berufs-Exklusivvarianten.
+-- Alles darüber ist ein Gegenstandswert, keine Verzauberung.
+local MAX_ENCHANT_VALUE = 600
+
+local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
+    -- Rang 1: der Text ist der Name einer Verzauberung dieses Slots.
+    if FindEnchantByName(enchSlot, text) then return 1 end
+
+    -- Rang 4: gar keine Zahl → Proc-/Namenszeile, es gibt nichts zu prüfen.
+    if not scanned then
+        return text:find("%+%d") and nil or 4
+    end
+
+    -- Rang 2: die Werte identifizieren eine Verzauberung dieses Slots.
+    if FindEnchantByStats(enchSlot, scanned) then return 2 end
+
+    -- Rang 3: die Werte überschneiden sich mit dem DB-Eintrag DIESER ID.
+    if dbStats then
+        for key in pairs(scanned) do
+            if dbStats[key] then return 3 end
         end
     end
-    return foundId, foundDb
+
+    -- Rang 5: plausible Größenordnung — mehr wissen wir nicht.
+    for _, value in pairs(scanned) do
+        if value > MAX_ENCHANT_VALUE then return nil end
+    end
+    return 5
+end
+
+-- Liefert { name = <Tooltiptext>, stats = { key = value } | nil } oder nil,
+-- wenn im Tooltip keine Verzauberungszeile gefunden wurde.
+local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
+    if not enchantId then return nil end
+    local cached = WeintCodex._enchantTooltipCache[enchantId]
+    if cached then return cached end
+
+    scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+    scanTip:ClearLines()
+    scanTip:SetInventoryItem("player", slotId)
+    local n = scanTip:NumLines() or 0
+
+    local found = nil
+
+    -- Weg A zuerst über alle Zeilen (eindeutig, hat Vorrang)
+    for i = 2, n do
+        local line = _G["WeintCodexScanTipTextLeft" .. i]
+        local txt  = line and line:GetText()
+        if txt then
+            local name = txt:match(ENCHANT_LINE_PATTERN)
+            if name and name ~= "" then
+                found = name
+                break
+            end
+        end
+    end
+
+    -- Weg B: die am besten passende grüne, plausible Zeile.
+    --
+    -- HINTERGRUND: In MoP Classic sind Item-Werte (Trefferwert, Ausweichen,
+    -- Parieren, Kritischer Trefferwert …) ebenfalls grüne "+Zahl"-Zeilen.
+    -- Sie erscheinen IM TOOLTIP VOR der eigentlichen Verzauberungszeile und
+    -- würden ohne weitere Prüfung fälschlicherweise eingelesen.
+    --
+    -- Der Client verwendet für Item-SEKUNDÄRwerte KURZFORMEN der deutschen
+    -- Stat-Bezeichnungen ("Trefferwert", "Ausweichen", "Parieren",
+    -- "Kritischer Trefferwert"), die NICHT in SM.STAT_KEYWORDS stehen →
+    -- ParseAllStats liefert nil für diese Zeilen, obwohl "+Zahl" enthalten
+    -- ist, und sie fliegen raus. Für die PRIMÄRwerte gilt das aber NICHT:
+    -- "Ausdauer", "Beweglichkeit", "Stärke", "Intelligenz" heißen auf dem
+    -- Item genauso wie in einer Verzauberung. Deshalb reicht "erste Zeile,
+    -- die irgendwie passt" nicht — es wird gerankt (RankEnchantCandidate)
+    -- und der beste Rang gewinnt.
+    --
+    -- Bei Gleichstand gewinnt für die Ränge 1–4 die ERSTE Zeile (eindeutige
+    -- Treffer, Reihenfolge egal), für Rang 5 die LETZTE: die Werte des
+    -- Gegenstands stehen im Tooltip oben, die Verzauberung darunter.
+    if not found then
+        local db      = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
+        local dbStats = db and db.stats
+        local bestRank = nil
+
+        for i = 2, n do
+            local line = _G["WeintCodexScanTipTextLeft" .. i]
+            local txt  = line and line:GetText()
+            if txt and txt ~= ""
+               and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
+               and IsGreenLine(line)
+               and LooksLikeEnchantText(txt, enchSlot) then
+
+                local scanned = ParseAllStats(txt)
+                local rank    = RankEnchantCandidate(txt, scanned, enchSlot, dbStats)
+
+                if rank and (not bestRank
+                             or rank < bestRank
+                             or (rank == bestRank and rank == 5)) then
+                    found, bestRank = txt, rank
+                end
+            end
+        end
+    end
+
+    if not found then
+        -- Scan lieferte keine Verzauberungszeile. Wenn die BASIS-Itemdaten
+        -- selbst noch nicht im Client-Cache liegen (GetItemInfo == nil), ist
+        -- der Tooltip nur unvollständig ("Wird abgerufen...") — das ist die
+        -- Ursache, nicht ein falscher/fehlender DB-Eintrag. Für diese Item-ID
+        -- auf Nachlieferung warten (GET_ITEM_INFO_RECEIVED, s.u.).
+        local itemId = link and tonumber(link:match("item:(%d+):"))
+        if itemId and not GetItemInfo(itemId) then
+            pendingItemInfoIds[itemId] = true
+        end
+        return nil
+    end
+
+    local info = { name = found, stats = ParseAllStats(found) }
+    WeintCodex._enchantTooltipCache[enchantId] = info
+    return info
+end
+
+-- Welche Werte gelten, wenn Tooltip und Datenbank beide etwas sagen?
+-- Grundsatz bleibt: der Tooltip ist die Wahrheit. Er ist aber lückenhaft —
+-- bei mehrteiligen Verzauberungen gibt der Client einen Teil in Kurzform
+-- aus, die SM.STAT_KEYWORDS nicht kennt. Daher:
+--   * Tooltip kennt nur eine ECHTE Teilmenge der DB-Schlüssel
+--     -> DB (sie ist vollständiger, der Scan hat etwas verschluckt)
+--   * sonst -> Tooltip, auch bei abweichendem Zahlenwert. Genau so ist die
+--     170/180-Altlast bei den Handgelenken überhaupt erst sichtbar geworden.
+local function PreferredEnchantStats(dbStats, scanned)
+    if not scanned then return dbStats end
+    if not dbStats  then return scanned end
+
+    local scanIsSubset = true
+    for key in pairs(scanned) do
+        if not dbStats[key] then scanIsSubset = false; break end
+    end
+    local scanIsComplete = true
+    for key in pairs(dbStats) do
+        if not scanned[key] then scanIsComplete = false; break end
+    end
+
+    if scanIsSubset and not scanIsComplete then return dbStats end
+    return scanned
 end
 
 -- Ergebnis:
 --   id          effektive Verzauberungs-ID (ggf. korrigiert)
 --   name        anzuzeigender Name
 --   stats       Stats der Verzauberung (Tooltip bevorzugt)
+--   scanned     ausschliesslich die vom Item-Tooltip gelesenen Werte
+--               (Grundlage des Werteabgleichs in EvaluateEnchant)
 --   mismatch    Tooltip und DB widersprechen sich
 --   corrected   ID wurde über Slot+Stats ersetzt
 --   unverified  kein Live-Scan möglich (Name stammt ungeprüft aus der DB)
@@ -845,6 +862,7 @@ local function ResolveEnchant(slotId, enchId, link, enchSlot)
 
     res.tooltipName = scan.name
     local scanned   = scan.stats
+    res.scanned     = scanned
 
     -- 1) DB deckt sich mit dem Tooltip: gleicher Name (der Client gibt je
     --    nach Build den Namen aus) oder exakt gleiche Stats.
@@ -852,7 +870,7 @@ local function ResolveEnchant(slotId, enchId, link, enchSlot)
         local sameName = db.name and EnchantNamesMatch(scan.name, db.name)
         if sameName or (scanned and db.stats and StatsMatch(db.stats, scanned)) then
             res.name  = db.name or scan.name
-            res.stats = db.stats or scanned
+            res.stats = PreferredEnchantStats(db.stats, scanned)
             return res
         end
     end
@@ -866,7 +884,7 @@ local function ResolveEnchant(slotId, enchId, link, enchSlot)
     if corrDb then
         res.id        = corrId
         res.name      = corrDb.name
-        res.stats     = corrDb.stats or scanned
+        res.stats     = PreferredEnchantStats(corrDb.stats, scanned)
         res.corrected = (corrId ~= enchId)
         res.mismatch  = (db ~= nil) and res.corrected or false
         return res
@@ -1119,7 +1137,7 @@ local function PickGemRecommendation(socketColor, profile, overStats, decision)
     if overStats then
         local function FirstUncapped(lst)
             for _, id in ipairs(lst) do
-                local st = WeintCodex_GemStats and WeintCodex_GemStats[id]
+                local st = SM.GemStats(id)
                 local blocked = false
                 if st then
                     for stat in pairs(overStats) do
@@ -1169,14 +1187,13 @@ local function EvaluateSocketBonus(bonus, sockets, profile)
         return decision
     end
 
-    local weights  = profile.statWeights
-    local gemStats = WeintCodex_GemStats or {}
+    local weights = profile.statWeights
 
     local pureId = profile.bestGems.prismatic and profile.bestGems.prismatic[1]
     decision.pureId = pureId
     if not pureId then return decision end
 
-    local pureScore = ScoreStats(gemStats[pureId], weights)
+    local pureScore = ScoreStats(SM.GemStats(pureId), weights)
     decision.pureScore = pureScore
 
     -- Ohne bekannten Bonus: bisheriges (farbbasiertes) Verhalten.
@@ -1196,7 +1213,7 @@ local function EvaluateSocketBonus(bonus, sockets, profile)
         if color and color ~= "meta" and color ~= "prismatic" then
             local colorList  = profile.bestGems[color]
             local colorId    = colorList and colorList[1]
-            local colorScore = colorId and ScoreStats(gemStats[colorId], weights) or pureScore
+            local colorScore = colorId and ScoreStats(SM.GemStats(colorId), weights) or pureScore
             local diff = pureScore - colorScore
             if diff > 0 then matchCost = matchCost + diff end
         end
@@ -1221,11 +1238,17 @@ local LEGENDARY_META = {
     [95344] = { TANK = true },                               -- Unbezähmbarer Urdiamant
 }
 
--- Gibt zurück: status, qualityPct (oder nil), unbekannt (bool)
+-- Gibt zurück: status, qualityPct (oder nil), unbekannt (bool), equiv
 -- decision (optional): Ergebnis von EvaluateSocketBonus. Lohnt sich das
 -- Matchen für dieses Item nicht, ist der reine Primärstein (prismatic)
 -- das Ziel: ein solcher Off-Color-Stein zählt dann als OPTIMAL (statt
 -- fälschlich "falsch"), ein Farb-Stein nur als "ok" (Empfehlung: umsockeln).
+--
+-- Statquelle ist seit 2.0.0.3 durchgehend SM.GemStats statt
+-- WeintCodex_GemStats: fehlt ein Stein in data/gem_stats.lua, fragt der
+-- Werteabgleich den Client (GetItemStats, lokalisierungsfrei). Vorher war
+-- eine Lücke in der Datendatei gleichbedeutend mit "kein Urteil möglich" —
+-- der Stein landete auf "ok/unbekannt", egal wie gut oder schlecht er war.
 local function EvaluateGem(gemId, socketColor, profile, decision)
     if not gemId then return "missing", nil, false end
 
@@ -1251,7 +1274,7 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
     local ignoreBonus = decision and decision.worthwhile == false and not isMeta
     if ignoreBonus and decision.pureScore and decision.pureScore > 0 then
         local weights = profile and profile.statWeights
-        local myStats = WeintCodex_GemStats and WeintCodex_GemStats[gemId]
+        local myStats = SM.GemStats(gemId)
         if weights and myStats then
             local pct = math.floor((ScoreStats(myStats, weights) / decision.pureScore) * 100 + 0.5)
             if pct >= 90 then return "optimal", pct, false end
@@ -1270,12 +1293,31 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
     end
 
     local weights = profile and profile.statWeights
-    local myStats = WeintCodex_GemStats and WeintCodex_GemStats[gemId]
+    local myStats = SM.GemStats(gemId)
+
+    -- FALLBACK FÜR DEN FALLBACK (Steine): Werteabgleich vor Wertungsrechnung.
+    --
+    -- Blizzard hat die deutschen Steinnamen mitten in MoP Classic umbenannt
+    -- (Zinnoberonyx -> Aragonit, Urdiamant -> Bergkristall, siehe Kopf von
+    -- data/gems.lua) und es gibt zu vielen Schliffen wertgleiche Zweit-IDs
+    -- (Juwelier-Schlangenaugen, "perfekte" Varianten). Ein Stein, der exakt
+    -- dieselben Werte liefert wie die Empfehlung, IST die Empfehlung — auch
+    -- wenn seine ID nicht in bestGems steht. Nur so wird er nicht zum
+    -- Handlungsbedarf erklärt, den es nicht gibt.
+    if myStats and bestList then
+        local verdict, refId, ratio =
+            SM.MatchAgainstList(myStats, bestList, SM.GemStats)
+        if SM.IsMatch(verdict) then
+            return "optimal", 100, false,
+                   { verdict = verdict, refId = refId, ratio = ratio }
+        end
+    end
+
     if weights and myStats and bestList then
         local myScore = ScoreStats(myStats, weights)
         local best = 0
         for _, bid in ipairs(bestList) do
-            local s = ScoreStats(WeintCodex_GemStats[bid], weights)
+            local s = ScoreStats(SM.GemStats(bid), weights)
             if s > best then best = s end
         end
         if best > 0 then
@@ -1327,7 +1369,12 @@ end
 -- Ergebnis ("für diesen Gegenstand gibt es in diesem Spec nichts zu
 -- empfehlen") und darf nicht still durch die ungefilterte Profilliste
 -- ersetzt werden.
-local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName)
+--
+-- Rückgabe: status, bestList, equiv
+--   equiv  { verdict, refId, ratio } — gesetzt, wenn die Einstufung aus dem
+--          Werteabgleich stammt (nicht aus ID oder Name). Die Anzeige macht
+--          das sichtbar, damit "optimal" nachvollziehbar bleibt.
+local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName, scannedStats)
     if not bestList then
         return "neutral", nil
     end
@@ -1369,6 +1416,48 @@ local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName)
                     end
                 end
             end
+        end
+    end
+
+    --------------------------------------------------
+    -- DER FALLBACK FÜR DEN FALLBACK: Werteabgleich.
+    --
+    -- Bis hierher wurde nur gefragt, ob ID oder Name zur Empfehlung passen —
+    -- beides Angaben aus data/enchants.lua, beides regelmäßig falsch (die
+    -- Datei trägt bis heute verify-Marker, und die Übersetzungen haben sich
+    -- seit MoP-Release mehrfach geändert). Wer eine korrekt verzauberte
+    -- Rüstung trug, deren ID wir falsch zugeordnet hatten, bekam trotzdem
+    -- "nicht ideal" zu lesen. Das ist der Fehler, den es nicht geben darf.
+    --
+    -- Also die Frage anders stellen: WELCHE WERTE liegen an — und sind das
+    -- dieselben, die die Empfehlung bringt? Die Werte stammen aus dem
+    -- Item-Tooltip des Spielers (scannedStats), die der Empfehlung aus
+    -- SM.EnchantStats (Datenbank oder, falls sie dort fehlen, ebenfalls vom
+    -- Client). Decken sie sich, IST die Empfehlung angelegt.
+    --
+    -- Kein Abgleich über Wertungen: 170 Tempo ist nicht 170 Meisterschaft.
+    -- Nur deckungsgleiche Statschlüssel zählen (siehe SM.CompareStats),
+    -- sonst würde der Abgleich neue Fehler erzeugen statt alte zu beheben.
+    --
+    -- Proc-Verzauberungen (Lied des Windes, Jadegeist, DK-Runen) haben
+    -- bewusst keine Werte; für sie liefert SM.EnchantStats nil und dieser
+    -- Block hält sich komplett heraus.
+    --------------------------------------------------
+    if not SM.IsEmpty(scannedStats) then
+        local verdict, refId, ratio =
+            SM.MatchAgainstList(scannedStats, bestList, SM.EnchantStats)
+        local equiv = { verdict = verdict, refId = refId, ratio = ratio }
+
+        if SM.IsMatch(verdict) then
+            -- "equal": dieselbe Verzauberung unter anderer ID.
+            -- "better": die stärkere Stufe (Berufs-Exklusivvariante) —
+            -- die als "nicht ideal" zu melden wäre grotesk.
+            return "optimal", bestList, equiv
+        end
+        if verdict == "weaker" then
+            -- Dieselbe Verzauberung, aber eine Stufe zu niedrig. Bleibt
+            -- "ok" — nur jetzt mit Begründung statt als Rätsel.
+            return "ok", bestList, equiv
         end
     end
 
@@ -1423,10 +1512,11 @@ local function ScanCharacter()
                         .. " Item-Tooltip. Bitte einmal |cffD4A24A/wc vz|r ausführen und die"
                         .. " Ausgabe melden.")
                 end
-                local status, bestList = EvaluateEnchant(
+                local status, bestList, equiv = EvaluateEnchant(
                     effId, enchSlot,
                     GetBestEnchantList(profile, enchSlot, offhandKind),
-                    res and res.name)
+                    res and res.name,
+                    res and (res.scanned or res.stats))
                 scan.enchants.rows[#scan.enchants.rows + 1] = {
                     slotId       = slotDef.id,
                     slotName     = slotDef.name,
@@ -1440,6 +1530,7 @@ local function ScanCharacter()
                     mismatch     = res and res.mismatch,
                     unverified   = res and res.unverified,
                     status       = status,
+                    equiv        = equiv,
                     bestList     = bestList,
                     recId        = bestList and bestList[1] or nil,
                 }
@@ -1455,7 +1546,7 @@ local function ScanCharacter()
                 decision.bonusText = bonusText
 
                 for _, socket in ipairs(sockets) do
-                    local status, qualityPct, unknown =
+                    local status, qualityPct, unknown, equiv =
                         EvaluateGem(socket.gemId, socket.color, profile, decision)
                     scan.gems.rows[#scan.gems.rows + 1] = {
                         slotId     = slotDef.id,
@@ -1463,9 +1554,11 @@ local function ScanCharacter()
                         itemName   = itemName,
                         socket     = socket,
                         gemId      = socket.gemId,
+                        gemStats   = socket.gemId and SM.GemStats(socket.gemId) or nil,
                         status     = status,
                         qualityPct = qualityPct,
                         unknown    = unknown,
+                        equiv      = equiv,
                         decision   = decision,
                     }
                 end
@@ -1489,8 +1582,10 @@ local function ScanCharacter()
             local cands = {}
 
             for _, row in ipairs(scan.gems.rows) do
-                local st = row.gemId and WeintCodex_GemStats
-                           and WeintCodex_GemStats[row.gemId]
+                -- gemStats stammt aus SM.GemStats (Datendatei ODER Client),
+                -- damit ein Stein ohne Eintrag in gem_stats.lua nicht still
+                -- am Cap-Abgleich vorbeirutscht.
+                local st = row.gemStats
                 local v = st and st[cs.stat]
                 if v and v > 0 and row.status ~= "overcap" then
                     cands[#cands + 1] = { row = row, value = v, art = "Stein" }
@@ -1651,8 +1746,15 @@ local function ScanCharacter()
     for _, row in ipairs(scan.enchants.rows) do
         if row.status == "ok" then
             local rec = row.recId and GetEnchantDisplayName(row.recId)
+            -- Der Werteabgleich weiss bei "weaker" genau, WAS fehlt: es ist
+            -- dieselbe Verzauberung, nur die schwaechere Stufe. Das gehoert
+            -- in den Handlungsbedarf, sonst sucht der Spieler den Fehler an
+            -- der falschen Stelle.
+            local was = (row.equiv and row.equiv.verdict == "weaker")
+                and "Verzauberung ist die schwächere Stufe"
+                or  "Verzauberung nicht ideal"
             issues[#issues + 1] = { prio = 4, status = "ok",
-                text = row.slotName .. ": Verzauberung nicht ideal"
+                text = row.slotName .. ": " .. was
                     .. (rec and (" -> " .. rec) or "") }
         end
     end
@@ -1667,6 +1769,15 @@ local function ScanCharacter()
     end
 
     table.sort(issues, function(a, b) return a.prio < b.prio end)
+
+    -- Steine, deren Basisdaten der Werteabgleich beim Scan noch nicht vom
+    -- Client bekommen hat, in dieselbe Nachlieferungsliste einreihen wie die
+    -- Verzauberungen (GET_ITEM_INFO_RECEIVED, siehe itemInfoWatcher). Ohne
+    -- das bliebe ein frisch eingesetzter, noch ungecachter Stein bis zum
+    -- naechsten manuellen Neuaufbau als "unbekannt" stehen.
+    for itemId in pairs(SM.TakePendingItems()) do
+        pendingItemInfoIds[itemId] = true
+    end
 
     return scan
 end
@@ -1741,13 +1852,24 @@ function WeintCodex.Charakter.DumpEnchants()
                 -- zugeordnete ID auch dann eindeutig korrigieren, wenn der
                 -- Client nur die Effektzeile ("+170 ...") liefert.
                 local statStr = ""
-                if scan and scan.stats then
-                    local parts = {}
-                    for key, value in pairs(scan.stats) do
-                        parts[#parts + 1] = key .. "=" .. value
+                local formatted = scan and SM.FormatStats(scan.stats)
+                if formatted then
+                    statStr = "  |cff4A4A52[" .. formatted .. "]|r"
+
+                    -- Und gleich das Urteil des Werteabgleichs gegen den
+                    -- DB-Eintrag derselben ID dazu: "weaker"/"better" heisst
+                    -- fast immer, dass der Zahlenwert in data/enchants.lua
+                    -- veraltet ist — das ist die Zeile, die korrigiert
+                    -- gehoert, und ohne diese Ausgabe faellt sie nicht auf.
+                    local dbStats = db and db.stats
+                    if dbStats then
+                        local verdict = SM.CompareStats(scan.stats, dbStats)
+                        if verdict ~= "equal" then
+                            statStr = statStr .. "  |cffFFBB22(DB: "
+                                .. (SM.FormatStats(dbStats) or "?")
+                                .. " -> " .. verdict .. ")|r"
+                        end
                     end
-                    table.sort(parts)
-                    statStr = "  |cff4A4A52[" .. table.concat(parts, ", ") .. "]|r"
                 end
 
                 print(string.format("  %s: VZ-ID %d = %s%s%s",
@@ -1756,8 +1878,22 @@ function WeintCodex.Charakter.DumpEnchants()
             for g = 1, 4 do
                 if gems[g] then
                     any = true
-                    print(string.format("  %s: Stein-ID %d = %s",
-                        slotDef.name, gems[g], GetGemDisplayName(gems[g]) or "?"))
+                    -- Quelle mit ausgeben: "client"/"tooltip" heisst, der
+                    -- Stein fehlt in data/gem_stats.lua und wurde nur ueber
+                    -- den Werteabgleich bewertet — genau die Zeilen, die dort
+                    -- nachgetragen gehoeren.
+                    local stats, source = SM.GemStats(gems[g])
+                    local statStr = ""
+                    if stats then
+                        statStr = "  |cff4A4A52[" .. (SM.FormatStats(stats) or "")
+                            .. "]|r"
+                        if source ~= "db" then
+                            statStr = statStr .. "  |cffff9900(fehlt in gem_stats.lua,"
+                                .. " Werte vom Client: " .. tostring(source) .. ")|r"
+                        end
+                    end
+                    print(string.format("  %s: Stein-ID %d = %s%s",
+                        slotDef.name, gems[g], GetGemDisplayName(gems[g]) or "?", statStr))
                 end
             end
         end
@@ -2144,8 +2280,15 @@ function ShowEnchants()
             -- zugeordneten IDs eine andere Verzauberung an als die, die
             -- tatsächlich angelegt ist.
             local n = row.displayName or GetEnchantDisplayName(row.enchId) or "—"
+            -- Der Werteabgleich hat entschieden (siehe EvaluateEnchant):
+            -- den Grund dazuschreiben, sonst steht bei einer Verzauberung,
+            -- die namentlich NICHT die Empfehlung ist, ein unerklaertes
+            -- "Optimal" — und der naechste Fehlerbericht kommt bestimmt.
+            local note = row.equiv and SM.VerdictNote(row.equiv.verdict)
             if row.status == "overcap" then
                 curLbl:SetText(n .. " |cffcc88ff(Stat über Cap!)|r")
+            elseif note then
+                curLbl:SetText(n .. " |cff4A4A52(" .. note .. ")|r")
             elseif row.unverified then
                 -- Item war beim Scan noch nicht im Client-Cache: Name
                 -- stammt ungeprüft aus der DB (Neuscan läuft automatisch,
@@ -2335,9 +2478,13 @@ function ShowGems()
                 or  "|cffff5555— Leerer Sockel! —|r")
         else
             local n = GetGemDisplayName(row.gemId) or "?"
+            local note = row.equiv and SM.VerdictNote(row.equiv.verdict)
             local suffix = ""
             if row.status == "overcap" then
                 suffix = " |cffcc88ff(über Cap!)|r"
+            elseif note then
+                -- Werteabgleich statt ID-Treffer (siehe EvaluateGem)
+                suffix = " |cff4A4A52(" .. note .. ")|r"
             elseif row.qualityPct and row.qualityPct < 100 then
                 suffix = " |cff888888(" .. row.qualityPct .. "%)|r"
             elseif row.unknown then

@@ -2,7 +2,7 @@
 ## Title: |cffD4A24AWeintCodex|r
 ## Notes: Raid Guide & Intelligence System
 ## Author: Fabian
-## Version: 2.0.0.2
+## Version: 2.0.0.3
 ## SavedVariables: WeintCodex_SavedData, WeintCompanionDB, WeintCompanionInboxDB
 
 libs/LibStub/LibStub.lua
@@ -47,6 +47,7 @@ data/weakauras/dungeonpack.lua
 data/weakauras/dungeonpack_glows.lua
 data/weakauras/class_pack_anchors.lua
 
+modules/stat_match.lua
 modules/charakter.lua
 modules/academy.lua
 modules/bis.lua

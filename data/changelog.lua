@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.0.3",
+        date    = "17.08.2026",
+        notes   = {
+            "Der Ausruestungs-Check bewertet Verzauberungen jetzt nach ihren WERTEN, nicht mehr nur nach ID und Name. Wer eine korrekt verzauberte Ruestung trug, deren ID in unserer Tabelle falsch stand, bekam trotzdem \"nicht ideal\" zu lesen - dieser Fehler ist damit weg.",
+            "Bringt die angelegte Verzauberung dieselben Werte wie die Empfehlung, zaehlt sie als optimal. Bringt sie mehr (Inschriftler-Schultern, Berufs-Exklusivvarianten), ebenfalls. Bringt sie weniger, steht jetzt \"schwaechere Stufe\" da statt eines unerklaerten \"nicht ideal\".",
+            "Der Tooltip-Scan hielt gelegentlich den Primaerwert des Gegenstands selbst fuer die Verzauberung - auf einem Staerke-Teil mit Staerke-Verzauberung stand dann \"+1300 Staerke\" als Verzauberung in der Liste, samt Fehlermeldung im Chat. Die Zeilen werden jetzt gewichtet, die echte Verzauberung gewinnt.",
+            "Dasselbe fuer Sockelsteine: fehlt ein Stein in unserer Datenbank, holt das Addon seine Werte direkt vom Spielclient, statt ihn als \"unbekannt\" durchzuwinken. Wertgleiche Steine unter anderer ID (Juwelier-Schliffe, umbenannte Steine) gelten als die Empfehlung.",
+            "\"/wc vz\" nennt jetzt zu jeder Verzauberung und jedem Stein die gemessenen Werte und markiert, wo die Datenbank davon abweicht.",
+        },
+    },
+    {
         version = "2.0.0.2",
         date    = "13.08.2026",
         notes   = {
