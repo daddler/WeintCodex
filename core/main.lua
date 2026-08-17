@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.0.0.3"
+WeintCodex.Version = "2.0.0.4"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -33,9 +33,17 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
-    -- Verzauberungs-/Sockel-Dump zur Datenpflege (IDs + Client-Namen)
-    if cmd == "vz" or cmd == "dump" then
-        if WeintCodex.Charakter and WeintCodex.Charakter.DumpEnchants then
+    -- Verzauberungs-/Sockel-Dump zur Datenpflege (IDs + Client-Namen).
+    --   /wc vz          kurze Fassung zum Melden
+    --   /wc vz zeilen   jede Tooltipzeile mit Farbe und gelesenen Werten
+    --                   (Diagnose, wenn eine Gegenstandszeile als
+    --                    Verzauberung gelesen wird)
+    if verb == "vz" or verb == "dump" then
+        if not WeintCodex.Charakter then return end
+        if (rest == "zeilen" or rest == "lines")
+           and WeintCodex.Charakter.DumpEnchantLines then
+            WeintCodex.Charakter.DumpEnchantLines()
+        elseif WeintCodex.Charakter.DumpEnchants then
             WeintCodex.Charakter.DumpEnchants()
         end
         return

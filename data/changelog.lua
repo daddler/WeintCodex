@@ -7,6 +7,18 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.0.4",
+        date    = "17.08.2026",
+        notes   = {
+            "Der Ausruestungs-Check las weiterhin einen Gegenstandswert als Verzauberung: auf Handschuhen mit exakt der empfohlenen \"Grosses Tempo\" stand \"+1.201 Meisterschaft\", auf dem Umhang mit \"Ueberragende kritische Trefferwertung\" stand \"+991 Parieren\" - beide nur als \"OK\" statt \"Optimal\" gewertet. Der Tooltip wird jetzt richtig gelesen, und beide Zeilen stehen auf \"Optimal\".",
+            "Ursache war unter anderem, dass die Kurzformen des Clients (\"Meisterschaft\", \"Tempo\", \"Parieren\", \"kritischer Trefferwert\") gar nicht gelesen wurden - damit war jede Sekundaerwert-Verzauberung fuer den Werteabgleich unsichtbar. Das gilt auch fuer den Sockelbonus, der aus demselben Grund oft nicht erkannt wurde.",
+            "Tausenderpunkte werden jetzt richtig gelesen: aus \"+1.201 Meisterschaft\" wurde bisher die Zahl 1, und damit sah ein Gegenstandswert aus wie eine Verzauberung. Umgeschmiedete Werte (\"+298 Parieren (Umgeschmiedet aus Waffenkunde)\") zaehlen ausserdem nie mehr als Verzauberung.",
+            "Passt keine Tooltip-Zeile zu einem bekannten Eintrag, wird nicht mehr geraten - dann steht der Name aus der Datenbank da statt einer zufaelligen Gegenstandszeile.",
+            "Neu: \"/wc vz zeilen\" gibt jede Tooltipzeile mit Farbe und gelesenen Werten aus. Damit laesst sich eine falsch gelesene Zeile kuenftig zeigen, statt sie zu erraten.",
+            "Das Changelog-Fenster nach einem Update laesst sich jetzt scrollen (Mausrad oder Leiste) und waechst mit dem Text. Bei groesseren Changelogs lief der Text bisher unten aus dem Fenster heraus und war nicht mehr erreichbar.",
+        },
+    },
+    {
         version = "2.0.0.3",
         date    = "17.08.2026",
         notes   = {

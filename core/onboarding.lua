@@ -13,10 +13,31 @@ local C          = WeintCodex.C
 local SetSolidBg = WeintCodex.SetSolidBg
 local DrawBorder = WeintCodex.DrawBorder
 
+--------------------------------------------------
+-- Fenstermasse
+--
+-- WINDOW_H ist die Grundhoehe (sie traegt jede Tourseite), WINDOW_H_MAX
+-- die Grenze, ab der stattdessen gescrollt wird. Die Grenze liegt unter
+-- der kleinsten zulaessigen Hoehe des Hauptfensters (780, siehe
+-- core/ui.lua), damit das Popup auch dort vollstaendig darin liegt.
+--
+-- Warum ueberhaupt beides: der Changelog eines Updates ist beliebig lang.
+-- Bisher war der Text ein fester FontString auf dem Fenster - was nicht
+-- hineinpasste, wurde nicht abgeschnitten, sondern lief unten heraus und
+-- war unerreichbar. Sichtbar wurde das erst bei einem Sammelupdate ueber
+-- mehrere Versionen, also genau dann, wenn es am meisten zu lesen gibt.
+--------------------------------------------------
+
 local WINDOW_W, WINDOW_H = 520, 380
+local WINDOW_H_MAX = 620
+
+-- Der Textbereich sitzt zwischen Trennlinie (BODY_TOP unter der
+-- Fensterkante) und Knopfzeile (BODY_BOTTOM ueber der Unterkante).
+local BODY_TOP, BODY_BOTTOM, BODY_X = 130, 64, 28
 
 local overlay, window
 local iconStr, titleStr, stepStr, bodyStr
+local bodyScroll, bodyInner
 local buttonRow = {}
 local currentStep = 1
 
@@ -151,14 +172,60 @@ local function EnsureFrame()
     divider:SetPoint("TOPRIGHT", window, "TOPRIGHT", -24, -112)
     divider:SetHeight(1)
 
-    bodyStr = window:CreateFontString(nil, "OVERLAY")
-    bodyStr:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 4, -18)
-    bodyStr:SetPoint("TOPRIGHT", divider, "BOTTOMRIGHT", -4, -18)
+    -- Der Text liegt in einem Bildlauffeld, nicht direkt auf dem Fenster.
+    -- Die schlanke Leiste ist die Hausform (siehe CLAUDE.md), das Mausrad
+    -- bringt WeintCodex.CreateScrollArea mit.
+    bodyScroll, bodyInner = WeintCodex.CreateScrollArea(
+        window, BODY_X, -BODY_TOP,
+        WINDOW_W - 2 * BODY_X, WINDOW_H - BODY_TOP - BODY_BOTTOM, true)
+    -- Zweiter Ankerpunkt: damit folgt die Hoehe des Feldes der des
+    -- Fensters, das SetBody() an den Text anpasst.
+    bodyScroll:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", BODY_X, BODY_BOTTOM)
+    -- Ohne dieses Flag blendet ScrollFrame_OnScrollRangeChanged die Leiste
+    -- bei Bildlaufweite 0 wieder ein (nur ohne Griff) und wuerde damit das
+    -- Ausblenden in SetBody() rueckgaengig machen.
+    bodyScroll.scrollBarHideable = true
+
+    bodyStr = bodyInner:CreateFontString(nil, "OVERLAY")
+    bodyStr:SetPoint("TOPLEFT", bodyInner, "TOPLEFT", 0, 0)
+    bodyStr:SetWidth(bodyInner:GetWidth())
     bodyStr:SetJustifyH("LEFT")
     bodyStr:SetJustifyV("TOP")
     bodyStr:SetFont(WeintCodex.Fonts.sans, 13, "")
     bodyStr:SetSpacing(4)
     bodyStr:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+end
+
+--------------------------------------------------
+-- Text setzen und das Fenster darauf einstellen.
+--
+-- Reihenfolge ist hier tragend: erst der Text, dann seine gemessene Hoehe,
+-- daraus die Fensterhoehe, und erst danach die Hoehe des Bildlaufinhalts -
+-- die Sichtbarkeit der Leiste haengt von der Differenz beider ab.
+--------------------------------------------------
+
+local function SetBody(text)
+    bodyStr:SetText(text or "")
+
+    local needed  = math.ceil(bodyStr:GetStringHeight() or 0) + 8
+    local height  = BODY_TOP + BODY_BOTTOM + needed
+    if height < WINDOW_H     then height = WINDOW_H     end
+    if height > WINDOW_H_MAX then height = WINDOW_H_MAX end
+    window:SetHeight(height)
+
+    local visible = height - BODY_TOP - BODY_BOTTOM
+    bodyInner:SetHeight(needed > visible and needed or visible)
+
+    bodyScroll:SetVerticalScroll(0)
+    if bodyScroll.UpdateScrollChildRect then
+        bodyScroll:UpdateScrollChildRect()
+    end
+
+    -- Eine Leiste ohne Bildlauf ist ein Bedienelement, das nichts tut.
+    local bar = bodyScroll.WCScrollBar
+    if bar then
+        if needed > visible then bar:Show() else bar:Hide() end
+    end
 end
 
 local function ShowFrame()
@@ -200,7 +267,7 @@ local function RenderTourStep()
     iconStr:SetText(WeintCodex.Icon(step.icon, 30))
     titleStr:SetText(step.title)
     stepStr:SetText(WeintCodex.ColorText("textDim", "Schritt " .. currentStep .. " von " .. #visibleSteps))
-    bodyStr:SetText(step.body)
+    SetBody(step.body)
 
     ClearButtons()
 
@@ -265,7 +332,7 @@ function WeintCodex.Onboarding.ShowChangelog(entries)
         end
         table.insert(lines, "")
     end
-    bodyStr:SetText(table.concat(lines, "\n"))
+    SetBody(table.concat(lines, "\n"))
 
     ClearButtons()
     local okBtn = AddButton("Verstanden", 160, Dismiss)

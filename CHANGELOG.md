@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.0.0.4] – 2026-08-17
+
+### Behoben
+- **Der Ausrüstungs-Check las weiterhin einen Gegenstandswert als die angelegte Verzauberung.** Gemeldet an zwei Zeilen desselben Charakters: auf Handschuhen, die exakt die empfohlene *Großes Tempo* (+170 Tempo) tragen, stand „+1.201 Meisterschaft"; auf dem Umhang mit *Überragende kritische Trefferwertung* (+180 kritischer Trefferwert) stand „+991 Parieren". Beide Zeilen trugen zusätzlich „ID abweichend – /wc vz" und wurden nur als *OK* statt *Optimal* gewertet, obwohl genau die empfohlene Verzauberung darauflag. Drei Ursachen, die zusammen dieses Bild ergaben:
+  - **Die Stat-Schlüsselwörter kannten nur die Langformen** („Tempowertung", „Meisterschaftswertung"). Die Annahme war, dass die Kurzformen des Clients allein am Gegenstand vorkommen und deshalb von selbst aus dem Parser fallen — ein bequemer Filter, der die falsche Hälfte erwischt: der Client schreibt die Verzauberung genauso kurz wie den Gegenstandswert („+170 Tempo"). Unlesbar waren damit **beide** Zeilen, und die Auswahl fiel auf einen Gleichstand zurück, den die obere gewann — die des Gegenstands. Nebenwirkung derselben Lücke: für Sekundärwert-Verzauberungen lieferte der Werteabgleich nie Werte, lief für sie also komplett leer, und auch der Sockelbonus („Sockelbonus: +180 kritischer Trefferwert") wurde nicht erkannt
+  - **Die deutsche Tausendergruppierung wurde nicht gelesen.** Aus „+1.201 Meisterschaft" wurde die Zahl 1. Damit sah jeder vierstellige Gegenstandswert aus wie eine Verzauberung, und die Plausibilitätsgrenze, die genau diesen Unterschied prüfen soll, lief ins Leere
+  - **Ein Lua-Idiom, das nie tat, was dastand.** Die Einstufung einer unlesbaren Zeile lautete `text:find("%+%d") and nil or 4` — das ergibt in Lua immer 4, weil der mittlere Zweig `nil` ist und deshalb stets das `or` greift. Gemeint war „verwerfen", geschrieben stand „mittlerer Rang für alles"
+- **Umgeschmiedete Gegenstandswerte konnten als Verzauberung durchgehen.** „+298 Parieren (Umgeschmiedet aus Waffenkunde)" liegt mit knapp 300 Punkten mitten im plausiblen Bereich einer Verzauberung und war über die Größenordnung nicht auszusortieren. Solche Zeilen nennen ihre Herkunft im Text und werden jetzt daran erkannt
+- **Passt keine Tooltip-Zeile zu einem bekannten Eintrag, wird nicht mehr geraten.** Bisher konnte eine beliebige Zeile plausibler Größenordnung als Verzauberung einspringen. Steht in `data/enchants.lua` ein Eintrag zu dieser ID und passt keine Zeile dazu, ist nicht die Datenbank falsch, sondern der Scan gescheitert — dann steht ihr Name da statt einer geratenen Gegenstandszeile
+- **Das Changelog-Fenster nach einem Update ließ sich nicht scrollen.** Der Text war ein fester Textblock auf dem Fenster: was nicht hineinpasste, wurde nicht abgeschnitten, sondern lief unten heraus und war unerreichbar. Sichtbar wurde das erst bei einem Sammelupdate über mehrere Versionen — also genau dann, wenn es am meisten zu lesen gibt. Das Fenster wächst jetzt mit dem Text (bis 620 px, damit es auch im kleinsten Hauptfenster vollständig liegt) und scrollt darüber hinaus, per Mausrad oder schlanker Leiste
+
+### Neu
+- **`/wc vz zeilen`** gibt zu jedem angelegten Gegenstand jede Tooltipzeile aus, mit Farbe und den daraus gelesenen Werten. Dass eine Gegenstandszeile als Verzauberung gelesen wird, war von außen bisher nicht zu klären: welche Zeilen der Client überhaupt schreibt und was der Parser aus ihnen macht, stand in keiner Ausgabe. `/wc vz` bleibt die kurze Fassung zum Melden
+
+### Technisch
+- `WeintCodex.CreateScrollArea` reagiert auf das Mausrad. `UIPanelScrollFrameTemplate` bringt in dieser Clientfassung keinen eigenen Radhandler mit; ohne ihn blieb allein das Ziehen des 8 px schmalen Reglers. Gilt für alle sieben Bildlauffelder des Addons, nicht nur für das Changelog-Popup
+
 ## [2.0.0.3] – 2026-08-17
 
 ### Behoben

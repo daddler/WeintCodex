@@ -694,15 +694,63 @@ end
 -- Höchster Statwert, den eine MoP-Verzauberung liefert (Eisenschuppen-
 -- beinrüstung, +430 Ausdauer) plus Reserve für Berufs-Exklusivvarianten.
 -- Alles darüber ist ein Gegenstandswert, keine Verzauberung.
+--
+-- Seit 2.0.0.4 ist das die TRAGENDE Unterscheidung und nicht mehr die letzte
+-- Notbremse: SM.STAT_KEYWORDS liest jetzt auch die Kurzformen des Clients,
+-- also lesen sich Gegenstands- und Verzauberungszeile gleich gut. Was sie
+-- trennt, ist ihre Größenordnung — auf Ausrüstung dieser Stufe stehen
+-- vierstellige Werte, eine Verzauberung bleibt dreistellig. Damit die
+-- Grenze überhaupt greift, muss die Zahl richtig gelesen werden: "+1.201
+-- Meisterschaft" sind 1201 und nicht 1 (siehe SM.ParseNumber).
 local MAX_ENCHANT_VALUE = 600
+
+-- Umgeschmiedete Werte tragen ihre Herkunft im Text ("+298 Parieren
+-- (Umgeschmiedet aus Waffenkunde)"). Das ist immer eine Zeile des
+-- Gegenstands und nie eine Verzauberung — und sie liegt mit ihren knapp
+-- 300 Punkten mitten im plausiblen Bereich, wäre über die Größenordnung
+-- also nicht auszusortieren.
+local REFORGE_MARKERS = { "umgeschmiedet", "reforged" }
+do
+    local global = _G.ITEM_REFORGED
+    if type(global) == "string" and global ~= "" then
+        REFORGE_MARKERS[#REFORGE_MARKERS + 1] = global:lower()
+    end
+end
+
+local function IsReforgeLine(text)
+    local lower = text:lower()
+    for _, marker in ipairs(REFORGE_MARKERS) do
+        if lower:find(marker, 1, true) then return true end
+    end
+    return false
+end
 
 local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
     -- Rang 1: der Text ist der Name einer Verzauberung dieses Slots.
     if FindEnchantByName(enchSlot, text) then return 1 end
 
     -- Rang 4: gar keine Zahl → Proc-/Namenszeile, es gibt nichts zu prüfen.
+    --
+    -- Eine Zeile MIT Zahl, aus der sich kein Wert lesen liess, ist dagegen
+    -- keine Namenszeile, sondern eine Zeile, die wir nicht verstehen — die
+    -- gehört verworfen. Bis 2.0.0.3 stand hier
+    --     return text:find("%+%d") and nil or 4
+    -- und das ergibt in Lua IMMER 4: der mittlere Zweig ist nil, also
+    -- greift das `or`. Jede unverstandene Gegenstandszeile wurde damit zum
+    -- Kandidaten, und weil bei Gleichstand auf Rang 4 die erste Zeile
+    -- gewinnt, war das die oberste — der Gegenstandswert. Das ist der
+    -- Grund, aus dem auf den Handschuhen des Fehlerberichts "+1.201
+    -- Meisterschaft" als Verzauberung stand, obwohl die empfohlene "+170
+    -- Tempo" zwei Zeilen darunter lag: unlesbar waren beide, und die
+    -- obere gewann.
     if not scanned then
-        return text:find("%+%d") and nil or 4
+        if text:find("%d") then return nil end
+        return 4
+    end
+
+    -- Größenordnung, bevor irgendetwas zugeordnet wird.
+    for _, value in pairs(scanned) do
+        if value > MAX_ENCHANT_VALUE then return nil end
     end
 
     -- Rang 2: die Werte identifizieren eine Verzauberung dieses Slots.
@@ -715,10 +763,13 @@ local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
         end
     end
 
-    -- Rang 5: plausible Größenordnung — mehr wissen wir nicht.
-    for _, value in pairs(scanned) do
-        if value > MAX_ENCHANT_VALUE then return nil end
-    end
+    -- Rang 5: plausible Größenordnung — mehr wissen wir nicht. Das gilt
+    -- allerdings nur, wenn wir zu dieser ID wirklich nichts wissen. Steht
+    -- in data/enchants.lua ein Eintrag und passt keine Zeile des Tooltips
+    -- dazu, ist nicht die Datenbank falsch, sondern der Scan gescheitert —
+    -- dann ist ihr Name die ehrlichere Antwort als eine geratene
+    -- Gegenstandszeile.
+    if dbStats then return nil end
     return 5
 end
 
@@ -756,15 +807,21 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
     -- Sie erscheinen IM TOOLTIP VOR der eigentlichen Verzauberungszeile und
     -- würden ohne weitere Prüfung fälschlicherweise eingelesen.
     --
-    -- Der Client verwendet für Item-SEKUNDÄRwerte KURZFORMEN der deutschen
-    -- Stat-Bezeichnungen ("Trefferwert", "Ausweichen", "Parieren",
-    -- "Kritischer Trefferwert"), die NICHT in SM.STAT_KEYWORDS stehen →
-    -- ParseAllStats liefert nil für diese Zeilen, obwohl "+Zahl" enthalten
-    -- ist, und sie fliegen raus. Für die PRIMÄRwerte gilt das aber NICHT:
-    -- "Ausdauer", "Beweglichkeit", "Stärke", "Intelligenz" heißen auf dem
-    -- Item genauso wie in einer Verzauberung. Deshalb reicht "erste Zeile,
-    -- die irgendwie passt" nicht — es wird gerankt (RankEnchantCandidate)
-    -- und der beste Rang gewinnt.
+    -- Bis 2.0.0.3 sortierte sie ein Zufall aus: der Client schreibt die
+    -- Werte in Kurzform ("Meisterschaft", "Tempo", "Parieren"), und die
+    -- Schlüsselwortliste kannte nur die Langformen — die Zeilen waren also
+    -- unlesbar und fielen aus dem Parser. Nur schreibt der Client die
+    -- Verzauberung GENAUSO ("+170 Tempo"), womit die richtige Zeile
+    -- ebenfalls unlesbar war. Beide standen damit auf demselben Rang, und
+    -- der ging an die obere: den Gegenstandswert.
+    --
+    -- Gelesen werden jetzt beide (SM.STAT_KEYWORDS kennt die Kurzformen),
+    -- und unterschieden werden sie an dem, was sie wirklich unterscheidet:
+    --   * umgeschmiedete Werte nennen ihre Herkunft im Text,
+    --   * Gegenstandswerte dieser Stufe sind vierstellig, Verzauberungen
+    --     bleiben unter MAX_ENCHANT_VALUE,
+    --   * und was zu einem Eintrag in data/enchants.lua passt, schlägt
+    --     ohnehin alles andere (RankEnchantCandidate).
     --
     -- Bei Gleichstand gewinnt für die Ränge 1–4 die ERSTE Zeile (eindeutige
     -- Treffer, Reihenfolge egal), für Rang 5 die LETZTE: die Werte des
@@ -779,6 +836,7 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
             local txt  = line and line:GetText()
             if txt and txt ~= ""
                and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
+               and not IsReforgeLine(txt)
                and IsGreenLine(line)
                and LooksLikeEnchantText(txt, enchSlot) then
 
@@ -1900,6 +1958,50 @@ function WeintCodex.Charakter.DumpEnchants()
     end
     if not any then
         print("  |cffaaaaaaKeine Verzauberungen/Steine gefunden.|r")
+    end
+    print("  |cff4A4A52Zeilenweise Rohausgabe des Tooltips: /wc vz zeilen|r")
+end
+
+--------------------------------------------------
+-- /wc vz zeilen — ROHAUSGABE DES ITEM-TOOLTIPS
+--
+-- Zweimal in Folge wurde gemeldet, das Addon halte einen Gegenstandswert
+-- fuer die Verzauberung ("+1.201 Meisterschaft" auf Handschuhen, die
+-- tatsaechlich "+170 Tempo" tragen). Von aussen war das nicht zu klaeren:
+-- welche Zeilen der Client ueberhaupt schreibt, welche davon gruen sind
+-- und was der Parser aus ihnen liest, steht in keiner Ausgabe. Genau das
+-- ist hier zu sehen — eine Zeile je Tooltipzeile, mit Farbe und
+-- gelesenen Werten.
+--
+-- Bewusst ein eigener Befehl: /wc vz bleibt die kurze Fassung zum Melden,
+-- diese hier fuellt bei voller Ausruestung mehrere Bildschirme.
+--------------------------------------------------
+
+function WeintCodex.Charakter.DumpEnchantLines()
+    print("|cffD4A24A[WeintCodex]|r Tooltip-Zeilen der angelegten Ausrüstung:")
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local enchId = ParseItemLink(link)
+            print(string.format("|cffD4A24A%s|r (VZ-ID %s)",
+                slotDef.name, tostring(enchId or "—")))
+
+            scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+            scanTip:ClearLines()
+            scanTip:SetInventoryItem("player", slotDef.id)
+
+            for i = 1, (scanTip:NumLines() or 0) do
+                local line = _G["WeintCodexScanTipTextLeft" .. i]
+                local txt  = line and line:GetText()
+                if txt and txt ~= "" then
+                    local stats  = SM.FormatStats(ParseAllStats(txt))
+                    local colour = IsGreenLine(line) and "|cff22C55Egrün|r"
+                                                     or  "|cff4A4A52·|r"
+                    print(string.format("   %2d %s %s%s", i, colour, txt,
+                        stats and ("  |cff4A4A52[" .. stats .. "]|r") or ""))
+                end
+            end
+        end
     end
 end
 

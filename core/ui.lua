@@ -927,13 +927,32 @@ function WeintCodex.CreateScrollArea(parent, x, y, w, h, slim)
     inner:SetSize(w - (slim and 10 or 20), h)
     sf:SetScrollChild(inner)
 
-    if slim then
-        local bar = _G[(sf:GetName() or "") .. "ScrollBar"] or sf.ScrollBar
-        if not bar then
-            for _, child in ipairs({ sf:GetChildren() }) do
-                if child:GetObjectType() == "Slider" then bar = child break end
-            end
+    -- Mausrad. UIPanelScrollFrameTemplate bringt in dieser Clientfassung
+    -- keinen eigenen Radhandler mit; ohne ihn bleibt allein das Ziehen des
+    -- Reglers, und der ist in der schlanken Form 8 px breit. Ein
+    -- Bildlauffeld, das auf das Rad nicht reagiert, gilt zu Recht als
+    -- kaputt - und beim Changelog-Popup nach einem Update ist das Rad die
+    -- einzige Geste, die der Nutzer dort ueberhaupt erwartet.
+    sf:EnableMouseWheel(true)
+    sf:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange() or 0
+        if range <= 0 then return end
+        local target = (self:GetVerticalScroll() or 0) - (delta * 28)
+        if target < 0 then target = 0 elseif target > range then target = range end
+        self:SetVerticalScroll(target)
+    end)
+
+    local bar = _G[(sf:GetName() or "") .. "ScrollBar"] or sf.ScrollBar
+    if not bar then
+        for _, child in ipairs({ sf:GetChildren() }) do
+            if child:GetObjectType() == "Slider" then bar = child break end
         end
+    end
+    -- Fuer Aufrufer, die die Leiste nur einblenden wollen, wenn es
+    -- wirklich etwas zu rollen gibt (siehe core/onboarding.lua).
+    sf.WCScrollBar = bar
+
+    if slim then
         if bar then
             bar:SetWidth(8)
             for _, region in ipairs({ bar:GetRegions() }) do

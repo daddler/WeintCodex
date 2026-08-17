@@ -64,22 +64,56 @@ local SM = WeintCodex.StatMatch
 -- Doppelpflege, die den Abgleich irgendwann wieder auseinanderlaufen lässt.
 --
 -- Reihenfolge = Priorität: spezifischere Begriffe zuerst
--- ("kritische Trefferwertung" vor "Trefferwertung").
+-- ("kritische Trefferwertung" vor "Trefferwertung" vor "Trefferwert").
 --------------------------------------------------
 
+-- DIE KURZFORMEN SIND PFLICHT, KEINE ZUGABE. Der MoP-Classic-Client
+-- schreibt in den Wertzeilen die KURZE Form — und zwar in denen des
+-- Gegenstands wie in denen der Verzauberung gleichermassen:
+--
+--     +1.201 Meisterschaft          (Gegenstand)
+--     +170 Tempo                    (Verzauberung "Großes Tempo")
+--     +991 Parieren                 (Gegenstand)
+--     +180 kritischer Trefferwert   (Verzauberung "Überragende …")
+--
+-- Bis 2.0.0.3 kannte diese Tabelle nur die Langformen ("Tempowertung",
+-- "Meisterschaftswertung"). Die Annahme dahinter war, dass die Kurzformen
+-- allein am Gegenstand vorkommen und deshalb von selbst aus dem Parser
+-- fallen — ein bequemer Filter, der aber die falsche Haelfte erwischt: mit
+-- ihr war auch die ECHTE Verzauberungszeile unlesbar. Fuer den
+-- Ausruestungs-Check hiess das, dass keine einzige Sekundaerwert-
+-- Verzauberung Werte lieferte; der ganze Werteabgleich lief fuer sie leer,
+-- und die Auswahl der richtigen Tooltip-Zeile fiel auf einen Gleichstand
+-- zurueck, den die oberste Zeile gewann — die des Gegenstands. Genau das
+-- meldete der Nutzer: "+1.201 Meisterschaft" als Verzauberung der
+-- Handschuhe, waehrend exakt die empfohlene "+170 Tempo" darauflag.
+--
+-- Getrennt werden Gegenstands- und Verzauberungszeile jetzt dort, wo der
+-- Unterschied wirklich liegt: an der Groessenordnung und am Treffer in
+-- data/enchants.lua (siehe RankEnchantCandidate in modules/charakter.lua).
 SM.STAT_KEYWORDS = {
     { "kritische trefferwertung", "crit" },
+    { "kritischer trefferwert",   "crit" },
+    { "krit. trefferwert",        "crit" },
     { "tempowertung",             "haste" },
     { "meisterschaftswertung",    "mastery" },
+    { "meisterschaft",            "mastery" },
     { "ausweichwertung",          "dodge" },
+    { "ausweichen",               "dodge" },
     { "parierwertung",            "parry" },
+    { "parieren",                 "parry" },
     { "trefferwertung",           "hit" },
+    { "trefferwert",              "hit" },
     { "waffenkunde",              "expertise" },
     { "beweglichkeit",            "agility" },
     { "intelligenz",              "intellect" },
     { "ausdauer",                 "stamina" },
     { "willenskraft",             "spirit" },
     { "stärke",                   "strength" },
+    -- "tempo" steht bewusst ganz unten: es ist der kuerzeste Begriff der
+    -- Tabelle und steckt als Teilwort in anderen ("Zaubertempo"). Weiter
+    -- oben wuerde er spezifischere Treffer verdraengen.
+    { "tempo",                    "haste" },
 }
 
 function SM.MatchStatKeyword(text)
@@ -93,11 +127,45 @@ function SM.MatchStatKeyword(text)
     return nil
 end
 
+--------------------------------------------------
+-- ZAHLEN AUS TOOLTIP-TEXT
+--
+-- Der deutsche Client gruppiert Tausender mit einem PUNKT: die Handschuhe
+-- aus dem Fehlerbericht zeigen "+1.201 Meisterschaft". Beide naheliegenden
+-- Lesarten sind falsch — "(%d+)" liest davon die 1, tonumber("1.201")
+-- ergibt 1,201. In beiden Faellen wird aus einem vierstelligen
+-- Gegenstandswert eine Zahl in Verzauberungsgroesse, und damit laeuft jede
+-- Plausibilitaetsgrenze ins Leere, die genau diesen Unterschied pruefen
+-- soll (MAX_ENCHANT_VALUE in modules/charakter.lua).
+--
+-- Als Gruppierung gilt nur ein Trennzeichen, auf das GENAU drei Ziffern
+-- folgen. Alles andere ist keine Gruppierung und wird abgeschnitten — ein
+-- Dezimalanteil hat in einer Wertungszahl nichts zu suchen.
+--------------------------------------------------
+
+local NBSP = "\194\160"
+
+-- Ziffernfolge samt moeglicher Gruppierungszeichen. Bewusst ohne %s: ein
+-- gieriges Leerzeichen wuerde ueber das Stat-Wort hinweg in die naechste
+-- Zahl derselben Zeile laufen.
+local NUM_TOKEN = "(%d[%d%.,]*)"
+
+function SM.ParseNumber(token)
+    if not token then return nil end
+    local cleaned = tostring(token)
+    -- Zwei Durchgaenge decken bis zu neunstellige Zahlen ab; gsub arbeitet
+    -- ueberlappungsfrei und verbraucht die fuehrende Ziffer der Gruppe.
+    cleaned = cleaned:gsub("(%d)[%.,](%d%d%d)", "%1%2")
+    cleaned = cleaned:gsub("(%d)[%.,](%d%d%d)", "%1%2")
+    return tonumber(cleaned:match("^(%d+)"))
+end
+
 function SM.ParseStatText(text)
     if not text then return nil end
-    local value = tonumber(text:match("(%d+)"))
+    local normalized = text:gsub(NBSP, " ")
+    local value = SM.ParseNumber(normalized:match(NUM_TOKEN))
     if not value then return nil end
-    local stat = SM.MatchStatKeyword(text)
+    local stat = SM.MatchStatKeyword(normalized)
     if not stat then return nil end
     return stat, value
 end
@@ -108,10 +176,11 @@ end
 -- (erster Wert + zuletzt gefundenes Schlüsselwort).
 function SM.ParseAllStats(text)
     if not text then return nil end
+    local normalized = text:gsub(NBSP, " ")
     local stats, count = {}, 0
-    for value, label in text:gmatch("%+(%d+)%s*([^%+]+)") do
+    for token, label in normalized:gmatch("%+%s*" .. NUM_TOKEN .. "%s*([^%+]+)") do
         local key = SM.MatchStatKeyword(label)
-        local num = tonumber(value)
+        local num = SM.ParseNumber(token)
         if key and num then
             stats[key] = (stats[key] or 0) + num
             count = count + 1
