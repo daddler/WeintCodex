@@ -622,6 +622,27 @@ local function StatsMatch(dbStats, scanned)
     return n > 0
 end
 
+-- EINE WERTZEILE IST KEIN NAME.
+--
+-- "+894 Meisterschaft" ist der Meisterschaftswert des GEGENSTANDS, nicht
+-- die Verzauberung "Meisterschaft" (Handgelenke, ID 4411) — auch wenn der
+-- Name unserer Datenbank buchstäblich in der Zeile steht. Genau daran ist
+-- 2.0.1.0 ein korrekt mit "+180 Stärke" verzaubertes Paar Armschienen als
+-- "Meisterschaft" in der Liste gelandet: der Namensvergleich unten arbeitet
+-- bewusst mit Enthaltensein, und vier Einträge der Verzauberungstabelle
+-- heißen schlicht wie ein Stat ("Meisterschaft", "Präzision", "Verschwimmen",
+-- "Koloss"). Der Treffer stand in RankEnchantCandidate auf Rang 1 und schlug
+-- damit die echte Verzauberungszeile zwei Zeilen tiefer.
+--
+-- Eine Zeile, die mit "+<Zahl>" beginnt, wird deshalb NIE über ihren Text
+-- identifiziert, sondern ausschliesslich über ihre Werte (Größenordnung,
+-- Slot + Stats). Das ist keine Zusatzprüfung, sondern die Trennlinie
+-- zwischen den beiden Erkennungswegen: Weg A liest Namen, Weg B liest
+-- Zahlen — und beides zu vermischen war der Fehler.
+local function LooksLikeStatValueLine(text)
+    return text:find("^%s*%+%s*%d") ~= nil
+end
+
 -- Viele Berufs-Verzauberungen zeigt der Client mit einem Kategorie-
 -- Präfix an ("Nebenhand - Großes Parieren", "Schild - Großes Parieren"),
 -- unsere DB speichert nur den reinen Namen ("Großes Parieren"). Exakter
@@ -631,6 +652,7 @@ end
 -- DB selbst mal ein Präfix trägt) deckt Gleichheit UND Präfix-Fälle ab.
 local function EnchantNamesMatch(tooltipName, dbName)
     if not (tooltipName and dbName) then return false end
+    if LooksLikeStatValueLine(tooltipName) then return false end
     local a, b = tooltipName:lower(), dbName:lower()
     return a == b or a:find(b, 1, true) ~= nil or b:find(a, 1, true) ~= nil
 end
@@ -726,7 +748,13 @@ local function IsReforgeLine(text)
 end
 
 local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
-    -- Rang 1: der Text ist der Name einer Verzauberung dieses Slots.
+    -- Rang 1: der Text IST der Name einer Verzauberung dieses Slots.
+    -- Für Wertzeilen ("+894 Meisterschaft") kann dieser Rang nicht mehr
+    -- greifen — EnchantNamesMatch lehnt sie ab, weil ihre Aussage in den
+    -- Zahlen steckt und nicht im Stat-Wort (siehe dort). Vorher gewann
+    -- der Gegenstandswert genau hier gegen die echte Verzauberung: Rang 1
+    -- wird VOR der Größenordnung geprüft, "+894 Meisterschaft" kam also
+    -- nie bis zur Grenze von MAX_ENCHANT_VALUE.
     if FindEnchantByName(enchSlot, text) then return 1 end
 
     -- Rang 4: gar keine Zahl → Proc-/Namenszeile, es gibt nichts zu prüfen.

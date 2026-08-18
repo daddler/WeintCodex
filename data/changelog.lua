@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.0.1.1",
+        date    = "18.08.2026",
+        notes   = {
+            "Der Ausruestungs-Check las den Meisterschaftswert des Gegenstands als Verzauberung der Handgelenke: auf Armschienen mit \"+180 Staerke\" stand \"Meisterschaft\", samt Hinweis \"ID abweichend\" - und empfohlen wurde weiterhin die Staerke, die laengst drauflag. Ursache war der Namensabgleich: die Handgelenks-Verzauberung heisst schlicht \"Meisterschaft\", und dieses Wort steht auch in der Wertzeile des Gegenstands. Eine Zeile, die mit \"+Zahl\" beginnt, wird jetzt nie mehr ueber ihren Text erkannt, sondern nur noch ueber ihre Werte.",
+            "Die Brustverzauberung \"Glorreiche Werte\" wird jetzt am Gegenstand selbst geprueft statt nur aus der Datenbank uebernommen - die Zeile \"+80 alle Werte\" war fuer den Parser bisher nicht lesbar, weshalb hinter jeder Brustruestung ein \"(?)\" stand.",
+            "Handschuh-Verzauberungen: die IDs fuer \"Erstklassige Staerke\" und \"Ueberragende Meisterschaft\" standen falsch in der Datenbank. Korrekt verzauberte Handschuhe trugen deshalb die Marke \"ID abweichend\"; beide sind jetzt am Live-Client korrigiert.",
+            "Sockelempfehlung fuer Waffen und Furor: Krit galt bisher als fast so wertvoll wie Staerke. Damit riet das Addon auf Gegenstaenden mit kleinem Sockelbonus zum Umsockeln auf den reinen Kritstein, obwohl Hybridstein + Sockelbonus rechnerisch ueberwiegen. In MoP bringt ein Sockel 160 Primaer- oder 320 Sekundaerwert - das Verhaeltnis stimmt jetzt, und der Bonus wird mitgenommen.",
+            "Schutzkrieger (defensiv): Meisterschaft ist kritischer Block und damit der wichtigste Verteidigungswert nach Ausdauer - sie stand bisher hinter Parieren und Ausweichen. In gelben Sockeln wird deshalb nicht mehr ein reiner Ausweichstein empfohlen, sondern der gruene Meisterschafts-/Ausdauerstein, der den Sockelbonus ebenfalls haelt.",
+        },
+    },
+    {
         version = "2.0.1.0",
         date    = "17.08.2026",
         notes   = {

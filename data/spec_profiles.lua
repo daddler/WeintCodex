@@ -31,9 +31,19 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5 },
         },
+        -- SEKUNDÄRWERTE GEGEN STÄRKE — die Zahl entscheidet über Sockelboni.
+        -- Ein Sockelstein bringt entweder 160 Primär- oder 320 Sekundärwert,
+        -- ein Hybridstein 80 + 160. Damit hängt "Farbe matchen oder nicht"
+        -- allein am Verhältnis Krit:Stärke: erst ab 0,8 wird der reine
+        -- Kritstein stärker als Hybridstein + Sockelbonus. Bis 2.0.1.0
+        -- standen hier 0,80 (Arms) bzw. 0,82 (Furor) — damit riet das Addon
+        -- auf Gegenständen mit kleinem Bonus zum Umsockeln, obwohl der
+        -- Bonus rechnerisch überwog. In MoP liegt Krit für Plattennahkampf
+        -- bei gut der Hälfte von Stärke (320 Krit ≈ 160 Stärke), und genau
+        -- da liegen die Werte jetzt.
         statWeights = {
             strength = 100, hit = 88, expertise = 85,
-            crit = 80, mastery = 65, haste = 55, stamina = 10,
+            crit = 58, mastery = 47, haste = 42, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },       -- Tanzender Stahl / Elementarkraft
@@ -41,7 +51,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4434 },
+            ["Hände"]    = { 4432 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
             Ring         = { 84578 },
@@ -68,9 +78,11 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5 },
         },
+        -- Verhältnis wie bei Waffen (s.o.): Krit ≈ halbe Stärke je Punkt,
+        -- damit Hybridstein + Sockelbonus den reinen Kritstein schlägt.
         statWeights = {
             strength = 100, hit = 88, expertise = 85,
-            crit = 82, mastery = 62, haste = 58, stamina = 10,
+            crit = 60, mastery = 46, haste = 44, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
@@ -78,13 +90,15 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4434 },
+            ["Hände"]    = { 4432 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
             Ring         = { 84578 },
         },
-        -- Krit überall; 1 Krit ~ 1,07 Stärke. Sockelboni matchen, wenn
-        -- sie sich lohnen: Rot -> Gravierter Aragonit, Blau -> Stechender Dioptas.
+        -- Krit ist der beste Sekundärstat, aber NICHT wertvoller als Stärke:
+        -- 320 Krit ≈ 160 Stärke. Deshalb Hybridsteine, sobald ein Sockel-
+        -- bonus daran hängt, und der reine Kritstein nur dort, wo keiner
+        -- verloren geht (Zusatzsockel, gelbe Sockel).
         bestGems = {
             meta      = { 76886, 95346 },
             rot       = { 76661, 76693, 76696 },
@@ -104,9 +118,16 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 15, note = "Hard-Cap 15% (Parieren)" },
         },
+        -- Meisterschaft ist beim Schutzkrieger KRITISCHER BLOCK, nicht ein
+        -- Ausweichwert unter anderen: sie verdoppelt den Blockwert und wirkt
+        -- damit auf jeden geblockten Treffer, während Parieren/Ausweichen
+        -- abnehmenden Erträgen unterliegen und nur zufällig greifen. Sie
+        -- stand hier bis 2.0.1.0 mit 45 unter beiden — deshalb empfahl die
+        -- Sockelseite in gelben Sockeln einen reinen Ausweichstein statt
+        -- eines Meisterschafts-/Ausdauersteins.
         statWeights = {
-            stamina = 100, hit = 90, expertise = 88, parry = 70,
-            strength = 60, dodge = 55, mastery = 45, crit = 20, haste = 15,
+            stamina = 100, hit = 90, expertise = 88, mastery = 72,
+            parry = 62, strength = 58, dodge = 55, crit = 20, haste = 15,
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },        -- Tanzender Stahl (Fallback: Koloss)
@@ -115,7 +136,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4420, 4419 },        -- Defensiv: Überragende Ausdauer
             Umhang       = { 74711 },             -- Großer Schutz (+200 Ausdauer)
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
-            ["Hände"]    = { 4432, 4431 },        -- Defensiv: Überragende Meisterschaft
+            ["Hände"]    = { 4430, 4431 },        -- Defensiv: Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
             ["Füße"]     = { 4429 },              -- Pandarenpfoten
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
@@ -126,7 +147,12 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 76895, 95344 },
             rot       = { 76690, 76695, 76691 },  -- Kunzit d. Verteidigers (Parieren+Ausdauer); Parieren; Str+Ausdauer
-            gelb      = { 76589, 76698 },         -- Perfekter Alexandrit (Treffer+Ausdauer); Ausweichen
+            -- Gelber Sockel: der Stein muss gelb ODER grün sein (grün =
+            -- gelb+blau), sonst geht der Sockelbonus verloren. Ein reiner
+            -- Ausweichstein war hier bis 2.0.1.0 die zweite Wahl, obwohl
+            -- der grüne Meisterschafts-/Ausdauerstein beide Werte bringt,
+            -- die dem Schutzkrieger etwas nützen — er steht jetzt davor.
+            gelb      = { 76589, 76656, 76698 },  -- Perfekter Alexandrit (Treffer+Ausdauer); Imposanter Dioptas (Meister+Ausdauer); Ausweichen
             blau      = { 76639, 76636 },         -- Gediegener Chrysokoll (Ausdauer); Massiver (Treffer)
             orange    = { 76664 },                -- Bruchfester Aragonit (Parieren+Ausweichen)
             lila      = { 76690, 76683 },         -- Kunzit d. Verteidigers; Fixierender (Parieren+Treffer)
@@ -154,7 +180,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
+            ["Hände"]    = { 4433, 4430 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },              -- Pandarenpfoten
             Ring         = { 84576 },
@@ -189,7 +215,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4420, 4419 },        -- Überragende Ausdauer
             Umhang       = { 74711 },             -- Großer Schutz
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
-            ["Hände"]    = { 4432, 4431 },        -- Überragende Meisterschaft
+            ["Hände"]    = { 4430, 4431 },        -- Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
             ["Füße"]     = { 4429 },              -- Pandarenpfoten
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
@@ -225,7 +251,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },       -- Präzision (Treffer), dann Krit
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4434, 4433 },
+            ["Hände"]    = { 4432, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
             Ring         = { 84578 },
@@ -476,7 +502,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -508,7 +534,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -542,7 +568,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -616,7 +642,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4434, 4433 },
+            ["Hände"]    = { 4432, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
             Ring         = { 84578 },
@@ -650,7 +676,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4434, 4433 },
+            ["Hände"]    = { 4432, 4433 },
             Beine        = { 4823 },
             ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
             Ring         = { 84578 },
@@ -689,7 +715,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -755,7 +781,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },        -- Großes Tempo
+            ["Hände"]    = { 4433, 4430 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -793,7 +819,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -827,7 +853,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -861,7 +887,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -899,7 +925,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -933,7 +959,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -967,7 +993,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -1037,7 +1063,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 74715, 4429 },       -- Großes Tempo (Boots-Haste)
             Ring         = { 84576 },
@@ -1071,7 +1097,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4822 },
             ["Füße"]     = { 4425, 4428 },
             Ring         = { 84575 },
@@ -1109,7 +1135,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4432 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -1213,7 +1239,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4432, 4433 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },
             ["Füße"]     = { 4429 },
             Ring         = { 84576 },
@@ -1254,7 +1280,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4422, 4421 },       -- Offensiv: Krit
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4431, 4434 },
+            ["Hände"]    = { 4431, 4432 },
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 74715, 4428 },       -- Offensiv: Großes Tempo (Boots-Haste)
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
@@ -1291,7 +1317,7 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421 },
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4431, 4434 },        -- Offensiv: Überragende Waffenkunde
+            ["Hände"]    = { 4431, 4432 },        -- Offensiv: Überragende Waffenkunde
             Beine        = { 4823, 4824 },
             ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer

@@ -132,10 +132,22 @@ WeintCodex_Enchants = {
     -- HÄNDE
     --------------------------------------------------
 
+    -- IDs 4430/4432 am Live-Client korrigiert (zwei unabhängige
+    -- Nutzerberichte, jeweils per Item-Tooltip):
+    --   * Handschuhe mit "Überragender Meisterschaft" tragen im Item-Link
+    --     die ID 4430 (der Eintrag stand deshalb bis 2.0.1.0 fälschlich
+    --     als "Großes Tempo" unter FÜSSE weiter unten).
+    --   * Handschuhe mit "+170 Stärke" tragen die ID 4432 — die stand hier
+    --     als Meisterschaft, weshalb jede korrekt mit Stärke verzauberte
+    --     Hand die Marke "(ID 4432 abweichend)" bekam.
+    -- 4434 bleibt als zweite Stärke-ID stehen (gleicher Name, gleiche
+    -- Werte — wie 4422/4424 beim Umhang): fällt sie irgendwo auf, wird sie
+    -- richtig aufgelöst statt als unbekannt gemeldet.
+    [4430] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
     [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
-    [4432] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
+    [4432] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },
     [4433] = { name = "Großes Tempo",              slot = "Hände", stats = { haste = 170 } },  -- WoWHead: "Handschuhe - Großes Tempo" (item 74719)
-    [4434] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },  -- WoWHead: "Handschuhe - Erstklassige Stärke" (item 74721)
+    [4434] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 }, verify = true },
 
     --------------------------------------------------
     -- BEINE (Lederverarbeitung / Schneiderei)
@@ -167,20 +179,13 @@ WeintCodex_Enchants = {
     -- Schlüssel = Item-ID (74715); Bewertung über Name-Abgleich
     -- ("Verzaubert: Großes Tempo").
     [74715] = { name = "Großes Tempo",                 slot = "Füße", stats = { haste = 175 }, verify = true },
-    -- ACHTUNG: Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
+    -- HINWEIS: 4430 stand hier bis 2.0.1.0 als zweite Hände-Tempo-ID und
+    -- steht jetzt im HÄNDE-Block als "Überragende Meisterschaft" — der
+    -- Nutzerbericht, der schon damals dagegen sprach (Handschuhe mit
+    -- Meisterschaft trugen diese ID), ist inzwischen die belastbarere
+    -- Angabe. Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
     -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenpfoten) - kein
-    -- separates reines "Beweglichkeit"-Enchant für Füße. User-Bericht
-    -- legte nahe, dass diese ID tatsächlich die Hände-Tempo-Verzauberung
-    -- ist - vermutlich eine zweite Enchant-ID für denselben Effekt wie
-    -- 4433 (Hände - Großes Tempo). Slot/Name/Stat entsprechend umgestellt.
-    --
-    -- WEITERHIN UNBESTÄTIGT: Ein zweiter Nutzerbericht (Handschuhe mit
-    -- "Überragender Meisterschaft" wurden als "Großes Tempo" angezeigt)
-    -- spricht dagegen - es könnte in Wahrheit die Meisterschafts-ID sein.
-    -- Bis das per /wc vz geklärt ist, greift die Laufzeit-Korrektur in
-    -- modules/charakter.lua: dort gewinnt der Item-Tooltip (Stat + Wert)
-    -- gegen diese Tabelle, ein Konflikt wird in der Liste markiert.
-    [4430] = { name = "Großes Tempo",                  slot = "Hände", stats = { haste = 170 }, verify = true },
+    -- separates reines "Beweglichkeit"-Enchant für Füße.
 
     --------------------------------------------------
     -- NEBENHAND (Schild UND Beihand-Gegenstand)

@@ -170,12 +170,62 @@ function SM.ParseStatText(text)
     return stat, value
 end
 
+--------------------------------------------------
+-- "+80 alle Werte"
+--
+-- Die Brustverzauberung "Glorreiche Werte" (4419) nennt keinen einzelnen
+-- Stat, sondern alle fünf auf einmal. Die Schlüsselwortliste kennt so eine
+-- Zeile nicht, ParseAllStats gab dafür nil zurück — und weil eine Zeile MIT
+-- Zahl, aber OHNE lesbaren Wert als "nicht verstanden" verworfen wird
+-- (RankEnchantCandidate), fand der Scan auf jeder Brustrüstung des Spiels
+-- gar keine Verzauberungszeile. Die Zeile stand danach zwar richtig da, aber
+-- ungeprüft aus der Datenbank und mit "(?)" markiert.
+--
+-- Die Marker stehen bewusst als Liste: der Client formuliert je nach Build
+-- "alle Werte" oder "zu allen Werten", und die englische Fassung kommt für
+-- Spieler mit englischem Client dazu. Ein zusätzlicher Marker aus der
+-- Globalen des Clients wird übernommen, wenn es sie gibt.
+--------------------------------------------------
+
+local ALL_STATS_KEYS = { "strength", "agility", "intellect", "stamina", "spirit" }
+
+local ALL_STATS_MARKERS = { "alle werte", "allen werten", "all stats" }
+do
+    local raw = _G.ITEM_MOD_ALL_STATS or _G.ITEM_MOD_ALL_STATS_SHORT
+    if type(raw) == "string" then
+        local cleaned = raw:lower():gsub("%%[%d%.%-]*[sdf]", ""):gsub("[%+%s]+", " ")
+        cleaned = cleaned:match("^%s*(.-)%s*$")
+        if cleaned and #cleaned > 3 then
+            ALL_STATS_MARKERS[#ALL_STATS_MARKERS + 1] = cleaned
+        end
+    end
+end
+
+-- Rückgabe: stats | nil
+function SM.AllStatsLine(text)
+    if not text then return nil end
+    local normalized = text:gsub(NBSP, " ")
+    local lower = normalized:lower()
+    local hit = false
+    for _, marker in ipairs(ALL_STATS_MARKERS) do
+        if lower:find(marker, 1, true) then hit = true; break end
+    end
+    if not hit then return nil end
+    local value = SM.ParseNumber(normalized:match(NUM_TOKEN))
+    if not value then return nil end
+    local stats = {}
+    for _, key in ipairs(ALL_STATS_KEYS) do stats[key] = value end
+    return stats
+end
+
 -- Alle "+<Wert> <Stat>"-Paare einer Zeile einsammeln. Verzauberungen mit
 -- zwei Stats ("+285 Beweglichkeit und +165 kritische Trefferwertung",
 -- Beinrüstungen) würden mit ParseStatText sonst falsch zusammengesetzt
 -- (erster Wert + zuletzt gefundenes Schlüsselwort).
 function SM.ParseAllStats(text)
     if not text then return nil end
+    local allStats = SM.AllStatsLine(text)
+    if allStats then return allStats end
     local normalized = text:gsub(NBSP, " ")
     local stats, count = {}, 0
     for token, label in normalized:gmatch("%+%s*" .. NUM_TOKEN .. "%s*([^%+]+)") do
