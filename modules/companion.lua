@@ -20,6 +20,10 @@ local STATE_MESSAGES = {
     -- auf ihrer Seite ein, hier liegt immer nur der aktuelle.
     character_sheet = true,
 
+    -- Welche WeakAuras dieses Addon kennt. Eine Liste, kein Ereignis -
+    -- es zaehlt nur, was gerade drin ist.
+    weakaura_catalog = true,
+
 }
 
 -- Ausgangsseitige Freigaben: welche Nachrichtenart welche Rolle braucht.
@@ -606,6 +610,42 @@ INBOX_HANDLERS.weinttv_report = function(payload)
 
     WeintCodex.SavedData = WeintCodex.SavedData or {}
     WeintCodex.SavedData.weinttv = payload
+
+end
+
+--
+-- WeakAuras, in der Companion eingetragen
+--
+-- Die Nachricht traegt die GANZE Bibliothek, nicht einzelne Auren.
+-- Das ist der Unterschied, an dem es haengt: eine Aura, die in der
+-- Companion geloescht wurde, ist hier sonst nicht loeschbar - eine
+-- Einzelnachricht kann "es gibt mich nicht mehr" nicht ausdruecken,
+-- und die Inbox wird bei jedem Login geleert. Die Companion fuehrt
+-- die Liste, das Addon uebernimmt sie.
+--
+-- Nutzlast (siehe docs/weakaura-bridge.md drueben):
+--
+--   { version = 1, updatedAt = <unix>, auras = { {
+--       id, name, category, description, version, author,
+--       icon, class, string, updatedAt
+--   }, ... } }
+--
+-- Geprueft wird hier nur das Grobe. Welche Zeile brauchbar ist,
+-- entscheidet modules/weakauras.lua beim Zusammenfuehren - dort
+-- steht auch, was passiert, wenn eine ID schon vergeben ist.
+--
+INBOX_HANDLERS.weakaura_library = function(payload)
+
+    if type(payload) ~= "table" then return end
+
+    if type(payload.auras) ~= "table" then return end
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    WeintCodex.SavedData.weakAuraLibrary = payload
+
+    if WeintCodex.WeakAuras and WeintCodex.WeakAuras.Refresh then
+        WeintCodex.WeakAuras.Refresh()
+    end
 
 end
 
@@ -1239,6 +1279,87 @@ function WeintCodex.Companion.ReportCharacterSheet()
     lastSheet = sheet
 
     return WeintCodex.Companion.Send("character_sheet", sheet)
+
+end
+
+----------------------------------------------------------
+-- Welche WeakAuras kennt dieses Addon? (bleibt lokal)
+----------------------------------------------------------
+-- Die Companion kann das nicht selbst herausfinden. Die
+-- mitgelieferten Auren stecken als Lua-Tabellen in data/weakauras/
+-- im Addon-Ordner; sie dort herauszuparsen waere ein zweiter, stiller
+-- Vertrag ueber ein Dateiformat, das sich mit jedem Release aendern
+-- darf. Ohne diese Meldung koennte ihre Seite deshalb nur die Auren
+-- auflisten, die sie selbst angelegt hat - und "eine vorhandene
+-- aktualisieren" waere genau auf diese beschraenkt gewesen.
+--
+-- Der Importstring ist bewusst NICHT dabei. Er ist bei einem
+-- Klassenpaket ein Vielfaches der uebrigen Nutzlast, und zum
+-- Auflisten und Ersetzen braucht ihn niemand: wer eine Aura
+-- aktualisiert, bringt die neue Zeichenkette ohnehin mit.
+--
+-- Wie "character_report", "character_sheet" und
+-- "dummy_practice_session" bleibt die Nachricht auf dem Rechner des
+-- Spielers - der Bot hat mit ihr nichts zu tun.
+--
+-- Format (flache Zeichenkette; Ausgangsnachrichten kann
+-- addon/sync_reader.py der Companion nur als String lesen):
+--
+--   <id>|<name>|<category>|<version>|<origin>;<id>|...
+--
+--   origin ist "addon" (mitgeliefert) oder "companion" (von der
+--   Companion zugestellt und hier uebernommen). Die Companion nimmt
+--   fehlende Felder hin und ignoriert zusaetzliche - das Format darf
+--   also wachsen.
+----------------------------------------------------------
+
+-- Nur senden, wenn sich etwas geaendert hat. Der Katalog ist ueber
+-- eine Spielsitzung hinweg konstant, solange niemand etwas
+-- installiert; ihn im Sync-Takt erneut in die SavedVariables zu
+-- schreiben waere reine Schreiblast.
+local lastCatalog = nil
+
+function WeintCodex.Companion.ReportWeakAuraCatalog()
+
+    -- Erst Companion 2.1.0 kennt den Typ. Eine aeltere gaebe ihn in
+    -- ihren generischen Zweig, POSTete ihn an den Bot, scheiterte,
+    -- liesse die Nachricht liegen und protokollierte im Sync-Takt
+    -- einen Fehler - dieselbe Falle wie bei "character_report".
+    if not CompanionAtLeast(2, 1) then
+        return
+    end
+
+    if not (WeintCodex.WeakAuras and WeintCodex.WeakAuras.Catalog) then
+        return
+    end
+
+    local records = {}
+
+    for _, entry in ipairs(WeintCodex.WeakAuras.Catalog()) do
+
+        records[#records + 1] = table.concat({
+            CleanField(entry.id),
+            CleanField(entry.name),
+            CleanField(entry.category),
+            CleanField(entry.version),
+            CleanField(entry.origin),
+        }, "|")
+
+    end
+
+    if #records == 0 then
+        return
+    end
+
+    local payload = table.concat(records, ";")
+
+    if payload == lastCatalog then
+        return
+    end
+
+    lastCatalog = payload
+
+    return WeintCodex.Companion.Send("weakaura_catalog", payload)
 
 end
 

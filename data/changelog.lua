@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.1.0.0",
+        date    = "18.08.2026",
+        notes   = {
+            "WeakAuras lassen sich jetzt ueber die WeintCompanion nachtragen, ohne dass ein Addon-Update noetig ist. In der Companion werden Name, Rubrik, Version, Beschreibung und der Export-String eingetragen; nach dem naechsten /reload steht die Aura hier in derselben Liste wie die mitgelieferten und wird mit demselben Knopf installiert. Braucht WeintCompanion 2.1.0.",
+            "Auch eine vorhandene Aura laesst sich so ersetzen - mitgelieferte eingeschlossen. Bei gleicher Kennung gewinnt die zugestellte Fassung, statt daneben zu stehen.",
+            "Jede Zeile der WeakAuras-Seite sagt jetzt, woher sie kommt: \"WeintCodex\" oder \"Companion\" samt Autor. Eine nachgetragene Aura sah bisher genau aus wie eine mitgelieferte.",
+            "Das Addon meldet der Companion beim Login, welche Auren es kennt. Ohne diese Meldung koennte sie nur die Auren auflisten, die sie selbst angelegt hat - die mitgelieferten stecken als Lua-Dateien im Addon-Ordner und sind von aussen nicht zu sehen.",
+        },
+    },
+    {
         version = "2.0.1.1",
         date    = "18.08.2026",
         notes   = {

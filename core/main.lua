@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.0.1.1"
+WeintCodex.Version = "2.1.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -108,6 +108,18 @@ local function OnEvent(self, event, addonName)
         -- Spielers, siehe modules/companion.lua.
         if WeintCodex.Companion and WeintCodex.Companion.ReportLoggedInCharacter then
             WeintCodex.Companion.ReportLoggedInCharacter()
+        end
+
+        -- Und welche WeakAuras dieses Addon anbietet. Die Companion
+        -- kann das nicht selbst sehen - die mitgelieferten Auren
+        -- stecken als Lua-Tabellen im Addon-Ordner. Ohne diese
+        -- Meldung koennte ihre WeakAuras-Seite nur die Auren
+        -- auflisten, die sie selbst angelegt hat, und eine
+        -- vorhandene liesse sich nicht aktualisieren. Laeuft nach
+        -- ADDON_LOADED, die zugestellte Bibliothek ist also bereits
+        -- eingearbeitet und wird mitgemeldet.
+        if WeintCodex.Companion and WeintCodex.Companion.ReportWeakAuraCatalog then
+            WeintCodex.Companion.ReportWeakAuraCatalog()
         end
 
         -- Bereits importierte Rosterdaten erneut auflösen - UnitClass/

@@ -2,6 +2,24 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.1.0.0] – 2026-08-18
+
+### Neu
+- **WeakAuras lassen sich jetzt über die WeintCompanion nachtragen – ohne Addon-Update.** Bis hierher gab es genau einen Weg, eine Aura in WeintCodex zu bekommen: eine Lua-Datei unter `data/weakauras/` anlegen, sie in die `.toc` eintragen, eine Version schneiden, ein Release veröffentlichen und warten, bis alle es installiert haben. Für eine Aura, die zum nächsten Mittwoch gebraucht wird, ist das kein Weg. In der Companion gibt es dafür jetzt den Bereich **WeakAuras**: Name, Rubrik, Version, Beschreibung und der Export-String aus WeakAuras werden eingetragen, ein Klick auf *Fertig* legt die Aura ab – und nach dem nächsten `/reload` steht sie ingame in derselben Liste wie die mitgelieferten und wird mit demselben Knopf installiert. Braucht **WeintCompanion 2.1.0**
+- **Auch eine vorhandene Aura lässt sich ersetzen, mitgelieferte eingeschlossen.** Beim Zusammenführen der beiden Quellen gewinnt die zugestellte Fassung bei gleicher Kennung. Genau darin besteht das Aktualisieren: ohne diese Regel stünde die Aura zweimal in der Liste, und niemand wüsste, welche der beiden gilt. Ein zugestellter Eintrag ohne eigenes Symbol übernimmt das der Aura, die er ersetzt – eine aktualisierte Zeile soll nicht plötzlich anders aussehen
+- **Jede Zeile sagt, woher sie kommt.** Unter dem Namen steht „WeintCodex" oder „Companion · <Autor>". Eine nachgetragene Aura sah sonst genau aus wie eine mitgelieferte, und wer den Import nicht selbst eingetragen hat, konnte nicht wissen, wen er zu fragen hat, wenn sie nicht stimmt
+
+### Geändert
+- Das Addon meldet der Companion beim Login, **welche Auren es kennt** (`weakaura_catalog`). Ohne diese Meldung könnte die Companion nur die Auren auflisten, die sie selbst angelegt hat – die mitgelieferten stecken als Lua-Tabellen im Addon-Ordner und sind von aussen nicht zu sehen. Der Importstring ist bewusst **nicht** dabei: das Krieger-Paket allein sind rund 56 kB, und zum Auflisten und Ersetzen braucht ihn niemand. Die Nachricht bleibt wie `character_report` und `character_sheet` auf dem Rechner des Spielers und geht den Bot nichts an
+- Eine Rubrik ohne Einträge zeigt jetzt einen Satz statt einer leeren Fläche unter drei Spaltenköpfen. Bis hierher konnte das nicht vorkommen, weil jede Rubrik mitgelieferte Auren hatte; sobald die Companion mitspielt, kann es das
+
+### Technisch
+- `WeintCodex.WeakAuras.Entries()` (`modules/weakauras.lua`) ist die eine Stelle, an der die mitgelieferten Auren aus `WeintCodex.WeakAuraData` und die zugestellten aus `SavedData.weakAuraLibrary` zusammenkommen. `EntriesFor(category)` und `Catalog()` lesen ausschliesslich daraus, die Anzeige rechnet also nichts eigenes
+- Eine zugestellte Zeile mit unbekannter Rubrik landet unter *Utility* statt zu verschwinden (`NormalizeCategory`) – dieselbe Regel wie in `normalize_category()` der Companion. Unsichtbar wäre der schlechtere Ausgang
+- `WeintCodex.Navigation.CurrentTab()` gibt es neu: `activeTab` war eine Dateilokale, ein Modul konnte also nicht erfahren, ob es gerade sichtbar ist
+- `SavedData.weakAuraLibrary` steht bewusst **nicht** in `GUILD_KEYS` (`core/access.lua`) und überlebt `/wc access reset` – WeakAuras sind nicht gildenintern, dieselbe Entscheidung wie beim Import-Typ `WA` in `modules/sync.lua`. Der ältere Bot-Import `WCIMPORT:WA:` bleibt unverändert; er trägt nur Metadaten und liegt unter einem eigenen Schlüssel
+- Der vollständige Vertrag beider Nachrichten steht in `docs/weakaura-bridge.md` der Companion
+
 ## [2.0.1.1] – 2026-08-18
 
 ### Behoben

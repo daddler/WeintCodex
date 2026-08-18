@@ -1578,6 +1578,14 @@ end
 -- Tab switching
 --------------------------------------------------
 
+-- Welcher Bereich gerade offen ist. `activeTab` ist eine Dateilokale
+-- und war von aussen nicht zu erfahren; ein Modul, das sich nach
+-- einer Datenlieferung selbst neu zeichnen will, muss aber wissen, ob
+-- es ueberhaupt gerade sichtbar ist (siehe WeakAuras.Refresh).
+function WeintCodex.Navigation.CurrentTab()
+    return activeTab
+end
+
 function WeintCodex.Navigation.SwitchTo(tabId)
     WeintCodex.Navigation.ClearSidebar()
     WeintCodex.Navigation.ClearInspector()
