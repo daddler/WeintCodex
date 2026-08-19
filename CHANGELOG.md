@@ -2,6 +2,31 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.3.0.0] – 2026-08-19
+
+### Behoben
+- **„Anmeldungen abrufen" holte nie neue Anmeldungen – es konnte gar nicht.** Der Knopf löst ein `/reload` aus, und genau das war der Fehler: WoW schreibt seine gespeicherten Variablen beim `/reload` **zuerst aus dem Arbeitsspeicher zurück in die Datei** und liest sie erst danach wieder ein. Alles, was die WeintCompanion in der Zwischenzeit zugestellt hatte, war damit gelöscht, bevor das Addon es sehen konnte. Zurück kam der Stand vom Login – jedes Mal. Schlimmer noch: die Companion merkt sich, was sie zuletzt geschickt hat, und schickt einen unveränderten Roster kein zweites Mal, die zerstörte Zustellung war also **weg**. Die Anmeldeliste konnte so tage- bis wochenalt sein, ohne dass irgendwo etwas fehlte. Die Zustellung liegt jetzt zusätzlich in einer Datei im Addon-Ordner, die WoW bei jedem `/reload` neu ausführt und **niemals zurückschreibt**. Braucht **WeintCompanion 2.3.0**
+- **Eigene Twinks standen an den Plätzen echter Spieler.** Beim Login trug das Addon ungefragt den gerade eingeloggten Charakter in eine offene Anmeldezeile ein, sobald dessen Klasse zu genau einer passte – dauerhaft und für das ganze Konto. Der eine Krieger, der sich noch nicht zugeordnet hat, ist aber nicht deshalb man selbst, weil man gerade auf einem Krieger spielt. Über mehrere Twinks hinweg sammelten sich so mehrere eigene Charaktere im Roster, und weil die Zeile danach als „aufgelöst" galt, lud der Kalender **den eigenen Twink ein und den echten Spieler nicht** – ohne dass irgendwo eine Einladung fehlte. Das Addon rät hier nicht mehr. Zugeordnet wird über den Bot (`/weintcharakter setzen`), die Seite *Charakterzuordnung* der Companion oder das Stift-Symbol in der Zeile
+- **Der Kalender-Eintrag enthielt nur den Ersteller.** `C_Calendar.EventInvite` trägt niemanden sofort ein – es lässt den Namen erst vom Server auflösen. Das anschließende Speichern im selben Durchlauf sicherte deshalb einen Termin, in dem noch keine einzige Einladung stand; und weil der Knopf danach unverändert dastand, erzeugte jeder weitere Klick einen weiteren leeren Termin. Der Ablauf ist jetzt zweigeteilt: *Einladungen vorbereiten* legt den Entwurf an und verschickt die Einladungen, der Knopf zählt mit, wie viele der Server bestätigt hat („Eintrag speichern (21/22)"), und erst der zweite Klick speichert
+- Namen, die der Server nicht findet, werden **beim Namen genannt** statt still zu fehlen. Bisher zählte jede abgeschickte Einladung als gelungen, auch die ins Leere
+
+### Neu
+- **Die Anmeldeliste sagt, wie alt sie ist.** Bisher stand dort nur das Raiddatum – also der Tag, an dem der Raid stattfindet. Ein zwei Wochen alter Stand für den kommenden Mittwoch sah damit exakt aus wie ein frischer. Jetzt steht daneben „Zugestellt 19.08. 14:20 · vor 3 Stunden", grün bis einen Tag, gelb bis eine Woche, danach rot. Dieselbe Zeile steht über der Einladungsvorschau des Kalenders, weil das die Stelle ist, an der man wissen will, ob man gleich die richtigen Leute einlädt
+- Die Inspektorspalte der Raidseite zählt die Anmeldungen **ohne Zuordnung** getrennt aus – das ist die Zahl, um die der Kalender-Einlauf kleiner ausfällt
+
+### Geändert
+- Gespeicherte Namenskorrekturen aus früheren Versionen werden **einmalig zurückgesetzt** und beiseitegelegt (`rosterNameOverridesLegacy`, es geht nichts verloren). Bis 2.2.0.0 schrieb die automatische Selbst-Erkennung in denselben Topf wie das Stift-Symbol; hinterher war eine Angabe des Nutzers nicht mehr von einer Vermutung des Addons zu unterscheiden, und die falschen wären sonst nie wieder weggegangen. Das Addon sagt es einmal im Chat
+- *Raiddaten löschen* holt die zuletzt zugestellten Anmeldungen beim nächsten `/reload` wieder herein, statt sie unerreichbar zu machen
+
+### Technisch
+- `data/companion_live.lua` ist die neue Live-Brücke: eine Lua-Datei im Addon-Ordner, die die Companion schreibt und WoW nur liest. `ProcessInbox()` liest beide Quellen und **bevorzugt die Brücke** – sie ist per Konstruktion der jüngere Stand; die Inbox wird dann ungelesen geleert, weil beides einzuarbeiten jeden Import doppelt melden würde. Fehlt die Brücke (ältere Companion, Addon frisch entpackt), bleibt es beim bisherigen Weg. Voller Vertrag in `docs/live-bridge.md` drüben
+- Das Addon merkt sich in `SavedData.companionLive.lastStamp`, welchen Stand es eingearbeitet hat, und überspringt einen unveränderten – es kann die Datei nicht leeren, und ohne diese Marke meldete jeder `/reload` denselben Import erneut
+- `CompanionAtLeast()` liest die Versionsmarke bevorzugt aus der Brücke: sie steht in einer Datei, die WoW nur liest, während die Marke in der Inbox vom `/reload` überschrieben worden sein kann
+- `WeintCodex.Raids.Freshness(data)` ist die eine Stelle, an der „wie alt ist dieser Stand" beantwortet wird; `importedAt` setzt `ProcessImport` in `modules/sync.lua` bei jedem Einarbeiten. Fehlt es (Stand aus einer älteren Version), heisst es „Stand unbekannt" statt einer geratenen Zahl
+- Eine manuelle Namenskorrektur ist jetzt eine Tabelle (`{ name, at }`) statt einer blanken Zeichenkette – damit ist eine Angabe des Nutzers dauerhaft von einer Vermutung unterscheidbar. `rosterNameOverridesLegacy` steht in `GUILD_KEYS` und wird bei `/wc access reset` mit gelöscht
+- Beide Hälften des Kalender-Ablaufs hängen weiterhin an einem echten Klick – die Kette zum Hardware-Ereignis, ohne die es `CreatePlayerEvent`/`EventInvite`/`AddEvent` nicht gibt, bleibt damit intakt. Die Bestätigungszählung dazwischen ist reines Lesen und läuft deshalb im Timer
+- Die Einladungsliste wird **vor** dem Speichern gelesen. Danach ist der Entwurf geschlossen, und die Meldung nähme ihre Zahlen genau in dem Moment, in dem sie keine mehr hat
+
 ## [2.2.0.0] – 2026-08-19
 
 ### Neu

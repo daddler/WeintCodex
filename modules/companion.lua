@@ -284,7 +284,25 @@ local function CompanionAtLeast(major, minor, patch)
 
     InitializeInbox()
 
-    local version = WeintCompanionInboxDB.companionVersion
+    -- Die Live-Bruecke (data/companion_live.lua) traegt dieselbe Marke
+    -- und ist der verlaesslichere Zeuge: sie steht in einer Datei, die
+    -- WoW nur liest. Die Inbox daneben kann ein /reload ueberschrieben
+    -- haben, bevor das Addon sie je gesehen hat - dann stuende dort die
+    -- Version vom letzten Login statt der laufenden.
+    local version
+
+    if type(WeintCodex_CompanionLive) == "table"
+        and type(WeintCodex_CompanionLive.companionVersion) == "string"
+        and WeintCodex_CompanionLive.companionVersion ~= "" then
+
+        version = WeintCodex_CompanionLive.companionVersion
+
+    else
+
+        version = WeintCompanionInboxDB.companionVersion
+
+    end
+
     if type(version) ~= "string" then return false end
 
     local gotMajor, gotMinor = version:match("^v?(%d+)%.(%d+)")
@@ -665,13 +683,79 @@ local function Dispatch(message)
 
 end
 
-function WeintCodex.Companion.ProcessInbox()
+----------------------------------------------------------
+-- Zwei Quellen, eine Warteschlange
+----------------------------------------------------------
+-- WeintCompanionInboxDB ist eine SavedVariable, und das ist genau
+-- ihr Problem: WoW schreibt SavedVariables bei /reload und beim
+-- Abmelden aus dem Arbeitsspeicher zurueck und liest sie erst
+-- danach wieder ein. Was die Companion waehrend der laufenden
+-- Sitzung hineingeschrieben hat, wird von diesem Rueckschreiben
+-- geloescht, bevor das Addon es sehen kann. Ein /reload konnte
+-- deshalb nie neue Daten holen - und weil die Companion sich merkt,
+-- was sie zuletzt zugestellt hat, kam ein unveraenderter Roster
+-- danach auch kein zweites Mal.
+--
+-- Die Live-Bruecke (data/companion_live.lua, von der Companion
+-- geschrieben) hat das Problem nicht: WoW fuehrt Addon-Dateien bei
+-- jedem /reload neu aus und schreibt sie nie zurueck.
+--
+-- Beide Quellen tragen dieselben Nachrichtentypen. Liegt eine
+-- Live-Zustellung vor, gilt sie - sie ist per Konstruktion der
+-- juengere Stand, die Inbox daneben hoechstens gleich alt. Fehlt
+-- sie (aeltere Companion, Addon frisch entpackt), bleibt es beim
+-- bisherigen Weg.
+--
+-- Das Addon kann die Live-Datei nicht leeren - es schreibt keine
+-- Dateien. Deshalb merkt es sich den Stand, den es zuletzt
+-- eingearbeitet hat, und laesst eine unveraenderte Zustellung beim
+-- naechsten /reload still liegen. Sonst meldete jeder Reload
+-- denselben Import erneut im Chat.
+----------------------------------------------------------
 
-InitializeInbox()
+local function LiveDelivery()
 
-if #WeintCompanionInboxDB.queue == 0 then
-    return
+    local live = WeintCodex_CompanionLive
+
+    if type(live) ~= "table" then return nil end
+    if type(live.queue) ~= "table" then return nil end
+    if #live.queue == 0 then return nil end
+
+    return live
+
 end
+
+function WeintCodex.Companion.LiveInfo()
+
+    local live = LiveDelivery()
+
+    if not live then return nil end
+
+    return {
+        writtenAt = tonumber(live.writtenAt) or 0,
+        version   = live.companionVersion,
+        count     = #live.queue,
+    }
+
+end
+
+-- Nach einem "Loeschen" der Raiddaten soll dieselbe Zustellung beim
+-- naechsten /reload wieder eingearbeitet werden - sonst waere sie
+-- unerreichbar, bis die Companion von sich aus etwas Neues schickt.
+function WeintCodex.Companion.ForgetLiveStamp()
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    WeintCodex.SavedData.companionLive =
+        WeintCodex.SavedData.companionLive or {}
+    WeintCodex.SavedData.companionLive.lastStamp = nil
+
+end
+
+----------------------------------------------------------
+-- Eine Warteschlange einarbeiten
+----------------------------------------------------------
+
+local function ProcessQueue(queue)
 
 ------------------------------------------------------
 -- 1. Durchgang: nur Zugriffsprofile
@@ -682,7 +766,7 @@ end
 -- Warteschlangen-Reihenfolge angewandt, das letzte gewinnt.
 ------------------------------------------------------
 
-for _, message in ipairs(WeintCompanionInboxDB.queue) do
+for _, message in ipairs(queue) do
 
     if message.type == "access_profile" and message.payload ~= nil then
         Dispatch(message)
@@ -696,7 +780,7 @@ end
 
 local rejected = 0
 
-for _, message in ipairs(WeintCompanionInboxDB.queue) do
+for _, message in ipairs(queue) do
 
     if message.type ~= "access_profile"
         and INBOX_HANDLERS[message.type]
@@ -724,12 +808,99 @@ if rejected > 0 then
             rejected, WeintCodex.Access.CommunityName()))
 end
 
--- Auch verworfene Nachrichten verlassen die Warteschlange. Sie liegen
--- zu lassen hiesse dieselbe Warnung bei jedem Login - und schlimmer:
--- nach einem legitimen /wc access reset wuerden wochenalte Roster der
--- vorherigen Community ploetzlich angenommen. Gezaehlt werden sie in
--- SavedData.access.rejections, das reicht fuer den Supportfall.
+end
+
+function WeintCodex.Companion.ProcessInbox()
+
+InitializeInbox()
+
+WeintCodex.SavedData = WeintCodex.SavedData or {}
+WeintCodex.SavedData.companionLive =
+    WeintCodex.SavedData.companionLive or {}
+
+local marker = WeintCodex.SavedData.companionLive
+local live   = LiveDelivery()
+
+------------------------------------------------------
+-- Was ist einzuarbeiten?
+------------------------------------------------------
+-- Beide Quellen tragen dieselbe Zustellung; die Companion schreibt
+-- sie aus derselben Liste. Trotzdem wird hier nicht die eine gegen
+-- die andere ausgespielt, sondern zusammengefuehrt: die Live-Datei
+-- kann fehlschlagen (Addon-Ordner verschoben, Rechte), waehrend die
+-- Inbox geschrieben wurde. Die Inbox dann ungelesen zu leeren, weil
+-- "die Live-Datei ist ja da", wuerde genau in diesem Fall eine
+-- Zustellung wegwerfen.
+--
+-- Doppelt gemeldet wird deshalb trotzdem nichts: eine Nachricht mit
+-- gleicher Zeichenketten-Nutzlast, die schon aus der Live-Zustellung
+-- kam, wird uebersprungen. Nur die tragen eine Chatmeldung
+-- (raid_import); die Tabellen-Nutzlasten schreiben still einen
+-- Zustand und duerfen ruhig zweimal laufen - dann gewinnt die Inbox,
+-- weil sie zuletzt laeuft, und das ist die sichere Richtung.
+------------------------------------------------------
+
+local queue = {}
+local seen  = {}
+
+if live then
+
+    local stamp = tonumber(live.writtenAt) or 0
+    local isNew = (stamp == 0) or (stamp ~= marker.lastStamp)
+
+    for _, message in ipairs(live.queue) do
+
+        if type(message.payload) == "string" then
+            seen[tostring(message.type) .. "\1"
+                .. tostring(message.community) .. "\1"
+                .. message.payload] = true
+        end
+
+        -- Ein unveraenderter Stand wird nicht erneut eingearbeitet.
+        -- Das Addon kann die Datei nicht leeren, sie liegt also bei
+        -- jedem /reload wieder da - ohne diese Marke meldete jeder
+        -- Reload denselben Import erneut.
+        if isNew then
+            queue[#queue + 1] = message
+        end
+
+    end
+
+    if isNew then
+        marker.lastStamp   = stamp
+        marker.lastCount   = #live.queue
+        marker.lastVersion = live.companionVersion
+    end
+
+end
+
+for _, message in ipairs(WeintCompanionInboxDB.queue) do
+
+    local fingerprint
+
+    if type(message.payload) == "string" then
+        fingerprint = tostring(message.type) .. "\1"
+            .. tostring(message.community) .. "\1"
+            .. message.payload
+    end
+
+    if not (fingerprint and seen[fingerprint]) then
+        queue[#queue + 1] = message
+    end
+
+end
+
+-- Die Inbox wird in jedem Fall geleert. Sie liegt zu lassen hiesse
+-- dieselbe Warnung bei jedem Login - und schlimmer: nach einem
+-- legitimen /wc access reset wuerden wochenalte Roster der
+-- vorherigen Community ploetzlich angenommen.
 wipe(WeintCompanionInboxDB.queue)
+
+if #queue == 0 then
+    return
+end
+
+ProcessQueue(queue)
 
 end
 

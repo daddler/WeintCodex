@@ -38,38 +38,109 @@ local dayLabels = { wednesday = "Mittwoch", thursday = "Donnerstag" }
 --------------------------------------------------
 -- Namensauflösung (Discord-Name -> WoW-Charaktername)
 --------------------------------------------------
--- Der Bot versucht bereits serverseitig (companion_characters), den
--- Discord-Anzeigenamen einer Anmeldung durch den passenden Charakter
--- zu ersetzen. Das klappt nur, wenn der Spieler Discord verknüpft UND
--- gemeldet hat. Als Ergänzung dazu:
---   1. Manuelle Korrektur (Stift-Symbol je Zeile) - überschreibt jeden
---      Eintrag dauerhaft, überlebt auch erneute Syncs.
---   2. Automatische Selbst-Erkennung beim Login: passt die Klasse des
---      eingeloggten Charakters zu GENAU EINEM noch unaufgelösten
---      Eintrag im Roster, wird automatisch der eigene Name eingesetzt.
---      Bei mehreren möglichen Kandidaten (z. B. zwei Krieger angemeldet)
---      bleibt der Eintrag unangetastet - dann hilft nur die manuelle
---      Korrektur.
+-- Der Bot kennt den echten WoW-Namen einer Anmeldung nur, wenn der
+-- Spieler die Companion verknüpft UND seine Twinkverwaltung gepflegt
+-- hat - oder wenn die Raidleitung ihn von Hand zugeordnet hat
+-- (/weintcharakter setzen, bzw. die Seite "Charakterzuordnung" der
+-- Companion). Für alle anderen schickt er den Discord-Anzeigenamen
+-- und sagt das im sechsten Feld der Anmeldezeile (siehe
+-- ParseRaidImport in modules/sync.lua).
+--
+-- Bleibt genau EIN Weg, das im Spiel nachzutragen: die manuelle
+-- Korrektur über das Stift-Symbol. Sie steht in
+-- SavedData.rosterNameOverrides und überlebt jeden weiteren Sync.
+--
+-- Was hier bis 2.2.0.0 zusätzlich stand und seit 2.3.0.0 fehlt, ist
+-- eine automatische Selbst-Erkennung: passte die Klasse des gerade
+-- eingeloggten Charakters zu genau einer unaufgelösten Zeile, trug
+-- das Addon dort ungefragt UnitName("player") ein - dauerhaft und
+-- kontoweit. Das war eine Vermutung mit den Rechten einer Angabe,
+-- und sie ging aus zwei Gründen regelmäßig daneben:
+--
+--   * Der eine Krieger, der sich noch nicht zugeordnet hat, ist
+--     nicht deshalb man selbst, weil man gerade auf einem Krieger
+--     spielt. Über mehrere Twinks hinweg sammelten sich so mehrere
+--     eigene Charaktere im Roster - an den Plätzen echter Spieler.
+--   * Der Eintrag galt danach als aufgelöst. Der Kalender-Einlauf
+--     lud also den eigenen Twink ein und den echten Spieler nicht,
+--     ohne dass irgendwo etwas fehlte.
+--
+-- Eine sichtbar offene Zuordnung ist besser als eine falsche, die
+-- wie eine richtige aussieht - dieselbe Linie, an der auch
+-- IsResolved(), die Kalender-Vorschau und der Einladungslauf
+-- entlanglaufen. Geraten wird hier deshalb nicht mehr.
 --------------------------------------------------
 
-local function IsKnownOtherCharacter(name, myName)
-    if not IsInGuild() then return false end
+--------------------------------------------------
+-- Manuelle Korrekturen: Ablage
+--------------------------------------------------
+-- Seit 2.3.0.0 ist ein Eintrag eine Tabelle ({ name = ..., at = ... })
+-- statt einer blanken Zeichenkette. Der Unterschied ist nicht
+-- kosmetisch: bis dahin schrieb die Selbst-Erkennung in denselben
+-- Topf wie das Stift-Symbol, und hinterher war nicht mehr zu
+-- erkennen, welcher Eintrag eine Angabe des Nutzers war und welcher
+-- eine Vermutung des Addons. Genau deshalb sind die Alt-Einträge
+-- nicht zu retten: MigrateOverrides() legt sie vollständig beiseite
+-- (SavedData.rosterNameOverridesLegacy, nichts geht verloren) und
+-- sagt es einmal im Chat. Wer eine davon wirklich gesetzt hat, trägt
+-- sie in zehn Sekunden erneut ein; die falschen kämen sonst nie
+-- wieder weg.
+--------------------------------------------------
 
-    local num = GetNumGuildMembers() or 0
+local function OverrideStore()
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    WeintCodex.SavedData.rosterNameOverrides =
+        WeintCodex.SavedData.rosterNameOverrides or {}
+    return WeintCodex.SavedData.rosterNameOverrides
+end
 
-    for i = 1, num do
-        local gname = GetGuildRosterInfo(i)
-        if gname then
-            local shortName = gname:match("([^%-]+)") or gname
-            if shortName:lower() == name:lower()
-               and shortName:lower() ~= (myName or ""):lower()
-            then
-                return true
-            end
+local function MigrateOverrides()
+    local sd = WeintCodex.SavedData
+    if not sd or sd.rosterOverridesMigrated then return end
+
+    local store  = OverrideStore()
+    local moved  = {}
+    local count  = 0
+
+    for key, value in pairs(store) do
+        if type(value) ~= "table" then
+            moved[key] = value
+            count = count + 1
         end
     end
 
-    return false
+    if count > 0 then
+        sd.rosterNameOverridesLegacy = moved
+        for key in pairs(moved) do
+            store[key] = nil
+        end
+        print(WeintCodex.ColorText("warning", "[WeintCodex]") .. " "
+            .. count .. " gespeicherte Namenskorrektur(en) wurden "
+            .. "zurückgesetzt. Bis 2.2.0.0 hat das Addon dort auch "
+            .. "selbst geraten, welcher Anmeldung dein gerade "
+            .. "eingeloggter Charakter gehört - und lag dabei oft "
+            .. "daneben. Korrekturen bitte über das Stift-Symbol in "
+            .. "der Anmeldeliste erneut setzen.")
+    end
+
+    sd.rosterOverridesMigrated = true
+end
+
+function WeintCodex.Raids.SetOverride(originalName, newName)
+    if not originalName or originalName == "" then return end
+    local store = OverrideStore()
+    if not newName or newName == "" then
+        store[originalName] = nil
+    else
+        store[originalName] = { name = newName, at = time() }
+    end
+end
+
+function WeintCodex.Raids.GetOverride(originalName)
+    if not originalName then return nil end
+    local entry = OverrideStore()[originalName]
+    if type(entry) == "table" then return entry.name end
+    return nil
 end
 
 --------------------------------------------------
@@ -94,6 +165,53 @@ function WeintCodex.Raids.IsResolved(p)
     return p.originalName ~= nil and p.name ~= p.originalName
 end
 
+--------------------------------------------------
+-- Wie alt ist dieser Stand?
+--------------------------------------------------
+-- Die Seite zeigte bis 2.2.0.0 nur das RAIDDATUM - also den Tag, an
+-- dem der Raid stattfindet. Das beantwortet nicht die Frage, die man
+-- vor einer Anmeldeliste hat: ob das noch die Anmeldungen von jetzt
+-- sind. Ein zwei Wochen alter Stand fuer den kommenden Mittwoch sieht
+-- ohne diese Angabe exakt aus wie ein frischer.
+--
+-- `importedAt` setzt ProcessImport in modules/sync.lua bei jedem
+-- Einarbeiten. Fehlt es (Stand aus einer aelteren Version), wird das
+-- gesagt und nicht geraten.
+--------------------------------------------------
+
+function WeintCodex.Raids.Freshness(data)
+    local stamp = data and tonumber(data.importedAt)
+
+    if not stamp or stamp <= 0 then
+        return "Stand unbekannt", "textDim"
+    end
+
+    local age  = time() - stamp
+    local when = date("%d.%m. %H:%M", stamp)
+    local label
+
+    if age < 3600 then
+        label = "vor " .. math.max(1, math.floor(age / 60)) .. " Min."
+    elseif age < 86400 then
+        local h = math.floor(age / 3600)
+        label = "vor " .. h .. (h == 1 and " Stunde" or " Stunden")
+    else
+        local d = math.floor(age / 86400)
+        label = "vor " .. d .. (d == 1 and " Tag" or " Tagen")
+    end
+
+    local tone
+    if age < 86400 then
+        tone = "success"
+    elseif age < 7 * 86400 then
+        tone = "warning"
+    else
+        tone = "danger"
+    end
+
+    return "Zugestellt " .. when .. " \194\183 " .. label, tone
+end
+
 function WeintCodex.Raids.CountUnresolved(data)
     if not data or not data.players then return 0 end
 
@@ -111,61 +229,18 @@ end
 function WeintCodex.Raids.ResolveNames(data)
     if not data or not data.players then return end
 
-    WeintCodex.SavedData = WeintCodex.SavedData or {}
-    WeintCodex.SavedData.rosterNameOverrides =
-        WeintCodex.SavedData.rosterNameOverrides or {}
-
-    local overrides = WeintCodex.SavedData.rosterNameOverrides
+    MigrateOverrides()
 
     -- Original-Namen sichern (einmalig) + gespeicherte manuelle
-    -- Korrekturen anwenden
+    -- Korrekturen anwenden. Mehr passiert hier nicht: was der Bot
+    -- nicht weiss und niemand von Hand nachgetragen hat, bleibt
+    -- sichtbar offen.
     for _, p in ipairs(data.players) do
         p.originalName = p.originalName or p.name
-        if overrides[p.originalName] then
-            p.name = overrides[p.originalName]
+        local override = WeintCodex.Raids.GetOverride(p.originalName)
+        if override then
+            p.name = override
         end
-    end
-
-    -- Automatische Selbst-Erkennung
-    local myName = UnitName("player")
-    local _, myClass = UnitClass("player")
-
-    if not myName or not myClass then return end
-
-    local candidates = {}
-
-    for _, p in ipairs(data.players) do
-        if p.class == myClass
-           and p.name == p.originalName
-           and p.name ~= myName
-           and not IsKnownOtherCharacter(p.name, myName)
-        then
-            table.insert(candidates, p)
-        end
-    end
-
-    -- Kennt der Bot fuer einige Zeilen einen echten Charakternamen und
-    -- fuer andere nicht, kommen nur die unaufgeloesten in Frage. Ohne
-    -- diese Einschraenkung wuerde die Selbst-Erkennung bei zwei
-    -- Kandidaten derselben Klasse gar nichts tun - obwohl einer davon
-    -- nachweislich ein Discord-Platzhalter ist und der andere ein
-    -- gemeldeter Charakter, der einem gar nicht gehoert.
-    local unresolved = {}
-
-    for _, p in ipairs(candidates) do
-        if not WeintCodex.Raids.IsResolved(p) then
-            table.insert(unresolved, p)
-        end
-    end
-
-    if #unresolved > 0 then
-        candidates = unresolved
-    end
-
-    if #candidates == 1 then
-        local p = candidates[1]
-        overrides[p.originalName] = myName
-        p.name = myName
     end
 end
 
@@ -192,10 +267,7 @@ StaticPopupDialogs["WEINTCODEX_EDIT_ROSTER_NAME"] = {
         local eb = self.EditBox or self.editBox
         local newName = eb and eb:GetText():match("^%s*(.-)%s*$") or ""
         if newName ~= "" and data and data.originalName then
-            WeintCodex.SavedData = WeintCodex.SavedData or {}
-            WeintCodex.SavedData.rosterNameOverrides =
-                WeintCodex.SavedData.rosterNameOverrides or {}
-            WeintCodex.SavedData.rosterNameOverrides[data.originalName] = newName
+            WeintCodex.Raids.SetOverride(data.originalName, newName)
             if data.refresh then data.refresh() end
         end
     end,
@@ -256,12 +328,21 @@ local function CreateRaidFrame()
     reloadBtn:SetScript("OnEnter", function(self)
         self:SetSurface("surface3")
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText(
-            "Läd die von Companion zuletzt geschriebenen Daten neu " ..
-            "(macht einen /reload). Companion muss zuvor gelaufen und " ..
-            "mit Discord verbunden gewesen sein.",
-            nil, nil, nil, nil, true
-        )
+        GameTooltip:SetText("Anmeldungen abrufen")
+        GameTooltip:AddLine(
+            "Macht ein /reload und arbeitet die zuletzt von der " ..
+            "Companion zugestellten Anmeldungen ein. Die Companion " ..
+            "muss dafür laufen und mit Discord verbunden sein.",
+            1, 1, 1, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(
+            "Bis 2.2.0.0 konnte das gar nicht funktionieren: WoW " ..
+            "schreibt seine gespeicherten Variablen beim /reload " ..
+            "zuerst zurück und liest sie erst danach - die Zustellung " ..
+            "der Companion war damit schon gelöscht, bevor das Addon " ..
+            "sie sehen konnte. Seit 2.3.0.0 liegt sie in einer Datei " ..
+            "im Addon-Ordner, die WoW nur liest.",
+            0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
     reloadBtn:SetScript("OnLeave", function(self)
@@ -284,7 +365,19 @@ local function CreateRaidFrame()
         if not WeintCodex.SavedData then return end
         WeintCodex.SavedData.raidWednesday = nil
         WeintCodex.SavedData.raidThursday  = nil
-        print(WeintCodex.ColorText("textFaint", "[WeintCodex]") .. " Raiddaten gelöscht.")
+
+        -- Das Addon merkt sich, welchen Stand der Live-Bruecke es
+        -- zuletzt eingearbeitet hat, und ueberspringt einen
+        -- unveraenderten beim naechsten /reload. Nach einem Loeschen
+        -- waere die zugestellte Anmeldeliste damit unerreichbar, bis
+        -- die Companion von sich aus etwas Neues schickt.
+        if WeintCodex.Companion and WeintCodex.Companion.ForgetLiveStamp then
+            WeintCodex.Companion.ForgetLiveStamp()
+        end
+
+        print(WeintCodex.ColorText("textFaint", "[WeintCodex]")
+            .. " Raiddaten gelöscht. Ein /reload holt die zuletzt "
+            .. "zugestellten Anmeldungen wieder herein.")
         if raidFrame and raidFrame:IsShown() then
             WeintCodex.Raids.Show()
         end
@@ -376,19 +469,39 @@ local activePlayerRows = {}
 
 local function UpdateInspector(raidData)
     local total = raidData and raidData.players and #raidData.players or 0
+    local open  = WeintCodex.Raids.CountUnresolved(raidData)
+
+    local freshText, freshTone = "—", "textDim"
+
+    if raidData then
+        freshText, freshTone = WeintCodex.Raids.Freshness(raidData)
+        -- Die Inspector-Zeile ist schmal; dort reicht der Abstand.
+        freshText = freshText:match("\194\183%s*(.+)$") or freshText
+    end
     WeintCodex.Navigation.SetInspector({
         { type = "header", text = "Gilden-Puls" },
         { type = "rows", rows = {
             { label = "Tag",          value = dayLabels[activeDay] or "—" },
-            { label = "Stand",        value = (raidData and raidData.date) or "—" },
+            { label = "Raidtermin",   value = (raidData and raidData.date) or "—" },
+            { label = "Zugestellt",   value = freshText, valueColor = freshTone },
             { label = "Anmeldungen",  value = total .. " / 25", valueColor = (total > 0) and "success" or "textDim" },
+            { label = "Ohne Zuordnung", value = tostring(open),
+              valueColor = (open > 0) and "warning" or "textDim" },
         }},
         { type = "divider" },
         { type = "header", text = "Namenskorrektur" },
         { type = "card", lines = MayEdit()
             and {
-                "Stimmt ein Charaktername nicht (Discord- statt WoW-Name)?",
-                "Notiz-Symbol in der jeweiligen Zeile anklicken und korrigieren.",
+                "Zeilen mit Fragezeichen tragen den Discord-Namen -",
+                "ingame gibt es den nicht, sie werden nicht eingeladen.",
+                "",
+                "Notiz-Symbol in der Zeile anklicken und korrigieren.",
+                "Dauerhaft für alle: in Discord /weintcharakter setzen.",
+                "",
+                "Das Addon rät hier nichts mehr: bis 2.2.0.0 trug es",
+                "beim Login ungefragt den gerade eingeloggten Charakter",
+                "in eine passende offene Zeile ein - und damit eigene",
+                "Twinks an die Plätze echter Spieler.",
             }
             or {
                 WeintCodex.Access.Reason("raids.edit"),
@@ -438,7 +551,11 @@ local function RefreshRaidDisplay(raidData)
         return
     end
 
-    f.DateStr:SetText(WeintCodex.ColorText("textFaint", raidData.date or ""))
+    local freshness, tone = WeintCodex.Raids.Freshness(raidData)
+
+    f.DateStr:SetText(
+        WeintCodex.ColorText("textFaint", raidData.date or "")
+        .. "   " .. WeintCodex.ColorText(tone, freshness))
 
     local tanks, healers, dps = {}, {}, {}
     for _, p in ipairs(raidData.players) do

@@ -183,6 +183,13 @@ local function ParseRaidImport(payload)
         minute  = minute,
         title   = (title and title ~= "") and title or nil,
         players = players,
+        -- Wann dieser Stand eingearbeitet wurde - nicht wann der Raid
+        -- ist. Ohne die Angabe sieht ein zwei Wochen alter Roster fuer
+        -- den kommenden Mittwoch genauso aus wie ein frischer, und
+        -- genau das war der Grund, warum niemand merkte, dass die
+        -- Zustellung gar nicht mehr ankam (siehe
+        -- data/companion_live.lua).
+        importedAt = time(),
     }
 end
 

@@ -7,6 +7,18 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.3.0.0",
+        date    = "19.08.2026",
+        notes   = {
+            "\"Anmeldungen abrufen\" holte nie neue Daten - es konnte gar nicht. Der Knopf macht ein /reload, und WoW schreibt seine gespeicherten Variablen dabei ZUERST zurueck und liest sie erst danach: die Zustellung der Companion war geloescht, bevor das Addon sie sehen konnte. Sie liegt jetzt zusaetzlich in einer Datei im Addon-Ordner, die WoW nur liest. Braucht WeintCompanion 2.3.0.",
+            "Eigene Twinks standen an den Plaetzen echter Spieler. Das Addon trug beim Login ungefragt den eingeloggten Charakter in eine passende offene Anmeldezeile ein - dauerhaft und fuer das ganze Konto. Der Kalender lud danach den eigenen Twink ein und den echten Spieler nicht. Geraten wird hier nicht mehr.",
+            "Gespeicherte Namenskorrekturen werden dafuer einmalig zurueckgesetzt und beiseitegelegt - es geht nichts verloren, aber die falschen waeren sonst nie wieder weggegangen.",
+            "Der Kalender-Eintrag enthielt nur den Ersteller. C_Calendar.EventInvite laesst jeden Namen erst vom Server aufloesen; das Speichern im selben Durchlauf sicherte einen Termin ohne eine einzige Einladung, und jeder weitere Klick erzeugte einen weiteren leeren. Jetzt zweistufig: \"Einladungen vorbereiten\" verschickt und zaehlt die Bestaetigungen, der zweite Klick speichert.",
+            "Namen, die der Server nicht findet, werden beim Namen genannt statt still zu fehlen.",
+            "Die Anmeldeliste sagt jetzt, wie alt sie ist (\"Zugestellt 19.08. 14:20, vor 3 Stunden\") - bisher stand dort nur das Raiddatum, und ein zwei Wochen alter Stand sah aus wie ein frischer.",
+        },
+    },
+    {
         version = "2.2.0.0",
         date    = "19.08.2026",
         notes   = {

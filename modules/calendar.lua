@@ -88,23 +88,146 @@ local function InviteNameFor(p, myRealm)
     return p.name
 end
 
--- Kalender-Eintrag erstellen
+--------------------------------------------------
+-- Kalender-Eintrag anlegen: zwei Schritte, nicht einer
+--------------------------------------------------
+-- Bis 2.2.0.0 lief hier alles in einem Durchlauf: Entwurf anlegen,
+-- Felder setzen, alle Einladungen abschicken, speichern. Die
+-- Begruendung dafuer war richtig (CreatePlayerEvent/EventInvite/
+-- AddEvent sind geschuetzte Funktionen und muessen im selben
+-- Aufruf-Stapel liegen wie der Klick des Spielers), das Ergebnis
+-- trotzdem falsch - und zwar auf die schlimmste Art: der Eintrag
+-- entstand, aber leer.
 --
--- WICHTIG: CreatePlayerEvent/EventInvite/AddEvent sind vom Client
--- geschuetzte Funktionen ("protected"). Sie duerfen NUR synchron
--- innerhalb desselben Aufruf-Stapels laufen, der durch den Klick des
--- Spielers ausgeloest wurde - jeder Umweg ueber C_Timer.After (auch
--- nur fuer eine der Aktionen) reisst diese Kette ab und der Client
--- blockt den Aufruf mit ADDON_ACTION_BLOCKED. Deshalb laeuft hier
--- alles - Event anlegen, Felder setzen, ALLE Einladungen, Speichern -
--- in einem einzigen, ungestoerten Durchlauf.
-local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, players, statusCallback)
+-- C_Calendar.EventInvite traegt niemanden sofort in die Liste ein.
+-- Es schickt eine Anfrage an den Server, der den Namen aufloest;
+-- erst dessen Antwort fuellt die Einladungsliste (CALENDAR_UPDATE_-
+-- INVITE_LIST). AddEvent() im selben Frame speichert deshalb einen
+-- Entwurf, in dem noch keine einzige Einladung steht - uebrig bleibt
+-- der Ersteller. Und weil der Knopf danach unveraendert dastand,
+-- erzeugte jeder weitere Klick einen weiteren leeren Termin.
+--
+-- Der Ablauf ist deshalb zweigeteilt, und beide Haelften haengen an
+-- einem echten Klick - damit bleibt die Kette zum Hardware-Ereignis
+-- intakt, ohne die es die geschuetzten Aufrufe nicht gibt:
+--
+--   1. "Einladungen vorbereiten": Entwurf anlegen, Felder setzen,
+--      alle EventInvite() abschicken. Danach zaehlt ein Beobachter
+--      (reines Lesen, ungeschuetzt), wie viele der angefragten Namen
+--      der Server bestaetigt hat.
+--   2. "Eintrag speichern": AddEvent().
+--
+-- Was der Server nicht bestaetigt, hat er nicht gefunden. Diese
+-- Namen stehen dann in der Statusmeldung, statt still zu fehlen -
+-- dieselbe Linie, an der auch die uebersprungenen Discord-Namen
+-- entlanglaufen.
+--------------------------------------------------
+
+-- Die Einladungsliste des gerade offenen Entwurfs. Reines Lesen, und
+-- bewusst mit mehreren Namen probiert: die Funktion heisst je nach
+-- Client-Stand anders, und wenn keine davon existiert, ist das kein
+-- Fehler - dann faellt nur die Bestaetigungszaehlung aus.
+local function DraftInviteCount()
+    local ok, count
+
+    if C_Calendar then
+        if C_Calendar.GetNumInvites then
+            ok, count = pcall(C_Calendar.GetNumInvites)
+            if ok and type(count) == "number" then return count end
+        end
+        if C_Calendar.EventGetNumInvites then
+            ok, count = pcall(C_Calendar.EventGetNumInvites)
+            if ok and type(count) == "number" then return count end
+        end
+    end
+
+    if CalendarEventGetNumInvites then
+        ok, count = pcall(CalendarEventGetNumInvites)
+        if ok and type(count) == "number" then return count end
+    end
+
+    return nil
+end
+
+local function DraftInviteName(index)
+    local ok, info
+
+    if C_Calendar and C_Calendar.EventGetInvite then
+        ok, info = pcall(C_Calendar.EventGetInvite, index)
+        if ok then
+            if type(info) == "table" then return info.name end
+            if type(info) == "string" then return info end
+        end
+    end
+
+    if CalendarEventGetInvite then
+        ok, info = pcall(CalendarEventGetInvite, index)
+        if ok and type(info) == "string" then return info end
+    end
+
+    return nil
+end
+
+-- Welche der angefragten Namen stehen inzwischen in der Liste?
+-- Verglichen wird ueber den Namen und nicht ueber die blosse Anzahl:
+-- der Ersteller steht selbst mit drin, und ein nicht gefundener Name
+-- soll benennbar sein.
+local function DraftConfirmed(requested)
+    local count = DraftInviteCount()
+
+    if not count then return nil end
+
+    local present = {}
+
+    for i = 1, count do
+        local name = DraftInviteName(i)
+        if name then
+            present[name:lower()] = true
+            -- Der Client fuehrt realmfremde Namen als "Name-Realm";
+            -- angefragt haben wir moeglicherweise nur den Namen.
+            local bare = name:match("^([^%-]+)")
+            if bare then present[bare:lower()] = true end
+        end
+    end
+
+    local confirmed, missing = {}, {}
+
+    for _, name in ipairs(requested) do
+        local bare = name:match("^([^%-]+)") or name
+        if present[name:lower()] or present[bare:lower()] then
+            table.insert(confirmed, name)
+        else
+            table.insert(missing, name)
+        end
+    end
+
+    return confirmed, missing
+end
+
+-- Einen liegen gebliebenen Entwurf wegwerfen (Tageswechsel, erneutes
+-- Oeffnen der Seite). Ohne das wuerde die naechste Vorbereitung auf
+-- einem halb gefuellten Entwurf aufsetzen.
+local function DiscardDraft()
+    if C_Calendar and C_Calendar.CloseEvent then
+        pcall(C_Calendar.CloseEvent)
+    end
+end
+
+--------------------------------------------------
+-- Schritt 1: Entwurf anlegen und einladen
+--------------------------------------------------
+-- Laeuft vollstaendig synchron im Klick-Stapel. Jeder Umweg ueber
+-- C_Timer.After - auch nur fuer eine der Aktionen - reisst die Kette
+-- zum Hardware-Ereignis ab und der Client blockt mit
+-- ADDON_ACTION_BLOCKED.
+
+local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, players, statusCallback)
     if not HasCalendarAPI() then
         statusCallback(false,
             "Kalender-API nicht verfügbar.\n" ..
             "Öffne den Ingame-Kalender manuell (Minimap-Uhr) " ..
             "und erstelle den Eintrag dort.")
-        return
+        return nil
     end
 
     local month, day, year = ParseDate(dateStr)
@@ -118,10 +241,9 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
     title = (title and title ~= "") and title or "Raid"
 
     players = players or {}
-    local total    = #players
-    local invited  = 0
-    local failed   = {}
-    local myRealm  = GetRealmName() or ""
+
+    local requested = {}
+    local myRealm   = GetRealmName() or ""
 
     local ok, err = pcall(function()
         C_Calendar.CreatePlayerEvent()
@@ -137,36 +259,79 @@ local function CreateIngameCalendarEvent(title, desc, dateStr, hour, minute, pla
 
         for _, p in ipairs(players) do
             local inviteName = InviteNameFor(p, myRealm)
-            local invOk = pcall(C_Calendar.EventInvite, inviteName)
-            if invOk then
-                invited = invited + 1
-            else
-                table.insert(failed, inviteName)
-            end
+            -- Der Rueckgabewert von pcall sagt nur, dass der Aufruf
+            -- nicht in einen Lua-Fehler gelaufen ist. Ob der Server
+            -- den Namen findet, steht erst in der Einladungsliste -
+            -- genau darum wird hier nichts mehr mitgezaehlt.
+            pcall(C_Calendar.EventInvite, inviteName)
+            table.insert(requested, inviteName)
         end
+    end)
 
+    if not ok then
+        DiscardDraft()
+        statusCallback(false,
+            "Fehler beim Anlegen des Kalender-Entwurfs:\n" .. tostring(err))
+        return nil
+    end
+
+    return {
+        title     = title,
+        dateStr   = dateStr,
+        hour      = hour or 20,
+        minute    = minute or 0,
+        requested = requested,
+    }
+end
+
+--------------------------------------------------
+-- Schritt 2: Entwurf speichern
+--------------------------------------------------
+
+local function SaveIngameCalendarEvent(draft, statusCallback)
+    if not draft then return false end
+
+    -- Die Einladungsliste wird VOR dem Speichern gelesen. Danach ist
+    -- der Entwurf geschlossen, und was der Client dann noch hergibt,
+    -- gehoert schon zu keinem offenen Eintrag mehr - die Meldung
+    -- naehme also genau in dem Moment die Zahlen, in dem sie keine
+    -- mehr hat.
+    local confirmed, missing = DraftConfirmed(draft.requested)
+    local total = #draft.requested
+
+    local ok, err = pcall(function()
         C_Calendar.AddEvent()
     end)
 
     if not ok then
         statusCallback(false,
-            "Fehler beim Erstellen des Kalender-Eintrags:\n" .. tostring(err))
-        return
+            "Fehler beim Speichern des Kalender-Eintrags:\n" .. tostring(err))
+        return false
     end
 
-    local msg = WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Kalender-Eintrag erstellt.\n" ..
-        "Titel: " .. title .. "\n" ..
-        "Datum: " .. (dateStr or "heute") ..
-        "   Uhrzeit: " .. string.format("%02d:%02d", hour or 20, minute or 0) .. "\n" ..
-        "Eingeladen: " .. invited .. "/" .. total
+    local msg = WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " Kalender-Eintrag gespeichert.\n" ..
+        "Titel: " .. draft.title .. "\n" ..
+        "Datum: " .. (draft.dateStr or "heute") ..
+        "   Uhrzeit: " .. string.format("%02d:%02d", draft.hour, draft.minute) .. "\n"
 
-    if #failed > 0 then
-        msg = msg .. "\n|cffE56B6BFehlgeschlagen:|r " .. table.concat(failed, ", ")
+    if confirmed then
+        msg = msg .. "Eingeladen: " .. #confirmed .. "/" .. total
+        if #missing > 0 then
+            msg = msg .. "\n|cffE56B6BVom Server nicht gefunden:|r "
+                .. table.concat(missing, ", ")
+        end
+    else
+        -- Ohne lesbare Einladungsliste ist "eingeladen" eine
+        -- Behauptung. Dann lieber sagen, was angefragt wurde.
+        msg = msg .. "Angefragt: " .. total ..
+            "\n|cff888888Der Client gibt die Einladungsliste nicht her - " ..
+            "bitte im Ingame-Kalender nachsehen.|r"
     end
 
     statusCallback(true, msg)
-end
 
+    return true
+end
 --------------------------------------------------
 -- Kleines Input-Feld Helper
 --------------------------------------------------
@@ -405,7 +570,7 @@ local function CreateCalendarFrame()
     local createBtnLbl = createBtn:CreateFontString(nil, "OVERLAY")
     createBtnLbl:SetAllPoints(createBtn)
     createBtnLbl:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
-    createBtnLbl:SetText("|cffffffff" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16) .. "  Kalender-Eintrag erstellen|r")
+    createBtnLbl:SetText("|cffffffff" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16) .. "  Einladungen vorbereiten|r")
 
     createBtn:SetScript("OnEnter", function(self)
         SetSolidBg(self, math.min(1, C.purple[1] * 1.25), math.min(1, C.purple[2] * 1.25), math.min(1, C.purple[3] * 1.15), 0.95)
@@ -451,8 +616,13 @@ local function CreateCalendarFrame()
             }},
             { type = "divider" },
             { type = "card", lines = {
-                "Der Eintrag wird beim Klick auf 'Kalender-Eintrag erstellen'",
-                "sofort angelegt und alle gefilterten Spieler eingeladen.",
+                "Zwei Schritte: 'Einladungen vorbereiten' legt den Entwurf",
+                "an und verschickt die Einladungen. Der Server muss jeden",
+                "Namen erst auflösen - der Knopf zählt mit, wie viele",
+                "bestätigt sind. Erst der zweite Klick speichert.",
+                "",
+                "Sofort zu speichern hieße: ein Termin, in dem nur du",
+                "stehst.",
             }},
         })
     end)
@@ -476,23 +646,28 @@ local function CreateCalendarFrame()
     previewSect:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 10, -16)
     f.PreviewSect = previewSect
 
+    -- Der Zaehler traegt seit 2.3.0.0 eine zweite Zeile (wie alt der
+    -- Stand ist), deshalb sitzt die Trennlinie 16 px tiefer als die
+    -- Ueberschrift daneben hoch ist.
     local previewLine = rightPanel:CreateTexture(nil, "OVERLAY")
     previewLine:SetHeight(1)
-    previewLine:SetPoint("TOPLEFT",  rightPanel, "TOPLEFT",  10, -30)
-    previewLine:SetPoint("TOPRIGHT", rightPanel, "TOPRIGHT", -10, -30)
+    previewLine:SetPoint("TOPLEFT",  rightPanel, "TOPLEFT",  10, -46)
+    previewLine:SetPoint("TOPRIGHT", rightPanel, "TOPRIGHT", -10, -46)
     previewLine:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
     -- Spieler-Zähler
     local previewCount = rightPanel:CreateFontString(nil, "OVERLAY")
     previewCount:SetFont(WeintCodex.Fonts.sans, 11, "")
     previewCount:SetPoint("TOPRIGHT", rightPanel, "TOPRIGHT", -10, -16)
+    previewCount:SetJustifyH("RIGHT")
+    previewCount:SetSpacing(3)
     previewCount:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
     previewCount:SetText("")
     f.PreviewCount = previewCount
 
     -- Scroll: Spielerliste
     local previewScroll = CreateFrame("ScrollFrame", nil, rightPanel, "UIPanelScrollFrameTemplate")
-    previewScroll:SetPoint("TOPLEFT",     rightPanel, "TOPLEFT",     10,  -36)
+    previewScroll:SetPoint("TOPLEFT",     rightPanel, "TOPLEFT",     10,  -52)
     previewScroll:SetPoint("BOTTOMRIGHT", rightPanel, "BOTTOMRIGHT", -4,   4)
 
     local previewChild = CreateFrame("Frame", nil, previewScroll)
@@ -500,6 +675,80 @@ local function CreateCalendarFrame()
     previewChild:SetHeight(1)
     previewScroll:SetScrollChild(previewChild)
     f.PreviewChild = previewChild
+
+    --------------------------------------------------
+    -- Der Knopf traegt beide Schritte
+    --------------------------------------------------
+    -- Solange kein Entwurf offen ist, legt er einen an und verschickt
+    -- die Einladungen; danach speichert er. Dass es derselbe Knopf
+    -- ist, ist der Punkt: der alte, unveraenderte Knopf legte bei
+    -- jedem weiteren Klick einen zusaetzlichen leeren Termin an.
+
+    local LABEL_PREPARE = WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16)
+        .. "  Einladungen vorbereiten"
+
+    -- Wieviele der angefragten Namen der Server inzwischen bestaetigt
+    -- hat. Reines Lesen, laeuft also ausserhalb des Klick-Stapels.
+    local function WatchDraft(attempt)
+        if not f.Draft then return end
+
+        local confirmed, missing = DraftConfirmed(f.Draft.requested)
+        local total = #f.Draft.requested
+
+        if not confirmed then
+            -- Der Client gibt die Liste nicht her. Dann bleibt nur zu
+            -- sagen, was angefragt wurde - eine Zahl zu erfinden waere
+            -- genau der Fehler, der diesen Umbau ausgeloest hat.
+            f.CreateBtnLbl:SetText("|cffffffff"
+                .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 16)
+                .. "  Eintrag speichern|r")
+            f.StatusText:SetText("|cffD4A24A" .. total
+                .. " Einladung(en) abgeschickt. Der Client gibt die "
+                .. "Einladungsliste nicht her, also kurz warten und "
+                .. "dann speichern.|r")
+            return
+        end
+
+        f.CreateBtnLbl:SetText("|cffffffff"
+            .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 16)
+            .. "  Eintrag speichern (" .. #confirmed .. "/" .. total .. ")|r")
+
+        if #missing == 0 then
+            f.StatusText:SetText("|cff33D65E"
+                .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14)
+                .. " Alle " .. total .. " Einladungen bestätigt. "
+                .. "Jetzt speichern.|r")
+            return
+        end
+
+        -- Rund zwoelf Sekunden sind grosszuegig fuer eine
+        -- Namensaufloesung. Danach ist ein fehlender Name kein
+        -- Wartezustand mehr, sondern eine Antwort: den Charakter gibt
+        -- es so nicht.
+        if attempt < 24 then
+            f.StatusText:SetText("|cffD4A24A"
+                .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14)
+                .. " Der Server bestätigt die Einladungen … "
+                .. #confirmed .. " von " .. total .. ".|r")
+            C_Timer.After(0.5, function() WatchDraft(attempt + 1) end)
+            return
+        end
+
+        f.StatusText:SetText("|cffD4A24A" .. #confirmed .. " von " .. total
+            .. " bestätigt.|r\n|cffE56B6BNicht gefunden:|r "
+            .. table.concat(missing, ", ")
+            .. "\n|cff888888Diese Namen kennt der Server nicht - Schreibweise "
+            .. "prüfen (Crossrealm: Name-Realm) oder in der Anmeldeliste "
+            .. "korrigieren. Speichern geht trotzdem.|r")
+    end
+
+    f.ResetDraft = function()
+        if f.Draft then DiscardDraft() end
+        f.Draft = nil
+        if f.CreateBtnLbl then
+            f.CreateBtnLbl:SetText("|cffffffff" .. LABEL_PREPARE .. "|r")
+        end
+    end
 
     -- Create button logic (needs access to rightPanel data)
     createBtn:SetScript("OnClick", function()
@@ -511,6 +760,47 @@ local function CreateCalendarFrame()
             f.StatusText:SetText("|cffff6666"
                 .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " "
                 .. WeintCodex.Access.Reason("calendar.invite") .. "|r")
+            return
+        end
+
+        ------------------------------------------------
+        -- Zweiter Klick: den vorbereiteten Entwurf speichern
+        ------------------------------------------------
+
+        if f.Draft then
+            local draft   = f.Draft
+            local skipped = draft.skipped or {}
+
+            SaveIngameCalendarEvent(draft, function(success, msg)
+                if success then
+                    if #skipped > 0 then
+                        msg = msg .. "\n|cffD4A24AOhne Charakternamen ("
+                            .. #skipped .. "), nicht eingeladen:|r "
+                            .. table.concat(skipped, ", ")
+                            .. "\n|cff888888In Discord nachtragen: "
+                            .. "/weintcharakter setzen - oder hier in der "
+                            .. "Anmeldeliste ueber das Stift-Symbol.|r"
+                    end
+                    f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
+                    print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
+                        "Eintrag '" .. draft.title .. "' gespeichert.|r")
+                    if #skipped > 0 then
+                        print("|cffD4A24A[WeintCodex Kalender]|r |cffE56B6B"
+                            .. #skipped .. " Anmeldung(en) ohne "
+                            .. "Charakternamen uebersprungen:|r "
+                            .. table.concat(skipped, ", "))
+                    end
+                else
+                    f.StatusText:SetText("|cffE56B6B" .. msg .. "|r")
+                end
+            end)
+
+            -- Gespeichert oder gescheitert: der Entwurf ist in beiden
+            -- Faellen verbraucht. Ihn stehen zu lassen hiesse, dass der
+            -- naechste Klick auf einem Entwurf aufsetzt, den es
+            -- serverseitig nicht mehr gibt.
+            f.Draft = nil
+            f.CreateBtnLbl:SetText("|cffffffff" .. LABEL_PREPARE .. "|r")
             return
         end
 
@@ -575,35 +865,49 @@ local function CreateCalendarFrame()
             AddInvitees(data)
         end
 
-        f.StatusText:SetText("|cffD4A24A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Kalender wird vorbereitet...|r")
+        if #invitePlayers == 0 then
+            f.StatusText:SetText("|cffE56B6B"
+                .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14)
+                .. " Kein einzuladender Spieler mit Charakternamen. "
+                .. "Filter prüfen oder Zuordnungen nachtragen.|r")
+            return
+        end
 
-        CreateIngameCalendarEvent(
+        f.StatusText:SetText("|cffD4A24A" .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14) .. " Entwurf wird angelegt...|r")
+
+        ------------------------------------------------
+        -- Erster Klick: Entwurf anlegen und einladen
+        ------------------------------------------------
+        -- Gespeichert wird hier NICHT. C_Calendar.EventInvite traegt
+        -- niemanden sofort ein, sondern laesst den Namen erst vom
+        -- Server aufloesen; ein AddEvent() im selben Frame speicherte
+        -- einen Termin, in dem nur der Ersteller steht.
+
+        local draft = PrepareIngameCalendarEvent(
             title, descText, dateStr, hour, minute, invitePlayers,
             function(success, msg)
-                if success then
-                    if #skipped > 0 then
-                        msg = msg .. "\n|cffD4A24AOhne Charakternamen ("
-                            .. #skipped .. "), nicht eingeladen:|r "
-                            .. table.concat(skipped, ", ")
-                            .. "\n|cff888888In Discord nachtragen: "
-                            .. "/weintcharakter setzen - oder hier in der "
-                            .. "Anmeldeliste ueber das Stift-Symbol.|r"
-                    end
-                    f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
-                    print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
-                        "Eintrag '" .. title .. "' vorbereitet (" ..
-                        #invitePlayers .. " Spieler).|r")
-                    if #skipped > 0 then
-                        print("|cffD4A24A[WeintCodex Kalender]|r |cffE56B6B"
-                            .. #skipped .. " Anmeldung(en) ohne "
-                            .. "Charakternamen uebersprungen:|r "
-                            .. table.concat(skipped, ", "))
-                    end
-                else
-                    f.StatusText:SetText("|cffE56B6B" .. msg .. "|r")
-                end
+                f.StatusText:SetText(
+                    (success and "|cff33D65E" or "|cffE56B6B") .. msg .. "|r")
             end
         )
+
+        if not draft then return end
+
+        draft.skipped = skipped
+        f.Draft = draft
+
+        print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
+            "Entwurf '" .. title .. "' angelegt, " .. #invitePlayers ..
+            " Einladung(en) abgeschickt. Zum Speichern erneut klicken.|r")
+
+        if #skipped > 0 then
+            print("|cffD4A24A[WeintCodex Kalender]|r |cffE56B6B"
+                .. #skipped .. " Anmeldung(en) ohne "
+                .. "Charakternamen uebersprungen:|r "
+                .. table.concat(skipped, ", "))
+        end
+
+        WatchDraft(0)
     end)
 
     --------------------------------------------------
@@ -1110,6 +1414,32 @@ RefreshPlayerPreview = function(f, raidData)
             "  |cffD4A24A" .. unresolved .. " ohne Charakter|r"
     end
 
+    -- Wie alt der Stand ist, gehoert genau hierhin: das ist die Zeile,
+    -- an der man ablesen will, ob man gleich die richtigen Leute
+    -- einlaedt. Bei zusammengefuehrten Tagen zaehlt der aeltere der
+    -- beiden - er ist der, der einen in die Irre fuehren kann.
+    local stampSource = raidData
+
+    if f.CbMerge:GetChecked() then
+        local w = sd and sd.raidWednesday
+        local t = sd and sd.raidThursday
+        local wa = w and tonumber(w.importedAt) or nil
+        local ta = t and tonumber(t.importedAt) or nil
+        if wa and ta then
+            stampSource = (wa <= ta) and w or t
+        else
+            stampSource = w or t
+        end
+    elseif not stampSource then
+        local key = (activeDay == "thursday") and "raidThursday" or "raidWednesday"
+        stampSource = sd and sd[key]
+    end
+
+    if WeintCodex.Raids and WeintCodex.Raids.Freshness then
+        local freshness, tone = WeintCodex.Raids.Freshness(stampSource)
+        countText = countText .. "\n" .. WeintCodex.ColorText(tone, freshness)
+    end
+
     f.PreviewCount:SetText(countText)
 end
 
@@ -1171,13 +1501,28 @@ function WeintCodex.Calendar.Show()
     f:Show()
     f.StatusText:SetText("")
 
+    -- Den Spielkalender laden lassen, solange noch niemand auf etwas
+    -- geklickt hat. CreatePlayerEvent setzt auf den Kalenderdaten des
+    -- Clients auf, und die holt er sich erst beim ersten Oeffnen vom
+    -- Server. Wie beim Monatsraster in pcall: faellt es aus, steht die
+    -- Seite trotzdem.
+    if C_Calendar and C_Calendar.OpenCalendar then
+        pcall(C_Calendar.OpenCalendar)
+    end
+
     -- Der Knopf bleibt sichtbar, aber sichtbar unzustaendig: so ist erkennbar,
     -- dass es die Funktion gibt, und der Klick nennt den Grund.
     local mayInvite = not WeintCodex.Access or WeintCodex.Access.Can("calendar.invite")
+
+    -- Ein Entwurf aus einem frueheren Besuch der Seite gehoert nicht
+    -- hierher: er traegt Titel, Datum und Einladungen von damals, und
+    -- der erste Klick wuerde ihn speichern statt einen neuen anzulegen.
+    if f.ResetDraft then f.ResetDraft() end
+
     f.CreateBtnLbl:SetText(
         (mayInvite and "|cffffffff" or "|cff8A8178")
         .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 16)
-        .. "  Kalender-Eintrag erstellen|r"
+        .. "  Einladungen vorbereiten|r"
     )
 
     -- Umschalten zwischen Monatsraster und Einladungsformular. Das Formular
@@ -1186,6 +1531,9 @@ function WeintCodex.Calendar.Show()
         f.MonthView:Hide()
         f.Body:Show()
         WeintCodex.Navigation.ClearInspector()
+        -- Der Tageswechsel tauscht Titel, Datum und Spielerliste aus.
+        -- Ein noch offener Entwurf traegt den Stand von vorher.
+        if f.ResetDraft then f.ResetDraft() end
     end
 
     local sidebarItems = {

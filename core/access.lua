@@ -468,6 +468,10 @@ end
 -- genau die Daten, gegen die dieses Modul existiert.
 local GUILD_KEYS = {
     "raidWednesday", "raidThursday", "rosterNameOverrides",
+    -- Die beiseitegelegten Alt-Korrekturen (siehe MigrateOverrides in
+    -- modules/raids.lua) sind Discord-Namen der bisherigen Community
+    -- und gehoeren damit in dieselbe Reihe wie das Roster selbst.
+    "rosterNameOverridesLegacy",
     "materialData", "guildBankCache", "bossData", "weinttv",
 }
 
@@ -492,6 +496,14 @@ function WeintCodex.Access.Unbind()
 
     -- bossData wird von modules/sync.lua als Tabelle erwartet.
     sd.bossData = {}
+
+    -- Den Stand der Live-Bruecke vergessen, damit die naechste
+    -- Zustellung nach der Neubindung wieder eingearbeitet wird -
+    -- sonst bliebe der Client leer, bis sich beim Bot inhaltlich
+    -- etwas aendert.
+    if WeintCodex.Companion and WeintCodex.Companion.ForgetLiveStamp then
+        WeintCodex.Companion.ForgetLiveStamp()
+    end
 
     sd.access = nil
     warnedUnknownTier = false
