@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.2.0.0",
+        date    = "19.08.2026",
+        notes   = {
+            "WeakAuras, die jemand ueber die WeintCompanion fuer die Gilde freigegeben hat, tauchen hier von selbst auf - nach dem naechsten /reload stehen sie in derselben Liste wie die eigenen und die mitgelieferten. Braucht WeintCompanion 2.2.0.",
+            "Jede Zeile sagt jetzt, welche der drei Herkuenfte gilt: \"WeintCodex\" (mit dem Addon geliefert), \"Companion\" (vom eigenen Schreibtisch) oder \"Gilde\" samt Autor. Der Unterschied ist genau der, den man braucht, wenn die Aura nicht stimmt.",
+            "Die Inspektorspalte zaehlt beide Quellen getrennt, sobald es etwas zu zaehlen gibt.",
+        },
+    },
+    {
         version = "2.1.0.0",
         date    = "18.08.2026",
         notes   = {

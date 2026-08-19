@@ -11,6 +11,14 @@
 --      am Schreibtisch eintragen, ohne dass jemand ein Addon-Release
 --      bauen muss.
 --
+-- Die zweite Quelle hat seit 2.2.0.0 zwei Reichweiten, und die Zeile
+-- sagt welche: eine Aura vom eigenen Schreibtisch ("Companion") oder
+-- eine, die jemand ueber den Discord-Bot fuer die ganze Gilde
+-- freigegeben hat ("Gilde"). Getragen wird das vom Feld `scope`;
+-- fehlt es, gilt "vom eigenen Schreibtisch" - eine aeltere Companion
+-- schickt es nicht, und ohne diese Annahme truege nach einem Update
+-- schlagartig jede Aura die falsche Herkunft.
+--
 -- **Die zugestellte Aura gewinnt bei gleicher ID.** Genau das ist der
 -- Weg, eine schon vorhandene Aura zu aktualisieren: die Companion
 -- kennt die IDs der mitgelieferten Auren, weil das Addon sie ihr
@@ -149,7 +157,7 @@ function WeintCodex.WeakAuras.Entries()
                 icon        = entry.icon or (existing and existing.icon),
                 string      = entry.string,
                 sortOrder   = entry.sortOrder or (existing and existing.sortOrder),
-                origin      = "companion",
+                origin      = entry.scope == "guild" and "guild" or "companion",
                 replaced    = existing ~= nil,
             }
 
@@ -356,10 +364,14 @@ function WeintCodex.WeakAuras.ShowCategory(category)
 
     local entries = WeintCodex.WeakAuras.EntriesFor(category)
 
-    local delivered = 0
+    local delivered, shared = 0, 0
 
     for _, entry in ipairs(entries) do
-        if entry.origin == "companion" then delivered = delivered + 1 end
+        if entry.origin == "companion" then
+            delivered = delivered + 1
+        elseif entry.origin == "guild" then
+            shared = shared + 1
+        end
     end
 
     --------------------------------------------------
@@ -418,16 +430,31 @@ function WeintCodex.WeakAuras.ShowCategory(category)
         origin:SetJustifyH("LEFT")
         origin:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
 
-        if aura.origin == "companion" then
+        if aura.origin == "companion" or aura.origin == "guild" then
 
-            local label = aura.replaced and "Companion · ersetzt" or "Companion"
+            -- "Gilde" heisst: jemand hat sie fuer alle freigegeben und
+            -- ist dafuer ansprechbar. "Companion" heisst: sie steht
+            -- nur auf diesem Rechner. Der Unterschied ist der, den man
+            -- braucht, wenn die Aura nicht stimmt.
+            local source = aura.origin == "guild" and "Gilde" or "Companion"
+
+            local label = source
+
+            if aura.replaced then
+                label = source .. " · ersetzt"
+            end
 
             if aura.author ~= "" then
-                label = "Companion · " .. aura.author
+                label = source .. " · " .. aura.author
             end
 
             origin:SetText(WeintCodex.Truncate(label, 24))
-            origin:SetTextColor(C.blue[1], C.blue[2], C.blue[3])
+
+            if aura.origin == "guild" then
+                origin:SetTextColor(C.green[1], C.green[2], C.green[3])
+            else
+                origin:SetTextColor(C.blue[1], C.blue[2], C.blue[3])
+            end
 
         else
 
@@ -614,6 +641,14 @@ function WeintCodex.WeakAuras.ShowCategory(category)
             label = "aus der Companion",
             value = tostring(delivered),
             valueColor = "info",
+        }
+    end
+
+    if shared > 0 then
+        rows[#rows + 1] = {
+            label = "aus der Gilde",
+            value = tostring(shared),
+            valueColor = "success",
         }
     end
 

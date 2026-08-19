@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.2.0.0] – 2026-08-19
+
+### Neu
+- **Eine WeakAura, die jemand für die Gilde freigegeben hat, taucht hier von selbst auf.** 2.1.0.0 brachte den Weg von der Companion ins eigene WeintCodex; er half genau einer Person – der, die die Aura getippt hat. Seit die WeintCompanion sie zusätzlich in eine gemeinsame Bibliothek beim Discord-Bot stellen kann, holt sie sich jede verknüpfte Companion ab und liefert sie hier ein. Nach dem nächsten `/reload` steht sie in derselben Liste wie die eigenen und die mitgelieferten und wird mit demselben Knopf installiert. Braucht **WeintCompanion 2.2.0**
+- **Die Zeile sagt, welche der drei Herkünfte gilt.** Unter dem Namen steht „WeintCodex" (mit dem Addon geliefert), „Companion · <Autor>" (vom eigenen Schreibtisch) oder „Gilde · <Autor>" (jemand hat sie für alle freigegeben) – letzteres in Grün. Der Unterschied ist genau der, den man braucht, wenn die Aura nicht stimmt: bei einer Gildenaura ist jemand dafür ansprechbar
+- Die Inspektorspalte zählt beide Quellen getrennt („aus der Companion", „aus der Gilde"), sobald es etwas zu zählen gibt
+
+### Technisch
+- Getragen wird die Herkunft vom optionalen Feld `scope` der Nachricht `weakaura_library`. **Fehlt es, gilt „vom eigenen Schreibtisch"** – eine ältere Companion schickt es nicht, und ohne diese Annahme trüge nach einem Addon-Update schlagartig jede Aura die falsche Herkunft. In die andere Richtung gilt dasselbe: ein älteres Addon liest das Feld nicht und verhält sich unverändert
+- `WeintCodex.WeakAuras.Catalog()` meldet als `origin` jetzt auch `guild`. Die Companion vergleicht dafür ausdrücklich auf `addon` statt „alles außer companion" – sonst zählte eine Gildenaura dort als mitgeliefert
+- Das Addon spricht weiterhin **nicht** mit dem Bot. Eigene und Gildenauren mischt die Companion und stellt sie als *eine* Liste zu; der Vertrag steht unverändert in `docs/weakaura-bridge.md` drüben
+
 ## [2.1.0.0] – 2026-08-18
 
 ### Neu
