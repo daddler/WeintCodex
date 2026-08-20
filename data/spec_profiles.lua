@@ -16,6 +16,17 @@
 --   bestGems     = { [Sockelfarbe] = { id1, id2, ... } }
 --                  -> Schlüssel: meta, rot, gelb, blau, orange, lila,
 --                     grün, prismatic. Alle IDs gelten als "optimal".
+--                  -> SOCKELfarbe, nicht Steinfarbe: MoP-Gegenstände haben
+--                     nur rote, gelbe, blaue, Meta- und Prismasockel. Die
+--                     Liste beantwortet "was gehört in einen Sockel dieser
+--                     Farbe" — ein farblich passender Mischstein darf und
+--                     soll dort stehen (blau -> grüner Dioptas).
+--                  -> REIHENFOLGE IST RANGFOLGE, und die Liste muss bis
+--                     zum Ende tragen: die Sockelbonus-Entscheidung nimmt
+--                     den ersten Stein, der nicht in einen gecappten Stat
+--                     läuft. Bleibt keiner übrig, gilt Farb-Matchen als
+--                     wertlos — deshalb gehört hinter die Treffer-/
+--                     Waffenkunde-Steine immer noch einer ohne.
 --   gemNote      = Freitext-Hinweis für die Sockel-Seite
 --------------------------------------------------
 
@@ -63,7 +74,12 @@ WeintCodex_SpecProfiles = {
             meta      = { 76886, 95346 },
             rot       = { 76661, 76693, 76696 },  -- match: Gravierter Aragonit; Präziser Rubellit (Waffenkunde-Cap); Klobiger
             gelb      = { 76697, 83146 },         -- Glatter Goldberyll (Krit) / JC-Schlangenauge
-            blau      = { 76641, 76636 },         -- Stechender Dioptas (match); Massiver Chrysokoll (Treffer-Cap)
+            -- Am Trefferkap sind beide wertlos — Gezackter Dioptas
+            -- (Krit+Ausdauer) ist dann der einzige Stein, der einen blauen
+            -- Sockel noch bedient, ohne in den Cap zu laufen. Ohne diesen
+            -- dritten Eintrag hätte die Sockelbonus-Entscheidung gar keinen
+            -- Vergleichswert und erklärte Matchen pauschal für wertlos.
+            blau      = { 76641, 76636, 76652 },  -- Stechender Dioptas (match); Massiver Chrysokoll (Treffer-Cap); Gezackter Dioptas (am Cap)
             orange    = { 76661 },                -- Gravierter Aragonit (Str+Krit)
             lila      = { 76684 },                -- Geätzter Kunzit (Str+Treffer, situativ)
             ["grün"]  = { 76641 },                -- Stechender Dioptas (Krit+Treffer)
@@ -103,7 +119,13 @@ WeintCodex_SpecProfiles = {
             meta      = { 76886, 95346 },
             rot       = { 76661, 76693, 76696 },
             gelb      = { 76697, 83146 },
-            blau      = { 76641, 76636 },
+            -- Dritter Eintrag wie beim Waffen-Krieger: am Trefferkap
+            -- tragen weder Stechender Dioptas noch Massiver Chrysokoll
+            -- noch etwas bei. Gemeldet an genau diesem Fall — blauer
+            -- Sockel mit +60 Stärke Bonus, Treffer am Cap: Matchen kostet
+            -- dann 8.400 Wertung und bringt 6.000, der reine Kritstein
+            -- gewinnt. Die Entscheidung soll das ausrechnen können.
+            blau      = { 76641, 76636, 76652 },
             orange    = { 76661 },
             lila      = { 76684 },
             ["grün"]  = { 76641 },

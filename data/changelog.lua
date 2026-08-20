@@ -7,6 +7,18 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.3.0.1",
+        date    = "20.08.2026",
+        notes   = {
+            "Ein gelber Stein galt in einem blauen Sockel als \"Optimal\" - und darueber stand, der Sockelbonus sei genutzt. Ein gelber Stein aktiviert keinen blauen Sockel. Bewertet wurde nach der Farbe des STEINS statt nach der des SOCKELS; jetzt zaehlt der Sockel, und ein farblich nicht passender Stein ist nie optimal, solange der Bonus sich lohnt.",
+            "Die Zeile \"Sockelbonus\" sagte die Empfehlung und klang wie eine Tatsache. Sie liest den Zustand jetzt an den angelegten Steinen ab (\"aktiv (Farben passen)\" / \"nicht aktiv - Steinfarbe passt nicht zum Sockel\") und nennt die Empfehlung getrennt davon.",
+            "Am Trefferkap widersprachen sich Entscheidung und Empfehlung: die eine riet zum Farb-Matchen, die andere schlug den reinen Kritstein vor. Die Sockelbonus-Entscheidung rechnet jetzt mit gecappten Werten - beim Furor-Krieger mit blauem Sockel und +60 Staerke kostet Matchen 8.400 Wertung und bringt 6.000, der reine Kritstein gewinnt also.",
+            "Die Meldung \"Verzauberungs-ID 4416 (Handgelenke) passt nicht zur Datenbank\" war ein Fehlalarm. Nennt der Client eine Verzauberung nur beim Namen und kennen wir diesen Namen nicht, ist das kein Widerspruch, sondern eine Luecke in unserer Namenspflege - die Zeile sagt das jetzt leise, statt einen Mangel zu behaupten.",
+            "Handgelenks-Beweglichkeit stand mit 170 statt 180 in der Datenbank.",
+            "/wc vz nennt bei jedem Stein Steinfarbe und Sockelfarbe.",
+        },
+    },
+    {
         version = "2.3.0.0",
         date    = "19.08.2026",
         notes   = {

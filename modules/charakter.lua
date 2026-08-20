@@ -929,7 +929,10 @@ end
 --   stats       Stats der Verzauberung (Tooltip bevorzugt)
 --   scanned     ausschliesslich die vom Item-Tooltip gelesenen Werte
 --               (Grundlage des Werteabgleichs in EvaluateEnchant)
---   mismatch    Tooltip und DB widersprechen sich
+--   mismatch    Tooltip und DB widersprechen sich (Werte oder ID)
+--   unknownName der Client nennt die Verzauberung anders als die DB,
+--               ohne Werte zum Gegenprüfen — kein Widerspruch, nur eine
+--               Lücke in unserer Namenspflege
 --   corrected   ID wurde über Slot+Stats ersetzt
 --   unverified  kein Live-Scan möglich (Name stammt ungeprüft aus der DB)
 local function ResolveEnchant(slotId, enchId, link, enchSlot)
@@ -976,10 +979,35 @@ local function ResolveEnchant(slotId, enchId, link, enchSlot)
         return res
     end
 
-    -- 3) Nichts Passendes gefunden: ehrlich den Tooltip-Text zeigen
-    res.name     = scan.name
-    res.stats    = scanned
-    res.mismatch = (db ~= nil)
+    -- 3) Nichts Passendes gefunden: ehrlich den Tooltip-Text zeigen.
+    --
+    -- WIE LAUT WIR WERDEN, ENTSCHEIDET, WAS DIE ZEILE HERGIBT.
+    -- Eine Zeile MIT Werten, zu der kein Eintrag dieses Slots passt,
+    -- widerspricht unserer Tabelle tatsächlich — genau dafür ist die
+    -- Warnung da (falsch zugeordnete IDs gab es mehrfach: 4412/4415,
+    -- 4430/4432). Eine reine NAMENSZEILE ohne Werte widerspricht ihr
+    -- dagegen nicht. Sie sagt nur: den Client-Namen dieser ID kennen wir
+    -- nicht — und der Name ist das unzuverlässigste Feld von
+    -- data/enchants.lua. Er ist von Hand gepflegt, MoP-Verzauberungs-IDs
+    -- lassen sich am Client nicht auflösen, und Blizzard hat die deutschen
+    -- Namen mitten in der Erweiterung umbenannt (dieselbe Ursache wie bei
+    -- den Steinen, siehe Kopf von data/gems.lua).
+    --
+    -- Daran hing der Fehlalarm "Verzauberungs-ID 4416 (Handgelenke) passt
+    -- nicht zur Datenbank": angelegt war die richtige Verzauberung, ihr
+    -- Name stand hier nur anders. Eine Warnung, die den Nutzer auf einen
+    -- Mangel stösst, den es nicht gibt, ist schlechter als keine.
+    res.name = scan.name
+    if scanned then
+        res.stats    = scanned
+        res.mismatch = (db ~= nil)
+    else
+        -- Ohne gelesene Werte sind die Zahlen der DB das Beste, was wir
+        -- haben — der Cap-Abgleich und der Werteabgleich brauchen sie.
+        -- Die Zeile sagt selbst dazu, dass der Name ungeprüft ist.
+        res.stats       = db and db.stats or nil
+        res.unknownName = (db ~= nil)
+    end
     return res
 end
 
@@ -1197,6 +1225,83 @@ local function IsInList(id, list)
     return false
 end
 
+--------------------------------------------------
+-- FARBE DES STEINS vs. FARBE DES SOCKELS
+--
+-- Zwei verschiedene Fragen, die bis 2.3.0.0 dieselbe Variable benutzten:
+--   * Welcher Stein gehört hier hinein?   -> Farbe des SOCKELS
+--   * Löst der Stein den Sockelbonus aus? -> Farbe des STEINS
+-- Die Bewertung fragte nach der Steinfarbe und verglich einen gelben
+-- Kritstein deshalb mit der Empfehlung für GELBE Sockel — in der er an
+-- erster Stelle steht. Ergebnis: "Optimal" für einen Stein, der in einem
+-- blauen Sockel steckt und dessen Bonus gar nicht auslösen kann.
+--------------------------------------------------
+
+-- MoP-Regel: die Mischfarben zählen für BEIDE Grundfarben.
+local SOCKET_ACCEPTS = {
+    rot  = { rot = true,  orange = true, lila = true },
+    gelb = { gelb = true, orange = true, ["grün"] = true },
+    blau = { blau = true, lila = true,   ["grün"] = true },
+    meta = { meta = true },
+}
+
+-- Steine, die jeden Sockel bedienen (Prisma-/Einfachsteine).
+local UNIVERSAL_GEM_COLORS = { prismatic = true, einfach = true }
+
+-- Farbe der Unterklasse: Steine sind Gegenstandsklasse 3, und ihre
+-- Unterklasse IST die Farbe. Das ist — wie ITEM_MOD_* beim Werteabgleich —
+-- die einzige Farbquelle, die weder von unserer Datenpflege noch von der
+-- Übersetzung abhängt, und deckt die Steine ab, die in data/gems.lua
+-- fehlen (Schlangenaugen, "perfekte" Varianten, Zweit-IDs).
+local GEM_SUBCLASS_COLOR = {
+    [0] = "rot",  [1] = "blau",   [2] = "gelb", [3] = "lila",
+    [4] = "grün", [5] = "orange", [6] = "meta",
+    [7] = "einfach", [8] = "prismatic",
+}
+
+local function GemColor(gemId)
+    if not gemId then return nil end
+    local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
+    if db and db.color then return db.color end
+    local _, _, _, _, _, _, _, _, _, _, _, classId, subclassId = GetItemInfo(gemId)
+    if classId == 3 and subclassId then
+        return GEM_SUBCLASS_COLOR[subclassId]
+    end
+    return nil
+end
+
+-- Aktiviert dieser Stein diesen Sockel? Unbekannte Steinfarbe => nil
+-- ("weiss ich nicht"), damit die Anzeige das sagen kann, statt einen
+-- aktiven oder inaktiven Bonus zu behaupten.
+local function GemMatchesSocket(gemColor, socketColor)
+    if not socketColor or socketColor == "prismatic" then return true end
+    local accepts = SOCKET_ACCEPTS[socketColor]
+    if not accepts then return true end
+    if not gemColor then return nil end
+    if UNIVERSAL_GEM_COLORS[gemColor] then return true end
+    return accepts[gemColor] == true
+end
+
+-- Erster Stein einer Liste, der KEINEN bereits übercappten Stat liefert.
+-- Sitzt in einer eigenen Funktion, weil ihn zwei Stellen brauchen, die
+-- sich sonst widersprechen: die Empfehlung und die Sockelbonus-
+-- Entscheidung, die diese Empfehlung vorwegnehmen muss.
+local function FirstUncappedGem(list, overStats)
+    if not list then return nil end
+    if not (overStats and next(overStats)) then return list[1] end
+    for _, id in ipairs(list) do
+        local st = SM.GemStats(id)
+        local blocked = false
+        if st then
+            for stat in pairs(overStats) do
+                if st[stat] then blocked = true; break end
+            end
+        end
+        if not blocked then return id end
+    end
+    return nil
+end
+
 -- Empfehlung für einen Sockel: erster Stein der Liste,
 -- der KEINEN bereits übercappten Stat liefert. Sind alle
 -- Kandidaten der Sockelfarbe gecappt, weiche auf die
@@ -1220,23 +1325,10 @@ local function PickGemRecommendation(socketColor, profile, overStats, decision)
     end
     if not list then return nil end
 
-    if overStats then
-        local function FirstUncapped(lst)
-            for _, id in ipairs(lst) do
-                local st = SM.GemStats(id)
-                local blocked = false
-                if st then
-                    for stat in pairs(overStats) do
-                        if st[stat] then blocked = true; break end
-                    end
-                end
-                if not blocked then return id end
-            end
-            return nil
-        end
-        local pick = FirstUncapped(list)
+    if overStats and next(overStats) then
+        local pick = FirstUncappedGem(list, overStats)
         if not pick and profile.bestGems.prismatic then
-            pick = FirstUncapped(profile.bestGems.prismatic)
+            pick = FirstUncappedGem(profile.bestGems.prismatic, overStats)
         end
         if pick then return pick end
     end
@@ -1258,24 +1350,56 @@ end
 --   auf einem reinen DPS-Item), verliert MATCH und wir empfehlen den
 --   stärkeren Universalstein — genau das gewünschte Verhalten.
 --
+--   BEIDE SEITEN RECHNEN MIT GECAPPTEN STATS. Ein Stein, dessen Wertung
+--   in einem Stat über dem Cap steckt, ist keine Wertung mehr — weder als
+--   Anker noch als Farb-Kandidat. Ohne das trafen Entscheidung und
+--   Empfehlung verschiedene Aussagen über dasselbe Item.
+--
 --   Rückgabe (Tabelle):
 --     bonus       = { stat, value } | nil
 --     bonusScore  = gewichteter Wert des Bonus
 --     matchCost   = Wertungsverlust durchs Farb-Matchen
---     worthwhile  = bool (Bonus lohnt den Farb-Match)
---     pureId      = empfohlener Universalstein (prismatic[1])
+--     worthwhile  = bool (Bonus lohnt den Farb-Match) -> EMPFEHLUNG
+--     active      = bool | nil (Bonus liegt an)       -> ZUSTAND
+--     pureId      = empfohlener Universalstein (erster ungecappter)
 --     pureScore   = dessen gewichtete Wertung (Bewertungs-Anker)
 --------------------------------------------------
 
-local function EvaluateSocketBonus(bonus, sockets, profile)
+-- Ist der Sockelbonus an diesem Gegenstand TATSÄCHLICH aktiv? Das steht
+-- an den angelegten Steinen und hat mit unserer Empfehlung nichts zu tun.
+-- Rückgabe: true | false | nil (mindestens ein Stein farblich unbekannt,
+-- oder gar kein farbiger Sockel am Gegenstand).
+local function SocketBonusActive(sockets)
+    local anyColored, unknown = false, false
+    for _, socket in ipairs(sockets) do
+        local color = socket.color
+        if color and color ~= "meta" and color ~= "prismatic" then
+            anyColored = true
+            if not socket.gemId then return false end
+            local matches = GemMatchesSocket(GemColor(socket.gemId), color)
+            if matches == false then return false end
+            if matches == nil then unknown = true end
+        end
+    end
+    if not anyColored or unknown then return nil end
+    return true
+end
+
+local function EvaluateSocketBonus(bonus, sockets, profile, overStats)
     local decision = { bonus = bonus, worthwhile = true }
+    decision.active = SocketBonusActive(sockets)
     if not profile or not profile.bestGems or not profile.statWeights then
         return decision
     end
 
     local weights = profile.statWeights
 
-    local pureId = profile.bestGems.prismatic and profile.bestGems.prismatic[1]
+    -- Der Anker ist der Stein, den die Empfehlung ohne Bonus WIRKLICH
+    -- vorschlagen würde — also der erste ungecappte, nicht blind
+    -- prismatic[1]. Sonst rechnet die Entscheidung mit einem anderen Stein
+    -- als die Zeile darunter empfiehlt.
+    local pureId = FirstUncappedGem(profile.bestGems.prismatic, overStats)
+                   or (profile.bestGems.prismatic and profile.bestGems.prismatic[1])
     decision.pureId = pureId
     if not pureId then return decision end
 
@@ -1290,16 +1414,35 @@ local function EvaluateSocketBonus(bonus, sockets, profile)
 
     -- Kosten des Matchens: pro FARBIGEM Sockel die Wertungsdifferenz
     -- zwischen dem Universalstein und dem besten farblich passenden
-    -- Empfehlungsstein (bestGems[Farbe][1]). Ist der passende Stein
-    -- gleich gut oder besser (z.B. roter Primärstein im roten Sockel),
-    -- kostet der Sockel 0 -> Matchen ist gratis.
+    -- Empfehlungsstein. Ist der passende Stein gleich gut oder besser
+    -- (z.B. roter Primärstein im roten Sockel), kostet der Sockel 0 ->
+    -- Matchen ist gratis.
+    --
+    -- CAPS GEHÖREN HIERHER, NICHT ERST IN DIE EMPFEHLUNG. Der beste blaue
+    -- Stein des Furor-Kriegers ist "Stechender Dioptas" (+160 Krit, +160
+    -- Treffer) — solange Treffer unter dem Cap liegt, schlägt er den reinen
+    -- Kritstein und Matchen ist gratis. Am Trefferkap ist seine halbe
+    -- Wertung wertlos, und der Bonus von +60 Stärke bezahlt die Differenz
+    -- nicht mehr. Genau das rechnete diese Funktion nicht mit: sie erklärte
+    -- das Matchen für lohnend, während die Empfehlungszeile darunter wegen
+    -- desselben Caps längst den gelben Kritstein vorschlug.
     local matchCost = 0
     for _, socket in ipairs(sockets) do
         local color = socket.color
         if color and color ~= "meta" and color ~= "prismatic" then
-            local colorList  = profile.bestGems[color]
-            local colorId    = colorList and colorList[1]
-            local colorScore = colorId and ScoreStats(SM.GemStats(colorId), weights) or pureScore
+            local colorList = profile.bestGems[color]
+            local colorScore
+            if not colorList or #colorList == 0 then
+                -- Keine Liste für diese Farbe: wir wissen nichts, was gegen
+                -- das Matchen spricht (bisheriges Verhalten).
+                colorScore = pureScore
+            else
+                local colorId = FirstUncappedGem(colorList, overStats)
+                -- Kein passender Stein mehr übrig, der nicht in einen
+                -- gecappten Stat läuft: Matchen kostet dann die volle
+                -- Wertung des Universalsteins, nicht bloss eine Differenz.
+                colorScore = colorId and ScoreStats(SM.GemStats(colorId), weights) or 0
+            end
             local diff = pureScore - colorScore
             if diff > 0 then matchCost = matchCost + diff end
         end
@@ -1329,6 +1472,9 @@ local LEGENDARY_META = {
 -- Matchen für dieses Item nicht, ist der reine Primärstein (prismatic)
 -- das Ziel: ein solcher Off-Color-Stein zählt dann als OPTIMAL (statt
 -- fälschlich "falsch"), ein Farb-Stein nur als "ok" (Empfehlung: umsockeln).
+-- Lohnt es sich dagegen, kann ein farblich nicht passender Stein nie
+-- "Optimal" sein — er kostet den Bonus, den wir gerade für lohnend
+-- erklärt haben.
 --
 -- Statquelle ist seit 2.0.0.3 durchgehend SM.GemStats statt
 -- WeintCodex_GemStats: fehlt ein Stein in data/gem_stats.lua, fragt der
@@ -1338,9 +1484,18 @@ local LEGENDARY_META = {
 local function EvaluateGem(gemId, socketColor, profile, decision)
     if not gemId then return "missing", nil, false end
 
-    local gemData  = WeintCodex_Gems and WeintCodex_Gems[gemId]
-    local colorKey = (gemData and gemData.color) or socketColor
-    local isMeta   = (colorKey == "meta") or (socketColor == "meta")
+    local gemColor = GemColor(gemId)
+    local isMeta   = (gemColor == "meta") or (socketColor == "meta")
+
+    -- GEMESSEN WIRD GEGEN DIE FARBE DES SOCKELS, nicht gegen die des
+    -- Steins (siehe SOCKET_ACCEPTS weiter oben): bestGems[Farbe] ist die
+    -- Empfehlung FÜR einen Sockel dieser Farbe, und exakt diese Liste
+    -- benutzt auch PickGemRecommendation für die Zeile daneben.
+    local colorKey = socketColor or gemColor
+
+    -- Löst der angelegte Stein den Sockelbonus überhaupt aus? nil heisst
+    -- "Steinfarbe unbekannt" — dann nicht abwerten.
+    local matches  = GemMatchesSocket(gemColor, socketColor)
 
     -- Legendärer Meta-Stein: rollengerecht => optimal,
     -- andere Rolle => nur Hinweis (nie "falsch")
@@ -1374,8 +1529,19 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
     local bestList = profile and profile.bestGems and colorKey
                      and profile.bestGems[colorKey]
 
+    -- Der Sockelbonus lohnt sich (sonst wären wir oben schon raus), also
+    -- kostet ein farblich nicht passender Stein diesen Bonus. So gut seine
+    -- Werte auch sind — "Optimal" ist er damit nicht, denn genau darüber
+    -- steht die Zeile "Sockelbonus: … aktiv". Beides muss dasselbe sagen.
+    local function Rank(status, pct, unknown, equiv)
+        if status == "optimal" and matches == false then
+            return "ok", pct, unknown, equiv
+        end
+        return status, pct, unknown, equiv
+    end
+
     if IsInList(gemId, bestList) then
-        return "optimal", 100, false
+        return Rank("optimal", 100, false)
     end
 
     local weights = profile and profile.statWeights
@@ -1394,8 +1560,8 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
         local verdict, refId, ratio =
             SM.MatchAgainstList(myStats, bestList, SM.GemStats)
         if SM.IsMatch(verdict) then
-            return "optimal", 100, false,
-                   { verdict = verdict, refId = refId, ratio = ratio }
+            return Rank("optimal", 100, false,
+                        { verdict = verdict, refId = refId, ratio = ratio })
         end
     end
 
@@ -1408,7 +1574,7 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
         end
         if best > 0 then
             local pct = math.floor((myScore / best) * 100 + 0.5)
-            if pct >= 90 then return "optimal", pct, false end
+            if pct >= 90 then return Rank("optimal", pct, false) end
             if pct >= 65 then return "ok", pct, false end
             -- Meta-Steine nie als "falsch" werten: ihre Proc-Effekte
             -- (z.B. Mana-Ersparnis, Schadensreduktion) stecken nicht
@@ -1559,6 +1725,18 @@ local function ScanCharacter()
     local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
     local capStates = BuildCapStates(profile)
 
+    -- Welche Stats stehen schon über ihrem Cap? Das muss VOR der
+    -- Sockelbonus-Entscheidung feststehen, nicht erst im Overcap-Pass
+    -- danach: sie rechnete sonst mit einem Stein, den die Empfehlung
+    -- wegen genau dieses Caps gar nicht mehr vorschlägt (Furor-Krieger am
+    -- Trefferkap: Entscheidung "matchen", Empfehlung "reiner Kritstein").
+    -- Das Markieren der einzelnen Zeilen bleibt unten — dafür braucht es
+    -- die Zeilen, für die Menge der gecappten Stats reicht capStates.
+    local overStats = {}
+    for _, cs in ipairs(capStates) do
+        if cs.overPct > 0.25 then overStats[cs.stat] = true end
+    end
+
     local scan = {
         profile     = profile,
         profileKey  = profileKey,
@@ -1614,6 +1792,7 @@ local function ScanCharacter()
                     displayName  = res and res.name,
                     enchStats    = res and res.stats,
                     mismatch     = res and res.mismatch,
+                    unknownName  = res and res.unknownName,
                     unverified   = res and res.unverified,
                     status       = status,
                     equiv        = equiv,
@@ -1628,7 +1807,7 @@ local function ScanCharacter()
                 -- Sockelbonus des Items auslesen und pro Item einmal
                 -- entscheiden, ob Farb-Matchen den Bonus wert ist.
                 local bonus, bonusText = ScanSocketBonus(slotDef.id)
-                local decision = EvaluateSocketBonus(bonus, sockets, profile)
+                local decision = EvaluateSocketBonus(bonus, sockets, profile, overStats)
                 decision.bonusText = bonusText
 
                 for _, socket in ipairs(sockets) do
@@ -1659,11 +1838,8 @@ local function ScanCharacter()
     --    (z.B. weitere Treffer-Steine trotz 15% Cap)
     --------------------------------------------------
 
-    local overStats = {}
     for _, cs in ipairs(capStates) do
         if cs.overPct > 0.25 then
-            overStats[cs.stat] = true
-
             local budget = cs.overRating
             local cands = {}
 
@@ -1914,7 +2090,7 @@ function WeintCodex.Charakter.DumpEnchants()
     for _, slotDef in ipairs(EQUIP_SLOTS) do
         local link = GetInventoryItemLink("player", slotDef.id)
         if link then
-            local enchId, gems = ParseItemLink(link)
+            local enchId = ParseItemLink(link)
             if enchId then
                 any = true
                 local scan = ScanEquippedEnchant(slotDef.id, enchId, link,
@@ -1961,14 +2137,19 @@ function WeintCodex.Charakter.DumpEnchants()
                 print(string.format("  %s: VZ-ID %d = %s%s%s",
                     slotDef.name, enchId, tt or (db and db.name) or "?", statStr, marker))
             end
-            for g = 1, 4 do
-                if gems[g] then
+            -- Ueber die SOCKEL laufen, nicht nur ueber die Stein-IDs des
+            -- Links: welcher Stein in welcher Sockelfarbe steckt, ist die
+            -- Frage, an der die Bewertung haengt (ein gelber Stein in einem
+            -- blauen Sockel loest den Sockelbonus nicht aus). Von aussen war
+            -- das bisher nirgends abzulesen.
+            for _, socket in ipairs(ScanItemSockets(link, slotDef.id)) do
+                if socket.gemId then
                     any = true
                     -- Quelle mit ausgeben: "client"/"tooltip" heisst, der
                     -- Stein fehlt in data/gem_stats.lua und wurde nur ueber
                     -- den Werteabgleich bewertet — genau die Zeilen, die dort
                     -- nachgetragen gehoeren.
-                    local stats, source = SM.GemStats(gems[g])
+                    local stats, source = SM.GemStats(socket.gemId)
                     local statStr = ""
                     if stats then
                         statStr = "  |cff4A4A52[" .. (SM.FormatStats(stats) or "")
@@ -1978,8 +2159,21 @@ function WeintCodex.Charakter.DumpEnchants()
                                 .. " Werte vom Client: " .. tostring(source) .. ")|r"
                         end
                     end
-                    print(string.format("  %s: Stein-ID %d = %s%s",
-                        slotDef.name, gems[g], GetGemDisplayName(gems[g]) or "?", statStr))
+
+                    local gemColor = GemColor(socket.gemId)
+                    local matches  = GemMatchesSocket(gemColor, socket.color)
+                    local colorStr = string.format("  |cff4A4A52%s in %s|r",
+                        gemColor or "Farbe?", socket.color or "?")
+                    if matches == false then
+                        colorStr = colorStr .. "  |cffFFBB22(kein Farbtreffer"
+                            .. " — Sockelbonus nicht aktiv)|r"
+                    elseif matches == nil then
+                        colorStr = colorStr .. "  |cffff9900(Steinfarbe unbekannt)|r"
+                    end
+
+                    print(string.format("  %s: Stein-ID %d = %s%s%s",
+                        slotDef.name, socket.gemId,
+                        GetGemDisplayName(socket.gemId) or "?", statStr, colorStr))
                 end
             end
         end
@@ -2427,6 +2621,11 @@ function ShowEnchants()
             elseif row.mismatch then
                 curLbl:SetText(n .. " |cffFFBB22(ID " .. tostring(row.enchId)
                     .. " abweichend – /wc vz)|r")
+            elseif row.unknownName then
+                -- Kein Widerspruch, nur ein Name, den data/enchants.lua so
+                -- nicht kennt (siehe ResolveEnchant). Angezeigt wird der
+                -- des Clients, gerechnet wird mit den Werten der DB.
+                curLbl:SetText(n .. " |cff4A4A52(Name so nicht in der Datenbank)|r")
             else
                 curLbl:SetText(n)
             end
@@ -2539,10 +2738,31 @@ function ShowGems()
             -- Sockelbonus + Entscheidung (genutzt / ignoriert)
             local dec = row.decision
             if dec and dec.bonus and dec.bonusText then
-                local used = (dec.worthwhile ~= false)
-                local verdict = used
-                    and "|cff22C55Egenutzt (Farbe matchen)|r"
-                    or  "|cffFFBB22ignoriert — reiner Primärstein stärker|r"
+                -- ZWEI AUSSAGEN, NICHT EINE. "genutzt" stand hier für
+                -- `worthwhile ~= false` — also für unsere EMPFEHLUNG,
+                -- formuliert wie eine Tatsache über den Gegenstand. An
+                -- einem blauen Sockel mit gelbem Stein behauptete das
+                -- Fenster damit einen Bonus, den es nicht gibt (gemeldet
+                -- am Furor-Krieger: "Sockelbonus: +60 Stärke — genutzt"
+                -- über "Blauer Sockel #1: Glatter Goldberyll").
+                -- dec.active liest den Zustand an den ANGELEGTEN Steinen
+                -- ab; nil heisst "Steinfarbe unbekannt".
+                local verdict
+                if dec.worthwhile == false then
+                    if dec.active == true then
+                        verdict = "|cffFFBB22aktiv, lohnt sich aber nicht — reiner Primärstein ist stärker|r"
+                    elseif dec.active == false then
+                        verdict = "|cff22C55Ebewusst ignoriert — reiner Primärstein ist stärker|r"
+                    else
+                        verdict = "|cff22C55Elohnt sich nicht — reiner Primärstein ist stärker|r"
+                    end
+                elseif dec.active == true then
+                    verdict = "|cff22C55Eaktiv (Farben passen)|r"
+                elseif dec.active == false then
+                    verdict = "|cffFFBB22nicht aktiv — Steinfarbe passt nicht zum Sockel|r"
+                else
+                    verdict = "|cff4A4A52lohnt sich — Farben matchen|r"
+                end
                 local bonusLine = inner:CreateFontString(nil, "OVERLAY")
                 bonusLine:SetFont(WeintCodex.Fonts.sans, 9, "")
                 bonusLine:SetPoint("TOPLEFT", inner, "TOPLEFT", 16, yOff - 1)

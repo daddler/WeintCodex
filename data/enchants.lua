@@ -126,7 +126,11 @@ WeintCodex_Enchants = {
     -- Wert korrigiert 2026-07-25: Live-Tooltip zeigt +180 Stärke (nicht 170).
     [4415] = { name = "Außergewöhnliche Stärke", slot = "Handgelenke", stats = { strength = 180 } },
     [4414] = { name = "Erstklassige Intelligenz", slot = "Handgelenke", stats = { intellect = 180 } },  -- WoWHead: "Armschiene - Erstklassige Intelligenz" (item 74703)
-    [4416] = { name = "Große Beweglichkeit",     slot = "Handgelenke", stats = { agility = 170 } },
+    -- Wert korrigiert 2026-08-20 (Nutzerbericht, Live-Tooltip): +180
+    -- Beweglichkeit, nicht 170 — dieselbe Altlast wie bei 4415 daneben.
+    -- Die MoP-Handgelenke geben auf allen drei Primärwerten 180; nur die
+    -- Sekundärwertung (4411) bleibt bei 170.
+    [4416] = { name = "Große Beweglichkeit",     slot = "Handgelenke", stats = { agility = 180 } },
 
     --------------------------------------------------
     -- HÄNDE
