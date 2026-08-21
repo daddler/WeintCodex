@@ -178,7 +178,15 @@ WeintCodex_Enchants = {
     [4426] = { name = "Großes Tempo",                  slot = "Füße", stats = { haste = 175 }, verify = true },
     [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
     -- "Pandarenpfoten" (Meisterschaft + geringe Bewegungsgeschwindigkeit).
-    [4429] = { name = "Pandarenpfoten",                slot = "Füße", stats = { mastery = 175 }, verify = true },
+    -- WERT KORRIGIERT (2.3.0.2): stand hier bis dahin mit 175 Meisterschaft
+    -- und damit auf demselben Niveau wie das Tempo-Enchant. Die Verzauberung
+    -- gibt 140 — bestätigt am deutschen Gegenstand 74718 ("Stiefel -
+    -- Pandarenpfoten … erhöht Bewegungstempo geringfügig und
+    -- Meisterschaftswertung um 140"). Die falsche Zahl war keine Kosmetik:
+    -- sie liess 140 Meisterschaft gegen 175 Tempo wie einen Gleichstand
+    -- aussehen und steht damit hinter den Stiefel-Empfehlungen in
+    -- data/spec_profiles.lua.
+    [4429] = { name = "Pandarenpfoten",                slot = "Füße", stats = { mastery = 140 } },
     -- Boots-Tempo (bestätigt via Nutzer/Wowhead), selber Effekt wie 4426.
     -- Schlüssel = Item-ID (74715); Bewertung über Name-Abgleich
     -- ("Verzaubert: Großes Tempo").

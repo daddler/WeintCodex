@@ -592,7 +592,13 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },
+            -- Großes Tempo, nicht Pandarenpfoten (Nutzerbericht 21.08.2026):
+            -- die Stiefel geben 175 Tempo gegen 140 Meisterschaft. Bei den
+            -- Gewichten dieses Profils (Meisterschaft 85, Tempo 75) sind das
+            -- 13.125 gegen 11.900 — Tempo gewinnt, obwohl Meisterschaft der
+            -- höher gewichtete Stat ist. Der frühere Eintrag stammt aus der
+            -- Zeit, als 4429 in data/enchants.lua mit 175 Meisterschaft stand.
+            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
             Ring         = { 84576 },
         },
         bestGems = {
@@ -739,7 +745,13 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },
+            -- Großes Tempo, nicht Pandarenpfoten (Nutzerbericht 21.08.2026):
+            -- die Stiefel geben 175 Tempo gegen 140 Meisterschaft. Bei den
+            -- Gewichten dieses Profils (Meisterschaft 85, Tempo 75) sind das
+            -- 13.125 gegen 11.900 — Tempo gewinnt, obwohl Meisterschaft der
+            -- höher gewichtete Stat ist. Der frühere Eintrag stammt aus der
+            -- Zeit, als 4429 in data/enchants.lua mit 175 Meisterschaft stand.
+            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
             Ring         = { 84576 },
         },
         bestGems = {

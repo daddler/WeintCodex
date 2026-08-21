@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.3.0.2] – 2026-08-21
+
+### Behoben
+- **Der Elementarschamane bekam „Pandarenpfoten" empfohlen, obwohl auf seinen Stiefeln „Großes Tempo" lag — und das ist die richtige Verzauberung.** Gemeldet mit dem Ausrüstungs-Check eines korrekt verzauberten Charakters: unter *Handlungsbedarf* stand „Füße: Verzauberung nicht ideal -> Pandarenpfoten". Die Ursache lag eine Ebene tiefer, in `data/enchants.lua`: *Stiefel - Pandarenpfoten* war dort mit **175 Meisterschaft** eingetragen. Die Verzauberung gibt **140** (plus geringfügiges Bewegungstempo) — mit der falschen Zahl sahen 140 Meisterschaft und 175 Tempo wie derselbe Wert aus, und für ein Profil, das Meisterschaft höher gewichtet als Tempo, gewann dann eben Meisterschaft. Mit der richtigen Zahl sagen die Gewichte des Profils selbst das Gegenteil: 140 × 85 = 11.900 gegen 175 × 75 = 13.125. Empfohlen wird jetzt *Großes Tempo*
+- **„Stiefel - Pandarenpfoten" stand mit dem falschen Wert in der Datenbank.** Das traf nicht nur die Empfehlung: Wer die Verzauberung trägt, wo sie richtig ist, dem hielt der Werteabgleich die eigenen 140 Meisterschaft gegen unsere 175 und stufte sie als „schwächere Stufe" ein — eine Beanstandung an einer Verzauberung, an der nichts auszusetzen war. Die Zahl ist am deutschen Gegenstand 74718 bestätigt und trägt deshalb keinen `verify`-Marker mehr
+
+### Technisch
+- Der falsche Wert steht hinter mehr als der einen gemeldeten Zeile: **dreizehn weitere Specs** führen *Pandarenpfoten* an erster Stelle für die Füße, obwohl mit 140 statt 175 die eigenen `statWeights` dieser Profile *Großes Tempo* vorne sehen — Waffen- und Furorkrieger, Schattenpriester, Unheilig, Wiederherstellung/Schamane, alle drei Magier, alle drei Hexenmeister, Gleichgewicht und Wiederherstellung/Druide. Der Abstand reicht von 3 % (Zerstörung) bis 100 % (Frost). Sie sind in diesem Stand **nicht** mitgeändert worden: die Listen sind von Hand gepflegt, und *Pandarenpfoten* bringt zusätzlich Bewegungstempo, das in keinem Gewicht steht. Die Entscheidung gehört pro Spec getroffen, nicht aus einer Formel abgeleitet — deshalb hier als offener Punkt notiert statt still umgeschrieben. Umgekehrt bleibt *Pandarenpfoten* bei Schutz/Krieger, Heilig/Paladin, Disziplin, Heilig/Priester, Frost/Todesritter und Braumeister auch mit der richtigen Zahl die stärkere Wahl
+- `["Füße"]` des Elementarschamanen führt `{ 74715, 4426 }` — dieselbe Doppelung wie bei den anderen Tempo-Profilen. Der Client meldet für dieselbe Verzauberung mal die Gegenstands-, mal die Verzauberungs-ID; beide Einträge zeigen auf denselben Namen und dieselben Werte
+
 ## [2.3.0.1] – 2026-08-20
 
 ### Behoben

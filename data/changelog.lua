@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.3.0.2",
+        date    = "21.08.2026",
+        notes   = {
+            "Der Elementarschamane bekam \"Pandarenpfoten\" fuer die Stiefel empfohlen, obwohl \"Grosses Tempo\" die richtige Verzauberung ist. Schuld war eine falsche Zahl in unserer Datenbank: Pandarenpfoten stand dort mit 175 Meisterschaft, gibt aber 140. Damit sahen 140 Meisterschaft und 175 Tempo wie derselbe Wert aus. Mit der richtigen Zahl gewinnt Tempo - und genau das steht jetzt in der Empfehlung.",
+            "Wer Pandarenpfoten traegt, wo sie richtig sind, bekam ausserdem \"schwaechere Stufe\" zu lesen - der Werteabgleich hielt die eigenen 140 gegen unsere 175. Auch das ist damit weg.",
+        },
+    },
+    {
         version = "2.3.0.1",
         date    = "20.08.2026",
         notes   = {
