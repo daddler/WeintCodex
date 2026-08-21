@@ -7,11 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
-        version = "2.3.0.2",
+        version = "2.3.1.0",
         date    = "21.08.2026",
         notes   = {
-            "Der Elementarschamane bekam \"Pandarenpfoten\" fuer die Stiefel empfohlen, obwohl \"Grosses Tempo\" die richtige Verzauberung ist. Schuld war eine falsche Zahl in unserer Datenbank: Pandarenpfoten stand dort mit 175 Meisterschaft, gibt aber 140. Damit sahen 140 Meisterschaft und 175 Tempo wie derselbe Wert aus. Mit der richtigen Zahl gewinnt Tempo - und genau das steht jetzt in der Empfehlung.",
-            "Wer Pandarenpfoten traegt, wo sie richtig sind, bekam ausserdem \"schwaechere Stufe\" zu lesen - der Werteabgleich hielt die eigenen 140 gegen unsere 175. Auch das ist damit weg.",
+            "Einem korrekt verzauberten Elementarschamanen wurde seine Stiefelverzauberung als Mangel gemeldet (\"Fuesse: Verzauberung nicht ideal -> Pandarenpfoten\"). In MoP stehen fuer die Stiefel zwei gleich vertretbare Verzauberungen zur Wahl: 140 Meisterschaft plus Lauftempo gegen 175 Tempo. Welche besser ist, haengt an Tempo-Breakpoints, die das Addon nicht kennen kann. Beide stehen jetzt in der Liste - wer eine davon traegt, liest \"Optimal\".",
+            "Pandarenpfoten stand mit 175 statt 140 Meisterschaft in der Datenbank. Wer sie trug, bekam deshalb zusaetzlich \"schwaechere Stufe\" zu lesen - eine Beanstandung an einer Verzauberung, an der nichts auszusetzen war.",
+            "25 Spec-Profile empfahlen fuer die Fuesse etwas, das ihren eigenen Gewichten widersprach - der falsche Wert von oben steckte dahinter. Alle Stiefellisten sind neu gesetzt; drei Handschuh-Listen standen verkehrt herum (Heilig-Paladin, Nebelwirker, Blut-Todesritter).",
+            "Der Kopf des Ausruestungs-Checks sagte \"Alles versorgt\" und \"nichts offen\", waehrend darunter ein Punkt stand. Gezaehlt wurden nur Maengel, angezeigt wurden auch Hinweise. Jetzt heisst die Karte \"Feinabstimmung\", wenn es nur Hinweise gibt, und der Kopf nennt sie beim Namen.",
         },
     },
     {

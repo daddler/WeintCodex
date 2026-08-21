@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.3.0.2"
+WeintCodex.Version = "2.3.1.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -135,6 +135,16 @@ local function OnEvent(self, event, addonName)
         -- enchants.lua / gems.lua existiert (Drift-Schutz).
         if WeintCodex_ValidateSpecData then
             WeintCodex_ValidateSpecData()
+        end
+
+        -- Und die Empfehlungslisten gegen die Gewichte desselben Profils:
+        -- warnt, wenn eine Verzauberung fehlt, die dem Profil nach fast so
+        -- viel bringt wie die empfohlene. Genau diese Luecke hat einen
+        -- korrekt verzauberten Elementarschamanen als mangelhaft gemeldet
+        -- (2.3.1.0) - die Liste war von Hand gepflegt und mit nichts
+        -- abgeglichen.
+        if WeintCodex_ValidateEnchantWeights then
+            WeintCodex_ValidateEnchantWeights()
         end
 
         -- Dasselbe für die BiS-Listen: warnt, falls ein Eintrag einen

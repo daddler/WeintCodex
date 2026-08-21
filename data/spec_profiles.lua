@@ -13,6 +13,37 @@
 --   statWeights  = { stat = Gewicht 0..100 }
 --                  -> Bewertet JEDEN Stein (auch nicht gelistete).
 --   bestEnchants = { [Slot] = { id1, id2, ... } }  (id1 = beste)
+--                  -> JEDE ID DER LISTE GILT ALS OPTIMAL. Die Liste ist
+--                     keine Rangliste mit einem Sieger, sondern die Menge
+--                     der vertretbaren Verzauberungen; id1 ist nur das,
+--                     was auf ein noch unverzaubertes Teil gehört. Was
+--                     nicht drinsteht, meldet das Addon als Mangel — und
+--                     ein Mangel muss einer sein.
+--
+--   STIEFEL: die eine Stelle, an der MoP zwischen zwei gleich guten
+--   Verzauberungen wählen lässt, und die Quelle des Fehlerberichts vom
+--   21.08.2026 ("Stiefel VZ passt nicht, BiS sagt großes Tempo").
+--   Es gibt genau vier: Verschwimmen (140 Bewegl. + Lauftempo),
+--   Pandarenpfoten (140 Meist. + Lauftempo), Großes Tempo (175 Tempo)
+--   und Große Präzision (175 Treffer, cap-getrieben).
+--     * Beweglichkeits-Specs nehmen Verschwimmen: Primärwert und
+--       Lauftempo in einem, dagegen kommt kein Sekundärwert an.
+--     * Für alle anderen steht 140 Meisterschaft gegen 175 Tempo. Die
+--       25 % mehr Wertung sind nicht die ganze Rechnung — Pandarenpfoten
+--       trägt das Lauftempo, das in keinem Gewicht steht und das die
+--       Guides ausdrücklich als Ausgleich nennen (Arkanmagier,
+--       Dämonologie, Krieger: dort ist Pandarenpfoten die Empfehlung,
+--       obwohl Tempo nach Wertung vorn läge). Deshalb: Reihenfolge nach
+--       Gewicht × Wertung, wobei das Lauftempo einen Tempo-Vorsprung bis
+--       zu einem Viertel aufwiegt — ein Viertel, weil genau das der
+--       Abstand zwischen 140 und 175 Wertung ist. Und BEIDE stehen in
+--       der Liste, solange die schwächere mindestens die Hälfte der
+--       stärkeren wert ist.
+--   Der Grund für das "beide": ob Tempo oder Meisterschaft besser ist,
+--   hängt an Tempo-Breakpoints, die das Addon nicht kennen kann (es sieht
+--   keine Raidbuffs und keine Reforge-Absicht). Eine der beiden als
+--   "nicht ideal" zu melden, behauptet ein Wissen, das nicht da ist —
+--   genau daran ist der gemeldete Elementarschamane hängengeblieben.
 --   bestGems     = { [Sockelfarbe] = { id1, id2, ... } }
 --                  -> Schlüssel: meta, rot, gelb, blau, orange, lila,
 --                     grün, prismatic. Alle IDs gelten als "optimal".
@@ -64,7 +95,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
+            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.580 / Tempo 7.350 — Lauftempo entscheidet (so auch die Guides)
             Ring         = { 84578 },
         },
         -- Krit ist der beste Sekundärstat -> überall Glatter Goldberyll.
@@ -108,7 +139,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 4428 },       -- Pandarenpfoten, dann Große Präzision
+            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.440 / Tempo 7.700 — Lauftempo entscheidet (so auch die Guides)
             Ring         = { 84578 },
         },
         -- Krit ist der beste Sekundärstat, aber NICHT wertvoller als Stärke:
@@ -160,7 +191,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
             ["Hände"]    = { 4430, 4431 },        -- Defensiv: Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
-            ["Füße"]     = { 4429 },              -- Pandarenpfoten
+            ["Füße"]     = { 4429 },  -- Meist. 10.080 / Tempo 2.625 — die andere ist wirklich falsch
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Defensiv (Ausdauer-Fokus): Gediegener Chrysokoll überall.
@@ -202,9 +233,9 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4433, 4430 },        -- Großes Tempo
+            ["Hände"]    = { 4430, 4433 },  -- Meist. 12.750 / Tempo 7.650
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },              -- Pandarenpfoten
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 10.500 / Tempo 7.875
             Ring         = { 84576 },
         },
         bestGems = {
@@ -237,9 +268,9 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4420, 4419 },        -- Überragende Ausdauer
             Umhang       = { 74711 },             -- Großer Schutz
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
-            ["Hände"]    = { 4430, 4431 },        -- Überragende Meisterschaft
+            ["Hände"]    = { 4430, 4433, 4431 },  -- Meist. 13.600 / Tempo 11.050
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
-            ["Füße"]     = { 4429 },              -- Pandarenpfoten
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.200 / Tempo 11.375 — Lauftempo entscheidet
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Control-Tank: Waffenkunde-Hardcap (15%) + Treffer zuerst, dann
@@ -275,7 +306,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4823 },
-            ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 74715, 4426, 4429, 4428 },  -- Meist. 11.200 / Tempo 15.750
             Ring         = { 84578 },
         },
         -- Tempo bis 50% Gesamt-Tempo, danach Meisterschaft. Sockelboni
@@ -316,7 +347,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 8.400
             Ring         = { 84575 },
         },
         bestGems = {
@@ -350,7 +381,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.700
             Ring         = { 84575 },
         },
         bestGems = {
@@ -384,7 +415,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.000
             Ring         = { 84575 },
         },
         bestGems = {
@@ -422,7 +453,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 10.500
             Ring         = { 84575 },
         },
         bestGems = {
@@ -456,7 +487,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 9.100
             Ring         = { 84575 },
         },
         bestGems = {
@@ -490,7 +521,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 8.400
             Ring         = { 84575 },
         },
         bestGems = {
@@ -526,7 +557,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 9.100 / Tempo 6.125
             Ring         = { 84576 },
         },
         bestGems = {
@@ -558,7 +589,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 8.400 / Tempo 6.125
             Ring         = { 84576 },
         },
         bestGems = {
@@ -592,13 +623,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4825, 4826 },
-            -- Großes Tempo, nicht Pandarenpfoten (Nutzerbericht 21.08.2026):
-            -- die Stiefel geben 175 Tempo gegen 140 Meisterschaft. Bei den
-            -- Gewichten dieses Profils (Meisterschaft 85, Tempo 75) sind das
-            -- 13.125 gegen 11.900 — Tempo gewinnt, obwohl Meisterschaft der
-            -- höher gewichtete Stat ist. Der frühere Eintrag stammt aus der
-            -- Zeit, als 4429 in data/enchants.lua mit 175 Meisterschaft stand.
-            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 8.680 / Tempo 15.750
             Ring         = { 84576 },
         },
         bestGems = {
@@ -636,9 +661,9 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419, 4420 },
             Umhang       = { 4422, 4421 },        -- Überragender kritischer Trefferwert
             Handgelenke  = { 4411, 4415 },
-            ["Hände"]    = { 4433, 4431 },        -- Großes Tempo
+            ["Hände"]    = { 4430, 4431 },  -- Meist. 15.300 / Tempo 7.650
             Beine        = { 4823, 4824 },        -- Zornbalgbeinrüstung
-            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 12.600 / Tempo 7.875
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
@@ -672,7 +697,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
+            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 11.900 / Tempo 7.875
             Ring         = { 84578 },
         },
         bestGems = {
@@ -706,7 +731,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432, 4433 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 4428 },        -- Pandarenpfoten
+            ["Füße"]     = { 74715, 4426, 4428 },  -- Meist. 5.600 / Tempo 11.375 — die andere ist wirklich falsch
             Ring         = { 84578 },
         },
         -- Ab ~ilvl 540 lohnt sich Krit mehr als reine Stärke-Sockelung.
@@ -745,13 +770,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4825, 4826 },
-            -- Großes Tempo, nicht Pandarenpfoten (Nutzerbericht 21.08.2026):
-            -- die Stiefel geben 175 Tempo gegen 140 Meisterschaft. Bei den
-            -- Gewichten dieses Profils (Meisterschaft 85, Tempo 75) sind das
-            -- 13.125 gegen 11.900 — Tempo gewinnt, obwohl Meisterschaft der
-            -- höher gewichtete Stat ist. Der frühere Eintrag stammt aus der
-            -- Zeit, als 4429 in data/enchants.lua mit 175 Meisterschaft stand.
-            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.900 / Tempo 13.125 — Lauftempo entscheidet
             Ring         = { 84576 },
         },
         bestGems = {
@@ -785,7 +804,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 10.920
             Ring         = { 84575 },
         },
         bestGems = {
@@ -817,7 +836,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },        -- Großes Tempo
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 7.700 / Tempo 14.875
             Ring         = { 84576 },
         },
         bestGems = {
@@ -855,7 +874,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.900 / Tempo 13.125 — Lauftempo entscheidet
             Ring         = { 84576 },
         },
         bestGems = {
@@ -889,7 +908,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 8.400 / Tempo 12.250
             Ring         = { 84576 },
         },
         bestGems = {
@@ -923,7 +942,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426 },  -- Meist. 7.000 / Tempo 14.000 — die andere ist wirklich falsch
             Ring         = { 84576 },
         },
         bestGems = {
@@ -961,7 +980,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 10.500 / Tempo 14.875
             Ring         = { 84576 },
         },
         bestGems = {
@@ -995,7 +1014,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 10.500 / Tempo 14.350 — Guides nennen Pandarenpfoten (Tempo zählt nur am Breakpoint), beide gültig
             Ring         = { 84576 },
         },
         bestGems = {
@@ -1029,7 +1048,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.900 / Tempo 12.250 — Lauftempo entscheidet
             Ring         = { 84576 },
         },
         bestGems = {
@@ -1067,7 +1086,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4429, 4425, 4428 },
+            ["Füße"]     = { 4429, 4425, 74715, 4426, 4428 },  -- Bewegl. 11.900 / Meist. 12.600 / Tempo 7.000
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1097,9 +1116,9 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4430, 4433 },
+            ["Hände"]    = { 4433, 4430 },  -- Tempo 12.240 / Meist. 5.950
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 74715, 4429 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 74715, 4426 },  -- Meist. 4.900 / Tempo 12.600 — die andere ist wirklich falsch
             Ring         = { 84576 },
         },
         bestGems = {
@@ -1133,7 +1152,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.700
             Ring         = { 84575 },
         },
         bestGems = {
@@ -1171,7 +1190,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4414 },
             ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer himmelblauer/zerulanblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 8.400 / Tempo 14.350
             Ring         = { 84576 },
         },
         bestGems = {
@@ -1207,7 +1226,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 12.600
             Ring         = { 84575 },
         },
         bestGems = {
@@ -1243,7 +1262,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431, 4433 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4429, 4425, 4428 },
+            ["Füße"]     = { 4425, 4429, 4428 },  -- Bewegl. 7.700 / Meist. 2.100
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1273,9 +1292,9 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4430, 4433 },
+            ["Hände"]    = { 4433, 4430 },  -- Tempo 14.450 / Meist. 11.900 — wie bei den Stiefeln
             Beine        = { 4825, 4826 },
-            ["Füße"]     = { 4429 },
+            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 9.800 / Tempo 14.875
             Ring         = { 84576 },
         },
         bestGems = {
@@ -1316,7 +1335,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4432 },
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 74715, 4428 },       -- Offensiv: Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.720 / Tempo 7.000 — Lauftempo entscheidet
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
@@ -1353,7 +1372,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4432 },        -- Offensiv: Überragende Waffenkunde
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 74715, 4428 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 74715, 4426, 4428 },  -- Meist. 6.300 / Tempo 15.750 — die andere ist wirklich falsch
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Waffenkunde-Hardcap + Treffer, dann Tempo/Krit (Rache-DPS).
@@ -1390,7 +1409,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4411, 4415 },
             ["Hände"]    = { 4433, 4431 },        -- Großes Tempo
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 74715, 4426 },       -- Großes Tempo (Boots-Haste)
+            ["Füße"]     = { 74715, 4426 },  -- Meist. 2.800 / Tempo 13.125 — die andere ist wirklich falsch
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
@@ -1426,7 +1445,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4431 },
             Beine        = { 4822, 4824 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 12.600 / Meist. 4.900
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1460,7 +1479,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4433, 4431 },
             Beine        = { 4822, 4824 },
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 8.400 / Meist. 2.100
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1487,6 +1506,136 @@ WeintCodex_SpecProfiles = {
 -- Wird von core/main.lua bei PLAYER_LOGIN aufgerufen, wenn alle
 -- Datentabellen geladen sind. Gibt nur bei Problemen etwas aus.
 --------------------------------------------------
+
+--------------------------------------------------
+-- WÄCHTER: Empfehlung gegen die eigenen Gewichte
+--
+-- Der Anlass ist der Bericht vom 21.08.2026: einem korrekt verzauberten
+-- Elementarschamanen wurde seine Stiefelverzauberung als Mangel gemeldet.
+-- Dahinter stand ein falscher Wert in data/enchants.lua (Pandarenpfoten
+-- mit 175 statt 140 Meisterschaft) — und niemand konnte das sehen, weil
+-- die Empfehlungsliste von Hand gepflegt wird und mit den statWeights
+-- desselben Profils nirgends abgeglichen wurde. Genau das passiert hier.
+--
+-- Verglichen wird NUR, wo der Vergleich wirklich trägt: Verzauberungen
+-- desselben Slots, die genau EINEN Sekundärwert geben, der für diese Spec
+-- nicht auf ein Cap läuft. Primärwerte (Stärke/Beweglichkeit/Intelligenz),
+-- Ausdauer und Ausweichwerte bleiben aussen vor — für sie sind die
+-- Gewichte Prioritäten und keine Umrechnungskurse, ein Vergleich "240
+-- Ausdauer × 100 schlägt 160 Stärke × 45" wäre reine Arithmetik ohne
+-- Aussage. Deshalb steigt die Prüfung auch aus, sobald die erste
+-- Empfehlung selbst kein solcher Sekundärwert-Eintrag ist.
+--
+-- Zwei Aussagen werden geprüft:
+--   1) VOLLSTÄNDIGKEIT — was mehr als die Hälfte der ersten Empfehlung
+--      wert ist, muss mit in der Liste stehen. Alles, was fehlt, meldet
+--      das Addon dem Spieler als Mangel; ein Mangel muss einer sein.
+--   2) REIHENFOLGE — die erste Empfehlung darf nicht um mehr als ein
+--      Viertel geschlagen werden. Ein Viertel, weil genau das der
+--      Abstand zwischen 140 und 175 Wertung ist: darunter entscheiden
+--      Lauftempo und Tempo-Breakpoints, und beides kennt dieses Modell
+--      nicht.
+--
+-- Mehrfach vergebene IDs derselben Verzauberung (74715/4426 "Großes
+-- Tempo", 4422/4424, 4423/4892, 4432/4434) zählen als ein Eintrag —
+-- sonst meldete der Wächter eine Lücke, wo dieselbe Verzauberung unter
+-- ihrer anderen ID längst gelistet ist.
+--------------------------------------------------
+
+local COMPARABLE_STATS = { mastery = true, haste = true, crit = true }
+
+-- Träger des Lauftempos. Für den Vergleich sind sie normale Einträge; die
+-- Toleranz von 25 % gilt ohnehin für jede erste Empfehlung, weil das
+-- Modell in diesem Abstand nichts zu sagen hat.
+local ORDER_TOLERANCE    = 1.25
+local COMPLETENESS_RATIO = 0.5
+
+-- Genau ein Sekundärwert? Dann Name des Stats und Höhe zurückgeben.
+local function SingleSecondary(entry)
+    if not entry or not entry.stats then return nil end
+    local statKey, statValue, count = nil, nil, 0
+    for k, v in pairs(entry.stats) do
+        statKey, statValue, count = k, v, count + 1
+    end
+    if count ~= 1 or not COMPARABLE_STATS[statKey] then return nil end
+    return statKey, statValue
+end
+
+function WeintCodex_ValidateEnchantWeights()
+    local enchants = WeintCodex_Enchants or {}
+    local problems = {}
+
+    for specKey, profile in pairs(WeintCodex_SpecProfiles) do
+        local weights = profile.statWeights
+        if weights and profile.bestEnchants then
+
+            -- Gecappte Stats dieser Spec. Willenskraft zählt mit, wo sie
+            -- als Treffer gilt (Elementarpräzision, Ausgeglichenheit der
+            -- Macht) - sonst wäre sie hier ein freier Sekundärwert.
+            local capped = {}
+            for _, cap in ipairs(profile.caps or {}) do
+                capped[cap.stat] = true
+                if cap.spiritZaehlt then capped.spirit = true end
+            end
+
+            for slot, list in pairs(profile.bestEnchants) do
+                local firstEntry = enchants[list[1]]
+                local firstStat, firstValue = SingleSecondary(firstEntry)
+
+                if firstStat and not capped[firstStat] then
+                    local firstScore = firstValue * (weights[firstStat] or 0)
+
+                    -- Was ist bereits gelistet - nach Name, nicht nach ID.
+                    local listed = {}
+                    for _, id in ipairs(list) do
+                        local e = enchants[id]
+                        if e and e.name then listed[e.name] = true end
+                    end
+
+                    -- Und dieselbe Verzauberung nur einmal melden: "Großes
+                    -- Tempo" steht unter 74715 UND 4426 in der Tabelle.
+                    local reported = {}
+
+                    for id, entry in pairs(enchants) do
+                        if entry.slot == slot then
+                            local statKey, statValue = SingleSecondary(entry)
+                            if statKey and not capped[statKey] then
+                                local score = statValue * (weights[statKey] or 0)
+
+                                if reported[entry.name] then
+                                    -- schon gemeldet, andere ID derselben Verzauberung
+                                elseif score > firstScore * ORDER_TOLERANCE then
+                                    reported[entry.name] = true
+                                    problems[#problems + 1] = string.format(
+                                        "%s / %s: erste Empfehlung %s liegt hinter %s (%d zu %d)",
+                                        specKey, tostring(slot),
+                                        tostring(firstEntry.name), tostring(entry.name),
+                                        firstScore, score)
+                                elseif not listed[entry.name]
+                                       and score > firstScore * COMPLETENESS_RATIO then
+                                    reported[entry.name] = true
+                                    problems[#problems + 1] = string.format(
+                                        "%s / %s: %s (%d) fehlt in der Liste - wird dem Spieler als Mangel gemeldet",
+                                        specKey, tostring(slot),
+                                        tostring(entry.name), score)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if #problems > 0 then
+        print("|cffD4A24A[WeintCodex]|r |cffff5555Datenprüfung: "
+            .. #problems .. " Empfehlung(en) widersprechen den eigenen Gewichten:|r")
+        for _, msg in ipairs(problems) do
+            print("  |cffff9900" .. msg .. "|r")
+        end
+    end
+    return problems
+end
 
 function WeintCodex_ValidateSpecData()
     local enchants = WeintCodex_Enchants or {}

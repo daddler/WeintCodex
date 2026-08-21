@@ -3071,9 +3071,18 @@ function ShowUebersicht()
     local h1 = WeintCodex.PageTitle(bc, "Ausrüstungs-Check", { size = 26 })
     h1:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -8)
 
-    local nIssues = 0
+    -- Zwei verschiedene Aussagen, die bis 2.3.1.0 dieselbe Zahl benutzten:
+    -- ein MANGEL ist etwas, das fehlt oder falsch ist (Prio 1-3), ein
+    -- HINWEIS ist eine vertretbare Wahl, die nicht die erste der Liste ist
+    -- (Prio 4). Gezaehlt wurden nur die Maengel - die Hinweise standen aber
+    -- trotzdem in der Liste darunter. Der gemeldete Ausruestungs-Check sagte
+    -- deshalb gleichzeitig "Alles versorgt", "nichts offen" und zeigte einen
+    -- Punkt unter "Handlungsbedarf". Beide Zahlen werden jetzt gefuehrt und
+    -- beide benannt.
+    local nIssues, nHints = 0, 0
     for _, is in ipairs(scan.issues) do
-        if is.prio <= 3 then nIssues = nIssues + 1 end
+        if is.prio <= 3 then nIssues = nIssues + 1
+        else                 nHints  = nHints  + 1 end
     end
 
     local sub = bc:CreateFontString(nil, "OVERLAY")
@@ -3083,8 +3092,12 @@ function ShowUebersicht()
     sub:SetJustifyH("LEFT")
     if score.checks == 0 then
         sub:SetText(WeintCodex.ColorText("warning", "Keine Prüfdaten — Charakter einloggen / Spec-Profil prüfen."))
-    elseif nIssues == 0 then
+    elseif nIssues == 0 and nHints == 0 then
         sub:SetText(WeintCodex.ColorText("success", "Alles versorgt · Verzauberungen, Sockel und Caps sind sauber."))
+    elseif nIssues == 0 then
+        sub:SetText(WeintCodex.ColorText("success", "Keine Mängel · ")
+            .. WeintCodex.ColorText("textMuted", nHints .. " Hinweis"
+                .. (nHints == 1 and "" or "e") .. " zur Feinabstimmung, siehe unten."))
     else
         sub:SetText(WeintCodex.ColorText("warning",
             nIssues .. " Problem" .. (nIssues == 1 and "" or "e") .. " gefunden · Details unter Handlungsbedarf."))
@@ -3258,17 +3271,37 @@ function ShowUebersicht()
     hbTitle:SetFont(WeintCodex.Fonts.sansSemi, 14, "")
     hbTitle:SetPoint("TOPLEFT", hbCard, "TOPLEFT", 20, -16)
     hbTitle:SetTextColor(C.textBright[1], C.textBright[2], C.textBright[3])
-    hbTitle:SetText("Handlungsbedarf · nach Priorität")
 
-    local openCount = 0
+    -- Ueberschrift und Chip richten sich nach dem, was tatsaechlich in der
+    -- Liste steht: "Handlungsbedarf" nur, wenn es Maengel gibt. Stehen dort
+    -- ausschliesslich Hinweise, heisst die Karte auch so - eine Karte namens
+    -- "Handlungsbedarf" mit dem Vermerk "nichts offen" widerspricht sich.
+    local openCount, hintCount = 0, 0
     for _, is in ipairs(scan.issues) do
-        if is.prio <= 3 then openCount = openCount + 1 end
+        if is.prio <= 3 then openCount = openCount + 1
+        else                 hintCount = hintCount + 1 end
+    end
+
+    hbTitle:SetText(openCount > 0 and "Handlungsbedarf · nach Priorität"
+                                   or "Feinabstimmung · nach Priorität")
+
+    local chipText, chipTone, chipTextColor
+    if openCount > 0 then
+        chipText      = openCount .. " offen"
+        chipTone      = "danger"
+        chipTextColor = "dangerBright"
+    elseif hintCount > 0 then
+        chipText      = hintCount .. " Hinweis" .. (hintCount == 1 and "" or "e")
+        chipTone      = "gold"
+        chipTextColor = "accentBright"
+    else
+        chipText      = "nichts offen"
+        chipTone      = "success"
+        chipTextColor = "successBright"
     end
 
     local hbChip = WeintCodex.Chip(hbCard, {
-        text = openCount > 0 and (openCount .. " offen") or "nichts offen",
-        tone = openCount > 0 and "danger" or "success",
-        textColor = openCount > 0 and "dangerBright" or "successBright",
+        text = chipText, tone = chipTone, textColor = chipTextColor,
         backdrop = "accentCardTop", height = 22, size = 9,
     })
     hbChip:SetPoint("TOPRIGHT", hbCard, "TOPRIGHT", -16, -14)
