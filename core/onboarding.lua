@@ -54,6 +54,8 @@ local TOUR_STEPS = {
     { icon = "Interface\\Icons\\Ability_Warrior_BattleShout", title = "Raids",
       feature = "raids.view",
       body = "Meldet euch fuer den Mittwochs- oder Donnerstagsraid an und seht auf einen Blick, wer schon zugesagt hat." },
+    { icon = "Interface\\Icons\\INV_Misc_GroupLooking", title = "Gruppencheck",
+      body = "Verzauberungen und Sockel der ganzen Gruppe auf einen Blick - vor dem ersten Pull sofort sichtbar, wem noch etwas fehlt.\n\nGeprueft wird nur, ob etwas da ist. Ob es das Richtige ist, entscheidet die Charakterseite, und die gibt es nur fuer den eigenen Charakter." },
     { icon = "Interface\\Icons\\INV_Crate_01", title = "Materialien",
       feature = "materials.view",
       body = "Behaltet den Ueberblick ueber die Gildenbank-Materialien nach Kategorie - per Scan oder Import vom Discord-Bot." },

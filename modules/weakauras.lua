@@ -30,6 +30,11 @@
 -- liest SavedVariables zur Laufzeit nicht erneut. Eine in der
 -- Companion eingetragene Aura ist deshalb nach dem naechsten
 -- /reload da, nicht sofort.
+--
+-- Seit 2.4.0.0 sagt jede Zeile ausserdem, ob die Aura in WeakAuras
+-- schon vorhanden ist (gruener Haken links). Beantwortet wird das an
+-- WeakAuras selbst, nicht an unserer Klickhistorie - Einzelheiten
+-- unter "Ist die Aura installiert?" weiter unten.
 --------------------------------------------------
 
 WeintCodex.WeakAuras = {}
@@ -103,7 +108,7 @@ end
 -- Beide Quellen zu einer Liste
 --------------------------------------------------
 -- Rueckgabe: { [id] = { id, name, category, description, version,
---                       author, icon, string, origin } }
+--                       author, icon, string, waIds, origin } }
 --
 -- `origin` ist "addon" oder "companion" und wird sowohl in der Zeile
 -- angezeigt als auch an die Companion zurueckgemeldet - sie soll
@@ -129,6 +134,7 @@ function WeintCodex.WeakAuras.Entries()
                 icon        = aura.icon,
                 string      = aura.string,
                 sortOrder   = aura.sortOrder,
+                waIds       = aura.waIds,
                 origin      = "addon",
             }
 
@@ -157,6 +163,12 @@ function WeintCodex.WeakAuras.Entries()
                 icon        = entry.icon or (existing and existing.icon),
                 string      = entry.string,
                 sortOrder   = entry.sortOrder or (existing and existing.sortOrder),
+                -- Wie beim Symbol: schickt die Companion keine eigene
+                -- Namensliste mit, gilt die der ersetzten Aura. Eine
+                -- aktualisierte Fassung traegt dieselben Anzeigen wie
+                -- die, die sie ersetzt - sonst verloere die Zeile beim
+                -- Aktualisieren ihren Haken.
+                waIds       = entry.waIds or (existing and existing.waIds),
                 origin      = entry.scope == "guild" and "guild" or "companion",
                 replaced    = existing ~= nil,
             }
@@ -233,6 +245,264 @@ function WeintCodex.WeakAuras.Catalog()
 end
 
 --------------------------------------------------
+-- Ist die Aura installiert?
+--------------------------------------------------
+-- Die Zeile soll auf einen Blick sagen, was schon da ist. Beantwortet
+-- wird das ausschliesslich an WeakAuras selbst - "ich habe hier mal
+-- geklickt" ist keine Installation, der Import kann abgebrochen und
+-- die Aura spaeter geloescht worden sein.
+--
+-- Gebraucht wird dafuer der Name, unter dem WeakAuras die Aura fuehrt,
+-- und der steht im Importstring, nicht in unserer `name`-Spalte (die
+-- mitgelieferten Pakete heissen "Fojji - Warrior UI [MoP]", die Zeile
+-- heisst "Krieger"). Zwei Quellen, in dieser Reihenfolge:
+--
+--   1. `waIds` des Eintrags - fuer die mitgelieferten Auren aus dem
+--      Importstring gezogen und in data/weakauras/*.lua hinterlegt
+--      (siehe den Kopf von data/weakauras/init.lua). Das ist die
+--      genaue Antwort und gilt auch fuer eine Aura, die jemand
+--      ueber Wago installiert hat, ohne diese Seite je zu oeffnen.
+--   2. Was der letzte Import ueber diese Seite tatsaechlich angelegt
+--      hat (Differenz der Anzeigenliste vor/nach dem Klick). Das ist
+--      der Weg fuer zugestellte Auren, deren Namen wir nicht kennen
+--      koennen, weil sie erst am Schreibtisch entstanden sind.
+--
+-- Der Unterschied traegt bis in die Bewertung: die kuratierte Liste
+-- aus (1) enthaelt nur Wurzeleintraege, da muessen alle da sein. Die
+-- beobachtete Liste aus (2) enthaelt auch jede Unteraura des Pakets -
+-- wer davon eine wegwirft, hat die Aura trotzdem installiert, deshalb
+-- genuegt dort eine.
+--
+-- Ist WeakAuras gar nicht geladen, sagt die Zeile NICHTS. "Nicht
+-- installiert" waere dann eine Aussage ueber unser Unwissen.
+--------------------------------------------------
+
+-- Wie lange ein unbestaetigter Import auf seine Anzeigen wartet. Der
+-- Importdialog von WeakAuras laesst sich beliebig lange offen liegen
+-- lassen; irgendwann war es aber ein Abbruch, und ein ewig offener
+-- Vermerk wuerde die naechste fremde Aura faelschlich einsammeln.
+local PENDING_TTL = 3600
+
+local function Store()
+
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+
+    local sd = WeintCodex.SavedData
+
+    sd.weakAuraInstalls = sd.weakAuraInstalls or {}
+    sd.weakAuraPending  = sd.weakAuraPending  or {}
+
+    return sd
+
+end
+
+-- WeakAuras kann fehlen (nicht installiert, deaktiviert) - dann gibt es
+-- hier nichts zu melden.
+local function WeakAurasReady()
+
+    if _G.WeakAuras and type(_G.WeakAuras.GetData) == "function" then
+        return true
+    end
+
+    local saved = _G.WeakAurasSaved
+
+    return type(saved) == "table" and type(saved.displays) == "table"
+
+end
+
+local function DisplayExists(name)
+
+    if type(name) ~= "string" or name == "" then return false end
+
+    if _G.WeakAuras and type(_G.WeakAuras.GetData) == "function" then
+        local ok, data = pcall(_G.WeakAuras.GetData, name)
+        if ok then return data ~= nil end
+    end
+
+    local saved = _G.WeakAurasSaved
+
+    if type(saved) == "table" and type(saved.displays) == "table" then
+        return saved.displays[name] ~= nil
+    end
+
+    return false
+
+end
+
+-- Alle Anzeigen, die WeakAuras gerade fuehrt. Nur ueber die
+-- SavedVariables zu bekommen - eine oeffentliche Aufzaehlfunktion gibt
+-- es nicht, und GetData beantwortet nur die Frage nach einem Namen.
+local function DisplayNames()
+
+    local out = {}
+
+    local saved = _G.WeakAurasSaved
+
+    if type(saved) == "table" and type(saved.displays) == "table" then
+        for name in pairs(saved.displays) do
+            if type(name) == "string" then out[name] = true end
+        end
+    end
+
+    return out
+
+end
+
+-- Vor dem Import merken, was schon da war. Ohne diesen Schnappschuss
+-- ist hinterher nicht zu sagen, welche der 200 Anzeigen aus diesem
+-- Klick stammen.
+local function NotePendingInstall(entry)
+
+    if not WeakAurasReady() then return end
+
+    local sd = Store()
+
+    sd.weakAuraPending[entry.id] = {
+        version = entry.version,
+        at      = time(),
+        before  = DisplayNames(),
+    }
+
+end
+
+-- Offene Vermerke gegen den aktuellen Stand aufloesen. Laeuft bei jedem
+-- Aufbau der Seite: WeintCodex schliesst sich nach dem Klick selbst, der
+-- Nutzer bestaetigt den Importdialog und ist beim naechsten Blick auf
+-- diese Seite genau hier wieder - ein Zeitgeber waere dafuer nur ein
+-- schlechter geratener Zeitpunkt.
+local function ReconcilePending()
+
+    if not WeakAurasReady() then return end
+
+    local sd      = Store()
+    local pending = sd.weakAuraPending
+
+    local waiting = {}
+
+    for id, note in pairs(pending) do
+        if type(note) == "table" then
+            waiting[#waiting + 1] = { id = id, note = note }
+        else
+            pending[id] = nil
+        end
+    end
+
+    if #waiting == 0 then return end
+
+    -- Aelteste zuerst: liegen zwei Importe offen, gehoert eine neue
+    -- Anzeige dem frueheren Klick, und der spaetere darf sie nicht ein
+    -- zweites Mal fuer sich verbuchen (deshalb unten das Nachtragen in
+    -- dessen `before`).
+    table.sort(waiting, function(a, b)
+        return (a.note.at or 0) < (b.note.at or 0)
+    end)
+
+    local now     = time()
+    local current = DisplayNames()
+
+    for index, item in ipairs(waiting) do
+
+        local note  = item.note
+        local fresh = {}
+
+        for name in pairs(current) do
+            if not (note.before and note.before[name]) then
+                fresh[#fresh + 1] = name
+            end
+        end
+
+        if #fresh > 0 then
+
+            sd.weakAuraInstalls[item.id] = {
+                version = note.version,
+                at      = now,
+                names   = fresh,
+            }
+
+            pending[item.id] = nil
+
+            for later = index + 1, #waiting do
+                local other = waiting[later].note
+                other.before = other.before or {}
+                for _, name in ipairs(fresh) do other.before[name] = true end
+            end
+
+        elseif type(note.at) ~= "number" or (now - note.at) > PENDING_TTL then
+
+            pending[item.id] = nil
+
+        end
+
+    end
+
+end
+
+-- { namen }, curated - curated sagt, ob die Liste aus waIds stammt
+-- (Wurzeleintraege, alle muessen da sein) oder beobachtet ist (auch
+-- Unterauren, eine genuegt).
+local function KnownNames(entry)
+
+    if type(entry.waIds) == "table" and #entry.waIds > 0 then
+        return entry.waIds, true
+    end
+
+    local record = Store().weakAuraInstalls[entry.id]
+
+    if type(record) == "table" and type(record.names) == "table"
+       and #record.names > 0 then
+        return record.names, false
+    end
+
+    return nil, false
+
+end
+
+--------------------------------------------------
+-- Zustand einer Zeile
+--------------------------------------------------
+-- Rueckgabe: state, found, total, installedVersion
+--   state = nil          WeakAuras fehlt oder wir kennen die Namen nicht
+--           "missing"    keine der Anzeigen ist da
+--           "partial"    ein Teil ist da
+--           "installed"  vollstaendig da
+--
+-- `installedVersion` ist die Fassung, die beim Import ueber diese Seite
+-- vermerkt wurde. Sie fehlt, wenn die Aura anderswo installiert wurde -
+-- dann steht in der Zeile nur der Haken und keine Versionsaussage,
+-- statt eine zu erfinden.
+--------------------------------------------------
+
+function WeintCodex.WeakAuras.InstallState(entry)
+
+    if type(entry) ~= "table" then return nil end
+    if not WeakAurasReady() then return nil end
+
+    local names, curated = KnownNames(entry)
+
+    if not names then return nil end
+
+    local found = 0
+
+    for _, name in ipairs(names) do
+        if DisplayExists(name) then found = found + 1 end
+    end
+
+    local record          = Store().weakAuraInstalls[entry.id]
+    local installedVersion = type(record) == "table" and record.version or nil
+
+    if found == 0 then
+        return "missing", 0, #names, nil
+    end
+
+    if curated and found < #names then
+        return "partial", found, #names, installedVersion
+    end
+
+    return "installed", found, #names, installedVersion
+
+end
+
+--------------------------------------------------
 -- Hilfsfunktion
 --------------------------------------------------
 
@@ -261,6 +531,11 @@ function WeintCodex.WeakAuras.ShowCategory(category)
     category = NormalizeCategory(category)
 
     currentCategory = category
+
+    -- Offene Importvermerke aufloesen, BEVOR die Zeilen entstehen: der
+    -- Nutzer kommt genau hier wieder her, nachdem er den Importdialog
+    -- von WeakAuras bestaetigt hat.
+    ReconcilePending()
 
     ClearContent()
 
@@ -326,8 +601,9 @@ function WeintCodex.WeakAuras.ShowCategory(category)
 
     local hName = header:CreateFontString(nil, "OVERLAY")
     hName:SetFont(WeintCodex.Fonts.sans, 11, "")
-    hName:SetPoint("LEFT", 42, 0)
-    hName:SetWidth(140)
+    -- 56 statt 42: links davor sitzt jetzt die Statusspalte (Haken).
+    hName:SetPoint("LEFT", 56, 0)
+    hName:SetWidth(128)
     hName:SetJustifyH("LEFT")
 
     local firstColumn = "Aura"
@@ -365,12 +641,24 @@ function WeintCodex.WeakAuras.ShowCategory(category)
     local entries = WeintCodex.WeakAuras.EntriesFor(category)
 
     local delivered, shared = 0, 0
+    local installed, known  = 0, 0
 
     for _, entry in ipairs(entries) do
         if entry.origin == "companion" then
             delivered = delivered + 1
         elseif entry.origin == "guild" then
             shared = shared + 1
+        end
+
+        -- Nur zaehlen, was ueberhaupt beantwortbar ist: `known` ist die
+        -- Menge der Zeilen, zu denen wir Anzeigennamen haben. "3 von 5"
+        -- ueber alle Zeilen zu behaupten hiesse, die uebrigen als nicht
+        -- installiert zu zaehlen, obwohl wir sie nur nicht kennen.
+        local rowState = WeintCodex.WeakAuras.InstallState(entry)
+
+        if rowState then
+            known = known + 1
+            if rowState == "installed" then installed = installed + 1 end
         end
     end
 
@@ -395,12 +683,59 @@ function WeintCodex.WeakAuras.ShowCategory(category)
         bg:SetColorTexture(C.bgCard[1], C.bgCard[2], C.bgCard[3], 0.35)
 
         --------------------------------------------------
+        -- Statusspalte: installiert?
+        --------------------------------------------------
+        -- Ganz links, wie die Statusspalte der Charakterseiten. Sie
+        -- bleibt leer, solange wir nichts wissen (WeakAuras nicht
+        -- geladen, Namen unbekannt) - ein rotes Kreuz waere dort eine
+        -- Behauptung ueber die Aura, nicht ueber unser Wissen.
+        --------------------------------------------------
+
+        local state, found, total, installedVersion =
+            WeintCodex.WeakAuras.InstallState(aura)
+
+        if state == "installed" or state == "partial" then
+
+            local mark = row:CreateTexture(nil, "OVERLAY")
+            mark:SetSize(16, 16)
+            mark:SetPoint("LEFT", row, "LEFT", 4, 0)
+
+            if state == "installed" then
+                mark:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+            else
+                mark:SetTexture("Interface\\DialogFrame\\UI-Dialog-Icon-Alert")
+                mark:SetSize(18, 18)
+            end
+
+            local hit = CreateFrame("Frame", nil, row)
+            hit:SetAllPoints(mark)
+            hit:EnableMouse(true)
+            hit:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                if state == "installed" then
+                    GameTooltip:AddLine("In WeakAuras vorhanden")
+                else
+                    GameTooltip:AddLine("Teilweise vorhanden: "
+                        .. found .. " von " .. total)
+                end
+                if installedVersion and installedVersion ~= aura.version then
+                    GameTooltip:AddLine("Installiert als v" .. installedVersion
+                        .. ", angeboten wird v" .. aura.version,
+                        0.83, 0.64, 0.29, true)
+                end
+                GameTooltip:Show()
+            end)
+            hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        end
+
+        --------------------------------------------------
         -- Icon
         --------------------------------------------------
 
         local icon = row:CreateTexture(nil, "ARTWORK")
         icon:SetSize(24, 24)
-        icon:SetPoint("LEFT", 5, 0)
+        icon:SetPoint("LEFT", 22, 0)
 
         if aura.icon then
             icon:SetTexture(aura.icon)
@@ -418,15 +753,15 @@ function WeintCodex.WeakAuras.ShowCategory(category)
 
         local name = row:CreateFontString(nil, "OVERLAY")
         name:SetFont(WeintCodex.Fonts.sans, 12, "")
-        name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -1)
-        name:SetWidth(140)
+        name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
+        name:SetWidth(128)
         name:SetJustifyH("LEFT")
         name:SetText(aura.name)
 
         local origin = row:CreateFontString(nil, "OVERLAY")
         origin:SetFont(WeintCodex.Fonts.sans, 10, "")
         origin:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -2)
-        origin:SetWidth(140)
+        origin:SetWidth(128)
         origin:SetJustifyH("LEFT")
         origin:SetTextColor(C.textDim[1], C.textDim[2], C.textDim[3])
 
@@ -448,7 +783,7 @@ function WeintCodex.WeakAuras.ShowCategory(category)
                 label = source .. " · " .. aura.author
             end
 
-            origin:SetText(WeintCodex.Truncate(label, 24))
+            origin:SetText(WeintCodex.Truncate(label, 22))
 
             if aura.origin == "guild" then
                 origin:SetTextColor(C.green[1], C.green[2], C.green[3])
@@ -522,10 +857,26 @@ function WeintCodex.WeakAuras.ShowCategory(category)
         borderBottom:SetColorTexture(C.purple[1], C.purple[2], C.purple[3], 0.25)
 
         -- Text
+        --
+        -- Die Beschriftung sagt, was der Klick bewirkt. "Installieren"
+        -- auf einer Aura, die schon laeuft, war die Frage, mit der die
+        -- Rueckmeldung anfing; "Aktualisieren" steht nur da, wo wir die
+        -- installierte Fassung wirklich kennen (Vermerk aus einem
+        -- frueheren Import ueber diese Seite).
+        local actionLabel = "Installieren"
+
+        if state == "installed" or state == "partial" then
+            if installedVersion and installedVersion ~= aura.version then
+                actionLabel = "Aktualisieren"
+            else
+                actionLabel = "Neu importieren"
+            end
+        end
+
         local txt = btn:CreateFontString(nil, "OVERLAY")
         txt:SetFont(WeintCodex.Fonts.sans, 11, "")
         txt:SetPoint("CENTER")
-        txt:SetText("Installieren")
+        txt:SetText(actionLabel)
 
         --------------------------------------------------
         -- Hover
@@ -572,6 +923,11 @@ function WeintCodex.WeakAuras.ShowCategory(category)
         --------------------------------------------------
 
         btn:SetScript("OnClick", function()
+
+            -- Vor dem Import festhalten, was WeakAuras schon fuehrt -
+            -- sonst ist hinterher nicht zu erkennen, welche Anzeigen
+            -- aus diesem Klick stammen (siehe ReconcilePending).
+            NotePendingInstall(aura)
 
             if WeakAuras and WeakAuras.Import then
                 WeakAuras.Import(aura.string)
@@ -652,6 +1008,14 @@ function WeintCodex.WeakAuras.ShowCategory(category)
         }
     end
 
+    if known > 0 then
+        rows[#rows + 1] = {
+            label = "installiert",
+            value = installed .. " / " .. known,
+            valueColor = (installed >= known) and "success" or "warning",
+        }
+    end
+
     WeintCodex.Navigation.SetInspector({
         { type = "header", text = categoryLabel },
         { type = "rows", rows = rows },
@@ -659,6 +1023,9 @@ function WeintCodex.WeakAuras.ShowCategory(category)
         { type = "card", lines = {
             "Ein Klick auf 'Installieren' übergibt die Aura direkt",
             "an WeakAuras und schließt WeintCodex danach.",
+            "",
+            "Der grüne Haken links steht an jeder Aura, die",
+            "WeakAuras bereits führt.",
         }},
     })
 

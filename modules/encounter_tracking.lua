@@ -24,18 +24,89 @@ local unpack = unpack or table.unpack
 
 -- --------------------------------------------------
 -- SavedVariables-Zugriff
+--
+-- DER FORTSCHRITT GEHOERT DEM CHARAKTER, NICHT DEM KONTO. Ein
+-- Schlachtzugs-Lockout ist in MoP an den einzelnen Charakter gebunden:
+-- der Main hat Immerseus gelegt, der Twink steht am Mittwoch trotzdem
+-- vor einem vollen Raid. Bis 2.3.1.0 lag alles kontoweit unter
+-- SavedData.encounterProgress[instanz] - jeder Twink sah damit den
+-- Fortschritt des zuletzt gespielten Charakters, und der Lockout-Import
+-- konnte das nicht heilen: er setzt Kills, aber er nimmt keine zurueck
+-- (RefreshFromLockout kennt nur "isKilled -> cleared = true", weil ein
+-- fehlender Lockout-Eintrag genauso gut "Server hat die Raid-Info noch
+-- nicht geschickt" heissen kann).
+--
+-- Ablage deshalb:
+--   SavedData.encounterProgress.characters["Name-Realm"][instanz]
+--
+-- Die alten kontoweiten Zweige liegen direkt unter encounterProgress und
+-- sind daran erkennbar, dass ihr Wert selbst ein Instanzspeicher ist
+-- (bosses/resetStamp). Sie werden einmalig auf den gerade eingeloggten
+-- Charakter gehoben und dann entfernt - "cleared" holt sich jeder andere
+-- Charakter binnen Sekunden aus der Lockout-API zurueck, die selbst
+-- gezaehlten Wipes und der beste Versuch dagegen sind nirgends sonst
+-- gespeichert und waeren beim Wegwerfen endgueltig weg.
 -- --------------------------------------------------
 
-local function GetInstanceStore(instanceName)
+local characterKey = nil
+
+-- "Name-Realm" des eingeloggten Charakters. Leer heisst: der Client kennt
+-- den Namen noch nicht (vor PLAYER_LOGIN) - dann wird nichts angelegt und
+-- nichts gelesen, statt einen namenlosen Topf zu fuellen, den spaeter
+-- niemand mehr zuordnen kann.
+local function CharacterKey()
+    if characterKey then return characterKey end
+    if not (WeintCodex.Names and WeintCodex.Names.Me) then return nil end
+    local ok, _, _, full = pcall(WeintCodex.Names.Me)
+    if not ok or type(full) ~= "string" or full == "" then return nil end
+    characterKey = full
+    return characterKey
+end
+
+-- Ein Zweig unterhalb von encounterProgress, der noch aus der kontoweiten
+-- Zeit stammt. Absichtlich am Inhalt erkannt und nicht an einer Merkerzahl:
+-- so bleibt die Migration auch dann richtig, wenn eine alte und eine neue
+-- Addonversion sich abwechseln.
+local function LooksLikeInstanceStore(value)
+    return type(value) == "table"
+       and (type(value.bosses) == "table" or type(value.resetStamp) == "number")
+end
+
+local function GetCharacterProgress()
     local sd = WeintCodex.SavedData
     if not sd then return nil end
+
+    local key = CharacterKey()
+    if not key then return nil end
+
     sd.encounterProgress = sd.encounterProgress or {}
-    sd.encounterProgress[instanceName] = sd.encounterProgress[instanceName] or { resetStamp = 0, bosses = {} }
+    local root = sd.encounterProgress
+
+    root.characters = root.characters or {}
+    root.characters[key] = root.characters[key] or {}
+    local mine = root.characters[key]
+
+    for name, value in pairs(root) do
+        if name ~= "characters" and LooksLikeInstanceStore(value) then
+            -- Nicht ueberschreiben: hat dieser Charakter die Instanz schon
+            -- selbst gefuehrt, ist sein eigener Stand der genauere.
+            if mine[name] == nil then mine[name] = value end
+            root[name] = nil
+        end
+    end
+
+    return mine
+end
+
+local function GetInstanceStore(instanceName)
+    local progress = GetCharacterProgress()
+    if not progress then return nil end
+    progress[instanceName] = progress[instanceName] or { resetStamp = 0, bosses = {} }
     -- bestTries liegt bewusst NEBEN bosses: EnsureFreshReset leert nur
     -- store.bosses, der beste Versuch soll den Wochenreset ueberleben.
     -- Lazy angelegt, damit alte SavedVariables ohne den Zweig migrieren.
-    sd.encounterProgress[instanceName].bestTries = sd.encounterProgress[instanceName].bestTries or {}
-    return sd.encounterProgress[instanceName]
+    progress[instanceName].bestTries = progress[instanceName].bestTries or {}
+    return progress[instanceName]
 end
 
 -- --------------------------------------------------

@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.3.1.0"
+WeintCodex.Version = "2.4.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -22,6 +22,23 @@ SlashCmdList["WEINTCODEX"] = function(msg)
             WeintCodex.Access.Reset(true)
         else
             WeintCodex.Access.Print()
+        end
+        return
+    end
+
+    -- Gruppencheck sofort oeffnen: der Befehl ist der schnelle Weg
+    -- mitten in der Aufstellung, wenn niemand erst durch die Navigation
+    -- klicken will (siehe modules/groupcheck.lua).
+    if verb == "gruppe" or verb == "gruppencheck" then
+        if not (WeintCodex.MainFrame and WeintCodex.Navigation) then return end
+        WeintCodex.MainFrame:Show()
+        if WeintCodex.Navigation.GoToTab then
+            WeintCodex.Navigation.GoToTab("gruppencheck")
+        end
+        if rest == "pruefen" or rest == "prüfen" then
+            if WeintCodex.GroupCheck and WeintCodex.GroupCheck.Run then
+                WeintCodex.GroupCheck.Run()
+            end
         end
         return
     end

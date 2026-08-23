@@ -468,9 +468,15 @@ local SOCKET_ORDER = {
     { stat = "EMPTY_SOCKET_PRISMATIC", color = "prismatic" },
 }
 
+-- Rueckgabe: sockets, statsKnown. Der zweite Wert sagt, ob der Client die
+-- Basisdaten des Gegenstands ueberhaupt schon hatte - ohne sie kennt die
+-- Funktion die eingebauten Sockel nicht und meldet nur die eingesetzten
+-- Steine. Fuer den eigenen Charakter faellt das kaum auf (der Cache ist
+-- warm), beim Gruppencheck fremder Spieler dagegen sehr wohl: "0 Sockel"
+-- waere dort eine Aussage ueber unseren Cache, nicht ueber die Ruestung.
 local function ScanItemSockets(link, slotId)
     local sockets = {}
-    if not link then return sockets end
+    if not link then return sockets, false end
 
     local _, gems = ParseItemLink(link)
     local stats = GetItemStatsCompat and GetItemStatsCompat(link)
@@ -515,7 +521,7 @@ local function ScanItemSockets(link, slotId)
         }
     end
 
-    return sockets
+    return sockets, stats ~= nil
 end
 
 --------------------------------------------------
@@ -2052,6 +2058,20 @@ WeintCodex.Charakter.Scan = ScanCharacter
 -- zweite Liste führen muss - eine Kopie liefe still auseinander,
 -- sobald hier ein Slot dazukommt oder wegfällt.
 WeintCodex.Charakter.EquipSlots = EQUIP_SLOTS
+
+-- Der Gruppencheck (modules/groupcheck.lua) stellt dieselben zwei Fragen
+-- an fremde Ausrüstung - "liegt eine Verzauberung drauf" und "ist der
+-- Sockel belegt" - und beantwortet sie ausschließlich aus dem Item-Link.
+-- Er bekommt deshalb diese vier Bausteine, statt sie nachzubauen: eine
+-- zweite Fassung von ScanItemSockets wäre genau die Doppelpflege, die
+-- schon einmal dafür gesorgt hat, dass zwei Stellen dasselbe Item
+-- unterschiedlich bewerten. Was er NICHT übernehmen kann, ist die
+-- Bewertung selbst (Spec-Profil, Caps, Tooltip) - siehe dort.
+WeintCodex.Charakter.ParseItemLink     = ParseItemLink
+WeintCodex.Charakter.ScanItemSockets   = ScanItemSockets
+WeintCodex.Charakter.ClassifyEquipLoc  = ClassifyEquipLoc
+WeintCodex.Charakter.OffhandEnchSlot   = OFFHAND_ENCH_SLOT
+WeintCodex.Charakter.SocketColorLabel  = SOCKET_COLOR_LABEL
 
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf

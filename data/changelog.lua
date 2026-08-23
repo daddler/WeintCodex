@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.4.0.0",
+        date    = "23.08.2026",
+        notes   = {
+            "Neu: Gruppencheck. Ein eigener Punkt unter Raid (oder /wc gruppe) prueft der Reihe nach jedes Gruppen- und Raidmitglied und zeigt, wem eine Verzauberung fehlt und wer leere Sockel hat - mit der Liste der Slots im Tooltip und rechts im Detailbereich.",
+            "Der Gruppencheck zaehlt, er bewertet nicht. \"Verzauberung fehlt\" und \"Sockel leer\" sind unstrittig; ob eine Verzauberung zur Spec passt, entscheidet weiterhin nur die Charakterseite und nur fuer den eigenen Charakter. Ringe zaehlen nicht mit - den Beruf anderer Spieler meldet der Client nicht. Wer zu weit weg oder offline ist, zaehlt nicht als geprueft.",
+            "WeakAuras: ein gruener Haken steht jetzt an jeder Aura, die WeakAuras bereits fuehrt. Der Tooltip sagt, ob das Paket vollstaendig oder nur teilweise da ist, die Schaltflaeche heisst danach \"Neu importieren\" - und \"Aktualisieren\", wenn eine andere Fassung installiert ist als die angebotene.",
+            "Der Clear-Status ist charakterbezogen. Ein Lockout gehoert dem Charakter, nicht dem Konto: der Main hat Immerseus gelegt, der Twink steht am Mittwoch trotzdem vor einem vollen Raid. Bisher sah jeder Twink den Stand des zuletzt gespielten Charakters. Die vorhandenen Daten wandern einmalig auf den gerade eingeloggten Charakter.",
+        },
+    },
+    {
         version = "2.3.1.0",
         date    = "21.08.2026",
         notes   = {

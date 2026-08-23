@@ -1,2 +1,35 @@
+--------------------------------------------------
+-- WeintCodex :: WeakAura-Daten (mitgeliefert)
+--------------------------------------------------
+-- Jede Datei dieses Ordners legt genau einen Eintrag in
+-- WeintCodex.WeakAuraData ab. Felder:
+--
+--   category     "class" | "raid" | "utility" (Rubrik der Seite)
+--   icon         Pfad eines Client-Symbols
+--   name         Beschriftung der Zeile
+--   version      Anzeigeversion, frei gewaehlt
+--   description  ein Satz, was die Aura tut
+--   sortOrder    optional, Reihenfolge innerhalb der Rubrik
+--   waIds        Anzeigename(n), unter denen WeakAuras die Aura nach
+--                dem Import fuehrt
+--   string       der Importstring
+--
+-- ZU waIds: das ist der Schluessel, an dem modules/weakauras.lua
+-- erkennt, ob die Aura schon installiert ist (gruener Haken in der
+-- Zeile). Die Namen stecken im Importstring selbst und sind von aussen
+-- nicht zu erraten - die mitgelieferten Pakete stammen groesstenteils
+-- von Fojji und heissen entsprechend, nicht wie unsere `name`-Spalte.
+--
+-- Wird ein `string` gegen eine neuere Fassung getauscht, muss `waIds`
+-- mitgezogen werden. Vertippt man sich, geht nichts kaputt: die Zeile
+-- zeigt dann keinen Haken mehr, statt einen falschen. Ermittelt wird
+-- die Liste aus dem Importstring - LibDeflate-Druckcodierung
+-- (Alphabet a-z A-Z 0-9 "(" ")", 24 Bit je 4 Zeichen, niederwertiges
+-- Sechstel zuerst), dann roher Deflate-Strom, dann die
+-- LibSerialize-Nutzlast; darin folgt auf jeden Schluessel "id" der
+-- Anzeigename. Aufzunehmen sind nur die Wurzeleintraege, also die, die
+-- in keinem "controlledChildren" einer anderen Aura stehen.
+--------------------------------------------------
+
 WeintCodex = WeintCodex or {}
 WeintCodex.WeakAuraData = WeintCodex.WeakAuraData or {}

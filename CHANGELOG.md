@@ -2,6 +2,30 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.4.0.0] – 2026-08-23
+
+### Neu
+- **Gruppencheck: Verzauberungen und Sockel der ganzen Gruppe auf einer Seite.** Neuer Navigationspunkt unter *Raid* (auch über `/wc gruppe`). Er inspiziert der Reihe nach jedes Gruppen- bzw. Raidmitglied und zeigt je Zeile, wie viele Verzauberungen fehlen und wie viele Sockel leer sind — samt Liste der betroffenen Slots im Tooltip und im Detailbereich rechts. Die Filterleiste schaltet zwischen *Alle Mitglieder* und *Nur mit Befund*; sortiert wird nach Befund, oben steht also, was jemanden interessiert
+- **Die Seite zählt, sie bewertet nicht.** „Verzauberung fehlt" und „Sockel leer" sind unstrittig; „falscher Stein" wäre ein Vorwurf, und für den fehlt bei fremden Spielern alles, was ihn tragen könnte — die Spec meldet der Client beim Inspizieren nicht verlässlich, und ein Tooltip-Scan über 16 Slots mal 25 Spieler wäre eine Zumutung für den Client. Ob eine Verzauberung zur Spec passt, entscheidet weiterhin nur die Charakterseite und nur für den eigenen Charakter
+- **Ringe zählen nicht mit.** Ringe darf nur verzaubern, wer den Beruf selbst geskillt hat, und den Beruf eines fremden Spielers kann der Client nicht melden. Ein Nicht-Verzauberer bekäme sonst dauerhaft zwei erfundene Mängel
+- **Nicht erreichbar ist kein Befund.** Wer zu weit weg, offline oder in einer anderen Phase ist, lässt sich nicht inspizieren. Diese Zeilen sagen das und zählen nicht als geprüft — eine Übersicht, die Ungeprüftes als geprüft zählt, ist schlimmer als gar keine
+- **WeakAuras: grüner Haken an jeder Aura, die schon installiert ist.** Links in der Zeile, dazu im Tooltip, ob das Paket vollständig oder nur teilweise vorhanden ist. Die Schaltfläche rechts sagt danach *Neu importieren* statt *Installieren* — und *Aktualisieren*, wenn eine andere Fassung vermerkt ist als die angebotene. Der Detailbereich zählt „installiert: 7 / 9"
+
+### Geändert
+- **Der Clear-Status ist charakterbezogen.** Ein Schlachtzugs-Lockout gehört in MoP dem einzelnen Charakter, nicht dem Konto: der Main hat Immerseus gelegt, der Twink steht am Mittwoch trotzdem vor einem vollen Raid. Bis 2.3.1.0 lag der Fortschritt kontoweit, jeder Twink sah also den Stand des zuletzt gespielten Charakters. Der Lockout-Import konnte das nicht heilen — er setzt Kills, aber er nimmt keine zurück, weil ein fehlender Eintrag genauso gut „Server hat die Raid-Info noch nicht geschickt" heissen kann. Die bisherigen Daten wandern einmalig auf den gerade eingeloggten Charakter; alle anderen holen sich ihren Kill-Stand binnen Sekunden selbst aus der Lockout-API
+- Der Fortschrittsbalken der Bossguides nennt im Tooltip den Charakter, dessen Stand er zeigt. Ohne das ist „0 %" auf dem Twink nicht von einem Fehler zu unterscheiden
+- Die Onboarding-Tour hat eine Seite mehr (Gruppencheck)
+
+### Technisch
+- `modules/groupcheck.lua`: eigene Inspektionsschlange über `NotifyInspect`/`INSPECT_READY`, **ein Eintrag nach dem anderen** mit Zeitüberschreitung (2 s) und Pause (0,7 s). Der Server beantwortet immer nur eine Inspektion, und zu schnelles Nachfassen liefert die Daten des vorigen Spielers. Vor jedem Auslesen wird der Name der Einheit erneut gegen den Eintrag der Schlange geprüft: die Gruppe kann sich während des Laufs ändern, `raid7` ist dann jemand anders, und eine Zeile mit fremder Ausrüstung zu füllen wäre ein Vorwurf an den Falschen
+- Die Seite liest ausschließlich aus dem Item-Link (Verzauberungs-ID, Steine) plus `GetItemStats` für die eingebauten Sockelplätze — keine Tooltip-Scans. Die Bausteine dafür kommen aus `modules/charakter.lua` (`ParseItemLink`, `ScanItemSockets`, `ClassifyEquipLoc`, `OffhandEnchSlot`), eine zweite Fassung wäre die Doppelpflege, an der die Verzauberungserkennung schon einmal gescheitert ist
+- `ScanItemSockets()` gibt jetzt zusätzlich zurück, ob der Client die Basisdaten des Gegenstands überhaupt hatte. Ohne sie kennt die Funktion die eingebauten Sockel nicht — beim eigenen Charakter fällt das kaum auf, bei fremden sehr wohl, und „0 Sockel" wäre dort eine Aussage über unseren Item-Cache statt über die Rüstung
+- Neuzeichnen ist entprellt (2 s während eines Laufs): WoW gibt Frames nie wieder frei, und ein Neuaufbau je Mitglied setzt ausserdem die Bildlaufposition zurück, während jemand darin liest. Den Fortschritt trägt solange die Schaltfläche in der Titelleiste
+- `SavedData.encounterProgress.characters["Name-Realm"][instanz]` löst die bisherige kontoweite Ablage ab. Die alten Zweige sind am Inhalt erkennbar (`bosses`/`resetStamp`) und werden beim ersten Zugriff verschoben — an einer Merkerzahl erkannt bliebe die Migration nicht richtig, wenn eine alte und eine neue Addonversion sich abwechseln
+- `waIds` in `data/weakauras/*.lua` trägt die Anzeigenamen, unter denen WeakAuras die jeweilige Aura führt. Sie stecken im Importstring und sind von aussen nicht zu erraten — die mitgelieferten Pakete heissen „Fojji - Warrior UI [MoP]", die Zeile heisst „Krieger". Wie sie aus dem String zu ziehen sind, steht im Kopf von `data/weakauras/init.lua`. Für zugestellte Auren, deren Namen niemand kennen kann, merkt sich das Addon stattdessen, welche Anzeigen der Import über diese Seite tatsächlich angelegt hat (Differenz vor/nach dem Klick, aufgelöst beim nächsten Aufbau der Seite)
+- Der Unterschied trägt bis in die Bewertung: die kuratierte Liste enthält nur Wurzeleinträge, da müssen alle da sein; die beobachtete enthält auch jede Unteraura, dort genügt eine. Ist WeakAuras gar nicht geladen, sagt die Zeile nichts — „nicht installiert" wäre dann eine Aussage über unser Unwissen
+- `WeintCodex.Navigation.GoToTab(tabId)` ist jetzt öffentlich, damit Slash-Befehle einen Bereich so öffnen können, als hätte jemand in der Spalte geklickt
+
 ## [2.3.1.0] – 2026-08-21
 
 ### Behoben

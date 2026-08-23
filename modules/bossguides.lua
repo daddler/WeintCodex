@@ -129,6 +129,22 @@ local function CreateGuideFrame()
     progressEyebrow:SetJustifyH("RIGHT")
     progressEyebrow:SetText(WeintCodex.ColorText("textFaint", "FORTSCHRITT"))
 
+    -- Seit 2.4.0.0 zaehlt der Fortschritt pro Charakter (siehe
+    -- modules/encounter_tracking.lua). Als Beschriftung passt der Name
+    -- nicht in die 120 px neben dem Zitat, deshalb steht er im Tooltip:
+    -- ohne ihn ist "0 %" auf dem Twink nicht von einem Fehler zu
+    -- unterscheiden, wenn der Main gestern die halbe Instanz gelegt hat.
+    progressBox:EnableMouse(true)
+    progressBox:SetScript("OnEnter", function(self)
+        local name = UnitName("player") or "diesem Charakter"
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("Fortschritt: " .. name)
+        GameTooltip:AddLine("Der Schlachtzugs-Lockout gilt pro Charakter -"
+            .. " jeder Twink hat seinen eigenen Stand.", 0.7, 0.7, 0.7, true)
+        GameTooltip:Show()
+    end)
+    progressBox:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     local progressPct = progressBox:CreateFontString(nil, "OVERLAY")
     progressPct:SetFont(WeintCodex.Fonts.serifBold, 28, "")
     progressPct:SetPoint("TOPRIGHT", progressEyebrow, "BOTTOMRIGHT", 0, -4)

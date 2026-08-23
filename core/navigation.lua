@@ -28,6 +28,11 @@ local tabs = {
     { id = "bossguides", icon = ICON_PATH .. "nav_bossguides", label = "Bossguides" },
     { id = "raids",      icon = ICON_PATH .. "nav_raids",      label = "Raids",
       feature = "raids.view" },
+    -- Bewusst OHNE feature: der Gruppencheck liest ausschliesslich die
+    -- Ausruestung der Leute, die gerade neben einem stehen. Das ist keine
+    -- gildeninterne Lieferung, sondern dieselbe Auskunft, die jeder
+    -- Client ueber "Untersuchen" ohnehin gibt.
+    { id = "gruppencheck", icon = ICON_PATH .. "nav_gruppencheck", label = "Gruppencheck" },
     { id = "calendar",   icon = ICON_PATH .. "nav_calendar",   label = "Kalender",
       feature = "calendar.view" },
     { id = "weinttv",    icon = ICON_PATH .. "nav_weinttv",    label = "WeintTV" },
@@ -1636,6 +1641,10 @@ function WeintCodex.Navigation.SwitchTo(tabId)
         if WeintCodex.Raids and WeintCodex.Raids.Show then
             WeintCodex.Raids.Show()
         end
+    elseif tabId == "gruppencheck" then
+        if WeintCodex.GroupCheck and WeintCodex.GroupCheck.Show then
+            WeintCodex.GroupCheck.Show()
+        end
     elseif tabId == "materials" then
         if WeintCodex.Materials and WeintCodex.Materials.Show then
             WeintCodex.Materials.Show()
@@ -1887,6 +1896,13 @@ local function GoToTab(tabId)
     local btn = tabButtons[tabId]
     if btn then btn:Click() end
 end
+
+-- Auch von aussen: Slash-Befehle in core/main.lua sollen einen Bereich
+-- so oeffnen, als haette jemand in der Spalte geklickt. Ueber SwitchTo
+-- ginge das nicht - dabei bliebe die Spalte auf dem alten Eintrag
+-- markiert, und der naechste Klick auf den neuen taete nichts (activeTab
+-- stuende dann schon darauf, siehe ResetToHome).
+WeintCodex.Navigation.GoToTab = GoToTab
 
 -- Die acht Modulkacheln der v1-Startseite sind mit 2.0 entfallen: die
 -- Navigationsspalte schreibt dieselben Bereiche aus, eine zweite Liste
