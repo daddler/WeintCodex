@@ -4,6 +4,9 @@ Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lo
 
 ## [2.4.0.0] – 2026-08-23
 
+### Behoben
+- **Jägern wurde dauerhaft „Nebenhand: Kein Gegenstand angelegt" gemeldet.** Ein Jäger trägt in MoP seine Distanzwaffe in der Haupthand, und der Nebenhand-Slot ist für ihn schlicht nicht benutzbar — der Hinweis war ein Mangel, den er gar nicht beheben konnte. Geprüft wurde bis dahin nur auf `INVTYPE_2HWEAPON`, und ein Bogen heisst `INVTYPE_RANGED`. Der Anlegeplatz allein reicht dafür aber nicht: `INVTYPE_RANGEDRIGHT` tragen sowohl Schusswaffen und Armbrüste (belegen beide Hände) als auch Zauberstäbe (tun es nicht — ein Caster mit Zauberstab hat sehr wohl eine Nebenhand). Entschieden wird jetzt über die Waffen-Unterklasse; sind die Item-Daten noch nicht im Cache, bleibt der Hinweis aus und der Scan wird nachgeholt, statt „kein Gegenstand angelegt" über unseren eigenen Cache zu behaupten
+
 ### Neu
 - **Gruppencheck: Verzauberungen und Sockel der ganzen Gruppe auf einer Seite.** Neuer Navigationspunkt unter *Raid* (auch über `/wc gruppe`). Er inspiziert der Reihe nach jedes Gruppen- bzw. Raidmitglied und zeigt je Zeile, wie viele Verzauberungen fehlen und wie viele Sockel leer sind — samt Liste der betroffenen Slots im Tooltip und im Detailbereich rechts. Die Filterleiste schaltet zwischen *Alle Mitglieder* und *Nur mit Befund*; sortiert wird nach Befund, oben steht also, was jemanden interessiert
 - **Die Seite zählt, sie bewertet nicht.** „Verzauberung fehlt" und „Sockel leer" sind unstrittig; „falscher Stein" wäre ein Vorwurf, und für den fehlt bei fremden Spielern alles, was ihn tragen könnte — die Spec meldet der Client beim Inspizieren nicht verlässlich, und ein Tooltip-Scan über 16 Slots mal 25 Spieler wäre eine Zumutung für den Client. Ob eine Verzauberung zur Spec passt, entscheidet weiterhin nur die Charakterseite und nur für den eigenen Charakter

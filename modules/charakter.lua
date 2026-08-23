@@ -1060,13 +1060,63 @@ local function ClassifyEquipLoc(link)
     return nil
 end
 
-local function IsTwoHander(link)
-    if not link then return false end
+--------------------------------------------------
+-- BELEGT DIE HAUPTWAFFE BEIDE HAENDE?
+--
+-- Die Frage ist NICHT "ist das ein Zweihänder". Ein Jäger trägt in MoP
+-- seine Distanzwaffe in der Haupthand, und der Nebenhand-Slot ist für
+-- ihn schlicht nicht benutzbar — der Anlegeplatz eines Bogens heisst
+-- aber `INVTYPE_RANGED` und nicht `INVTYPE_2HWEAPON`. Ein reiner
+-- Vergleich gegen den Zweihänder meldete deshalb jedem Jäger
+-- dauerhaft "Nebenhand: Kein Gegenstand angelegt" — ein Mangel, den er
+-- gar nicht beheben kann.
+--
+-- Der Anlegeplatz allein reicht dafür nicht: `INVTYPE_RANGEDRIGHT`
+-- tragen in MoP sowohl Schusswaffen und Armbrüste (belegen beide
+-- Hände) als auch Zauberstäbe (tun es nicht — ein Caster mit
+-- Zauberstab hat sehr wohl eine Nebenhand). Entschieden wird deshalb
+-- über die Waffen-Unterklasse.
+--------------------------------------------------
+
+local RANGED_EQUIP_LOC = {
+    INVTYPE_RANGED      = true,
+    INVTYPE_RANGEDRIGHT = true,
+}
+
+-- Bogen (2), Schusswaffe (3), Armbrust (18). Zauberstab ist 19 und
+-- steht bewusst nicht hier.
+local BOTH_HANDS_SUBCLASS = { [2] = true, [3] = true, [18] = true }
+
+-- Anlegeplatz + Waffen-Unterklasse, aus welcher Quelle auch immer.
+local function ItemEquipInfo(link)
+    if not link then return nil, nil end
     if GetItemInfoInstant then
-        local _, _, _, equipLoc = GetItemInfoInstant(link)
-        if equipLoc and equipLoc ~= "" then return equipLoc == "INVTYPE_2HWEAPON" end
+        local _, _, _, equipLoc, _, _, subclassId = GetItemInfoInstant(link)
+        if equipLoc and equipLoc ~= "" then return equipLoc, subclassId end
     end
-    return select(9, GetItemInfo(link)) == "INVTYPE_2HWEAPON"
+    local equipLoc   = select(9,  GetItemInfo(link))
+    local subclassId = select(13, GetItemInfo(link))
+    if equipLoc and equipLoc ~= "" then return equipLoc, subclassId end
+    return nil, nil
+end
+
+-- true / false / nil. nil heisst "Item-Infos noch nicht im Cache" — der
+-- Aufrufer behauptet dann nichts, statt zu raten.
+local function OccupiesBothHands(link)
+    local equipLoc, subclassId = ItemEquipInfo(link)
+    if not equipLoc then return nil end
+
+    if equipLoc == "INVTYPE_2HWEAPON" then return true end
+    if not RANGED_EQUIP_LOC[equipLoc] then return false end
+
+    if type(subclassId) == "number" then
+        return BOTH_HANDS_SUBCLASS[subclassId] == true
+    end
+
+    -- Unterklasse nicht lesbar: der Jäger ist in MoP der Einzige, der
+    -- eine Distanzwaffe in der Haupthand führt, und er hat nie eine
+    -- Nebenhand. Für alle anderen bleibt es beim Zauberstab.
+    return select(2, UnitClass("player")) == "HUNTER"
 end
 
 -- Verzauberungs-Topf für den Nebenhand-Slot.
@@ -1963,12 +2013,23 @@ local function ScanCharacter()
     -- Leere Nebenhand trotz Einhandwaffe. Bewusst NUR als Hinweis und nicht
     -- als Zeile in scan.enchants.rows: es fehlt ein Gegenstand, keine
     -- Verzauberung — als "missing"-Zeile gezählt würde die Quote lügen.
+    --
+    -- Gemeldet wird nur, wenn die Haupthandwaffe die Nebenhand
+    -- nachweislich frei lässt (siehe OccupiesBothHands). Bei einem noch
+    -- ungecachten Gegenstand bleibt der Hinweis aus und der Scan wird
+    -- nachgeholt — "kein Gegenstand angelegt" wäre sonst eine Aussage
+    -- über unseren Item-Cache.
     do
         local mainLink = GetInventoryItemLink("player", 16)
         local offLink  = GetInventoryItemLink("player", 17)
-        if mainLink and not offLink and not IsTwoHander(mainLink) then
-            issues[#issues + 1] = { prio = 1, status = "missing",
-                text = "Nebenhand: Kein Gegenstand angelegt" }
+        if mainLink and not offLink then
+            local bothHands = OccupiesBothHands(mainLink)
+            if bothHands == nil then
+                NotePendingItemInfo(mainLink)
+            elseif bothHands == false then
+                issues[#issues + 1] = { prio = 1, status = "missing",
+                    text = "Nebenhand: Kein Gegenstand angelegt" }
+            end
         end
     end
 
