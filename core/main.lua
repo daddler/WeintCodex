@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.4.1.0"
+WeintCodex.Version = "2.4.1.1"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -50,6 +50,7 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     --   /wc alarm ton        Signalton umschalten
     --   /wc alarm erinnern   Erinnerungen umschalten (frueher "ruhe")
     --   /wc alarm erneut     alle Quittungen vergessen
+    --   /wc alarm berufe     was je Berufsvorteil gelesen wurde
     --   /wc alarm bewegen    Meldung zum Verschieben stehen lassen
     --   /wc alarm jetzt      sofort pruefen
     if verb == "alarm" or verb == "alert" then

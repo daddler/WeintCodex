@@ -2,6 +2,19 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.4.1.1] – 2026-08-24
+
+### Behoben
+- **Der Ingenieurs-Gürtel hiess im Alarm „Nitrobeschleuniger" — im deutschen Client heisst er *Nitrobooster*.** Das Rezept lautet „Ingenieurskunst: Nitrobooster"; ein Text, der einen Gegenstand anders nennt als das Spiel, schickt den Leser beim Suchen ins Leere. Auf die *Erkennung* hatte der Name keinen Einfluss — verglichen wird der Verzauberungswert des Item-Links, nie ein Name (siehe den Kopf von `data/professions.lua`) —, aber die Meldung war dadurch trotzdem irreführend
+- **Die Nitrobooster brauchen laut Rezept Fertigkeit 400, nicht 500.** Die pauschale Untergrenze von 500 hätte jeden Ingenieur zwischen 400 und 500 stumm über eine Lücke gelassen, die er hätte schliessen können. Jede Vergünstigung darf die Vorgabe jetzt über ein eigenes `minSkill` unterbieten; die Synapsenfedern stehen umgekehrt auf 550
+
+### Neu
+- **`/wc alarm berufe` sagt, *was* gelesen wurde** — je Vergünstigung den angelegten Gegenstand (als anklickbarer Link), den Verzauberungswert aus seinem Item-Link, die Sockelzahlen, die Zahl der Schlangenaugen, dazu das Urteil *genutzt / offen / nicht feststellbar*. Auch Berufe ohne hinterlegte Vergünstigung werden mit ihrer Skill-Line-ID genannt. Genau das fehlte, als der Alarm einem Ingenieur „Nitrobooster fehlt" an einen Gürtel schrieb, auf dem der Tinker lag: von aussen war nicht zu unterscheiden, ob die Erkennung danebengreift oder ob schlicht ein zweiter, unverzauberter Gürtel angelegt war. Dieselbe Überlegung wie bei `/wc vz zeilen` — diese Fehlerklasse ist ohne Ausgabe der Rohdaten nicht diagnostizierbar
+
+### Technisch
+- Die Entscheidung je Vergünstigung liegt jetzt in **einer** Funktion (`PerkState`), aus der sowohl der Alarm als auch `/wc alarm berufe` lesen. Zwei Fassungen derselben Frage wären genau die Doppelpflege, an der die Verzauberungserkennung in diesem Addon schon einmal gescheitert ist
+- Die Testabdeckung hatte eine Lücke, die den Verdacht überhaupt erst offen liess: **jeder Testlink trug die Verzauberung 0**, der erfolgreiche Pfad war also nie geprüft. Es gibt jetzt einen Test mit einem echten MoP-Item-Link samt Nitrobooster (`item:89241:4223:…`) — er bestätigt, dass der Wert korrekt gelesen wird und kein Befund entsteht — plus die Gegenprobe und beide Seiten der Fertigkeitsgrenze
+
 ## [2.4.1.0] – 2026-08-24
 
 ### Geändert

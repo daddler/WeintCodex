@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.4.1.1",
+        date    = "24.08.2026",
+        notes   = {
+            "Der Ingenieurs-Guertel hiess im Alarm \"Nitrobeschleuniger\" - im deutschen Client heisst er Nitrobooster. Auf die Erkennung hatte das keinen Einfluss (verglichen wird der Verzauberungswert des Item-Links, nie ein Name), beim Suchen aber sehr wohl.",
+            "Die Nitrobooster brauchen laut Rezept Fertigkeit 400, nicht 500. Ingenieure zwischen 400 und 500 haetten sonst nie davon erfahren.",
+            "Neu: /wc alarm berufe sagt, was gelesen wurde - je Berufsvorteil den angelegten Gegenstand, den Verzauberungswert aus seinem Item-Link, die Sockelzahlen und das Urteil. Wenn eine Meldung falsch aussieht, sagt dieser Befehl warum.",
+        },
+    },
+    {
         version = "2.4.1.0",
         date    = "24.08.2026",
         notes   = {

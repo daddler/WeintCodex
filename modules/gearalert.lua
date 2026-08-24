@@ -215,6 +215,76 @@ local function SlotVerdict(link)
     return TAKE
 end
 
+--------------------------------------------------
+-- Berufsvergünstigungen: eine Entscheidung, zwei Leser
+--------------------------------------------------
+-- Diese Funktion ist die einzige Stelle, an der beantwortet wird, ob
+-- eine Vergünstigung genutzt ist. Collect() baut daraus Befunde,
+-- "/wc alarm berufe" druckt sie samt Begründung aus - eine zweite
+-- Fassung wäre genau die Doppelpflege, an der die
+-- Verzauberungserkennung in diesem Addon schon einmal gescheitert ist.
+--
+-- Rückgabe: used (true / false / nil = nicht feststellbar), detail
+-- (was gelesen wurde, im Klartext).
+
+local function PerkMinSkill(perk)
+    return perk.minSkill or WeintCodex_ProfessionMinSkill or 500
+end
+
+local function CountJewelcrafterGems()
+    local CH = WeintCodex.Charakter
+    local n = 0
+    for _, slotDef in ipairs(CH.EquipSlots or {}) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local _, gems = CH.ParseItemLink(link)
+            for _, gemId in pairs(gems) do
+                local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
+                if db and db.jcOnly then n = n + 1 end
+            end
+        end
+    end
+    return n
+end
+
+local function PerkState(perk, link, jcCount)
+    local CH = WeintCodex.Charakter
+
+    if perk.kind == "gems" then
+        local need = perk.count or 0
+        local have = jcCount or 0
+        return have >= need, have .. " von " .. need .. " eingesetzt"
+    end
+
+    if not link then return nil, "kein Gegenstand angelegt" end
+
+    if perk.kind == "exclusive" then
+        -- Der Verzauberungswert des Item-Links, nicht sein Name. Auf
+        -- einem Gürtel kann in MoP nur der Ingenieur etwas anbringen -
+        -- steht dort etwas, ist es seine Vergünstigung.
+        local enchId = CH.ParseItemLink(link)
+        return enchId ~= nil,
+            enchId and ("Verzauberung im Item-Link: " .. enchId)
+                    or  "keine Verzauberung im Item-Link"
+    end
+
+    if perk.kind == "socket" then
+        local sockets, known = CH.ScanItemSockets(link, perk.slotId)
+        if not known then return nil, "Item-Basisdaten noch nicht geladen" end
+        local base = 0
+        for _, sock in ipairs(sockets) do
+            if not sock.extra then base = base + 1 end
+        end
+        local _, gems = CH.ParseItemLink(link)
+        local extra = gems[base + 1]
+        return extra ~= nil,
+            base .. " eingebaute Sockel, Zusatzsockel "
+            .. (extra and ("belegt (Stein " .. extra .. ")") or "leer oder nicht angebracht")
+    end
+
+    return nil, nil
+end
+
 -- Die Sammelstelle der Juwelierssteine hat keinen Slot; sie steht ans
 -- Ende der Liste.
 local JC_PSEUDO_SLOT = 100
@@ -308,64 +378,24 @@ local function Collect()
     --------------------------------------------------
     -- Was der Charakter dürfte und nicht hat. Entschieden wird
     -- ausschliesslich über Zählbares - siehe den Kopf jener Datei.
+    -- Die Entscheidung je Vergünstigung liegt in PerkState (oben),
+    -- damit "/wc alarm berufe" genau das ausgibt, was hier gilt, statt
+    -- eine zweite Lesart derselben Frage zu führen.
 
     local CH = WeintCodex.Charakter
 
     if WeintCodex_ProfessionPerks and WeintCodex_GetProfessionSkills
        and CH.ParseItemLink and CH.ScanItemSockets then
 
-        local skills   = WeintCodex_GetProfessionSkills()
-        local minSkill = WeintCodex_ProfessionMinSkill or 500
-
-        -- Belegt der Gegenstand einen Sockel jenseits seiner
-        -- eingebauten? Genau die Frage, die auch die Gürtelschnalle
-        -- beantwortet - und mit derselben Unschärfe: ein angebrachter,
-        -- aber leerer Zusatzsockel ist vom nicht angebrachten nicht zu
-        -- unterscheiden, weil GetItemStats nur den Grundgegenstand
-        -- kennt. Deshalb heisst der Text "fehlt oder ist leer".
-        local function HasExtraSocket(slotId, link)
-            local sockets, known = CH.ScanItemSockets(link, slotId)
-            if not known then return nil end
-            local base = 0
-            for _, sock in ipairs(sockets) do
-                if not sock.extra then base = base + 1 end
-            end
-            local _, gems = CH.ParseItemLink(link)
-            return gems[base + 1] ~= nil
-        end
-
-        local function CountJewelcrafterGems()
-            local n = 0
-            for _, slotDef in ipairs(CH.EquipSlots or {}) do
-                local link = GetInventoryItemLink("player", slotDef.id)
-                if link then
-                    local _, gems = CH.ParseItemLink(link)
-                    for _, gemId in pairs(gems) do
-                        local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
-                        if db and db.jcOnly then n = n + 1 end
-                    end
-                end
-            end
-            return n
-        end
+        local skills  = WeintCodex_GetProfessionSkills()
+        local jcCount = nil
 
         for skillLine, prof in pairs(WeintCodex_ProfessionPerks) do
             local level = skills[skillLine]
-            if level and level >= minSkill then
-                for _, perk in ipairs(prof.perks or {}) do
+            for _, perk in ipairs(prof.perks or {}) do
+                if level and level >= PerkMinSkill(perk) then
 
-                    if perk.kind == "gems" then
-                        local have = CountJewelcrafterGems()
-                        if have < (perk.count or 0) then
-                            local e = Entry(JC_PSEUDO_SLOT, prof.name)
-                            e.perks[#e.perks + 1] = {
-                                label = perk.label,
-                                text  = perk.label .. ": " .. have
-                                        .. " von " .. perk.count .. " eingesetzt",
-                            }
-                        end
-
-                    elseif perk.kind == "hint" then
+                    if perk.kind == "hint" then
                         -- Nur, wenn die Verzauberung ohnehin fehlt: ob
                         -- dort schon die stärkere Berufsvariante liegt,
                         -- ist ohne verlässliche IDs nicht zu sagen, und
@@ -377,34 +407,33 @@ local function Collect()
                                 .. perk.label .. " (" .. perk.slotName .. ")"
                         end
 
+                    elseif perk.kind == "gems" then
+                        jcCount = jcCount or CountJewelcrafterGems()
+                        local used, detail = PerkState(perk, nil, jcCount)
+                        if used == false then
+                            local e = Entry(JC_PSEUDO_SLOT, prof.name)
+                            e.perks[#e.perks + 1] = {
+                                label = perk.label,
+                                text  = perk.label .. ": " .. detail,
+                            }
+                        end
+
                     else
                         local v = Verdict(perk.slotId)
                         if v == WAIT then
                             pending = true
                         elseif v == TAKE then
-                            local link = links[perk.slotId]
-
-                            if perk.kind == "exclusive" then
-                                local enchId = CH.ParseItemLink(link)
-                                if not enchId then
-                                    local e = Entry(perk.slotId, perk.slotName)
-                                    e.perks[#e.perks + 1] = {
-                                        label = perk.label,
-                                        text  = perk.label .. " fehlt",
-                                    }
-                                end
-
-                            elseif perk.kind == "socket" then
-                                local has = HasExtraSocket(perk.slotId, link)
-                                if has == nil then
-                                    pending = true
-                                elseif not has then
-                                    local e = Entry(perk.slotId, perk.slotName)
-                                    e.perks[#e.perks + 1] = {
-                                        label = perk.label,
-                                        text  = perk.label .. " fehlt oder ist leer",
-                                    }
-                                end
+                            local used = PerkState(perk, links[perk.slotId])
+                            if used == nil then
+                                pending = true
+                            elseif used == false then
+                                local e = Entry(perk.slotId, perk.slotName)
+                                e.perks[#e.perks + 1] = {
+                                    label = perk.label,
+                                    text  = (perk.kind == "socket")
+                                        and (perk.label .. " fehlt oder ist leer")
+                                        or  (perk.label .. " fehlt"),
+                                }
                             end
                         end
                     end
@@ -1322,7 +1351,88 @@ function GA.PrintStatus()
         .. " Minuten Ruhe. Danach erinnert der Alarm erneut - beim"
         .. " Zonenwechsel, im Ruhebereich, am Instanzeingang oder von"
         .. " selbst, sobald du gerade nichts anderes machst.|r")
-    Say("|cffaaaaaa/wc alarm an|aus · ton · erinnern · erneut · jetzt · test · bewegen|r")
+    Say("|cffaaaaaa/wc alarm an|aus · ton · erinnern · erneut · jetzt · berufe · test · bewegen|r")
+end
+
+--------------------------------------------------
+-- /wc alarm berufe
+--------------------------------------------------
+-- Druckt je Vergünstigung aus, WAS gelesen wurde - den Gegenstand, den
+-- Verzauberungswert seines Item-Links, die Sockelzahlen. Genau das
+-- fehlte, als der Alarm einem Ingenieur "Nitrobooster fehlt" an einen
+-- Gürtel schrieb, auf dem der Tinker lag: von aussen war nicht zu
+-- unterscheiden, ob die Erkennung danebengreift oder ob schlicht ein
+-- zweiter, unverzauberter Gürtel angelegt war. Dieselbe Überlegung wie
+-- bei "/wc vz zeilen" in modules/charakter.lua - diese Fehlerklasse ist
+-- ohne Ausgabe der Rohdaten nicht diagnostizierbar.
+function GA.PrintProfessions()
+    if not (WeintCodex_ProfessionPerks and WeintCodex_GetProfessionSkills) then
+        Say("Berufsdaten nicht geladen (data/professions.lua).")
+        return
+    end
+
+    local CH = WeintCodex.Charakter
+    if not (CH and CH.ParseItemLink and CH.ScanItemSockets) then
+        Say("Charaktermodul nicht bereit.")
+        return
+    end
+
+    local skills = WeintCodex_GetProfessionSkills()
+    if not next(skills) then
+        Say("Kein Beruf erkannt. (GetProfessions liefert nichts - beim"
+            .. " Anmelden kann das ein paar Sekunden dauern.)")
+        return
+    end
+
+    local jcCount = CountJewelcrafterGems()
+
+    for skillLine, level in pairs(skills) do
+        local prof = WeintCodex_ProfessionPerks[skillLine]
+        if not prof then
+            Say(WeintCodex.ColorText("textDim",
+                "Skill-Line " .. skillLine .. " (" .. level
+                .. ") - keine Vergünstigung an der Ausrüstung hinterlegt."))
+        else
+            Say(WeintCodex.ColorText("gold", prof.name)
+                .. " - Fertigkeit " .. level)
+
+            for _, perk in ipairs(prof.perks or {}) do
+                local need = PerkMinSkill(perk)
+
+                if level < need then
+                    Say("   " .. perk.label .. ": "
+                        .. WeintCodex.ColorText("textDim",
+                            "braucht Fertigkeit " .. need))
+                elseif perk.kind == "hint" then
+                    local link = GetInventoryItemLink("player", perk.slotId)
+                    local enchId = link and CH.ParseItemLink(link)
+                    Say("   " .. perk.label .. " (" .. perk.slotName .. ", Hinweis): "
+                        .. (link or "kein Gegenstand angelegt")
+                        .. " - Verzauberung im Item-Link: "
+                        .. (enchId and tostring(enchId) or "keine"))
+                else
+                    local link = (perk.kind ~= "gems")
+                        and GetInventoryItemLink("player", perk.slotId) or nil
+                    local used, detail = PerkState(perk, link, jcCount)
+
+                    local verdict
+                    if used == true then
+                        verdict = WeintCodex.ColorText("green", "genutzt")
+                    elseif used == false then
+                        verdict = WeintCodex.ColorText("warning", "offen")
+                    else
+                        verdict = WeintCodex.ColorText("textDim", "nicht feststellbar")
+                    end
+
+                    Say("   " .. perk.label
+                        .. (perk.slotName and (" (" .. perk.slotName .. ")") or "")
+                        .. ": " .. verdict)
+                    Say("      " .. (link and (link .. " - ") or "")
+                        .. tostring(detail))
+                end
+            end
+        end
+    end
 end
 
 -- Beispielmeldung mit den eigenen Daten, sonst mit erfundenen. Sie
@@ -1370,6 +1480,9 @@ function GA.Command(rest)
         end
         moveMode = false
         GA.Show(entries, "manual")
+
+    elseif rest == "berufe" or rest == "beruf" then
+        GA.PrintProfessions()
 
     elseif rest == "bewegen" or rest == "position" then
         GA.ShowMover()

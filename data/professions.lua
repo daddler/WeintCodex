@@ -52,6 +52,12 @@
 -- Ab dieser Fertigkeit gibt es die Vergünstigungen überhaupt. Wer den
 -- Beruf gerade erst angefangen hat, kann nichts davon herstellen, und
 -- eine Meldung darüber wäre ein Mangel, den er nicht beheben kann.
+--
+-- Das ist nur der Vorgabewert; jede Vergünstigung darf ihn über ein
+-- eigenes `minSkill` unterbieten. Die Zahlen sind unterschiedlich, und
+-- eine zu hohe schweigt über eine echte Lücke - die Nitrobooster etwa
+-- verlangen laut Rezept nur 400, mit dem pauschalen 500 hätte ein
+-- Ingenieur zwischen 400 und 500 nie davon erfahren.
 WeintCodex_ProfessionMinSkill = 500
 
 WeintCodex_ProfessionPerks = {
@@ -67,11 +73,19 @@ WeintCodex_ProfessionPerks = {
             -- führt für Slot 6 deshalb gar keine Verzauberungszeile
             -- (siehe EQUIP_SLOTS in modules/charakter.lua) - ohne diesen
             -- Eintrag bliebe die Lücke unsichtbar.
+            --
+            -- "Nitrobooster" ist die Schreibweise des deutschen Clients
+            -- (Rezept "Ingenieurskunst: Nitrobooster"); die frühere
+            -- "Nitrobeschleuniger" gibt es dort nicht. Auf die Erkennung
+            -- hat das keinen Einfluss - verglichen wird der
+            -- Verzauberungswert des Item-Links, nie ein Name -, aber ein
+            -- Text, der einen Gegenstand anders nennt als das Spiel,
+            -- schickt den Leser ins Leere.
             { kind = "exclusive", slotId = 6,  slotName = "Taille",
-              label = "Nitrobeschleuniger" },
+              label = "Nitrobooster", minSkill = 400 },
 
             { kind = "hint", slotId = 10, slotName = "Hände",
-              label = "Synapsenfedern" },
+              label = "Synapsenfedern", minSkill = 550 },
             { kind = "hint", slotId = 15, slotName = "Umhang",
               label = "Ingenieurs-Umhangbastelei (Fallschirm/Gleiter)" },
         },
