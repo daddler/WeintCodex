@@ -150,18 +150,18 @@ WeintCodex_Gems = {
     -- 320 Primär / 480 Sekundär, nur für Juweliere
     --------------------------------------------------
 
-    [83141] = { name = "Kühnes Schlangenauge",            color = "rot",  stats = "+320 Stärke (nur Juweliere)" },
-    [83142] = { name = "Flinkes Schlangenauge",           color = "gelb", stats = "+480 Tempowertung (nur Juweliere)" },
-    [83143] = { name = "Zerbrochenes Schlangenauge",      color = "gelb", stats = "+480 Meisterschaftswertung (nur Juweliere)" },
-    [83144] = { name = "Starres Schlangenauge",           color = "blau", stats = "+480 Trefferwertung (nur Juweliere)" },
-    [83145] = { name = "Subtiles Schlangenauge",          color = "gelb", stats = "+480 Ausweichwertung (nur Juweliere)" },
-    [83146] = { name = "Glattes Schlangenauge",           color = "gelb", stats = "+480 kritische Trefferwertung (nur Juweliere)" },
-    [83147] = { name = "Präzises Schlangenauge",          color = "rot",  stats = "+480 Waffenkunde (nur Juweliere)" },
-    [83148] = { name = "Gediegenes Schlangenauge",        color = "blau", stats = "+480 Ausdauer (nur Juweliere)" },
-    [83149] = { name = "Funkelndes Schlangenauge",        color = "blau", stats = "+480 Willenskraft (nur Juweliere)" },
-    [83150] = { name = "Glänzendes Schlangenauge",        color = "rot",  stats = "+320 Intelligenz (nur Juweliere)" },
-    [83151] = { name = "Feingeschliffenes Schlangenauge", color = "rot",  stats = "+320 Beweglichkeit (nur Juweliere)" },
-    [83152] = { name = "Blitzendes Schlangenauge",        color = "rot",  stats = "+480 Parierwertung (nur Juweliere)" },
+    [83141] = { name = "Kühnes Schlangenauge",            color = "rot",  stats = "+320 Stärke (nur Juweliere)" , jcOnly = true },
+    [83142] = { name = "Flinkes Schlangenauge",           color = "gelb", stats = "+480 Tempowertung (nur Juweliere)" , jcOnly = true },
+    [83143] = { name = "Zerbrochenes Schlangenauge",      color = "gelb", stats = "+480 Meisterschaftswertung (nur Juweliere)" , jcOnly = true },
+    [83144] = { name = "Starres Schlangenauge",           color = "blau", stats = "+480 Trefferwertung (nur Juweliere)" , jcOnly = true },
+    [83145] = { name = "Subtiles Schlangenauge",          color = "gelb", stats = "+480 Ausweichwertung (nur Juweliere)" , jcOnly = true },
+    [83146] = { name = "Glattes Schlangenauge",           color = "gelb", stats = "+480 kritische Trefferwertung (nur Juweliere)" , jcOnly = true },
+    [83147] = { name = "Präzises Schlangenauge",          color = "rot",  stats = "+480 Waffenkunde (nur Juweliere)" , jcOnly = true },
+    [83148] = { name = "Gediegenes Schlangenauge",        color = "blau", stats = "+480 Ausdauer (nur Juweliere)" , jcOnly = true },
+    [83149] = { name = "Funkelndes Schlangenauge",        color = "blau", stats = "+480 Willenskraft (nur Juweliere)" , jcOnly = true },
+    [83150] = { name = "Glänzendes Schlangenauge",        color = "rot",  stats = "+320 Intelligenz (nur Juweliere)" , jcOnly = true },
+    [83151] = { name = "Feingeschliffenes Schlangenauge", color = "rot",  stats = "+320 Beweglichkeit (nur Juweliere)" , jcOnly = true },
+    [83152] = { name = "Blitzendes Schlangenauge",        color = "rot",  stats = "+480 Parierwertung (nur Juweliere)" , jcOnly = true },
 }
 
 --------------------------------------------------

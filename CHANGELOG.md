@@ -2,6 +2,36 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.4.1.0] – 2026-08-24
+
+### Geändert
+- **Weggeklickt heisst jetzt fünf Minuten Ruhe, nicht für immer.** Danach erinnert der Ausrüstungs-Alarm wieder, solange die Lücke offen ist — sonst vergisst man sie schlicht. Dauerhaft still wird er, wenn die Lücke behoben ist, oder über `/wc alarm aus`
+- **Vier Anlässe bringen die Erinnerung zurück:** ein Zonenwechsel, der Ruhebereich, der Instanzeingang und ein Zeitgeber. Den Zeitgeber braucht es für den Fall, der sonst durchfällt — wer beim Taschensortieren an der Bank stehen bleibt, wechselt weder Zone noch Ruhestatus
+- **Aber nur, wenn man gerade nichts anderes macht.** Kampf, Bosskampf, tot, Flugroute, Fahrzeug, Zaubern, Haustierkampf — und Bewegung. Wer läuft, reitet oder fliegt, ist unterwegs und nicht bei der Ausrüstung; dadurch landet die Erinnerung von selbst in dem Moment, in dem man irgendwo stehen bleibt, und das ist genau der, in dem man etwas tun kann
+- **Der Instanzeingang übergeht die Quittung.** Er ist der letzte Moment, in dem sich die Lücke noch schliessen lässt, und danach zählt sie eine Stunde lang bei jedem Pull mit. Eine Untergrenze von einer Minute bleibt trotzdem stehen, damit ein zweiter Ladebildschirm die Meldung nicht Sekunden nach dem Wegklicken zurückbringt
+- `/wc alarm ruhe` heisst jetzt `/wc alarm erinnern` (der alte Name funktioniert weiter) und schaltet **alle** Erinnerungen, nicht nur die im Ruhebereich. Vier einzelne Schalter wären vier Fragen an den Nutzer, wo er nur eine hat
+
+### Behoben
+- **Die Gürtelschnalle verschwand in der Sockelzahl.** Ein Gürtel ohne Schnalle und mit einem leeren Sockel meldete „2 Sockel leer" — und wer das las, wusste nicht, dass er dafür erst eine *Ewige Gürtelschnalle* kaufen muss. Ein leerer Sockel und ein fehlender Sockelplatz sind zwei verschiedene Besorgungen; sie stehen jetzt nebeneinander („Gürtelschnalle fehlt · 1 Sockel leer") und werden nirgends mehr zusammengezählt
+
+### Neu
+- **Berufsvergünstigungen zählen mit, wenn der Charakter den Beruf hat** (`data/professions.lua`). Was nur dieser Beruf kann und ungenutzt ist, wird zum eigenen Befund:
+  - **Ingenieurskunst** — der Gürtel. Ihn kann in MoP ausser dem Ingenieur niemand verzaubern, weshalb der normale Ausrüstungscheck den Slot gar nicht kennt: die Lücke war bisher unsichtbar
+  - **Schmiedekunst** — je ein Zusatzsockel an Handschuhen und Armschienen, behandelt wie die Gürtelschnalle
+  - **Juwelenschleifen** — die Schlangenaugen, gezählt („Schlangenauge: 0 von 2 eingesetzt")
+  - **Verzauberkunst** — die beiden Ringverzauberungen, wie bisher über den vorhandenen Check
+- **Handschuhe, Umhang, Armschienen und Schultern bekommen einen Hinweis statt eines Befunds.** Diese Slots kann jeder verzaubern; ob dort schon die stärkere Berufsvariante liegt, ist ohne verlässliche Verzauberungs-IDs nicht zu beantworten, und „du könntest was Besseres tragen" wäre das Urteil, das dieses Modul nicht fällt. Fehlt die Verzauberung aber ganz, nennt eine eigene Zeile, was der Beruf zusätzlich hergibt — Synapsenfedern, Stickerei, Fellbesatz, Geheime Inschrift
+- `/wc alarm` nennt im Status, welche Berufsvergünstigungen für diesen Charakter erkannt wurden. Ohne das ist von aussen nicht zu unterscheiden, ob der Beruf nicht erkannt wurde oder ob gerade nichts offen ist
+
+### Technisch
+- **Aus `data/professions.lua` wird kein Name und keine Verzauberungs-ID jemals verglichen.** Alle Namen dort sind reiner Anzeigetext; entschieden wird ausschliesslich über Zählbares — liegt auf dem Slot überhaupt eine Verzauberung, ist der Zusatzsockel belegt, wie viele Juwelierssteine stecken drin. Das ist die Lehre aus `data/enchants.lua`: jene IDs sind von Hand gepflegt, am Client nicht auflösbar und von Blizzard mitten in MoP umbenannt worden. Eine Meldung, die an so einer ID hinge, wäre eine Meldung über unsere Tabellenpflege
+- Erkannt werden Berufe über die Skill-Line-ID, nie über den Namen (der Client ist lokalisiert) — dieselbe Regel wie bei `HasEnchanting()`. Neue Berufe sind eine Tabellenzeile
+- Ab Fertigkeit 500 (`WeintCodex_ProfessionMinSkill`). Wer den Beruf gerade erst angefangen hat, kann nichts davon herstellen, und eine Meldung darüber wäre ein Mangel, den er nicht beheben kann
+- Der Zusatzsockel der Schmiedekunst hat dieselbe Unschärfe wie die Gürtelschnalle: ein angebrachter, aber leerer Sockel ist vom nicht angebrachten nicht zu unterscheiden, weil `GetItemStats` nur die Sockel des Grundgegenstands kennt. Der Text sagt das (»fehlt oder ist leer«), statt sich für eine der beiden Lesarten zu entscheiden
+- Die zwölf Juwelier-Steine tragen in `data/gems.lua` jetzt `jcOnly = true`, statt aus dem Anzeigetext „(nur Juweliere)" herausgelesen zu werden
+- Alle vier Erinnerungsanlässe laufen durch **eine** Schleuse (`AmbientCheck`), damit der „nur wenn man nichts anderes macht"-Vorbehalt und die Kostenbremse (frühestens alle fünf Minuten eine ungefragte Prüfung — jede liest je Gegenstand den Tooltip) an einer Stelle stehen und nicht an vieren
+- Quittungen speichern den Zeitpunkt statt eines „ja". Eine Quittung ohne Zeitpunkt (so schrieb 2.4.0.2) gilt als abgelaufen — die richtige Richtung: nach dem Update erinnert der Alarm einmal, statt eine alte Zustimmung für immer weiterzutragen
+
 ## [2.4.0.2] – 2026-08-24
 
 ### Geändert

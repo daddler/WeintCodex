@@ -8,23 +8,55 @@
 -- die Bank, dort kann man das auch tatsächlich erledigen. Im Raid davor
 -- zu stehen bringt niemandem etwas.
 --
--- SIE BLEIBT STEHEN, BIS MAN SIE WEGKLICKT
+-- SIE BLEIBT STEHEN, BIS MAN SIE WEGKLICKT - UND ERINNERT DANACH WIEDER
 --
--- Und das Wegklicken ist die eigentliche Aussage, nicht nur das
--- Schliessen eines Fensters: es heisst "gesehen", und *genau diese*
--- Befunde melden sich danach nicht wieder (`acked` in den SavedData,
--- Schlüssel je Slot samt Art und Anzahl). Eine Meldung, die nach neun
--- Sekunden von selbst verschwindet, verpasst man beim Blick auf die
--- Taschen - und eine, die danach unverändert wiederkommt, ist eine
--- Belästigung. Beides zusammen loest die Frage: einmal quittieren
--- genuegt, und was sich am Befund ändert, meldet sich erneut.
+-- Das Wegklicken heisst "gesehen" und verschafft fünf Minuten Ruhe
+-- (`ACK_LIFETIME`, `acked` in den SavedData). Danach erinnert der Alarm
+-- erneut, solange die Lücke offen ist: sonst vergisst man sie schlicht
+-- wieder, und genau dafür gibt es ihn. Dauerhaft still wird er, wenn
+-- die Lücke behoben ist - oder über "/wc alarm aus".
 --
--- Der Schlüssel trägt deshalb Art *und* Anzahl (`10|E|2`): wer die
+-- Vier Anlässe bringen die Erinnerung zurück, alle durch dieselbe
+-- Schleuse (`AmbientCheck`): ein Zonenwechsel, der Ruhebereich, der
+-- Instanzeingang und ein Zeitgeber, damit es auch den erwischt, der
+-- beim Taschensortieren an der Bank stehen bleibt.
+--
+-- **Aber nur, wenn man gerade nichts anderes macht** (`PlayerIsBusy`).
+-- Kampf, Bosskampf, tot, Flugroute, Fahrzeug, Zaubern, Haustierkampf -
+-- und Bewegung. Wer läuft, reitet oder fliegt, ist unterwegs und nicht
+-- bei der Ausrüstung; dadurch landet die Erinnerung von selbst in dem
+-- Moment, in dem man irgendwo stehen bleibt, und das ist genau der, in
+-- dem man etwas tun kann.
+--
+-- Der Instanzeingang ist der einzige Anlass, der die Quittung übergeht
+-- (`force`): er ist der letzte Moment, in dem sich die Lücke noch
+-- schliessen lässt, und danach zählt sie eine Stunde lang bei jedem
+-- Pull mit. `MIN_REPEAT` bleibt auch dort als Boden stehen, damit ein
+-- zweiter Ladebildschirm die Meldung nicht Sekunden nach dem
+-- Wegklicken zurückbringt.
+--
+-- Der Schlüssel trägt Art *und* Anzahl (`10|E|2|-`): wer die
 -- Handschuhe verzaubert und dabei einen Sockel leer lässt, hat einen
 -- anderen Befund als vorher und soll ihn auch sehen. Behobene
 -- Schlüssel werden bei jedem Lauf verworfen (`PruneAcks`) - sonst
 -- läge die Quittung noch da, wenn derselbe Slot Wochen später wieder
 -- offen ist. `/wc alarm erneut` wirft alle Quittungen weg.
+--
+-- DREI SORTEN VON BEFUND, DIE NIE ZUSAMMENGEZÄHLT WERDEN
+--
+-- Fehlende Verzauberung, leerer Sockel, fehlender Sockelplatz
+-- (Gürtelschnalle, Schmiede-Zusatzsockel) und ungenutzte
+-- Berufsvergünstigung stehen nebeneinander. Zusammengezählt
+-- verschwand die Gürtelschnalle in einem "3 Sockel leer", und wer das
+-- las, wusste nicht, dass er dafür erst eine Schnalle kaufen muss -
+-- ein leerer Sockel und ein fehlender Sockelplatz sind zwei
+-- verschiedene Besorgungen.
+--
+-- Was ein Beruf zusätzlich hergibt, steht in data/professions.lua.
+-- Entschieden wird dort ausschliesslich über Zählbares; kein Name und
+-- keine Verzauberungs-ID aus jener Datei wird je verglichen. Die
+-- Begründung steht in ihrem Kopf und ist die Lehre aus
+-- data/enchants.lua.
 --
 -- ZWEI DINGE, DIE DIESE DATEI BEWUSST NICHT TUT
 --
@@ -62,7 +94,8 @@
 --    Ein grünes Teil zu melden wäre formal richtig und praktisch nur
 --    Lärm - siehe MIN_QUALITY.
 --  * Im Kampf. Die Meldung wartet auf PLAYER_REGEN_ENABLED, statt
---    sich über die Bossleiste zu legen.
+--    sich über die Bossleiste zu legen; eine schon stehende weicht
+--    dem Pull und kommt danach zurück, falls der Befund noch steht.
 --
 -- Abschalten: /wc alarm aus. Der Hinweis steht in der Meldung selbst;
 -- eine Einblendung, die man nicht loswird, ohne die Dokumentation zu
@@ -103,12 +136,29 @@ local ENTER_WORLD_DELAY = 10
 local RETRY_DELAY = 3
 local RETRY_MAX   = 3
 
--- Wie oft im Ruhebereich höchstens nachgesehen wird. Gegen die
--- Belästigung hilft seit 2.4.0.2 das Quittieren; was hier bleibt, ist
--- die Kostenbremse: jede Prüfung liest je Gegenstand den Tooltip, und
--- wer zwischen Bank, Auktionshaus und Verzauberer hin und her läuft,
--- löst PLAYER_UPDATE_RESTING am laufenden Band aus.
-local REST_COOLDOWN = 900
+-- Wie lange eine Quittung hält. Danach erinnert der Alarm erneut -
+-- ohne das vergisst man die Lücke schlicht wieder, und genau dafür
+-- gibt es ihn. Wer sie dauerhaft loswerden will, behebt sie oder
+-- schaltet über "/wc alarm aus" ab.
+local ACK_LIFETIME = 300
+
+-- Untergrenze zwischen zwei Meldungen desselben Befunds. Sie greift
+-- auch dort, wo die Quittung übergangen wird (Instanzeingang): ohne
+-- diesen Boden könnte ein zweiter Ladebildschirm die Meldung Sekunden
+-- nach dem Wegklicken zurückbringen.
+local MIN_REPEAT = 60
+
+-- Frühestens so oft läuft eine Prüfung, die niemand ausgelöst hat
+-- (Zeitgeber, Zonenwechsel, Ruhebereich). Kostenbremse: jede Prüfung
+-- liest je Gegenstand den Tooltip.
+local AMBIENT_THROTTLE = 300
+
+-- Takt des Zeitgebers und Wartezeit, wenn der Spieler gerade etwas
+-- anderes tut. Der Takt ist deutlich kürzer als AMBIENT_THROTTLE,
+-- damit die Erinnerung im ERSTEN ruhigen Moment nach den fünf Minuten
+-- kommt und nicht erst beim nächsten vollen Takt danach.
+local TICK       = 60
+local BUSY_RETRY = 30
 
 local WIDTH   = 470
 local PAD     = 16
@@ -165,8 +215,13 @@ local function SlotVerdict(link)
     return TAKE
 end
 
+-- Die Sammelstelle der Juwelierssteine hat keinen Slot; sie steht ans
+-- Ende der Liste.
+local JC_PSEUDO_SLOT = 100
+
 -- Rückgabe: entries (nach Slot sortiert), pending (mindestens ein
--- Gegenstand war noch nicht im Cache).
+-- Gegenstand war noch nicht im Cache), hints (Berufsmöglichkeiten zu
+-- ohnehin fehlenden Verzauberungen).
 local function Collect()
     if not (WeintCodex.Charakter and WeintCodex.Charakter.Scan) then
         return nil, false
@@ -183,6 +238,7 @@ local function Collect()
 
     local bySlot, entries, pending = {}, {}, false
     local verdicts, links = {}, {}
+    local hints = {}
 
     local function Verdict(slotId)
         local v = verdicts[slotId]
@@ -202,6 +258,8 @@ local function Collect()
             link     = links[slotId],
             enchant  = false,
             sockets  = 0,
+            buckle   = false,
+            perks    = {},
         }
         bySlot[slotId] = e
         entries[#entries + 1] = e
@@ -230,8 +288,128 @@ local function Collect()
                 pending = true
             elseif v == TAKE then
                 local e = Entry(row.slotId, row.slotName)
-                e.sockets = e.sockets + 1
-                if socket.buckle then e.buckle = true end
+                -- Die Schnalle wird getrennt geführt und NICHT in die
+                -- Sockelzahl eingerechnet. Zusammengezählt verschwand
+                -- sie in einem "3 Sockel leer", und wer das las, wusste
+                -- nicht, dass er dafür eine Gürtelschnalle kaufen muss -
+                -- ein leerer Sockel und ein fehlender Sockelplatz sind
+                -- zwei verschiedene Besorgungen.
+                if socket.buckle then
+                    e.buckle = true
+                else
+                    e.sockets = e.sockets + 1
+                end
+            end
+        end
+    end
+
+    --------------------------------------------------
+    -- Berufsvergünstigungen (data/professions.lua)
+    --------------------------------------------------
+    -- Was der Charakter dürfte und nicht hat. Entschieden wird
+    -- ausschliesslich über Zählbares - siehe den Kopf jener Datei.
+
+    local CH = WeintCodex.Charakter
+
+    if WeintCodex_ProfessionPerks and WeintCodex_GetProfessionSkills
+       and CH.ParseItemLink and CH.ScanItemSockets then
+
+        local skills   = WeintCodex_GetProfessionSkills()
+        local minSkill = WeintCodex_ProfessionMinSkill or 500
+
+        -- Belegt der Gegenstand einen Sockel jenseits seiner
+        -- eingebauten? Genau die Frage, die auch die Gürtelschnalle
+        -- beantwortet - und mit derselben Unschärfe: ein angebrachter,
+        -- aber leerer Zusatzsockel ist vom nicht angebrachten nicht zu
+        -- unterscheiden, weil GetItemStats nur den Grundgegenstand
+        -- kennt. Deshalb heisst der Text "fehlt oder ist leer".
+        local function HasExtraSocket(slotId, link)
+            local sockets, known = CH.ScanItemSockets(link, slotId)
+            if not known then return nil end
+            local base = 0
+            for _, sock in ipairs(sockets) do
+                if not sock.extra then base = base + 1 end
+            end
+            local _, gems = CH.ParseItemLink(link)
+            return gems[base + 1] ~= nil
+        end
+
+        local function CountJewelcrafterGems()
+            local n = 0
+            for _, slotDef in ipairs(CH.EquipSlots or {}) do
+                local link = GetInventoryItemLink("player", slotDef.id)
+                if link then
+                    local _, gems = CH.ParseItemLink(link)
+                    for _, gemId in pairs(gems) do
+                        local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
+                        if db and db.jcOnly then n = n + 1 end
+                    end
+                end
+            end
+            return n
+        end
+
+        for skillLine, prof in pairs(WeintCodex_ProfessionPerks) do
+            local level = skills[skillLine]
+            if level and level >= minSkill then
+                for _, perk in ipairs(prof.perks or {}) do
+
+                    if perk.kind == "gems" then
+                        local have = CountJewelcrafterGems()
+                        if have < (perk.count or 0) then
+                            local e = Entry(JC_PSEUDO_SLOT, prof.name)
+                            e.perks[#e.perks + 1] = {
+                                label = perk.label,
+                                text  = perk.label .. ": " .. have
+                                        .. " von " .. perk.count .. " eingesetzt",
+                            }
+                        end
+
+                    elseif perk.kind == "hint" then
+                        -- Nur, wenn die Verzauberung ohnehin fehlt: ob
+                        -- dort schon die stärkere Berufsvariante liegt,
+                        -- ist ohne verlässliche IDs nicht zu sagen, und
+                        -- "du könntest was Besseres tragen" wäre das
+                        -- Urteil, das dieses Modul nicht fällt.
+                        local e = bySlot[perk.slotId]
+                        if e and e.enchant then
+                            hints[#hints + 1] = prof.name .. ": "
+                                .. perk.label .. " (" .. perk.slotName .. ")"
+                        end
+
+                    else
+                        local v = Verdict(perk.slotId)
+                        if v == WAIT then
+                            pending = true
+                        elseif v == TAKE then
+                            local link = links[perk.slotId]
+
+                            if perk.kind == "exclusive" then
+                                local enchId = CH.ParseItemLink(link)
+                                if not enchId then
+                                    local e = Entry(perk.slotId, perk.slotName)
+                                    e.perks[#e.perks + 1] = {
+                                        label = perk.label,
+                                        text  = perk.label .. " fehlt",
+                                    }
+                                end
+
+                            elseif perk.kind == "socket" then
+                                local has = HasExtraSocket(perk.slotId, link)
+                                if has == nil then
+                                    pending = true
+                                elseif not has then
+                                    local e = Entry(perk.slotId, perk.slotName)
+                                    e.perks[#e.perks + 1] = {
+                                        label = perk.label,
+                                        text  = perk.label .. " fehlt oder ist leer",
+                                    }
+                                end
+                            end
+                        end
+                    end
+
+                end
             end
         end
     end
@@ -240,7 +418,7 @@ local function Collect()
     -- die Liste in derselben Reihenfolge wie auf der Charakterseite.
     table.sort(entries, function(a, b) return a.slotId < b.slotId end)
 
-    return entries, pending
+    return entries, pending, hints
 end
 
 GA.Collect = Collect
@@ -251,9 +429,22 @@ GA.Collect = Collect
 
 -- Art UND Anzahl gehören in den Schlüssel: aus "Verzauberung fehlt und
 -- zwei Sockel leer" wird nach dem Verzaubern "zwei Sockel leer", und das
--- ist ein anderer Befund, der wieder gemeldet werden soll.
+-- ist ein anderer Befund, der wieder gemeldet werden soll. Schnalle und
+-- Berufsvergünstigungen zählen mit, aus demselben Grund.
+--
+-- Die Berufs-HINWEISE stehen bewusst nicht drin: sie sind kein eigener
+-- Befund, sondern ein Zusatz an einem, den es ohnehin gibt.
 local function FindingKey(e)
-    return e.slotId .. "|" .. (e.enchant and "E" or "-") .. "|" .. e.sockets
+    local parts = {
+        e.slotId,
+        e.enchant and "E" or "-",
+        e.sockets,
+        e.buckle and "B" or "-",
+    }
+    for _, perk in ipairs(e.perks or {}) do
+        parts[#parts + 1] = "P:" .. tostring(perk.label)
+    end
+    return table.concat(parts, "|")
 end
 
 local function AckStore()
@@ -262,10 +453,15 @@ local function AckStore()
     return s.acked
 end
 
+-- Gespeichert wird der Zeitpunkt, nicht ein "ja". Eine Quittung ohne
+-- Zeitpunkt (so schrieb 2.4.0.2) gilt als abgelaufen - das ist die
+-- richtige Richtung: nach dem Update erinnert der Alarm einmal, statt
+-- eine alte Zustimmung für immer weiterzutragen.
 local function Acknowledge(entries)
     local acked = AckStore()
+    local now = time()
     for _, e in ipairs(entries or {}) do
-        acked[FindingKey(e)] = true
+        acked[FindingKey(e)] = now
     end
 end
 
@@ -292,25 +488,35 @@ local function PruneAcks(all)
     end
 end
 
-local function IsAcked(e)
-    return AckStore()[FindingKey(e)] == true
+-- force = true: der Anlass wiegt schwerer als die Quittung (der
+-- Instanzeingang ist der letzte Moment, in dem die Lücke noch zu
+-- schliessen ist). Der Boden MIN_REPEAT gilt trotzdem.
+local function IsAcked(e, force)
+    local at = AckStore()[FindingKey(e)]
+    if type(at) ~= "number" then return false end
+    local age = time() - at
+    if age < 0 then return true end          -- Uhr verstellt: nicht nerven
+    return age < (force and MIN_REPEAT or ACK_LIFETIME)
 end
 
 --------------------------------------------------
 -- Texte
 --------------------------------------------------
 
+-- Die drei Sorten stehen nebeneinander und werden nie zusammengezählt:
+-- ein leerer Sockel, ein fehlender Sockelplatz und eine ungenutzte
+-- Berufsvergünstigung sind drei verschiedene Besorgungen.
 local function EntryFinding(e)
     local parts = {}
     if e.enchant then parts[#parts + 1] = "Verzauberung fehlt" end
-    if e.sockets > 0 then
-        if e.sockets == 1 then
-            parts[#parts + 1] = e.buckle
-                and "Gürtelschnalle fehlt oder Sockel leer"
-                or  "1 Sockel leer"
-        else
-            parts[#parts + 1] = e.sockets .. " Sockel leer"
-        end
+    if e.buckle  then parts[#parts + 1] = "Gürtelschnalle fehlt" end
+    if e.sockets == 1 then
+        parts[#parts + 1] = "1 Sockel leer"
+    elseif e.sockets > 1 then
+        parts[#parts + 1] = e.sockets .. " Sockel leer"
+    end
+    for _, perk in ipairs(e.perks or {}) do
+        parts[#parts + 1] = perk.text
     end
     return table.concat(parts, " · ")
 end
@@ -326,32 +532,47 @@ end
 local function Headline(entries, reason)
     if #entries == 1 then
         local e = entries[1]
+        local kinds = 0
+        if e.enchant     then kinds = kinds + 1 end
+        if e.buckle      then kinds = kinds + 1 end
+        if e.sockets > 0 then kinds = kinds + 1 end
+        if #e.perks > 0  then kinds = kinds + 1 end
+
         local title
-        if e.enchant and e.sockets > 0 then
-            title = "Verzauberung und Sockel fehlen"
+        if kinds > 1 then
+            title = "Am Ausrüstungsteil fehlt noch etwas"
         elseif e.enchant then
             title = "Verzauberung fehlt"
-        elseif e.sockets == 1 and e.buckle then
+        elseif e.buckle then
             title = "Gürtelschnalle fehlt"
-        else
+        elseif e.sockets > 0 then
             title = "Sockel noch leer"
+        else
+            title = "Berufsvorteil ungenutzt"
         end
 
+        -- Bei mehr als einer Sorte sagt die Überschrift nur, DASS etwas
+        -- offen ist; was genau, steht dann in der Unterzeile.
         local item = ItemNameOf(e)
-        local sub = item
-            and (Truncate(item, 42) .. "  ·  " .. e.slotName)
+        local where = item
+            and (Truncate(item, 38) .. "  ·  " .. e.slotName)
             or  e.slotName
+        local sub = (kinds > 1 or #e.perks > 0)
+            and (where .. "  ·  " .. EntryFinding(e))
+            or  where
         return title, sub
     end
 
-    local title = (reason == "rest")
-        and (#entries .. " Teile brauchen noch etwas")
-        or  (#entries .. " angelegte Teile sind offen")
+    local title = (reason == "equip")
+        and (#entries .. " angelegte Teile sind offen")
+        or  (#entries .. " Teile brauchen noch etwas")
 
-    local ench, sock = 0, 0
+    local ench, sock, buckle, perks = 0, 0, 0, 0
     for _, e in ipairs(entries) do
-        if e.enchant then ench = ench + 1 end
-        sock = sock + e.sockets
+        if e.enchant then ench   = ench + 1 end
+        if e.buckle  then buckle = buckle + 1 end
+        sock  = sock + e.sockets
+        perks = perks + #(e.perks or {})
     end
 
     local bits = {}
@@ -359,9 +580,16 @@ local function Headline(entries, reason)
         bits[#bits + 1] = (ench == 1) and "1 Verzauberung fehlt"
                                       or  (ench .. " Verzauberungen fehlen")
     end
+    if buckle > 0 then
+        bits[#bits + 1] = "Gürtelschnalle fehlt"
+    end
     if sock > 0 then
         bits[#bits + 1] = (sock == 1) and "1 Sockel ist leer"
                                       or  (sock .. " Sockel sind leer")
+    end
+    if perks > 0 then
+        bits[#bits + 1] = (perks == 1) and "1 Berufsvorteil ungenutzt"
+                                       or  (perks .. " Berufsvorteile ungenutzt")
     end
 
     return title, table.concat(bits, "  ·  ")
@@ -391,7 +619,7 @@ end
 -- Einblendung
 --------------------------------------------------
 
-local frame, icon, eyebrow, headline, subline, hint
+local frame, icon, eyebrow, headline, subline, hintLine, hint
 local rowLabels = {}
 local anim = { state = nil, elapsed = 0, hold = 0 }
 local moveMode = false
@@ -497,6 +725,7 @@ local function Build()
     eyebrow  = NewText(F.mono,     10, "textDim")
     headline = NewText(F.sansBold, 20, "accentBright")
     subline  = NewText(F.sans,     12, "textMuted")
+    hintLine = NewText(F.sans,     10, "textMuted")
     hint     = NewText(F.sans,      9, "textFaint")
 
     frame:SetScript("OnDragStart", function(self)
@@ -569,6 +798,15 @@ local function TextHeight(fs, minimum)
     return math.max(minimum, math.ceil(h))
 end
 
+-- Woher die Meldung kommt. "Ausrüstung" (also kein Eintrag hier) heisst:
+-- du hast gerade etwas angelegt.
+local EYEBROW = {
+    rest     = "Erinnerung · Ruhebereich",
+    zone     = "Erinnerung · Neue Zone",
+    instance = "Erinnerung · Instanz",
+    remind   = "Erinnerung",
+}
+
 local function RowLabel(index)
     local fs = rowLabels[index]
     if fs then return fs end
@@ -580,7 +818,7 @@ end
 -- Zeichnet Inhalt und stellt die Höhe darauf ein. Reihenfolge trägt:
 -- erst die Texte setzen, dann die Fensterhöhe - dieselbe Abfolge wie in
 -- core/onboarding.lua, aus demselben Grund.
-local function Layout(entries, reason)
+local function Layout(entries, reason, hints)
     local single = (#entries == 1)
     local left   = PAD
 
@@ -605,8 +843,7 @@ local function Layout(entries, reason)
 
     local y = PAD
 
-    eyebrow:SetText(WeintCodex.Spaced(Upper(
-        reason == "rest" and "Erinnerung · Ruhebereich" or "Ausrüstung")))
+    eyebrow:SetText(WeintCodex.Spaced(Upper(EYEBROW[reason] or "Ausrüstung")))
     Place(eyebrow, y)
     y = y + 15
 
@@ -658,6 +895,23 @@ local function Layout(entries, reason)
 
     for i = shown + 1, #rowLabels do rowLabels[i]:Hide() end
 
+    -- Berufsmöglichkeiten zu ohnehin fehlenden Verzauberungen. Eine
+    -- eigene Zeile, kein Anhängsel an den Befundzeilen: es ist keine
+    -- Beanstandung, sondern die Auskunft, welche Wahl dieser Charakter
+    -- zusätzlich hat.
+    if hints and #hints > 0 then
+        y = y + 6
+        hintLine:SetText("Dein Beruf bietet hier zusätzlich — "
+            .. table.concat(hints, "  ·  "))
+        hintLine:Show()
+        hintLine:ClearAllPoints()
+        hintLine:SetPoint("TOPLEFT",  frame, "TOPLEFT",  left, -y)
+        hintLine:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -y)
+        y = y + TextHeight(hintLine, 13)
+    else
+        hintLine:Hide()
+    end
+
     -- Das Symbol darf die Fläche nicht überragen, auch nicht bei einer
     -- Einzelmeldung ohne Unterzeile.
     if icon:IsShown() then
@@ -667,7 +921,8 @@ local function Layout(entries, reason)
     y = y + 8
     hint:SetText(moveMode
         and "Ziehen zum Verschieben · Klick speichert die Position"
-        or  "Bleibt stehen, bis du sie wegklickst — danach meldet sich dieser Befund nicht wieder."
+        or  "Bleibt stehen, bis du sie wegklickst — danach ist fünf Minuten Ruhe,"
+            .. " dann erinnert sie wieder, solange die Lücke offen ist."
             .. "  Linksklick öffnet die Charakterseite, Rechtsklick schliesst nur."
             .. "  |cffD4A24A/wc alarm aus|r")
     hint:ClearAllPoints()
@@ -693,13 +948,13 @@ end
 -- Diese Funktion zeichnet nur. Ob ueberhaupt eingeblendet werden darf
 -- (Kampf, abgeschaltet, nichts offen, schon quittiert), entscheidet
 -- RunCheck weiter unten - sonst laege dieselbe Frage an zwei Stellen.
-function GA.Show(entries, reason)
+function GA.Show(entries, reason, hints)
     if not entries or #entries == 0 then return end
 
     Build()
     frame._entries = entries
 
-    Layout(entries, reason)
+    Layout(entries, reason, hints)
     RestorePosition()
 
     local point, _, _, x, y = frame:GetPoint()
@@ -754,12 +1009,14 @@ local queued = nil
 -- gestellt werden koennen ("nur dieser Slot" bzw. "alles Offene").
 local shownContext = nil
 
--- reason: "equip" (nur die gewechselten Slots) | "rest" | "manual"
-local function RunCheck(reason, slotFilter)
+-- reason:  "equip" (nur die gewechselten Slots) | "rest" | "zone"
+--          | "instance" | "remind" | "manual"
+-- force:   die Quittung übergehen (nur der Instanzeingang tut das)
+local function RunCheck(reason, slotFilter, force)
     if not Store().enabled and reason ~= "manual" then return end
 
     if reason ~= "manual" and UnitAffectingCombat("player") then
-        queued = { reason = reason, filter = slotFilter }
+        queued = { reason = reason, filter = slotFilter, force = force }
         return
     end
 
@@ -767,7 +1024,7 @@ local function RunCheck(reason, slotFilter)
     -- zu "/wc alarm bewegen".
     moveMode = false
 
-    local entries, pending = Collect()
+    local entries, pending, hints = Collect()
     if not entries then return end
 
     -- Gegen das vollständige Ergebnis, vor jeder Filterung: was behoben
@@ -788,7 +1045,7 @@ local function RunCheck(reason, slotFilter)
     if reason ~= "manual" then
         local unseen = {}
         for _, e in ipairs(entries) do
-            if not IsAcked(e) then unseen[#unseen + 1] = e end
+            if not IsAcked(e, force) then unseen[#unseen + 1] = e end
         end
         entries = unseen
     end
@@ -799,7 +1056,7 @@ local function RunCheck(reason, slotFilter)
     -- die Meldung ein zweites Mal, sobald der Rest nachgeladen ist.
     if #entries == 0 and pending and retries < RETRY_MAX then
         retries = retries + 1
-        After(RETRY_DELAY, function() RunCheck(reason, slotFilter) end)
+        After(RETRY_DELAY, function() RunCheck(reason, slotFilter, force) end)
         return
     end
 
@@ -812,8 +1069,8 @@ local function RunCheck(reason, slotFilter)
         return
     end
 
-    shownContext = { reason = reason, filter = slotFilter }
-    GA.Show(entries, reason)
+    shownContext = { reason = reason, filter = slotFilter, force = force }
+    GA.Show(entries, reason, hints)
 end
 
 GA.RunCheck = RunCheck
@@ -837,31 +1094,93 @@ local function ScheduleEquipCheck()
     end)
 end
 
--- Erinnerung im Ruhebereich. Der Zeitstempel liegt in den SavedData und
--- nicht in einer Laufzeitvariablen: GetTime() beginnt nach jedem
--- /reload von vorn, und dann käme die Erinnerung genau dann wieder,
--- wenn man das Addon gerade neu geladen hat.
-local function RestReminder()
-    local s = Store()
-    if not (s.enabled and s.restReminder) then return end
-    if not IsResting() then return end
+--------------------------------------------------
+-- "Nur, wenn man gerade nichts anderes macht"
+--------------------------------------------------
+-- Eine Erinnerung, die niemand angefordert hat, darf nicht mitten in
+-- etwas hineinplatzen. Was als "etwas anderes" zählt, steht hier
+-- vollständig - jede Zeile ist ein Moment, in dem eine Fläche mitten
+-- im Bild schlicht im Weg ist.
+--
+-- Die Bewegung gehört ausdrücklich dazu: wer läuft, reitet oder fliegt,
+-- ist unterwegs und nicht bei der Ausrüstung. Dadurch landet die
+-- Erinnerung von selbst in dem Moment, in dem man irgendwo stehen
+-- bleibt - und das ist genau der, in dem man etwas tun kann.
+local function PlayerIsBusy()
+    if UnitAffectingCombat("player")  then return true end
+    if UnitIsDeadOrGhost("player")    then return true end
 
-    local inInstance = IsInInstance and IsInInstance()
-    if inInstance then return end
+    if type(IsEncounterInProgress) == "function" and IsEncounterInProgress() then
+        return true
+    end
+    if type(UnitOnTaxi) == "function" and UnitOnTaxi("player") then return true end
+    if type(UnitInVehicle) == "function" and UnitInVehicle("player") then return true end
+    if type(UnitCastingInfo) == "function" and UnitCastingInfo("player") then return true end
+    if type(UnitChannelInfo) == "function" and UnitChannelInfo("player") then return true end
+    if C_PetBattles and C_PetBattles.IsInBattle and C_PetBattles.IsInBattle() then
+        return true
+    end
+    if type(GetUnitSpeed) == "function" and (GetUnitSpeed("player") or 0) > 0 then
+        return true
+    end
+    return false
+end
+
+GA.PlayerIsBusy = PlayerIsBusy
+
+--------------------------------------------------
+-- Erinnerungen, die niemand ausgelöst hat
+--------------------------------------------------
+-- Zeitgeber, Zonenwechsel, Ruhebereich, Instanzeingang. Alle vier
+-- laufen durch dieselbe Schleuse, damit "nur wenn man nichts anderes
+-- macht" und die Kostenbremse an EINER Stelle stehen.
+--
+-- lastAmbient ist bewusst eine Laufzeitvariable und beginnt bei 0: nach
+-- einem /reload darf sofort nachgesehen werden. Gegen zu häufiges
+-- Melden schützt dort die Quittung, und die liegt in den SavedData.
+local lastAmbient  = 0
+local busyPending  = false
+
+local function AmbientCheck(reason, force)
+    local s = Store()
+    if not s.enabled then return end
+    if not ready then return end
+    -- Ein Schalter für alle vier Anlässe. Vier einzelne wären vier
+    -- Fragen an den Nutzer, wo er nur eine hat: erinnern oder nicht.
+    if not s.restReminder then return end
+
+    if PlayerIsBusy() then
+        -- Später noch einmal - aber nur ein Zeitgeber gleichzeitig,
+        -- sonst stapeln sich bei jedem Zonenwechsel neue.
+        if not busyPending then
+            busyPending = true
+            After(BUSY_RETRY, function()
+                busyPending = false
+                AmbientCheck(reason, force)
+            end)
+        end
+        return
+    end
 
     local now = time()
-    if s.lastRest and (now - s.lastRest) < REST_COOLDOWN then return end
-    s.lastRest = now
+    if not force and (now - lastAmbient) < AMBIENT_THROTTLE then return end
+    lastAmbient = now
 
     retries = 0
-    RunCheck("rest", nil)
+    RunCheck(reason, nil, force)
 end
+
+GA.AmbientCheck = AmbientCheck
 
 local wasResting = nil
 
 watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 watcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 watcher:RegisterEvent("PLAYER_UPDATE_RESTING")
+watcher:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+-- Beruf gelernt oder verlernt: die Berufsvergünstigungen kommen damit
+-- in die Wertung hinein oder fallen heraus (data/professions.lua).
+watcher:RegisterEvent("SKILL_LINES_CHANGED")
 watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
 watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 
@@ -883,7 +1202,20 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
             ready = true
             pendingSlots = {}
             wasResting = IsResting() and true or false
-            if wasResting then RestReminder() end
+
+            -- Der Instanzeingang ist der einzige Anlass, der die
+            -- Quittung übergeht: er ist der letzte Moment, in dem sich
+            -- die Lücke noch schliessen lässt, und danach zählt sie
+            -- eine Stunde lang bei jedem Pull mit. Hier ist die
+            -- Erinnerung kein Nörgeln, sondern der Zweck der Sache.
+            local inInstance = IsInInstance and IsInInstance()
+            if inInstance then
+                AmbientCheck("instance", true)
+            elseif wasResting then
+                AmbientCheck("rest")
+            else
+                AmbientCheck("remind")
+            end
         end)
         return
     end
@@ -894,9 +1226,19 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
         -- und beim Verlassen ist die Erinnerung sinnlos - dort gibt es
         -- weder Bank noch Verzauberer.
         if resting and wasResting == false then
-            After(2, RestReminder)
+            After(2, function() AmbientCheck("rest") end)
         end
         wasResting = resting
+        return
+    end
+
+    if event == "ZONE_CHANGED_NEW_AREA" then
+        After(2, function() AmbientCheck("zone") end)
+        return
+    end
+
+    if event == "SKILL_LINES_CHANGED" then
+        After(3, function() AmbientCheck("remind") end)
         return
     end
 
@@ -917,11 +1259,28 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
         queued = nil
         After(1, function()
             retries = 0
-            RunCheck(q.reason, q.filter)
+            RunCheck(q.reason, q.filter, q.force)
         end)
         return
     end
 end)
+
+--------------------------------------------------
+-- Zeitgeber
+--------------------------------------------------
+-- Der Takt allein erinnert an nichts - AmbientCheck entscheidet, ob
+-- die fünf Minuten um sind und ob der Moment passt. Ohne ihn käme die
+-- Erinnerung nur bei Zonenwechsel oder Ruhebereich, und wer beim
+-- Sortieren der Taschen in der Bank stehen bleibt, bekäme sie nie.
+if C_Timer and C_Timer.After then
+    local function Tick()
+        C_Timer.After(TICK, function()
+            pcall(AmbientCheck, "remind")
+            Tick()
+        end)
+    end
+    Tick()
+end
 
 --------------------------------------------------
 -- Befehle (/wc alarm ...)
@@ -937,15 +1296,33 @@ function GA.PrintStatus()
     local acked = 0
     for _ in pairs(s.acked or {}) do acked = acked + 1 end
 
+    -- Welche Berufsvergünstigungen für diesen Charakter überhaupt
+    -- gelten. Ohne diese Zeile ist von aussen nicht zu sehen, ob der
+    -- Beruf erkannt wurde oder ob nur gerade nichts offen ist.
+    if WeintCodex_GetProfessionSkills and WeintCodex_ProfessionPerks then
+        local named = {}
+        for line, level in pairs(WeintCodex_GetProfessionSkills()) do
+            local prof = WeintCodex_ProfessionPerks[line]
+            if prof and level >= (WeintCodex_ProfessionMinSkill or 500) then
+                named[#named + 1] = prof.name .. " (" .. level .. ")"
+            end
+        end
+        Say("Berufsvergünstigungen: "
+            .. (#named > 0 and table.concat(named, ", ")
+                           or WeintCodex.ColorText("textDim", "keine")))
+    end
+
     Say("Ausrüstungs-Alarm: "
         .. (s.enabled and WeintCodex.ColorText("green", "an")
                        or WeintCodex.ColorText("textDim", "aus"))
         .. "  ·  Ton: " .. (s.sound and "an" or "aus")
-        .. "  ·  Erinnerung im Ruhebereich: " .. (s.restReminder and "an" or "aus")
+        .. "  ·  Erinnerungen: " .. (s.restReminder and "an" or "aus")
         .. "  ·  weggeklickt: " .. acked .. " Befund(e)")
-    Say("|cffaaaaaa/wc alarm an|aus · ton · ruhe · erneut · jetzt · test · bewegen|r")
-    Say("|cffaaaaaa'erneut' hebt das Wegklicken auf - danach melden sich"
-        .. " auch schon quittierte Befunde wieder.|r")
+    Say("|cffaaaaaaWeggeklickt heisst " .. math.floor(ACK_LIFETIME / 60)
+        .. " Minuten Ruhe. Danach erinnert der Alarm erneut - beim"
+        .. " Zonenwechsel, im Ruhebereich, am Instanzeingang oder von"
+        .. " selbst, sobald du gerade nichts anderes machst.|r")
+    Say("|cffaaaaaa/wc alarm an|aus · ton · erinnern · erneut · jetzt · test · bewegen|r")
 end
 
 -- Beispielmeldung mit den eigenen Daten, sonst mit erfundenen. Sie
@@ -979,7 +1356,8 @@ function GA.Command(rest)
         s.sound = not s.sound
         GA.PrintStatus()
 
-    elseif rest == "ruhe" or rest == "ruhebereich" then
+    elseif rest == "ruhe" or rest == "ruhebereich"
+           or rest == "erinnern" or rest == "erinnerung" then
         s.restReminder = not s.restReminder
         GA.PrintStatus()
 
@@ -1008,10 +1386,9 @@ function GA.Command(rest)
         local n = 0
         for _ in pairs(s.acked or {}) do n = n + 1 end
         s.acked = {}
-        -- Die Sperrfrist gleich mit, sonst bliebe es bis zu einer
-        -- Viertelstunde still, obwohl man gerade um die Meldung gebeten
-        -- hat.
-        s.lastRest = nil
+        -- Die Kostenbremse gleich mit, sonst bliebe es bis zu fünf
+        -- Minuten still, obwohl man gerade um die Meldung gebeten hat.
+        lastAmbient = 0
         Say(n .. " weggeklickte Befund(e) vergessen - sie melden sich wieder.")
         retries = 0
         RunCheck("manual", nil)

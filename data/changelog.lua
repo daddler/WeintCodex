@@ -7,6 +7,19 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.4.1.0",
+        date    = "24.08.2026",
+        notes   = {
+            "Weggeklickt heisst jetzt fuenf Minuten Ruhe statt fuer immer - danach erinnert der Alarm wieder, solange die Luecke offen ist. Sonst vergisst man sie schlicht.",
+            "Zurueck kommt die Erinnerung beim Zonenwechsel, im Ruhebereich, am Instanzeingang und von selbst per Zeitgeber - aber nur, wenn ihr gerade nichts anderes macht (kein Kampf, nicht tot, nicht auf einer Flugroute, nicht am Zaubern und nicht in Bewegung).",
+            "Der Instanzeingang uebergeht die Quittung: vor dem Raid ist die Erinnerung kein Noergeln, sondern der Zweck der Sache.",
+            "Behoben: Die Guertelschnalle verschwand in der Sockelzahl (\"2 Sockel leer\"). Ein leerer Sockel und ein fehlender Sockelplatz sind zwei verschiedene Besorgungen und stehen jetzt nebeneinander.",
+            "Neu: Berufsvorteile zaehlen mit. Ingenieure am Guertel (den kann sonst niemand verzaubern), Schmiede mit ihren Zusatzsockeln an Handschuhen und Armschienen, Juweliere mit den Schlangenaugen.",
+            "Handschuhe, Umhang, Armschienen und Schultern bekommen nur einen Hinweis, was euer Beruf dort zusaetzlich hergibt - und auch nur, wenn die Verzauberung ganz fehlt. \"Du koenntest was Besseres tragen\" waere ein Urteil, und das faellt dieser Alarm nicht.",
+            "/wc alarm ruhe heisst jetzt /wc alarm erinnern und schaltet alle Erinnerungen. /wc alarm nennt ausserdem die erkannten Berufe.",
+        },
+    },
+    {
         version = "2.4.0.2",
         date    = "24.08.2026",
         notes   = {
