@@ -2,6 +2,27 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.5.0.0] – 2026-08-24
+
+### Neu
+- **Ausrüstungs-Alarm: eine grosse Einblendung, wenn ein frisch angelegtes Teil weder verzaubert noch versockelt ist.** Bildschirmmitte, Signalton, verschwindet nach ein paar Sekunden von selbst — die Bauform, die man von den Bossmods kennt, weil sie genau das leistet, was hier fehlte: eine Meldung, die man *nicht* übersieht. Ein neuer Gegenstand ist der einzige Moment, in dem man die Lücke ohne Nachschauen bemerken kann; bis dahin stand sie auf der Charakterseite, die man dafür erst hätte öffnen müssen
+- **Dieselbe Meldung als Erinnerung, sobald man einen Ruhebereich betritt.** Der Ruhebereich ist kein beliebiger Auslöser, sondern der einzige sinnvolle: dort steht der Verzauberer, dort ist die Bank, dort lässt sich das erledigen. Vor dem Pull davon zu erfahren nützt niemandem. Höchstens einmal alle 15 Minuten — wer zwischen Bank, Auktionshaus und Verzauberer hin und her läuft, löst das Ereignis sonst am laufenden Band aus
+- **Linksklick öffnet die passende Charakterseite** — Sockel, wenn nur Steine fehlen, sonst Verzauberungen. Rechtsklick blendet aus. `/wc alarm bewegen` stellt die Meldung zum Verschieben stehen; die Position wird gespeichert
+- `/wc alarm` schaltet an und aus (`an`/`aus`), den Ton (`ton`), die Erinnerung im Ruhebereich (`ruhe`), die Anzeigedauer (`dauer 12`) und prüft auf Zuruf (`jetzt`). Der Hinweis auf `/wc alarm aus` steht in der Meldung selbst — eine Einblendung, die man nur über die Dokumentation wieder loswird, ist eine Zumutung
+
+### Geändert
+- **Der Alarm zählt, er bewertet nicht.** Gemeldet wird ausschliesslich „Verzauberung fehlt" und „Sockel leer" — dieselbe Zurückhaltung wie im Gruppencheck und aus demselben Grund: beides ist unstrittig, „nicht ideal" wäre eine Meinung. Eine bildschirmfüllende Meldung über eine Meinung schaltet man nach dem dritten Mal ab, und danach sieht man auch die echten Lücken nicht mehr. Ob eine Verzauberung zur Spec passt, sagt weiterhin nur die Charakterseite, wo man es in Ruhe liest
+- **Erst ab Selten (blau).** Der Weg von 85 auf 90 besteht aus grünen Gegenständen, die niemand verzaubert; sie zu melden wäre formal richtig und praktisch nur Lärm
+- Die Onboarding-Tour hat eine Seite mehr (Ausrüstungs-Alarm) — eine Meldung, die von selbst aufgeht, sollte man beim ersten Start einmal angekündigt bekommen, samt dem Befehl, der sie wieder abschaltet
+
+### Technisch
+- `modules/gearalert.lua` führt **keine eigene Prüfung**: was offen ist, beantwortet `WeintCodex.Charakter.Scan()` — dieselbe Slotliste, dieselbe Auflösung des Verzauberungs-Topfes (inklusive „Ringe nur mit Verzauberkunst") und dieselbe Sockelerkennung wie die Charakterseite. Gelesen wird daraus aber nur `enchId == nil` bzw. `socket.gemId == nil` und **nicht** der bewertete `status`: der ist `neutral`, sobald das Spec-Profil für den Slot keine Empfehlung führt, und ein fehlender Stein bleibt ein fehlender Stein, auch wenn das Profil zu diesem Sockel nichts zu sagen hat
+- `ScanCharacter()` schreibt `socketsKnown` an jede Sockelzeile. Kannte der Client die Basisdaten des Gegenstands nicht, sind die eingebauten Sockel unbekannt und übrig bliebe nur die geratene Gürtelschnalle. Die Charakterseite nimmt das hin — ihr Cache ist warm, und sie zeigt eine Zeile, keine Einblendung; ein Alarm darf sich darauf nicht stützen
+- Vier Sperren, jede gegen einen konkreten Fehlalarm: nichts vor `PLAYER_ENTERING_WORLD` plus Vorlauf (bei `PLAYER_LOGIN` sind weder Spec noch Item-Cache verlässlich, und `PLAYER_EQUIPMENT_CHANGED` feuert beim Anmelden und nach jedem Ladebildschirm für angelegte Gegenstände, ohne dass jemand etwas angelegt hätte); nichts über einen Gegenstand, dessen Basisdaten fehlen, sondern ein Nachfassen ein paar Sekunden später; nichts unterhalb von Selten; nichts im Kampf. Was im Kampf anfällt, wird nach `PLAYER_REGEN_ENABLED` **neu geprüft** statt aus dem Gedächtnis gezeichnet — zwischen Pull und Ende kann sich die Ausrüstung geändert haben
+- Der Scan ist entprellt (2,5 s): er liest je Gegenstand den Tooltip, und beim Umsockeln feuert `PLAYER_EQUIPMENT_CHANGED` mehrfach hintereinander. Beim Anlegen wird nur über die Slots gemeldet, die seitdem gewechselt haben; die Erinnerung im Ruhebereich nennt alles Offene
+- Die Sperrfrist der Erinnerung liegt als Zeitstempel in den SavedData und nicht in einer Laufzeitvariablen: `GetTime()` beginnt nach jedem `/reload` von vorn, und dann käme sie genau dann wieder, wenn man das Addon gerade neu geladen hat
+- Die Fläche bleibt **eckig**. Die Eckmasken aus `core/ui.lua` brauchen die Farbe des Untergrunds, und hinter dieser Einblendung liegt die Spielwelt — dieselbe Begründung, aus der auch das Hauptfenster keine runden Ecken hat
+
 ## [2.4.0.0] – 2026-08-23
 
 ### Behoben

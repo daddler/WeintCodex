@@ -1857,8 +1857,14 @@ local function ScanCharacter()
                 }
             end
 
-            -- Sockel
-            local sockets = ScanItemSockets(link, slotDef.id)
+            -- Sockel. Der zweite Rueckgabewert sagt, ob der Client die
+            -- Basisdaten des Gegenstands ueberhaupt hatte; ohne sie sind
+            -- die eingebauten Sockel unbekannt und uebrig bliebe nur die
+            -- geratene Guertelschnalle. Die Charakterseite selbst nimmt
+            -- das hin (ihr Cache ist warm, und sie zeigt eine Zeile,
+            -- keine Einblendung) - modules/gearalert.lua darf darauf
+            -- keinen Alarm stuetzen und liest den Wert je Zeile mit.
+            local sockets, socketsKnown = ScanItemSockets(link, slotDef.id)
             if #sockets > 0 then
                 -- Sockelbonus des Items auslesen und pro Item einmal
                 -- entscheiden, ob Farb-Matchen den Bonus wert ist.
@@ -1881,6 +1887,7 @@ local function ScanCharacter()
                         unknown    = unknown,
                         equiv      = equiv,
                         decision   = decision,
+                        socketsKnown = socketsKnown,
                     }
                 end
             end

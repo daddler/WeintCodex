@@ -7,6 +7,18 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.5.0.0",
+        date    = "24.08.2026",
+        notes   = {
+            "Neu: Ausruestungs-Alarm. Wer ein Teil anlegt, das weder verzaubert noch versockelt ist, bekommt eine grosse Einblendung in Bildschirmmitte samt Signalton - die Bauform der Bossmods, weil sie genau das leistet, was fehlte: eine Meldung, die man nicht uebersieht.",
+            "Dieselbe Meldung als Erinnerung, sobald man einen Ruhebereich betritt. Dort steht der Verzauberer, dort ist die Bank - vor dem Pull davon zu erfahren nuetzt niemandem. Hoechstens einmal alle 15 Minuten.",
+            "Linksklick oeffnet die passende Charakterseite (Sockel, wenn nur Steine fehlen, sonst Verzauberungen), Rechtsklick blendet aus. /wc alarm bewegen laesst die Meldung zum Verschieben stehen.",
+            "Gemeldet wird nur \"Verzauberung fehlt\" und \"Sockel leer\" - beides ist unstrittig. \"Nicht ideal\" waere eine Meinung, und eine bildschirmfuellende Meldung ueber eine Meinung schaltet man nach dem dritten Mal ab. Erst ab Selten (blau), gruene Uebergangsware verzaubert niemand.",
+            "Abschalten mit /wc alarm aus; /wc alarm zeigt alle Schalter (Ton, Erinnerung, Anzeigedauer).",
+            "Die Onboarding-Tour hat dafuer eine Seite mehr.",
+        },
+    },
+    {
         version = "2.4.0.0",
         date    = "23.08.2026",
         notes   = {

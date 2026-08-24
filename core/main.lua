@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.4.0.0"
+WeintCodex.Version = "2.5.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -39,6 +39,22 @@ SlashCmdList["WEINTCODEX"] = function(msg)
             if WeintCodex.GroupCheck and WeintCodex.GroupCheck.Run then
                 WeintCodex.GroupCheck.Run()
             end
+        end
+        return
+    end
+
+    -- Ausruestungs-Alarm (modules/gearalert.lua): die grosse Einblendung,
+    -- wenn ein frisch angelegtes Teil unverzaubert oder unversockelt ist.
+    --   /wc alarm            Zustand und Befehlsliste
+    --   /wc alarm an|aus     ein-/ausschalten
+    --   /wc alarm ton        Signalton umschalten
+    --   /wc alarm ruhe       Erinnerung im Ruhebereich umschalten
+    --   /wc alarm dauer 12   Anzeigedauer in Sekunden
+    --   /wc alarm bewegen    Meldung zum Verschieben stehen lassen
+    --   /wc alarm jetzt      sofort pruefen
+    if verb == "alarm" or verb == "alert" then
+        if WeintCodex.GearAlert and WeintCodex.GearAlert.Command then
+            WeintCodex.GearAlert.Command(rest)
         end
         return
     end
