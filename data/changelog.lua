@@ -7,7 +7,7 @@
 
 WeintCodex_ChangelogData = {
     {
-        version = "2.5.0.0",
+        version = "2.4.0.1",
         date    = "24.08.2026",
         notes   = {
             "Neu: Ausruestungs-Alarm. Wer ein Teil anlegt, das weder verzaubert noch versockelt ist, bekommt eine grosse Einblendung in Bildschirmmitte samt Signalton - die Bauform der Bossmods, weil sie genau das leistet, was fehlte: eine Meldung, die man nicht uebersieht.",

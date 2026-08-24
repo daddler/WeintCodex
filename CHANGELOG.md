@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
-## [2.5.0.0] – 2026-08-24
+## [2.4.0.1] – 2026-08-24
 
 ### Neu
 - **Ausrüstungs-Alarm: eine grosse Einblendung, wenn ein frisch angelegtes Teil weder verzaubert noch versockelt ist.** Bildschirmmitte, Signalton, verschwindet nach ein paar Sekunden von selbst — die Bauform, die man von den Bossmods kennt, weil sie genau das leistet, was hier fehlte: eine Meldung, die man *nicht* übersieht. Ein neuer Gegenstand ist der einzige Moment, in dem man die Lücke ohne Nachschauen bemerken kann; bis dahin stand sie auf der Charakterseite, die man dafür erst hätte öffnen müssen

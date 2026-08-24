@@ -206,7 +206,7 @@ Der Tab trägt bewusst **kein** `feature`: die Seite liest ausschliesslich die A
 
 ### Ausrüstungs-Alarm (`modules/gearalert.lua`)
 
-Grosse Einblendung in Bildschirmmitte (seit 2.5.0.0), wenn ein frisch angelegtes Teil weder verzaubert noch versockelt ist — und dieselbe Meldung als Erinnerung beim Betreten eines Ruhebereichs. Die Bauform ist die der Bossmods, weil sie genau das leistet, was der Charakterseite fehlt: eine Meldung, die man nicht übersieht. Der Ruhebereich ist dabei kein beliebiger zweiter Auslöser, sondern der einzige sinnvolle — dort steht der Verzauberer, dort ist die Bank; vor dem Pull davon zu erfahren nützt niemandem.
+Grosse Einblendung in Bildschirmmitte (seit 2.4.0.1), wenn ein frisch angelegtes Teil weder verzaubert noch versockelt ist — und dieselbe Meldung als Erinnerung beim Betreten eines Ruhebereichs. Die Bauform ist die der Bossmods, weil sie genau das leistet, was der Charakterseite fehlt: eine Meldung, die man nicht übersieht. Der Ruhebereich ist dabei kein beliebiger zweiter Auslöser, sondern der einzige sinnvolle — dort steht der Verzauberer, dort ist die Bank; vor dem Pull davon zu erfahren nützt niemandem.
 
 **Der Alarm zählt, er bewertet nicht** — dieselbe Regel wie im Gruppencheck, hier aber nicht aus Mangel an Daten, sondern aus Rücksicht: „Verzauberung fehlt" und „Sockel leer" sind unstrittig, „nicht ideal" wäre eine Meinung. Eine bildschirmfüllende Meldung über eine Meinung schaltet man nach dem dritten Mal ab, und danach sieht man auch die echten Lücken nicht mehr. Ob eine Verzauberung zur Spec passt, sagt weiterhin nur `modules/charakter.lua`, wo man es in Ruhe liest.
 
