@@ -2,6 +2,19 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.4.1.2] – 2026-08-24
+
+### Behoben
+- **Der Ingenieurs-Gürtel wurde weiterhin als „Nitrobooster fehlt" gemeldet, obwohl der Booster drauflag.** Die Annahme dahinter war schlicht falsch: der Nitrobooster landet **nicht** im Verzauberungsfeld des Item-Links. `/wc alarm berufe` hat das am gemeldeten Charakter belegt — der angelegte Gürtel trägt im Tooltip „Benutzen: Erhöht 5 Sek. lang Euer Lauftempo enorm", und derselbe Gürtel meldete „keine Verzauberung im Item-Link". Ein Signal, das für den einzigen Fall, für den es gebaut wurde, nichts sieht, ist kein Signal
+- **Gefragt wird jetzt zusätzlich am Tooltip, und zwar über die Differenz:** trägt der *angelegte* Gegenstand eine „Benutzen:"-Zeile, die sein *Grundgegenstand* nicht hat, wurde etwas angebracht. Das kommt weiterhin ohne Namen und ohne IDs aus — die Beschriftung stammt aus der Konstanten des Clients (`ITEM_SPELL_TRIGGER_ONUSE`), nicht aus einer Tabelle von uns. Steine und Aufwertungsgrade stören dabei nicht, die fügen keine „Benutzen:"-Zeile hinzu
+- **Eine „Benutzen:"-Zeile, die schon dem Grundgegenstand gehört, zählt nicht als Bastelei** — sonst gälte jeder Gürtel mit eigenem Effekt als versorgt
+- **Ist der Tooltip noch nicht lesbar, wird nichts behauptet**, sondern ein paar Sekunden später nachgefasst — dieselbe Regel wie überall sonst in dieser Datei
+
+### Technisch
+- Der billige Weg bleibt vorn: steht im Verzauberungsfeld des Item-Links etwas, ist auf einem Gürtel ohnehin nur die Bastelei des Ingenieurs möglich, und es wird kein Tooltip gelesen. Der Tooltip-Vergleich läuft nur, wenn der Link nichts sagt — also genau im Fehlerfall
+- **Die Testabdeckung trug den Fehler mit.** Sie prüfte den erfolgreichen Pfad ausschliesslich mit einem Verzauberungswert im Link (`item:89241:4223:…`) — also mit einer Annahme, die für diesen Perk nie gegolten hat. Es gibt jetzt fünf Fälle mit einer Tooltip-Attrappe: Bastelei am Tooltip erkannt trotz leerem Link, ohne Zeile bleibt es ein Befund, eine Zeile des Grundgegenstands zählt nicht, unlesbarer Tooltip behauptet nichts, und der Link-Weg trägt weiterhin für sich allein
+- `/wc alarm berufe` nennt jetzt beide Wege im Klartext („keine Verzauberung im Item-Link, aber eine Benutzen-Zeile, die der Grundgegenstand nicht hat"), damit die nächste Abweichung wieder in einem Befehl sichtbar ist statt in einer Vermutung
+
 ## [2.4.1.1] – 2026-08-24
 
 ### Behoben

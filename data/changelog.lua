@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.4.1.2",
+        date    = "24.08.2026",
+        notes   = {
+            "Der Ingenieurs-Guertel wurde weiter als \"Nitrobooster fehlt\" gemeldet, obwohl der Booster drauflag. Die Annahme dahinter war falsch: der Nitrobooster steht nicht im Verzauberungsfeld des Item-Links.",
+            "Erkannt wird er jetzt am Tooltip - traegt der angelegte Gegenstand eine \"Benutzen:\"-Zeile, die sein Grundgegenstand nicht hat, wurde etwas angebracht. Weiterhin ohne Namen und ohne IDs: die Beschriftung kommt vom Client.",
+            "Eine \"Benutzen:\"-Zeile, die schon zum Gegenstand selbst gehoert, zaehlt nicht als Bastelei. Ist der Tooltip noch nicht geladen, wird nichts behauptet, sondern spaeter nachgesehen.",
+        },
+    },
+    {
         version = "2.4.1.1",
         date    = "24.08.2026",
         notes   = {

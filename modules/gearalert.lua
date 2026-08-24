@@ -231,6 +231,81 @@ local function PerkMinSkill(perk)
     return perk.minSkill or WeintCodex_ProfessionMinSkill or 500
 end
 
+--------------------------------------------------
+-- Liegt an diesem Gegenstand eine Bastelei?
+--------------------------------------------------
+-- Der Ingenieurs-Gürtel hat gezeigt, dass die naheliegende Antwort
+-- falsch ist: der Nitrobooster steht NICHT im Verzauberungsfeld des
+-- Item-Links. Ein Gürtel, auf dem er nachweislich liegt (Tooltip:
+-- "Benutzen: Erhöht 5 Sek. lang Euer Lauftempo enorm"), meldete
+-- "keine Verzauberung im Item-Link" - nachgewiesen mit
+-- "/wc alarm berufe" am gemeldeten Charakter.
+--
+-- Gefragt wird deshalb zusätzlich am Tooltip, und zwar über die
+-- Differenz: trägt der ANGELEGTE Gegenstand eine "Benutzen:"-Zeile,
+-- die sein GRUNDgegenstand nicht hat, wurde etwas angebracht. Das ist
+-- die einzige Frage, die ohne Namen und ohne IDs auskommt - und die
+-- Beschriftung kommt aus der Konstanten des Clients, nicht von uns.
+--
+-- Steine und Aufwertungsgrade stören dabei nicht: die fügen keine
+-- "Benutzen:"-Zeile hinzu.
+
+local alertTip
+local function AlertTip()
+    if alertTip then return alertTip end
+    alertTip = CreateFrame("GameTooltip", "WeintCodexAlertTip", nil, "GameTooltipTemplate")
+    alertTip:SetOwner(UIParent, "ANCHOR_NONE")
+    return alertTip
+end
+
+-- Beschriftung des Clients ("Benutzen: %s"), nicht unsere.
+local USE_PREFIX = (_G.ITEM_SPELL_TRIGGER_ONUSE or "Benutzen")
+    :gsub("%%s.*$", ""):gsub("%s*$", "")
+
+-- true / false / nil (Tooltip nicht lesbar)
+local function TipHasUseLine(apply)
+    local tip = AlertTip()
+    tip:SetOwner(UIParent, "ANCHOR_NONE")
+    tip:ClearLines()
+
+    local ok = pcall(apply, tip)
+    if not ok then return nil end
+
+    local n = tip:NumLines() or 0
+    if n == 0 then return nil end
+
+    for i = 2, n do
+        local line = _G["WeintCodexAlertTipTextLeft" .. i]
+        local txt = line and line:GetText()
+        if txt and USE_PREFIX ~= "" and txt:find(USE_PREFIX, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+-- true  = am angelegten Gegenstand wurde etwas angebracht
+-- false = nichts angebracht
+-- nil   = nicht feststellbar (Tooltip noch nicht lesbar)
+local function HasAppliedUseEffect(slotId, link)
+    local equipped = TipHasUseLine(function(tip)
+        tip:SetInventoryItem("player", slotId)
+    end)
+    if equipped ~= true then return equipped end
+
+    -- Der Grundgegenstand ohne alles. Hat der dieselbe Zeile, gehört
+    -- sie zum Gegenstand und nicht zu einem Beruf.
+    local itemId = link and link:match("item:(%d+)")
+    if not itemId then return nil end
+
+    local base = TipHasUseLine(function(tip)
+        tip:SetHyperlink("item:" .. itemId)
+    end)
+    if base == nil then return nil end
+
+    return not base
+end
+
 local function CountJewelcrafterGems()
     local CH = WeintCodex.Charakter
     local n = 0
@@ -259,13 +334,28 @@ local function PerkState(perk, link, jcCount)
     if not link then return nil, "kein Gegenstand angelegt" end
 
     if perk.kind == "exclusive" then
-        -- Der Verzauberungswert des Item-Links, nicht sein Name. Auf
-        -- einem Gürtel kann in MoP nur der Ingenieur etwas anbringen -
-        -- steht dort etwas, ist es seine Vergünstigung.
+        -- Zwei Wege, in dieser Reihenfolge. Der erste ist der billige:
+        -- steht im Verzauberungsfeld des Item-Links etwas, ist auf einem
+        -- Gürtel nur die Bastelei des Ingenieurs möglich.
         local enchId = CH.ParseItemLink(link)
-        return enchId ~= nil,
-            enchId and ("Verzauberung im Item-Link: " .. enchId)
-                    or  "keine Verzauberung im Item-Link"
+        if enchId then
+            return true, "Verzauberung im Item-Link: " .. enchId
+        end
+
+        -- Der zweite ist der tragende: der Nitrobooster landet NICHT im
+        -- Verzauberungsfeld (siehe HasAppliedUseEffect). Ohne diesen Weg
+        -- meldete der Alarm ihn dauerhaft als fehlend.
+        local applied = HasAppliedUseEffect(perk.slotId, link)
+        if applied == true then
+            return true, "keine Verzauberung im Item-Link, aber eine"
+                .. " Benutzen-Zeile, die der Grundgegenstand nicht hat"
+        end
+        if applied == nil then
+            return nil, "keine Verzauberung im Item-Link, Tooltip noch"
+                .. " nicht lesbar"
+        end
+        return false, "keine Verzauberung im Item-Link und keine"
+            .. " zusätzliche Benutzen-Zeile im Tooltip"
     end
 
     if perk.kind == "socket" then
