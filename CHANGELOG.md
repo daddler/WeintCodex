@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.4.0.2] – 2026-08-24
+
+### Geändert
+- **Der Ausrüstungs-Alarm bleibt stehen, bis man ihn wegklickt.** Bisher verschwand er nach neun Sekunden von selbst — genau in der Zeit, in der man auf die Taschen schaut, das Teil aus dem Handelsfenster nimmt oder gerade lädt. Eine Meldung, die man verpassen kann, ist für diesen Zweck keine
+- **Und das Wegklicken ist die Antwort, nicht nur das Schliessen eines Fensters.** Wer sie weggeklickt hat, bekommt *genau diesen* Befund nicht wieder zu sehen — weder beim nächsten Betreten eines Ruhebereichs noch beim nächsten Anlegen desselben Teils, und auch nicht nach einem `/reload`. Der Umweg über eine wiederkehrende Erinnerung, die man jedes Mal erneut wegklickt, wäre genau die Belästigung, die einen dazu bringt, das Ganze abzuschalten
+- **Ändert sich der Befund, meldet er sich wieder.** Die Quittung hängt an Art und Anzahl (`Verzauberung fehlt` + `2 Sockel leer`), nicht am Slot: wer die Handschuhe verzaubert und dabei den Sockel leer lässt, hat einen anderen Befund als vorher und sieht ihn auch. Behobene Quittungen werden bei jedem Lauf verworfen — sonst bliebe der Slot Wochen später stumm, wenn er wieder offen ist
+- **Beim Pull weicht eine stehende Meldung.** Eine Fläche mitten im Bild während eines Bosskampfes ist das, was einen dazu bringt, das Ganze abzuschalten. Quittiert wird dabei nicht: nach dem Kampf wird neu geprüft, und steht der Befund noch, steht auch die Meldung wieder da
+- `/wc alarm erneut` hebt das Wegklicken auf — der Rückweg, ohne den eine einmal quittierte Lücke für immer stumm bliebe und die einzige Abhilfe in den SavedData stünde. `/wc alarm` zählt im Status mit, wie viele Befunde weggeklickt sind
+
+### Entfernt
+- `/wc alarm dauer <sek>` und die Einstellung `duration`. Eine Anzeigedauer gibt es nicht mehr; ein Schalter, der nichts mehr schaltet, ist schlimmer als keiner
+
 ## [2.4.0.1] – 2026-08-24
 
 ### Neu

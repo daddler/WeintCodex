@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.4.0.2",
+        date    = "24.08.2026",
+        notes   = {
+            "Der Ausruestungs-Alarm bleibt jetzt stehen, bis ihr ihn wegklickt - bisher war er nach neun Sekunden weg, also genau dann, wenn man gerade auf die Taschen schaut.",
+            "Weggeklickt heisst gesehen: genau dieser Befund meldet sich nicht wieder, auch nicht im Ruhebereich und auch nicht nach einem /reload.",
+            "Aendert sich der Befund, meldet er sich erneut. Wer die Handschuhe verzaubert und den Sockel leer laesst, sieht das - die Quittung haengt an Art und Anzahl, nicht am Slot.",
+            "Beim Pull weicht eine stehende Meldung und kommt nach dem Kampf zurueck, sofern der Befund dann noch steht. Quittiert wird dabei nichts.",
+            "/wc alarm erneut hebt das Wegklicken wieder auf. /wc alarm dauer gibt es nicht mehr - es gibt keine Anzeigedauer.",
+        },
+    },
+    {
         version = "2.4.0.1",
         date    = "24.08.2026",
         notes   = {

@@ -8,6 +8,24 @@
 -- die Bank, dort kann man das auch tatsächlich erledigen. Im Raid davor
 -- zu stehen bringt niemandem etwas.
 --
+-- SIE BLEIBT STEHEN, BIS MAN SIE WEGKLICKT
+--
+-- Und das Wegklicken ist die eigentliche Aussage, nicht nur das
+-- Schliessen eines Fensters: es heisst "gesehen", und *genau diese*
+-- Befunde melden sich danach nicht wieder (`acked` in den SavedData,
+-- Schlüssel je Slot samt Art und Anzahl). Eine Meldung, die nach neun
+-- Sekunden von selbst verschwindet, verpasst man beim Blick auf die
+-- Taschen - und eine, die danach unverändert wiederkommt, ist eine
+-- Belästigung. Beides zusammen loest die Frage: einmal quittieren
+-- genuegt, und was sich am Befund ändert, meldet sich erneut.
+--
+-- Der Schlüssel trägt deshalb Art *und* Anzahl (`10|E|2`): wer die
+-- Handschuhe verzaubert und dabei einen Sockel leer lässt, hat einen
+-- anderen Befund als vorher und soll ihn auch sehen. Behobene
+-- Schlüssel werden bei jedem Lauf verworfen (`PruneAcks`) - sonst
+-- läge die Quittung noch da, wenn derselbe Slot Wochen später wieder
+-- offen ist. `/wc alarm erneut` wirft alle Quittungen weg.
+--
 -- ZWEI DINGE, DIE DIESE DATEI BEWUSST NICHT TUT
 --
 -- 1. Sie bewertet nicht. Gemeldet wird ausschliesslich "Verzauberung
@@ -85,10 +103,11 @@ local ENTER_WORLD_DELAY = 10
 local RETRY_DELAY = 3
 local RETRY_MAX   = 3
 
--- Wie oft die Erinnerung im Ruhebereich höchstens kommt. Wer zwischen
--- Bank, Auktionshaus und Verzauberer hin und her läuft, löst
--- PLAYER_UPDATE_RESTING mehrfach aus; ohne diese Sperre wäre die
--- Erinnerung nach zehn Minuten in der Hauptstadt eine Belästigung.
+-- Wie oft im Ruhebereich höchstens nachgesehen wird. Gegen die
+-- Belästigung hilft seit 2.4.0.2 das Quittieren; was hier bleibt, ist
+-- die Kostenbremse: jede Prüfung liest je Gegenstand den Tooltip, und
+-- wer zwischen Bank, Auktionshaus und Verzauberer hin und her läuft,
+-- löst PLAYER_UPDATE_RESTING am laufenden Band aus.
 local REST_COOLDOWN = 900
 
 local WIDTH   = 470
@@ -99,7 +118,6 @@ local MAX_ROWS = 6
 
 -- Einblenden, halten, ausblenden.
 local FADE_IN  = 0.22
-local FADE_OUT = 0.55
 local SLIDE    = 14
 
 --------------------------------------------------
@@ -110,7 +128,6 @@ local DEFAULTS = {
     enabled      = true,
     sound        = true,
     restReminder = true,
-    duration     = 9,
 }
 
 -- SavedData steht erst ab ADDON_LOADED bereit; deshalb bei jedem
@@ -227,6 +244,57 @@ local function Collect()
 end
 
 GA.Collect = Collect
+
+--------------------------------------------------
+-- Quittungen ("gesehen")
+--------------------------------------------------
+
+-- Art UND Anzahl gehören in den Schlüssel: aus "Verzauberung fehlt und
+-- zwei Sockel leer" wird nach dem Verzaubern "zwei Sockel leer", und das
+-- ist ein anderer Befund, der wieder gemeldet werden soll.
+local function FindingKey(e)
+    return e.slotId .. "|" .. (e.enchant and "E" or "-") .. "|" .. e.sockets
+end
+
+local function AckStore()
+    local s = Store()
+    s.acked = s.acked or {}
+    return s.acked
+end
+
+local function Acknowledge(entries)
+    local acked = AckStore()
+    for _, e in ipairs(entries or {}) do
+        acked[FindingKey(e)] = true
+    end
+end
+
+-- Behobene Befunde vergessen. Ohne das läge die Quittung noch da, wenn
+-- derselbe Slot Wochen später wieder offen ist - und die Tabelle wüchse
+-- über jeden Ausrüstungswechsel hinweg weiter.
+--
+-- Läuft immer gegen das VOLLSTÄNDIGE Ergebnis von Collect(), nie gegen
+-- die auf einzelne Slots gefilterte Liste: sonst würde eine Prüfung nach
+-- dem Anlegen eines Rings die Quittungen aller anderen Slots wegwerfen.
+--
+-- Und nur, wenn der Client zu JEDEM Gegenstand Basisdaten hatte (siehe
+-- den Aufruf). Ein ungecachter Gegenstand fehlt in `all`, sein Befund
+-- sähe damit behoben aus, und die Quittung wäre weg - kurz darauf käme
+-- dieselbe Meldung wieder, die man gestern weggeklickt hat. Dieselbe
+-- Regel wie überall sonst in dieser Datei: aus unserem Ladezustand
+-- folgt keine Aussage über die Rüstung.
+local function PruneAcks(all)
+    local acked = AckStore()
+    local live = {}
+    for _, e in ipairs(all) do live[FindingKey(e)] = true end
+    for key in pairs(acked) do
+        if not live[key] then acked[key] = nil end
+    end
+end
+
+local function IsAcked(e)
+    return AckStore()[FindingKey(e)] == true
+end
 
 --------------------------------------------------
 -- Texte
@@ -441,10 +509,9 @@ local function Build()
     end)
 
     frame:SetScript("OnClick", function(self, button)
-        if button == "RightButton" then
-            GA.Hide()
-            return
-        end
+        -- Der Ziehmodus quittiert nichts: dort geht es um die Position,
+        -- nicht um den Befund (die Beispielmeldung kann sogar erfunden
+        -- sein, siehe ShowMover).
         if moveMode then
             moveMode = false
             GA.Hide()
@@ -452,9 +519,15 @@ local function Build()
                 .. " Position des Ausrüstungs-Alarms gespeichert.")
             return
         end
+
+        -- Beide Klicks heissen "gesehen". Der Linksklick führt zusätzlich
+        -- dorthin, wo sich das beheben lässt; wer den Weg kennt, nimmt
+        -- den Rechtsklick.
         local entries = self._entries
-        GA.Hide()
-        OpenCharakterPage(entries)
+        GA.Dismiss()
+        if button ~= "RightButton" then
+            OpenCharakterPage(entries)
+        end
     end)
 
     frame:SetScript("OnUpdate", function(self, elapsed)
@@ -475,17 +548,10 @@ local function Build()
             end
 
         elseif anim.state == "hold" then
-            if anim.hold > 0 and anim.elapsed >= anim.hold then
-                anim.state, anim.elapsed = "out", 0
-            end
-
-        elseif anim.state == "out" then
-            local t = math.min(1, anim.elapsed / FADE_OUT)
-            self:SetAlpha(1 - t)
-            if t >= 1 then
-                anim.state = nil
-                self:Hide()
-            end
+            -- Und hier bleibt sie. Weggeräumt wird sie nur durch einen
+            -- Klick (siehe Dismiss), durch den Kampfbeginn oder durch
+            -- "/wc alarm aus" - nie durch Zeitablauf.
+            anim.state = nil
         end
     end)
 
@@ -601,7 +667,9 @@ local function Layout(entries, reason)
     y = y + 8
     hint:SetText(moveMode
         and "Ziehen zum Verschieben · Klick speichert die Position"
-        or  "Linksklick öffnet die Charakterseite · Rechtsklick schliesst · |cffD4A24A/wc alarm aus|r")
+        or  "Bleibt stehen, bis du sie wegklickst — danach meldet sich dieser Befund nicht wieder."
+            .. "  Linksklick öffnet die Charakterseite, Rechtsklick schliesst nur."
+            .. "  |cffD4A24A/wc alarm aus|r")
     hint:ClearAllPoints()
     hint:SetPoint("TOPLEFT",  frame, "TOPLEFT",  PAD, -y)
     hint:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -y)
@@ -623,9 +691,9 @@ function GA.Hide()
 end
 
 -- Diese Funktion zeichnet nur. Ob ueberhaupt eingeblendet werden darf
--- (Kampf, abgeschaltet, nichts offen), entscheidet RunCheck weiter
--- unten - sonst laege dieselbe Frage an zwei Stellen.
-function GA.Show(entries, reason, holdSeconds)
+-- (Kampf, abgeschaltet, nichts offen, schon quittiert), entscheidet
+-- RunCheck weiter unten - sonst laege dieselbe Frage an zwei Stellen.
+function GA.Show(entries, reason)
     if not entries or #entries == 0 then return end
 
     Build()
@@ -637,12 +705,19 @@ function GA.Show(entries, reason, holdSeconds)
     local point, _, _, x, y = frame:GetPoint()
     anim.point, anim.x, anim.y = point, x, y
     anim.state, anim.elapsed = "in", 0
-    anim.hold = holdSeconds or Store().duration or DEFAULTS.duration
 
     frame:SetAlpha(0)
     frame:Show()
 
     PlayAlertSound()
+end
+
+-- Wegklicken. Das Quittieren gehört hierher und nicht in GA.Hide: der
+-- Kampfbeginn und "/wc alarm aus" blenden ebenfalls aus, und beides ist
+-- keine Aussage darüber, ob jemand den Befund gesehen hat.
+function GA.Dismiss()
+    if frame then Acknowledge(frame._entries) end
+    GA.Hide()
 end
 
 --------------------------------------------------
@@ -674,6 +749,11 @@ end
 -- eine Meldung ueber einen Zustand von vor vier Minuten ist keine.
 local queued = nil
 
+-- Der Anlass der gerade stehenden Meldung. Gebraucht wird er nur an einer
+-- Stelle: weicht sie dem Kampf, muss danach dieselbe Frage noch einmal
+-- gestellt werden koennen ("nur dieser Slot" bzw. "alles Offene").
+local shownContext = nil
+
 -- reason: "equip" (nur die gewechselten Slots) | "rest" | "manual"
 local function RunCheck(reason, slotFilter)
     if not Store().enabled and reason ~= "manual" then return end
@@ -690,12 +770,27 @@ local function RunCheck(reason, slotFilter)
     local entries, pending = Collect()
     if not entries then return end
 
+    -- Gegen das vollständige Ergebnis, vor jeder Filterung: was behoben
+    -- ist, verliert seine Quittung. Aber nur bei warmem Cache - siehe
+    -- die Begründung an PruneAcks.
+    if not pending then PruneAcks(entries) end
+
     if slotFilter then
         local filtered = {}
         for _, e in ipairs(entries) do
             if slotFilter[e.slotId] then filtered[#filtered + 1] = e end
         end
         entries = filtered
+    end
+
+    -- Schon weggeklickt? Dann war das die Antwort. "/wc alarm jetzt"
+    -- fragt ausdrücklich und bekommt deshalb alles zu sehen.
+    if reason ~= "manual" then
+        local unseen = {}
+        for _, e in ipairs(entries) do
+            if not IsAcked(e) then unseen[#unseen + 1] = e end
+        end
+        entries = unseen
     end
 
     -- Noch nicht gecachte Gegenstände: später noch einmal nachsehen,
@@ -717,6 +812,7 @@ local function RunCheck(reason, slotFilter)
         return
     end
 
+    shownContext = { reason = reason, filter = slotFilter }
     GA.Show(entries, reason)
 end
 
@@ -767,6 +863,7 @@ watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 watcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 watcher:RegisterEvent("PLAYER_UPDATE_RESTING")
 watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 watcher:SetScript("OnEvent", function(_, event, arg1)
 
@@ -803,6 +900,18 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
         return
     end
 
+    -- Beim Pull weicht eine stehende Meldung - eine Fläche mitten im
+    -- Bild waehrend eines Bosskampfes ist genau das, was einen dazu
+    -- bringt, das Ganze abzuschalten. Quittiert wird dabei NICHT: sie
+    -- kommt nach dem Kampf zurück, sofern der Befund dann noch steht.
+    if event == "PLAYER_REGEN_DISABLED" then
+        if frame and frame:IsShown() and not moveMode then
+            queued = queued or shownContext
+            GA.Hide()
+        end
+        return
+    end
+
     if event == "PLAYER_REGEN_ENABLED" and queued then
         local q = queued
         queued = nil
@@ -824,19 +933,24 @@ end
 
 function GA.PrintStatus()
     local s = Store()
+
+    local acked = 0
+    for _ in pairs(s.acked or {}) do acked = acked + 1 end
+
     Say("Ausrüstungs-Alarm: "
         .. (s.enabled and WeintCodex.ColorText("green", "an")
                        or WeintCodex.ColorText("textDim", "aus"))
         .. "  ·  Ton: " .. (s.sound and "an" or "aus")
         .. "  ·  Erinnerung im Ruhebereich: " .. (s.restReminder and "an" or "aus")
-        .. "  ·  Anzeigedauer: " .. tostring(s.duration) .. " s")
-    Say("|cffaaaaaa/wc alarm an|aus · ton · ruhe · dauer <sek> · test · bewegen · jetzt|r")
+        .. "  ·  weggeklickt: " .. acked .. " Befund(e)")
+    Say("|cffaaaaaa/wc alarm an|aus · ton · ruhe · erneut · jetzt · test · bewegen|r")
+    Say("|cffaaaaaa'erneut' hebt das Wegklicken auf - danach melden sich"
+        .. " auch schon quittierte Befunde wieder.|r")
 end
 
 -- Beispielmeldung mit den eigenen Daten, sonst mit erfundenen. Sie
--- bleibt stehen, bis man klickt, und lässt sich dabei verschieben -
--- eine Meldung, die nach neun Sekunden weg ist, kann man nicht
--- positionieren.
+-- laesst sich im Ziehmodus verschieben und quittiert beim Klick
+-- nichts - der Befund darin kann erfunden sein.
 function GA.ShowMover()
     local entries = Collect()
     if not entries or #entries == 0 then
@@ -846,7 +960,7 @@ function GA.ShowMover()
         }
     end
     moveMode = true
-    GA.Show(entries, "manual", 0)
+    GA.Show(entries, "manual")
 end
 
 function GA.Command(rest)
@@ -887,17 +1001,26 @@ function GA.Command(rest)
         if frame then RestorePosition() end
         Say("Position des Ausrüstungs-Alarms zurückgesetzt.")
 
+    elseif rest == "erneut" or rest == "wieder" or rest == "reset" then
+        -- Der Rueckweg fuer alles Weggeklickte. Ohne ihn waere eine
+        -- einmal quittierte Luecke fuer immer stumm, und die einzige
+        -- Abhilfe stuende in den SavedData.
+        local n = 0
+        for _ in pairs(s.acked or {}) do n = n + 1 end
+        s.acked = {}
+        -- Die Sperrfrist gleich mit, sonst bliebe es bis zu einer
+        -- Viertelstunde still, obwohl man gerade um die Meldung gebeten
+        -- hat.
+        s.lastRest = nil
+        Say(n .. " weggeklickte Befund(e) vergessen - sie melden sich wieder.")
+        retries = 0
+        RunCheck("manual", nil)
+
     elseif rest == "jetzt" or rest == "pruefen" or rest == "prüfen" then
         retries = 0
         RunCheck("manual", nil)
 
     else
-        local seconds = rest and rest:match("^dauer%s+(%d+)$")
-        if seconds then
-            s.duration = math.max(3, math.min(60, tonumber(seconds)))
-            Say("Anzeigedauer: " .. s.duration .. " Sekunden.")
-        else
-            GA.PrintStatus()
-        end
+        GA.PrintStatus()
     end
 end

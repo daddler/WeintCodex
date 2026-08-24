@@ -47,7 +47,7 @@ local TOUR_STEPS = {
     { icon = "Interface\\Icons\\Achievement_Character_Human_Male", title = "Charakter",
       body = "Prueft eure Verzauberungen und Sockelsteine gegen das aktuelle Spec-Profil und verwaltet eure Twinks an einem Ort." },
     { icon = "Interface\\Icons\\INV_Misc_EngGizmos_37", title = "Ausruestungs-Alarm",
-      body = "Legt ihr ein Teil an, das noch keine Verzauberung oder einen leeren Sockel hat, meldet sich das Addon gross in der Bildschirmmitte - und noch einmal, sobald ihr einen Ruhebereich betretet. Dort steht der Verzauberer, dort koennt ihr es erledigen.\n\nGemeldet wird nur, was fehlt, nie was besser ginge. Abschalten mit |cffD4A24A/wc alarm aus|r; |cffD4A24A/wc alarm|r zeigt alle Schalter." },
+      body = "Legt ihr ein Teil an, das noch keine Verzauberung oder einen leeren Sockel hat, meldet sich das Addon gross in der Bildschirmmitte - und noch einmal, sobald ihr einen Ruhebereich betretet. Dort steht der Verzauberer, dort koennt ihr es erledigen.\n\nDie Meldung bleibt stehen, bis ihr sie wegklickt. Weggeklickt heisst gesehen: genau dieser Befund meldet sich nicht wieder.\n\nGemeldet wird nur, was fehlt, nie was besser ginge. Abschalten mit |cffD4A24A/wc alarm aus|r; |cffD4A24A/wc alarm|r zeigt alle Schalter." },
     { icon = "Interface\\Icons\\Achievement_Boss_LichKing", title = "Bossguides",
       body = "Rollen-Tipps fuer jeden Boss, inklusive Positionierungsbildern und der Best-in-Slot-Liste fuer euer Spec." },
     -- feature: Seite wird uebersprungen, wenn das Zugriffsprofil den Bereich
