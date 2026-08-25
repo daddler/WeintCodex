@@ -363,12 +363,17 @@ WeintCodex_SpecProfiles = {
 
     HUNTER_BEASTMASTERY = {
         role = "RANGED",
+        -- JAEGER HABEN KEINEN WAFFENKUNDE-CAP. Fernkampfangriffe koennen
+        -- in MoP weder pariert noch ausgewichen werden - Waffenkunde tut
+        -- fuer einen Jaeger nichts. Bis 2.5.0.0 stand hier ein Cap von
+        -- 7,5 % samt Gewicht 85, und die Waffenkunde-Karte meldete jedem
+        -- Jaeger dauerhaft ein Defizit ("es fehlen ca. N Wertung"), das er
+        -- nicht schliessen konnte und nicht schliessen sollte.
         caps = {
             { stat = "hit",       typ = "ranged", pct = 7.5 },
-            { stat = "expertise",                 pct = 7.5 },
         },
         statWeights = {
-            agility = 100, hit = 88, expertise = 85,
+            agility = 100, hit = 88,
             crit = 75, haste = 68, mastery = 60, stamina = 10,
         },
         bestEnchants = {
@@ -392,17 +397,22 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit überall (Feingeschliffener Rubellit / Tödlicher Aragonit). Jäger brauchen 7,5% Treffer UND 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit überall (Feingeschliffener Rubellit / Tödlicher Aragonit). Cap: 7,5% Treffer — Waffenkunde bringt Fernkämpfern nichts.",
     },
 
     HUNTER_MARKSMANSHIP = {
         role = "RANGED",
+        -- JAEGER HABEN KEINEN WAFFENKUNDE-CAP. Fernkampfangriffe koennen
+        -- in MoP weder pariert noch ausgewichen werden - Waffenkunde tut
+        -- fuer einen Jaeger nichts. Bis 2.5.0.0 stand hier ein Cap von
+        -- 7,5 % samt Gewicht 85, und die Waffenkunde-Karte meldete jedem
+        -- Jaeger dauerhaft ein Defizit ("es fehlen ca. N Wertung"), das er
+        -- nicht schliessen konnte und nicht schliessen sollte.
         caps = {
             { stat = "hit",       typ = "ranged", pct = 7.5 },
-            { stat = "expertise",                 pct = 7.5 },
         },
         statWeights = {
-            agility = 100, hit = 88, expertise = 85,
+            agility = 100, hit = 88,
             crit = 80, haste = 65, mastery = 55, stamina = 10,
         },
         bestEnchants = {
@@ -426,17 +436,22 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Krit. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Krit. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht).",
     },
 
     HUNTER_SURVIVAL = {
         role = "RANGED",
+        -- JAEGER HABEN KEINEN WAFFENKUNDE-CAP. Fernkampfangriffe koennen
+        -- in MoP weder pariert noch ausgewichen werden - Waffenkunde tut
+        -- fuer einen Jaeger nichts. Bis 2.5.0.0 stand hier ein Cap von
+        -- 7,5 % samt Gewicht 85, und die Waffenkunde-Karte meldete jedem
+        -- Jaeger dauerhaft ein Defizit ("es fehlen ca. N Wertung"), das er
+        -- nicht schliessen konnte und nicht schliessen sollte.
         caps = {
             { stat = "hit",       typ = "ranged", pct = 7.5 },
-            { stat = "expertise",                 pct = 7.5 },
         },
         statWeights = {
-            agility = 100, hit = 88, expertise = 85,
+            agility = 100, hit = 88,
             crit = 70, haste = 62, mastery = 50, stamina = 10,
         },
         bestEnchants = {
@@ -460,7 +475,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76643, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht).",
     },
 
     --------------------------------------------------
