@@ -366,11 +366,32 @@ local function ViewGearAlert(y)
 
     y = Toggle(y, {
         label = "Signalton",
-        description = "Kurzer Ton, wenn die Meldung erscheint.",
+        description = "Warnton des Spiels, wenn die Meldung erscheint.",
         get = function() return GA.GetOption("sound") end,
         set = function(on) GA.SetOption("sound", on) end,
+        -- Beim Einschalten gleich einmal klingen lassen. Eine Einstellung
+        -- fuer einen Ton, die man erst beim naechsten Befund hoert, laesst
+        -- sich nicht pruefen - und genau daran lag es, dass der stumme
+        -- Alarm so lange unbemerkt blieb.
+        onChange = function(on)
+            if on and GA.PlaySignal then GA.PlaySignal() end
+        end,
         disabled = function() return not GA.GetOption("enabled") end,
         disabledHint = "Erst mit aktivem Alarm.",
+    })
+
+    y = Buttons(y, {
+        { text = "Ton testen", kind = "ghost",
+          tooltip = "Spielt den Warnton sofort und schreibt in den Chat, welcher"
+              .. " Klang des Spiels das war (/wc alarm tontest). Hörst du"
+              .. " nichts, obwohl dort ein Klang steht, liegt es an der"
+              .. " Lautstärke des Spiels.",
+          onClick = function()
+              if not GA.PlaySignal then return end
+              local played, note = GA.PlaySignal()
+              Say(played and ("Ton gespielt: " .. note)
+                          or WeintCodex.ColorText("warning", "Kein Ton: " .. note))
+          end },
     })
 
     y = Toggle(y, {

@@ -15,6 +15,8 @@ WeintCodex_ChangelogData = {
             "Das Hauptfenster laesst sich jetzt mit Esc schliessen. Dafuer muss der Name des Fensters in einer Liste des Spiels stehen - er war dort nie eingetragen.",
             "Und es draengt sich nicht mehr vor: bisher lag es fest ueber Taschen, Charakterbogen und selbst ueber den Dialogen des Spiels. Beides ist abschaltbar, falls jemand es anders will.",
             "Neu dazu: die Fenstergroesse als Regler (70-120 %) mit einem Knopf zum Zuruecksetzen, ein Schalter fuer das Minimap-Symbol und einer fuer zweispaltige Bossnotizen.",
+            "Behoben: der Ausruestungs-Alarm hat nie einen Ton gespielt. Es gab ihn von Anfang an, die Einstellung stand auf \"an\", und es passierte nichts - beide Aufrufformen sind auf dem heutigen Client tot, und weil niemand den Rueckgabewert ansah, blieb das jahrelang unbemerkt. Der Warnton kommt jetzt vom Spiel selbst und ueber den Master-Kanal.",
+            "Wer den Signalton einschaltet, hoert ihn sofort. Und |cffD4A24A/wc alarm tontest|r bzw. der Knopf \"Ton testen\" in den Einstellungen sagt im Chat, WELCHER Klang gespielt wurde - hoerst du trotzdem nichts, liegt es an der Lautstaerke des Spiels.",
             "Behoben: |cffD4A24A/wc alarm test|r lief mit einem Fehler auf, wenn gerade gar nichts offen war - also genau in dem Fall, fuer den die Testmeldung da ist.",
         },
     },

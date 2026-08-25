@@ -717,21 +717,87 @@ end
 --------------------------------------------------
 -- Ton
 --------------------------------------------------
+-- Der Alarm hatte von Anfang an einen Ton, und er hat nie geklungen. Beide
+-- Aufrufformen, die hier standen, sind auf dem Client, auf dem Mists Classic
+-- laeuft, tot:
+--
+--   * PlaySoundFile("Sound\\Interface\\RaidWarning.wav") - Pfade IN die
+--     Spieldaten loest der Client seit der Umstellung auf CASC nicht mehr
+--     auf. PlaySoundFile kennt nur noch Dateien aus einem Addon-Ordner oder
+--     eine FileDataID; der Aufruf gibt still `false` zurueck.
+--   * PlaySound("RaidWarning") - PlaySound will eine NUMERISCHE SoundKit-ID.
+--     Der Kit-Name als Zeichenkette war die Form des alten 5.x-Clients.
+--
+-- Und weil beides in pcall stand und niemand den Rueckgabewert ansah, war
+-- das Ergebnis genau ein stiller Alarm: in den Einstellungen stand "Ton: an",
+-- der Code lief sauber durch, und es passierte nichts. **Ein Rueckfallweg,
+-- dessen Zweige alle schweigend scheitern koennen, ist kein Rueckfallweg** -
+-- dieselbe Lehre wie beim Nitrobooster in 2.4.1.2.
+--
+-- Deshalb drei Aenderungen, und keine davon ist Geschmack:
+--   * Die ID kommt aus der Tabelle des CLIENTS (SOUNDKIT) und nie aus einem
+--     Namen von uns. Die Zahl daneben ist nur der Rueckfall, falls der
+--     Client die Tabelle nicht fuehrt - sie steht NEBEN dem Namen, nicht
+--     statt seiner, damit der Client entscheidet, solange er kann.
+--   * Der Rueckgabewert wird ausgewertet. `willPlay == false` heisst, dass
+--     nichts geklungen hat, und dann wird der naechste Klang probiert.
+--   * Was tatsaechlich gespielt wurde, ist ablesbar (`/wc alarm` und die
+--     Schaltflaeche "Ton testen" auf der Einstellungsseite). Genau diese
+--     Fehlerklasse - "der Code laeuft, nur hoert man nichts" - ist von
+--     aussen sonst nicht von "Lautstaerke auf 0" zu unterscheiden.
+--------------------------------------------------
+
+-- Reihenfolge: der Warnton des Raids, sonst der Bereitschaftscheck, sonst
+-- der Hinweiston der Benutzeroberflaeche. Alle drei fuehrt der Client
+-- selbst; die Zahlen sind seine, nicht unsere.
+local SOUND_KITS = {
+    { name = "RAID_WARNING",  id = 8959 },
+    { name = "READY_CHECK",   id = 8960 },
+    { name = "IG_MAINMENU_OPEN", id = 850 },
+}
+
+-- Was der letzte Versuch ergeben hat. Reine Diagnose - siehe PrintStatus.
+local soundNote = "noch nicht gespielt"
+
+-- Spielt den Alarmton, unabhaengig von der Einstellung. Gibt zurueck, ob
+-- etwas geklungen hat, und eine Zeile, die sagt was.
+function GA.PlaySignal()
+    if type(PlaySound) ~= "function" then
+        soundNote = "PlaySound gibt es auf diesem Client nicht"
+        return false, soundNote
+    end
+
+    local kit = _G.SOUNDKIT
+    for _, entry in ipairs(SOUND_KITS) do
+        local id = (type(kit) == "table" and tonumber(kit[entry.name])) or entry.id
+        local source = (type(kit) == "table" and tonumber(kit[entry.name]))
+            and "SOUNDKIT" or "Rueckfallzahl"
+
+        -- PlaySound(id, channel) liefert willPlay, soundHandle. "Master"
+        -- ist Absicht: der Alarm soll auch zu hoeren sein, wenn jemand die
+        -- Effektlautstaerke heruntergezogen hat - er meldet eine Luecke,
+        -- die einen ganzen Raidabend kostet.
+        local ok, willPlay = pcall(PlaySound, id, "Master")
+        if ok and willPlay ~= false then
+            soundNote = entry.name .. " (" .. id .. ", " .. source .. ")"
+            return true, soundNote
+        end
+    end
+
+    soundNote = "kein Klang des Clients liess sich abspielen"
+    return false, soundNote
+end
+
+function GA.SoundNote()
+    return soundNote
+end
 
 local function PlayAlertSound()
-    if not Store().sound then return end
-
-    -- Welche der beiden Aufrufformen ein Classic-Build annimmt,
-    -- schwankt (Datei-Pfad bzw. Kit-Name) - wie bei den Spec-Events in
-    -- modules/companion.lua deshalb der Reihe nach über pcall.
-    if type(PlaySoundFile) == "function" then
-        local ok, played = pcall(PlaySoundFile,
-            "Sound\\Interface\\RaidWarning.wav", "Master")
-        if ok and played ~= false then return end
+    if not Store().sound then
+        soundNote = "abgeschaltet"
+        return false
     end
-    if type(PlaySound) == "function" then
-        pcall(PlaySound, "RaidWarning")
-    end
+    return (GA.PlaySignal())
 end
 
 --------------------------------------------------
@@ -1437,11 +1503,16 @@ function GA.PrintStatus()
         .. "  ·  Ton: " .. (s.sound and "an" or "aus")
         .. "  ·  Erinnerungen: " .. (s.restReminder and "an" or "aus")
         .. "  ·  weggeklickt: " .. acked .. " Befund(e)")
+
+    -- Was der letzte Tonversuch ergeben hat. Ohne diese Zeile ist "ich höre
+    -- nichts" von aussen nicht von "Lautstärke steht auf 0" zu unterscheiden -
+    -- und genau daran lag es, dass der stumme Alarm so lange unbemerkt blieb.
+    Say("Zuletzt gespielt: " .. WeintCodex.ColorText("textDim", GA.SoundNote()))
     Say("|cffaaaaaaWeggeklickt heisst " .. math.floor(ACK_LIFETIME / 60)
         .. " Minuten Ruhe. Danach erinnert der Alarm erneut - beim"
         .. " Zonenwechsel, im Ruhebereich, am Instanzeingang oder von"
         .. " selbst, sobald du gerade nichts anderes machst.|r")
-    Say("|cffaaaaaa/wc alarm an|aus · ton · erinnern · erneut · jetzt · berufe · test · bewegen|r")
+    Say("|cffaaaaaa/wc alarm an|aus · ton · tontest · erinnern · erneut · jetzt · berufe · test · bewegen|r")
 end
 
 --------------------------------------------------
@@ -1639,7 +1710,16 @@ function GA.Command(rest)
 
     elseif rest == "ton" or rest == "sound" then
         GA.SetOption("sound", not s.sound)
+        -- Beim Einschalten gleich einmal klingen lassen: eine Einstellung
+        -- fuer einen Ton, die man erst beim naechsten Befund hoert, ist
+        -- nicht pruefbar - und genau das war das Problem.
+        if Store().sound then GA.PlaySignal() end
         GA.PrintStatus()
+
+    elseif rest == "tontest" or rest == "tonprobe" or rest == "soundtest" then
+        local played, note = GA.PlaySignal()
+        Say(played and ("Ton gespielt: " .. note)
+                    or WeintCodex.ColorText("warning", "Kein Ton: " .. note))
 
     elseif rest == "ruhe" or rest == "ruhebereich"
            or rest == "erinnern" or rest == "erinnerung" then
