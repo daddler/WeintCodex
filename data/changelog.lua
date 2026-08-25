@@ -14,6 +14,10 @@ WeintCodex_ChangelogData = {
             "Der Grund: \"nicht im Kampf und steht still\" ist genau der Augenblick nach dem Pull. Der Alarm hielt ihn fuer den ruhigen Moment, auf den er wartet.",
             "In einer Instanz meldet er jetzt nur noch beim Betreten - einmal, vor dem ersten Pull - und wenn du dort selbst etwas anlegst. Genau das laesst sich naemlich noch beheben: eine Rolle auftraegt oder der Juwelier in der Gruppe. Draussen aendert sich nichts.",
             "Auch ein |cffD4A24A/reload|r mitten im Schlachtzug holt keine weggeklickte Meldung mehr zurueck.",
+            "Behoben: zwei Verzauberungs-IDs standen falsch in der Datenbank - gemeldet am Heiligpriester, der richtig verzaubert war und trotzdem zweimal \"(ID abweichend)\" zu lesen bekam.",
+            "Handschuhe: die ID 4433 stand als |cffD4A24AGrosses Tempo|r, der Tooltip zeigt |cffD4A24A+170 Meisterschaft|r. Sie ist die zweite Meisterschafts-ID neben 4430; die ID der Tempo-Handschuhe kennt der Client uns nicht, sie steht jetzt unter ihrer Itemnummer.",
+            "Beine: die beiden Zauberfaeden waren vertauscht. Der Heiler trug den perlmuttfarbenen (Intelligenz + Willenskraft), das Addon hielt seine ID fuer den himmelblauen (Intelligenz + Krit) - und hielt ihm damit den richtigen Faden als zweite Wahl vor.",
+            "Die Empfehlungen aller 13 betroffenen Specs sind mitgezogen: Heiler bekommen den perlmuttfarbenen Faden zuerst, Zauber-DPS den himmelblauen. Schatten und Elementar standen schon vorher falsch und stehen jetzt richtig.",
         },
     },
     {

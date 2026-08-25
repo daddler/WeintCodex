@@ -147,11 +147,33 @@ WeintCodex_Enchants = {
     -- 4434 bleibt als zweite Stärke-ID stehen (gleicher Name, gleiche
     -- Werte — wie 4422/4424 beim Umhang): fällt sie irgendwo auf, wird sie
     -- richtig aufgelöst statt als unbekannt gemeldet.
+    --
+    -- 4433 ebenso, seit 2.6.0.3: gemeldet am Heiligpriester, dessen
+    -- Handschuhe im Item-Link die 4433 tragen und im Tooltip "+170
+    -- Meisterschaft" zeigen. Hier stand Tempo — abgeleitet aus der
+    -- WoWHead-Itemnummer 74719 und nie am Client geprüft, während für
+    -- 4430 = Meisterschaft ein Tooltip vorlag. Die Folge war genau die
+    -- Marke, die 2.0.1.0 für 4432 beseitigt hat: eine korrekt
+    -- verzauberte Hand las "(ID 4433 abweichend – /wc vz)".
+    --
+    -- Zwei IDs, dieselbe Verzauberung — das ist in dieser Datei die
+    -- Regel und nicht die Ausnahme (4422/4424 Umhang, 4432/4434 Hände).
+    -- Die ID der TEMPO-Handschuhe ist damit am Client unbekannt; sie
+    -- steht deshalb unter ihrer Itemnummer weiter unten, so wie schon
+    -- 74715 (Stiefel-Tempo) und 74711 (Umhang-Ausdauer).
     [4430] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
     [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
     [4432] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },
-    [4433] = { name = "Großes Tempo",              slot = "Hände", stats = { haste = 170 } },  -- WoWHead: "Handschuhe - Großes Tempo" (item 74719)
+    [4433] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },  -- Live-Tooltip (Heiligpriester), zweite Meisterschafts-ID neben 4430
     [4434] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 }, verify = true },
+    -- Handschuh-Tempo: Schlüssel = Itemnummer (74719, "Handschuhe -
+    -- Großes Tempo"), weil die Verzauberungs-ID dazu nicht belegt ist.
+    -- Ohne diesen Eintrag stünde für die Tempo-Specs keine Empfehlung
+    -- mehr da, und wer richtig auf Tempo verzaubert hat, bekäme seine
+    -- Werte gegen eine Meisterschaftsempfehlung gehalten - also einen
+    -- Mangel gemeldet, den es nicht gibt. Erkannt wird er über Slot +
+    -- Werte bzw. den Namen, nicht über die Nummer.
+    [74719] = { name = "Großes Tempo",             slot = "Hände", stats = { haste = 170 }, verify = true },
 
     --------------------------------------------------
     -- BEINE (Lederverarbeitung / Schneiderei)
@@ -160,8 +182,22 @@ WeintCodex_Enchants = {
     [4822] = { name = "Schattenlederbeinrüstung",            slot = "Beine", stats = { agility = 285, crit = 165 } },
     [4823] = { name = "Zornbalgbeinrüstung",                 slot = "Beine", stats = { strength = 285, crit = 165 } },
     [4824] = { name = "Eisenschuppenbeinrüstung",            slot = "Beine", stats = { stamina = 430, dodge = 165 } },
-    [4825] = { name = "Großer perlmuttfarbener Zauberfaden", slot = "Beine", stats = { intellect = 285, spirit = 165 }, verify = true },
-    [4826] = { name = "Großer himmelblauer Zauberfaden",     slot = "Beine", stats = { intellect = 285, crit = 165 } },  -- bestätigt (Nutzer-Feedback), korrekter Name statt "zerulanblau"
+    -- Die beiden Zauberfäden standen bis 2.6.0.3 vertauscht. Gemeldet am
+    -- Heiligpriester: seine Hose trägt im Item-Link die 4826 und im
+    -- Tooltip "+285 Intelligenz und +165 Willenskraft" — also den
+    -- perlmuttfarbenen. Die Namen selbst waren richtig (Pearlescent =
+    -- perlmuttfarben = Intelligenz + Willenskraft, Cerulean =
+    -- himmelblau = Intelligenz + kritische Trefferwertung); vertauscht
+    -- war, welche ID welchen Faden meint. Bestätigt wurde damals nur die
+    -- Schreibweise des Namens ("himmelblau" statt "zerulanblau"), nicht
+    -- die Zuordnung — und der Heiler bekam deshalb für den richtigen
+    -- Faden "(ID 4826 abweichend – /wc vz)" zu lesen.
+    --
+    -- 4825 ist die Gegenprobe dazu und nicht selbst belegt: bestätigt ist
+    -- 4826 = Willenskraft, der andere Faden dieses Paares muss dann der
+    -- himmelblaue sein. Deshalb steht dort weiterhin verify.
+    [4825] = { name = "Großer himmelblauer Zauberfaden",     slot = "Beine", stats = { intellect = 285, crit = 165 }, verify = true },
+    [4826] = { name = "Großer perlmuttfarbener Zauberfaden", slot = "Beine", stats = { intellect = 285, spirit = 165 } },  -- Live-Tooltip (Heiligpriester)
 
     --------------------------------------------------
     -- FÜSSE
