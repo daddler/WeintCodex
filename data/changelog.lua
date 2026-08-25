@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.0.1",
+        date    = "25.08.2026",
+        notes   = {
+            "Behoben: der Knopf \"Zauber-IDs der Rotation\" unter Einstellungen > Diagnose warf einen Fehler, wenn der Rotationshelfer in dieser Sitzung noch nie offen war - also ausgerechnet bei dem, der dort nachsieht. Dasselbe galt fuer \"Stummschaltungen aufheben\" und fuer |cffD4A24A/wc training check|r.",
+        },
+    },
+    {
         version = "2.6.0.0",
         date    = "25.08.2026",
         notes   = {

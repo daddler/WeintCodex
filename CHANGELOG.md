@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.6.0.1] – 2026-08-25
+
+### Behoben
+- **„Zauber-IDs der Rotation“ in *Einstellungen › Diagnose* warf einen Lua-Fehler** (`attempt to index local 'fontString'`). `PrintCheck()` ruft `RefreshSpec()`, und das endet immer in `UpdateSubtitle()` — einer Funktion, die die Unterzeile in der Kopfleiste des **Trainerfensters** beschriftet. Dieses Fenster entsteht aber erst in `CreateFrameOnce()`, also beim ersten Öffnen des Helfers. Wer den Rotationshelfer noch nie geöffnet hatte — und das ist genau der, der auf der Diagnoseseite nachsieht — schrieb damit in einen `FontString`, den es nicht gab. Eine Anzeige, die es nicht gibt, wird jetzt nicht beschriftet
+- **Denselben Weg nahm „Stummschaltungen aufheben“** (`ClearMuted()`, neu in 2.6.0.0) und lief bei zugeschlagenem Helferfenster in denselben Fehler
+- Der Fehler steckte auch in **`/wc training check`** selbst und damit schon vor 2.6.0.0. Aufgefallen ist er erst jetzt: als Befehl tippt ihn nur, wer den Helfer ohnehin benutzt, als Knopf auf der Diagnoseseite trifft ihn jeder
+
+### Technisch
+- Die Sperre sitzt in `UpdateSubtitle()` und bewusst **nicht** in `SetText()`: ein `FontString`, den es nicht gibt, ist überall sonst in dieser Datei ein echter Fehler und soll auch einer bleiben. Nur diese eine Anzeige darf fehlen
+
 ## [2.6.0.0] – 2026-08-25
 
 ### Neu

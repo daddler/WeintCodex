@@ -1263,6 +1263,19 @@ local function UpdateFooter()
 end
 
 local function UpdateSubtitle()
+    -- Die Unterzeile gehoert der Kopfleiste des Trainerfensters, und die
+    -- entsteht erst in CreateFrameOnce(). Zwei Wege kommen aber hier an,
+    -- ohne dass das Fenster je offen war: "/wc training check" und
+    -- "Stummschaltungen aufheben" rufen RefreshSpec(), und das endet
+    -- immer in dieser Funktion. Ohne diese Zeile lief der reine
+    -- Diagnosebefehl auf einem `subtitleText == nil` auf - und zwar genau
+    -- bei dem, der den Helfer noch nie geoeffnet hatte.
+    --
+    -- Bewusst hier und nicht in SetText: ein FontString, den es nicht gibt,
+    -- ist sonst ueberall in dieser Datei ein Fehler und soll auch einer
+    -- bleiben. Nur diese eine Anzeige darf fehlen.
+    if not subtitleText then return end
+
     if not currentSpecKey then
         SetText(subtitleText, "Keine Spec erkannt", "red")
         return
