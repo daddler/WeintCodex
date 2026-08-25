@@ -193,6 +193,17 @@ local function OnEvent(self, event, addonName)
             WeintCodex_ValidateEnchantWeights()
         end
 
+        -- Und dasselbe fuer die Steine (2.5.0.0). Fuer Verzauberungen gibt
+        -- es die Pruefung seit 2.3.1.0, fuer Steine gab es sie nicht - und
+        -- genau die Luecken, die sie findet, sind es, an denen die
+        -- Sockelseite ueber fuenf Releases falsch bewertet hat: eine
+        -- Farbliste, die am Cap nichts mehr hergibt, eine Steinfarbe, die
+        -- aus den Werten nicht folgen kann, und ein Profil, dessen Gewichte
+        -- seiner eigenen ersten Empfehlung widersprechen.
+        if WeintCodex_ValidateGemWeights then
+            WeintCodex_ValidateGemWeights()
+        end
+
         -- Dasselbe für die BiS-Listen: warnt, falls ein Eintrag einen
         -- Boss- oder Slot-Namen nutzt, den es nicht gibt (Tippfehler
         -- würden das Item sonst still nirgends anzeigen).

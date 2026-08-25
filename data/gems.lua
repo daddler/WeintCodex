@@ -143,6 +143,18 @@ WeintCodex_Gems = {
     [76640] = { name = "Nebliger Dioptas",      color = "grün", stats = "+160 Willenskraft, +160 kritische Trefferwertung" },
     [76645] = { name = "Meditativer Dioptas",   color = "grün", stats = "+160 Willenskraft, +160 Meisterschaftswertung" },
     [76651] = { name = "Geladener Dioptas",     color = "grün", stats = "+160 Tempowertung, +160 Willenskraft" },
+    -- WIDERSPRUCH, ungeklaert: Gruen ist in MoP gelb+blau, also EIN gelber
+    -- und EIN blauer Wert. Treffer und Ausdauer sind beide blau - diese
+    -- Kombination kann kein gruener Schliff sein. Ausserdem ist Alexandrit
+    -- der ungewoehnliche Grundstein, dessen Werte unter denen der seltenen
+    -- liegen. WeintCodex_ValidateGemWeights() meldet den Eintrag beim Login,
+    -- damit er nicht wieder aus dem Blick faellt.
+    --
+    -- Die Bewertung haengt seit 2.5.0.0 nicht mehr daran: GemColor fragt
+    -- zuerst den Client (Unterklasse des Gegenstands), unsere Farbspalte ist
+    -- nur noch Rueckfall fuer den kalten Cache. Aus WARRIOR_PROTECTION.gelb
+    -- ist der Eintrag trotzdem raus - als ERSTE Empfehlung fuer einen gelben
+    -- Sockel warf er den Sockelbonus weg.
     [76589] = { name = "Perfekter geschickter Alexandrit", color = "grün", stats = "+160 Trefferwertung, +120 Ausdauer" },
 
     --------------------------------------------------
