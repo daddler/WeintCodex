@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.0.3",
+        date    = "25.08.2026",
+        notes   = {
+            "Behoben: die Erinnerung an fehlende Verzauberungen und leere Sockel sprang in einer Instanz nach jedem Kampf wieder an. Gemeldet aus dem Schlachtzug - und dort ist sie nur im Weg: an einer Bank oder beim Verzauberer laesst sich die Luecke schliessen, mitten im Raid nicht.",
+            "Der Grund: \"nicht im Kampf und steht still\" ist genau der Augenblick nach dem Pull. Der Alarm hielt ihn fuer den ruhigen Moment, auf den er wartet.",
+            "In einer Instanz meldet er jetzt nur noch beim Betreten - einmal, vor dem ersten Pull - und wenn du dort selbst etwas anlegst. Genau das laesst sich naemlich noch beheben: eine Rolle auftraegt oder der Juwelier in der Gruppe. Draussen aendert sich nichts.",
+            "Auch ein |cffD4A24A/reload|r mitten im Schlachtzug holt keine weggeklickte Meldung mehr zurueck.",
+        },
+    },
+    {
         version = "2.6.0.2",
         date    = "25.08.2026",
         notes   = {

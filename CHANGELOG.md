@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.6.0.3] – 2026-08-25
+
+### Behoben
+- **Der Ausrüstungs-Alarm erinnerte in einer Instanz nach jedem Kampf erneut.** Gemeldet aus dem Schlachtzug: kaum war man aus dem Kampf, stand die Einblendung wieder im Bild. Der Vorbehalt „nur, wenn man gerade nichts anderes macht" (`PlayerIsBusy`) liest dort genau den Augenblick nach dem Pull als ruhigen Moment — nicht im Kampf, steht still —, der Zeitgeber läuft weiter (`TICK` 60 s) und die Quittung hält nur fünf Minuten (`ACK_LIFETIME`). Damit war der Raid der Ort, an dem der Alarm am häufigsten meldete, und der einzige, an dem sich die Lücke nicht schliessen lässt
+- **In einer Instanz erinnert er jetzt nicht mehr** (`InInstance`, greift für Schlachtzug, Instanz, Szenario, Schlachtfeld und Arena). Es bleiben genau die zwei Meldungen, die dort etwas ausrichten: der Eingang — einmal, vor dem ersten Pull — und das, was man selbst auslöst, also ein frisch angelegter Gegenstand oder `/wc alarm jetzt`. Eine Verzauberungsrolle lässt sich im Raid auftragen, ein Juwelier steht oft in der Gruppe; ein Zeitgeber hilft dort niemandem. Draussen ändert sich nichts — der erste Zonenwechsel nach der Instanz bringt die offene Lücke zurück
+- **Eine Meldung, die dem Pull gewichen ist, kommt drinnen nicht nach jedem Kampf zurück.** `PLAYER_REGEN_ENABLED` zeichnete sie bisher jedes Mal neu; jetzt nur noch, wenn man sie selbst ausgelöst hat, und auch dann nur einmal. Quittiert ist sie dadurch **nicht** — geklickt hat niemand, und „quittiert wird nur beim Klick" gilt unverändert
+- **`/reload` mitten im Schlachtzug holte eine weggeklickte Meldung zurück.** `PLAYER_ENTERING_WORLD` feuert auch beim Anmelden und beim Neuladen der Oberfläche; als „Instanzeingang" gewertet, übergeht das die Quittung (`force`). Gewertet wird jetzt nur noch das wirkliche Betreten — meldet der Client die beiden Angaben nicht, bleibt es beim bisherigen Verhalten
+
+### Technisch
+- `INSTANCE_ENTRY_GRACE` (120 s) begrenzt den Eingang als Anlass: wer beschäftigt ist, bekommt die Prüfung wiedervorgelegt (`BUSY_RETRY`), und Bewegung zählt als beschäftigt — ohne Frist hätte die Wiedervorlage den Eingang mitgeschleppt, bis jemand stehen bleibt, im Zweifel mitten im ersten Kampf
+- `yields` zählt, wie oft dieselbe Meldung einem Pull gewichen ist, und wird durch `RunCheck` durchgereicht: jeder Lauf legt einen frischen `shownContext` an, ohne das begänne die Zählung nach jedem Kampf von vorn
+- Die Sperre sitzt in `AmbientCheck` und damit an der einen Schleuse, durch die alle vier ungefragten Anlässe laufen — `equip` und `manual` gehen ohnehin nicht durch sie
+- `/wc alarm` nennt den Instanzzustand und die Regel dazu; die Einstellungsseite sagt es an „Erinnerungen" ebenfalls
+
 ## [2.6.0.2] – 2026-08-25
 
 ### Behoben

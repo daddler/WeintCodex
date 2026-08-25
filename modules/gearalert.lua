@@ -35,6 +35,27 @@
 -- zweiter Ladebildschirm die Meldung nicht Sekunden nach dem
 -- Wegklicken zurückbringt.
 --
+-- IN DER INSTANZ IST DER EINGANG AUCH DER LETZTE ANLASS
+--
+-- Drinnen erinnert der Alarm nicht mehr (`InInstance`). Die Erinnerung
+-- lebt davon, im ruhigen Moment zu kommen - und `PlayerIsBusy` liest
+-- als ruhigen Moment genau das, was im Raid der Augenblick nach dem
+-- Kampf ist: nicht im Kampf, steht still. So sprang sie nach jedem
+-- Pull erneut an, an einem Ort, an dem weder Bank noch Verzauberer
+-- stehen. Das ist die Sorte Meldung, die man abschaltet - und danach
+-- sieht man auch die echten Lücken nicht mehr.
+--
+-- Es bleiben deshalb genau die zwei Meldungen, die drinnen etwas
+-- ausrichten: der Eingang (einmal, vor dem ersten Pull, und nur
+-- innerhalb von `INSTANCE_ENTRY_GRACE` - wer schon losgelaufen ist,
+-- hat den Moment verpasst) und das, was man selbst auslöst, also ein
+-- frisch angelegter Gegenstand oder "/wc alarm jetzt". Eine
+-- Verzauberungsrolle lässt sich im Raid auftragen, ein Juwelier steht
+-- oft in der Gruppe; ein Zeitgeber hilft dort niemandem.
+--
+-- Draussen ändert sich nichts: der erste Zonenwechsel nach der
+-- Instanz bringt die offene Lücke zurück.
+--
 -- Der Schlüssel trägt Art *und* Anzahl (`10|E|2|-`): wer die
 -- Handschuhe verzaubert und dabei einen Sockel leer lässt, hat einen
 -- anderen Befund als vorher und soll ihn auch sehen. Behobene
@@ -159,6 +180,13 @@ local AMBIENT_THROTTLE = 300
 -- kommt und nicht erst beim nächsten vollen Takt danach.
 local TICK       = 60
 local BUSY_RETRY = 30
+
+-- Wie lange nach dem Betreten einer Instanz der Eingang noch als
+-- Anlass gilt. Er zählt nur, solange man noch am Eingang steht: wer
+-- unterwegs ist, gilt als beschäftigt, und ohne diese Frist würde die
+-- Wiedervorlage aus `PlayerIsBusy` den Eingang so lange mitschleppen,
+-- bis jemand stehen bleibt - im Zweifel mitten im ersten Kampf.
+local INSTANCE_ENTRY_GRACE = 120
 
 local WIDTH   = 470
 local PAD     = 16
@@ -988,7 +1016,7 @@ end
 local EYEBROW = {
     rest     = "Erinnerung · Ruhebereich",
     zone     = "Erinnerung · Neue Zone",
-    instance = "Erinnerung · Instanz",
+    instance = "Erinnerung · Instanzeingang",
     remind   = "Erinnerung",
 }
 
@@ -1197,11 +1225,17 @@ local shownContext = nil
 -- reason:  "equip" (nur die gewechselten Slots) | "rest" | "zone"
 --          | "instance" | "remind" | "manual"
 -- force:   die Quittung übergehen (nur der Instanzeingang tut das)
-local function RunCheck(reason, slotFilter, force)
+-- yields:  wie oft dieselbe Meldung schon einem Pull gewichen ist. Sie
+--          wird durchgereicht, weil jeder Lauf einen frischen
+--          `shownContext` anlegt - ohne das begänne die Zählung nach
+--          jedem Kampf von vorn, und genau daran hängt drinnen die
+--          Frage, ob die Meldung noch einmal kommt.
+local function RunCheck(reason, slotFilter, force, yields)
     if not Store().enabled and reason ~= "manual" then return end
 
     if reason ~= "manual" and UnitAffectingCombat("player") then
-        queued = { reason = reason, filter = slotFilter, force = force }
+        queued = { reason = reason, filter = slotFilter, force = force,
+                   yields = yields }
         return
     end
 
@@ -1241,7 +1275,9 @@ local function RunCheck(reason, slotFilter, force)
     -- die Meldung ein zweites Mal, sobald der Rest nachgeladen ist.
     if #entries == 0 and pending and retries < RETRY_MAX then
         retries = retries + 1
-        After(RETRY_DELAY, function() RunCheck(reason, slotFilter, force) end)
+        After(RETRY_DELAY, function()
+            RunCheck(reason, slotFilter, force, yields)
+        end)
         return
     end
 
@@ -1254,7 +1290,8 @@ local function RunCheck(reason, slotFilter, force)
         return
     end
 
-    shownContext = { reason = reason, filter = slotFilter, force = force }
+    shownContext = { reason = reason, filter = slotFilter, force = force,
+                     yields = yields }
     GA.Show(entries, reason, hints)
 end
 
@@ -1326,6 +1363,20 @@ GA.PlayerIsBusy = PlayerIsBusy
 local lastAmbient  = 0
 local busyPending  = false
 
+-- Bis wann der Instanzeingang noch als Anlass zählt (time()-Stempel).
+local instanceEntryUntil = 0
+
+-- Schlachtzug, Instanz, Szenario, Schlachtfeld, Arena. IsInInstance()
+-- meldet alle fünf, und für diese Datei sind sie derselbe Fall: man ist
+-- dort, um etwas anderes zu tun, und die Lücke ist dort ohnehin nicht
+-- mehr zu schliessen wie an der Bank.
+local function InInstance()
+    if type(IsInInstance) ~= "function" then return false end
+    return IsInInstance() and true or false
+end
+
+GA.InInstance = InInstance
+
 local function AmbientCheck(reason, force)
     local s = Store()
     if not s.enabled then return end
@@ -1333,6 +1384,17 @@ local function AmbientCheck(reason, force)
     -- Ein Schalter für alle vier Anlässe. Vier einzelne wären vier
     -- Fragen an den Nutzer, wo er nur eine hat: erinnern oder nicht.
     if not s.restReminder then return end
+
+    -- Drinnen erinnert nur der Eingang, und der nur kurz. Ohne diese
+    -- Sperre stand die Meldung nach jedem Kampf wieder im Bild: der
+    -- Zeitgeber läuft weiter, "nicht im Kampf und steht still" ist im
+    -- Raid genau der Moment nach dem Pull, und die Quittung hält nur
+    -- fünf Minuten. Gemeldet wird dort nur noch, was man selbst
+    -- auslöst - das läuft ohnehin nicht durch diese Schleuse.
+    if InInstance() then
+        if reason ~= "instance" then return end
+        if time() > instanceEntryUntil then return end
+    end
 
     if PlayerIsBusy() then
         -- Später noch einmal - aber nur ein Zeitgeber gleichzeitig,
@@ -1369,7 +1431,7 @@ watcher:RegisterEvent("SKILL_LINES_CHANGED")
 watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
 watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 
-watcher:SetScript("OnEvent", function(_, event, arg1)
+watcher:SetScript("OnEvent", function(_, event, arg1, arg2)
 
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         if not (ready and Store().enabled) then return end
@@ -1393,9 +1455,17 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
             -- die Lücke noch schliessen lässt, und danach zählt sie
             -- eine Stunde lang bei jedem Pull mit. Hier ist die
             -- Erinnerung kein Nörgeln, sondern der Zweck der Sache.
-            local inInstance = IsInInstance and IsInInstance()
-            if inInstance then
-                AmbientCheck("instance", true)
+            --
+            -- Übergangen wird sie aber nur beim wirklichen Betreten.
+            -- Anmelden und "/reload" lösen dasselbe Ereignis aus, und
+            -- ein Neuladen mitten im Schlachtzug ist kein Eingang -
+            -- es holte sonst eine vor drei Minuten weggeklickte
+            -- Meldung zurück. Meldet der Client die beiden Angaben
+            -- nicht, bleibt es beim bisherigen Verhalten.
+            local fresh = not (arg1 or arg2)
+            if InInstance() then
+                instanceEntryUntil = time() + INSTANCE_ENTRY_GRACE
+                AmbientCheck("instance", fresh)
             elseif wasResting then
                 AmbientCheck("rest")
             else
@@ -1433,7 +1503,13 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
     -- kommt nach dem Kampf zurück, sofern der Befund dann noch steht.
     if event == "PLAYER_REGEN_DISABLED" then
         if frame and frame:IsShown() and not moveMode then
-            queued = queued or shownContext
+            local ctx = queued or shownContext
+            -- Wie oft dieselbe Meldung schon einem Pull gewichen ist.
+            -- Quittiert ist sie damit NICHT - niemand hat geklickt -,
+            -- aber gesehen hat man sie, und das entscheidet drinnen
+            -- über die Wiedervorlage.
+            if ctx then ctx.yields = (ctx.yields or 0) + 1 end
+            queued = ctx
             GA.Hide()
         end
         return
@@ -1442,9 +1518,21 @@ watcher:SetScript("OnEvent", function(_, event, arg1)
     if event == "PLAYER_REGEN_ENABLED" and queued then
         local q = queued
         queued = nil
+
+        -- In einer Instanz kommt nach dem Kampf nur zurück, was man
+        -- selbst ausgelöst hat - ein frisch angelegtes Teil oder
+        -- "/wc alarm jetzt" -, und auch das nur einmal. Eine
+        -- Erinnerung, die dem Pull gewichen ist, hatte ihren Moment;
+        -- sie nach jedem Kampf erneut aufzuziehen war genau das, was
+        -- an dieser Datei genervt hat.
+        if InInstance() then
+            local own = (q.reason == "equip" or q.reason == "manual")
+            if not own or (q.yields or 0) > 1 then return end
+        end
+
         After(1, function()
             retries = 0
-            RunCheck(q.reason, q.filter, q.force)
+            RunCheck(q.reason, q.filter, q.force, q.yields)
         end)
         return
     end
@@ -1502,7 +1590,8 @@ function GA.PrintStatus()
                        or WeintCodex.ColorText("textDim", "aus"))
         .. "  ·  Ton: " .. (s.sound and "an" or "aus")
         .. "  ·  Erinnerungen: " .. (s.restReminder and "an" or "aus")
-        .. "  ·  weggeklickt: " .. acked .. " Befund(e)")
+        .. "  ·  weggeklickt: " .. acked .. " Befund(e)"
+        .. "  ·  in Instanz: " .. (InInstance() and "ja" or "nein"))
 
     -- Was der letzte Tonversuch ergeben hat. Ohne diese Zeile ist "ich höre
     -- nichts" von aussen nicht von "Lautstärke steht auf 0" zu unterscheiden -
@@ -1512,6 +1601,8 @@ function GA.PrintStatus()
         .. " Minuten Ruhe. Danach erinnert der Alarm erneut - beim"
         .. " Zonenwechsel, im Ruhebereich, am Instanzeingang oder von"
         .. " selbst, sobald du gerade nichts anderes machst.|r")
+    Say("|cffaaaaaaIn einer Instanz meldet er nur beim Betreten und wenn"
+        .. " du dort etwas anlegst - drinnen erinnert er nicht.|r")
     Say("|cffaaaaaa/wc alarm an|aus · ton · tontest · erinnern · erneut · jetzt · berufe · test · bewegen|r")
 end
 

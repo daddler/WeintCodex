@@ -396,7 +396,7 @@ local function ViewGearAlert(y)
 
     y = Toggle(y, {
         label = "Erinnerungen",
-        description = "Ruhebereich, Zonenwechsel und Instanzeingang bringen eine offene Lücke zurück.",
+        description = "Ruhebereich, Zonenwechsel und Instanzeingang bringen eine offene Lücke zurück. In einer Instanz bleibt es beim Eingang — drinnen erinnert der Alarm nicht.",
         get = function() return GA.GetOption("restReminder") end,
         set = function(on) GA.SetOption("restReminder", on) end,
         disabled = function() return not GA.GetOption("enabled") end,
