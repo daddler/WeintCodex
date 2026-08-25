@@ -1802,10 +1802,21 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     -- eines Wissens, das nicht da ist — im Zweifel matchen.
     plan.bonusUnknown = (bonusText ~= nil and bonus == nil)
 
+    -- OHNE BONUS GIBT ES NICHTS ZU MATCHEN, und dann darf der Topf auch
+    -- nicht mitreden. Die MATCH-Variante zieht farblich passende Steine aus
+    -- ALLEN Listen des Profils — das ist der Ausweg, wenn die Farbliste am
+    -- Cap nichts mehr hergibt, aber es ist ausdrücklich kein Freibrief, die
+    -- kuratierte Empfehlung zu überstimmen. Ohne diese Schranke bekam ein
+    -- Jäger auf einem roten Sockel OHNE Sockelbonus den Tödlichen Aragonit
+    -- (aus `orange`) statt des Feingeschliffenen Rubellits aus seiner
+    -- eigenen `rot`-Liste — mit der Begründung, dass er nach den Gewichten
+    -- desselben Profils höher liegt. Genau diesen Konflikt entscheidet in
+    -- dieser Datei die Liste, nicht die Wertung (siehe CandidateList).
     local anyColored = false
     for _, socket in ipairs(sockets) do
         if IsColoredSocket(socket.color) then anyColored = true; break end
     end
+    local canMatch = anyColored and (bonus ~= nil or plan.bonusUnknown)
 
     -- Beide Strategien durchrechnen. Der Spielraum wird dabei NICHT
     -- verbraucht — das passiert erst unten für die Gewinnerin, sonst
@@ -1845,7 +1856,7 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     end
 
     local ignore = Run(false)
-    local match  = anyColored and Run(true) or nil
+    local match  = canMatch and Run(true) or nil
 
     if match then
         match.total = match.total + bonusValue
