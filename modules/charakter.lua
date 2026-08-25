@@ -145,6 +145,15 @@ WeintCodex._enchantTooltipCache = WeintCodex._enchantTooltipCache or {}
 -- aktive Seite automatisch neu gescannt.
 local pendingItemInfoIds = {}
 
+-- Item-ID für die Nachlieferung vormerken (GET_ITEM_INFO_RECEIVED, s.u.),
+-- damit ein noch ungecachtes Item nicht dauerhaft aus der Wertung fällt.
+-- Steht bewusst hier oben bei der Liste, die sie füllt: seit 2.5.0.0 merkt
+-- auch ScanItemSockets vor, und die läuft weit vor dem Verzauberungsteil.
+local function NotePendingItemInfo(link)
+    local itemId = link and tonumber(link:match("item:(%d+):"))
+    if itemId then pendingItemInfoIds[itemId] = true end
+end
+
 -- Einmal pro Session auf einen Konflikt zwischen Item-Tooltip und
 -- data/enchants.lua hinweisen (siehe ResolveEnchant) - der Dump liefert
 -- die Daten, mit denen sich die betroffene ID korrigieren lässt.
@@ -259,10 +268,30 @@ local EQUIP_SLOTS = {
     { id = 17, name = "Nebenhand",   enchSlotDynamisch = true },
 }
 
--- WICHTIG: Diese Farben bezeichnen den SOCKELPLATZ im Item,
--- nicht die Farbe des eingesetzten Steins! Ein andersfarbiger
--- Stein (z.B. Lila in Blau) kann trotzdem optimal sein.
-local SOCKET_COLOR_LABEL = {
+-- SOCKELPLÄTZE: Beschriftung kommt vom CLIENT, nicht von uns.
+--
+-- Diese Farben bezeichnen den SOCKELPLATZ im Item, nicht die Farbe des
+-- eingesetzten Steins — ein andersfarbiger Stein (z.B. Lila in Blau) kann
+-- trotzdem optimal sein.
+--
+-- Die Beschriftungen standen bis 2.5.0.0 hier auf Deutsch fest verdrahtet.
+-- Der Client hält sie selbst (`EMPTY_SOCKET_*`), und seit 2.5.0.0 hängt an
+-- genau diesen Konstanten auch die ERKENNUNG der Sockelfolge im Tooltip
+-- (siehe ScanItemSockets) — eine zweite, handgepflegte Fassung wäre die
+-- Doppelpflege, an der die Verzauberungserkennung schon einmal gescheitert
+-- ist. Unsere Texte bleiben nur als Rückfall, falls eine Konstante fehlt.
+local SOCKET_COLOR_GLOBAL = {
+    meta      = "EMPTY_SOCKET_META",
+    rot       = "EMPTY_SOCKET_RED",
+    gelb      = "EMPTY_SOCKET_YELLOW",
+    blau      = "EMPTY_SOCKET_BLUE",
+    prismatic = "EMPTY_SOCKET_PRISMATIC",
+    zahnrad   = "EMPTY_SOCKET_COGWHEEL",
+    hydraulik = "EMPTY_SOCKET_HYDRAULIC",
+    einfach   = "EMPTY_SOCKET_NO_COLOR",
+}
+
+local SOCKET_COLOR_FALLBACK = {
     meta      = "Meta-Sockel",
     rot       = "Roter Sockel",
     gelb      = "Gelber Sockel",
@@ -271,7 +300,21 @@ local SOCKET_COLOR_LABEL = {
     lila      = "Lila Sockel",
     ["grün"]  = "Grüner Sockel",
     prismatic = "Prisma-Sockel",
+    zahnrad   = "Zahnradsockel",
+    hydraulik = "Hydraulischer Sockel",
+    einfach   = "Einfacher Sockel",
 }
+
+local SOCKET_COLOR_LABEL = setmetatable({}, {
+    __index = function(_, color)
+        local g = color and SOCKET_COLOR_GLOBAL[color]
+        local fromClient = g and _G[g]
+        if type(fromClient) == "string" and fromClient ~= "" then
+            return fromClient
+        end
+        return SOCKET_COLOR_FALLBACK[color]
+    end,
+})
 
 local SOCKET_DOT_COLOR = {
     rot       = { 0.90, 0.20, 0.20 },
@@ -282,6 +325,9 @@ local SOCKET_DOT_COLOR = {
     ["grün"]  = { 0.20, 0.80, 0.30 },
     meta      = { 0.70, 0.60, 0.90 },
     prismatic = { 0.85, 0.85, 0.85 },
+    zahnrad   = { 0.75, 0.65, 0.45 },
+    hydraulik = { 0.55, 0.75, 0.80 },
+    einfach   = { 0.80, 0.80, 0.80 },
 }
 
 --------------------------------------------------
@@ -452,49 +498,173 @@ end
 
 --------------------------------------------------
 -- SOCKEL ERMITTELN (inkl. Zusatzsockel)
---   Basis-Sockel kommen aus den Item-Stats.
+--
+-- DIE REIHENFOLGE STAND BIS 2.5.0.0 NICHT IM ITEM, SIE WAR ERFUNDEN.
+-- `GetItemStats` liefert nur ANZAHLEN je Sockelfarbe (`EMPTY_SOCKET_RED = 1`),
+-- niemals die Reihenfolge der Sockel im Gegenstand. Die alte Fassung zaehlte
+-- sie in ihrer EIGENEN festen Folge ab (meta -> rot -> gelb -> blau -> prisma)
+-- und paarte Stein `gem1` mit dem ersten so entstandenen Sockel. Bei jedem
+-- Gegenstand mit zwei verschieden gefaerbten Sockeln konnten Stein und
+-- Sockelfarbe damit vertauscht sein - und seit 2.3.0.1 haengt an genau dieser
+-- Achse alles: aus welcher Liste die Empfehlung kommt, ob der Stein den Bonus
+-- ausloest und was die Bonuszeile darueber behauptet. Das reproduzierte exakt
+-- das Symptom, das 2.3.0.1 beheben sollte ("gelber Stein im blauen Sockel als
+-- Optimal") - nur diesmal aus einer Quelle, die keine Ausgabe je genannt hat.
+--
+-- Gefragt wird deshalb der Client: der Tooltip des GRUNDgegenstands
+-- ("item:<id>", also ohne Steine, ohne Verzauberung, ohne Aufwertungsgrad)
+-- listet alle Sockel LEER und in ihrer echten Reihenfolge. Erkannt werden die
+-- Zeilen an den Konstanten des Clients (`EMPTY_SOCKET_*`, siehe
+-- SOCKET_COLOR_GLOBAL) und nie an eigenem Text - dieselbe Doktrin wie
+-- `ITEM_MOD_*` im Werteabgleich und `ITEM_SPELL_TRIGGER_ONUSE` im
+-- Ausruestungs-Alarm. Der Grundgegenstand ist noetig, weil ein besetzter
+-- Sockel im Tooltip die Werte seines Steins zeigt statt der Sockelzeile.
+--
+-- `GetItemStats` bleibt Gegenprobe und Rueckfallweg. Weichen die Zaehlungen
+-- ab, gewinnt der Tooltip - er kennt die Reihenfolge, die Zaehlung nicht -
+-- und `/wc sockel` schreibt beide Seiten aus.
+--
 --   Steine JENSEITS der Basis-Sockel = Zusatzsockel
---   (Gürtelschnalle / Schmiedekunst).
---   Gürtel ohne Zusatzstein => Schnalle fehlt/leer.
+--   (Guertelschnalle / Schmiedekunst). Die stehen nicht am Grundgegenstand
+--   und sind ohnehin prismatisch, sie kommen deshalb weiter aus der
+--   Differenz.
+--   Guertel ohne Zusatzstein => Schnalle fehlt/leer.
 --------------------------------------------------
 
 local GetItemStatsCompat = GetItemStats or (C_Item and C_Item.GetItemStats)
 
-local SOCKET_ORDER = {
+-- Zaehlweg (Rueckfall): Anzahlen je Farbe, Reihenfolge unbekannt.
+local SOCKET_STAT_ORDER = {
     { stat = "EMPTY_SOCKET_META",      color = "meta" },
     { stat = "EMPTY_SOCKET_RED",       color = "rot" },
     { stat = "EMPTY_SOCKET_YELLOW",    color = "gelb" },
     { stat = "EMPTY_SOCKET_BLUE",      color = "blau" },
     { stat = "EMPTY_SOCKET_PRISMATIC", color = "prismatic" },
+    { stat = "EMPTY_SOCKET_COGWHEEL",  color = "zahnrad" },
+    { stat = "EMPTY_SOCKET_HYDRAULIC", color = "hydraulik" },
+    { stat = "EMPTY_SOCKET_NO_COLOR",  color = "einfach" },
 }
 
--- Rueckgabe: sockets, statsKnown. Der zweite Wert sagt, ob der Client die
--- Basisdaten des Gegenstands ueberhaupt schon hatte - ohne sie kennt die
--- Funktion die eingebauten Sockel nicht und meldet nur die eingesetzten
--- Steine. Fuer den eigenen Charakter faellt das kaum auf (der Cache ist
--- warm), beim Gruppencheck fremder Spieler dagegen sehr wohl: "0 Sockel"
--- waere dort eine Aussage ueber unseren Cache, nicht ueber die Ruestung.
-local function ScanItemSockets(link, slotId)
+-- Zeilentext -> Sockelfarbe, aufgebaut aus den Konstanten des Clients.
+-- Erst bei Bedarf, weil die Globals beim Laden der Datei noch nicht
+-- zwingend gesetzt sind, und gemerkt, sobald sie es waren.
+local socketLineLookup = nil
+local function SocketLineLookup()
+    if socketLineLookup then return socketLineLookup end
+    local map = {}
+    for color, globalName in pairs(SOCKET_COLOR_GLOBAL) do
+        local text = _G[globalName]
+        if type(text) == "string" and text ~= "" then
+            map[text] = color
+        end
+    end
+    -- Nur merken, wenn wenigstens zwei Grundfarben da waren; sonst beim
+    -- naechsten Aufruf noch einmal nachsehen, statt eine halbe Tabelle
+    -- fuer immer festzuhalten.
+    if map[_G.EMPTY_SOCKET_RED or false] and map[_G.EMPTY_SOCKET_BLUE or false] then
+        socketLineLookup = map
+    end
+    return map
+end
+
+-- Sockelfolge je Grundgegenstand. Die aendert sich nie, der Tooltip-Scan
+-- lohnt also genau einmal je Item-ID - die Charakterseite scannt bei jedem
+-- Ausruestungswechsel alle 16 Slots neu.
+local socketColorCache = {}
+
+local function BaseItemString(link)
+    local id = link and (link:match("|Hitem:(%d+):") or link:match("^item:(%d+)"))
+    return id and ("item:" .. id) or nil
+end
+
+-- Sockelfolge des Grundgegenstands als Liste von Farben, oder nil, wenn der
+-- Tooltip (noch) nichts hergab. Rein lesend.
+local function SocketColorsFromTooltip(link)
+    local base = BaseItemString(link)
+    if not base then return nil end
+
+    local cached = socketColorCache[base]
+    if cached ~= nil then
+        return cached or nil   -- false = schon erfolglos versucht
+    end
+
+    local lookup = SocketLineLookup()
+    if not next(lookup) then return nil end
+
+    scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+    scanTip:ClearLines()
+    scanTip:SetHyperlink(base)
+
+    local n = scanTip:NumLines() or 0
+    if n < 1 then return nil end   -- Item noch nicht im Cache: nichts merken
+
+    local colors = {}
+    for i = 2, n do
+        local lineText = _G["WeintCodexScanTipTextLeft" .. i]
+        local txt = lineText and lineText:GetText()
+        local color = txt and lookup[txt]
+        if color then colors[#colors + 1] = color end
+    end
+
+    -- Ein Gegenstand ohne Sockel ist ein gueltiges Ergebnis und wird als
+    -- solches gemerkt (false), damit er nicht bei jedem Aufbau neu gescannt
+    -- wird. Der Tooltip war ja da.
+    socketColorCache[base] = (#colors > 0) and colors or false
+    return (#colors > 0) and colors or nil
+end
+
+-- Rueckgabe: sockets, known, source
+--   known  - hatte der Client die Basisdaten ueberhaupt? Ohne sie kennt die
+--            Funktion die eingebauten Sockel nicht und meldet nur die
+--            eingesetzten Steine. Fuer den eigenen Charakter faellt das kaum
+--            auf (der Cache ist warm), beim Gruppencheck fremder Spieler
+--            dagegen sehr wohl: "0 Sockel" waere dort eine Aussage ueber
+--            unseren Cache, nicht ueber die Ruestung.
+--   source - "tooltip" (echte Reihenfolge) | "stats" (nur Anzahlen, die
+--            Zuordnung zu den Steinen ist dann geraten) | nil. Fuer
+--            /wc sockel; ohne diese Angabe ist Fehler 1 von aussen nicht
+--            zu bemerken.
+--
+-- wantColors == false ueberspringt den Tooltip-Weg. Der Gruppencheck zaehlt
+-- nur belegte Sockel und braucht keine Farben; ein Tooltip-Scan ueber 16
+-- Slots mal 25 Spieler waere die Zumutung fuer den Client, die sich diese
+-- Seite ausdruecklich verboten hat.
+local function ScanItemSockets(link, slotId, wantColors)
     local sockets = {}
-    if not link then return sockets, false end
+    if not link then return sockets, false, nil end
 
     local _, gems = ParseItemLink(link)
     local stats = GetItemStatsCompat and GetItemStatsCompat(link)
 
-    local base = 0
-    if stats then
-        for _, socketInfo in ipairs(SOCKET_ORDER) do
+    local colors, source
+    if wantColors ~= false then
+        colors = SocketColorsFromTooltip(link)
+        if colors then source = "tooltip" end
+    end
+
+    -- Rueckfall: Zaehlung ohne Reihenfolge. Die Farben stimmen dann als
+    -- MENGE, ihre Zuordnung zu den einzelnen Steinen ist geraten.
+    if not colors and stats then
+        colors = {}
+        for _, socketInfo in ipairs(SOCKET_STAT_ORDER) do
             local count = stats[socketInfo.stat]
             if count and count > 0 then
-                for _ = 1, count do
-                    base = base + 1
-                    sockets[base] = {
-                        color = socketInfo.color,
-                        gemId = gems[base],
-                        index = base,
-                    }
-                end
+                for _ = 1, count do colors[#colors + 1] = socketInfo.color end
             end
+        end
+        if #colors > 0 then source = "stats" end
+    end
+
+    local base = 0
+    if colors then
+        for _, color in ipairs(colors) do
+            base = base + 1
+            sockets[base] = {
+                color = color,
+                gemId = gems[base],
+                index = base,
+                orderKnown = (source == "tooltip") or nil,
+            }
         end
     end
 
@@ -521,7 +691,19 @@ local function ScanItemSockets(link, slotId)
         }
     end
 
-    return sockets, stats ~= nil
+    -- Kannte der Client weder den Tooltip noch die Item-Stats, sind die
+    -- eingebauten Sockel unbekannt: alle Steine staenden dann als
+    -- prismatische "Zusatzsockel" da und wuerden gegen die falsche Liste
+    -- gemessen. Vormerken statt schweigend zu urteilen - der
+    -- Verzauberungspfad tut das seit jeher (ResolveEnchSlot), der
+    -- Sockelpfad bis 2.5.0.0 nicht, und deshalb zeichnete auch nichts die
+    -- Seite neu, sobald der Client nachlieferte.
+    local known = (stats ~= nil) or (source == "tooltip")
+    if not known then
+        NotePendingItemInfo(link)
+    end
+
+    return sockets, known, source
 end
 
 --------------------------------------------------
@@ -547,9 +729,35 @@ local MatchStatKeyword = SM.MatchStatKeyword
 local ParseStatText    = SM.ParseStatText
 local ParseAllStats    = SM.ParseAllStats
 
--- Gibt zurück: bonus = { stat=<key>, value=<num> } | nil, sowie den
--- rohen Tooltip-Text der Sockelbonus-Zeile (für die Anzeige).
+-- Steht diese Tooltipzeile in Grün? Wird an zwei Stellen gebraucht: für die
+-- Verzauberungserkennung (Weg B weiter unten) und für den Zustand des
+-- Sockelbonus gleich hier darunter.
+local function IsGreenLine(line)
+    if not (line and line.GetTextColor) then return false end
+    local ok, r, g, b = pcall(line.GetTextColor, line)
+    if not ok or type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then
+        return false
+    end
+    return r < 0.25 and g > 0.75 and b < 0.25
+end
+
+-- Gibt zurück: bonus = { stat=<key>, value=<num> } | nil, der rohe
+-- Tooltip-Text der Sockelbonus-Zeile (für die Anzeige) und ob der Bonus
+-- ANLIEGT.
+--
+-- DER ZUSTAND WIRD ABGELESEN, NICHT HERGELEITET. Bis 2.5.0.0 schloss
+-- SocketBonusActive() aus den Farben der eingesetzten Steine darauf, ob der
+-- Bonus greift - eine Herleitung mit drei Unbekannten (unsere Farbtabelle,
+-- die Sockelfarbe und deren Reihenfolge, siehe ScanItemSockets), von denen
+-- zwei nachweislich danebenlagen. Der Client schreibt die Antwort in
+-- derselben Zeile hin, die wir ohnehin lesen: er zeichnet den Sockelbonus
+-- GRÜN, wenn er anliegt, und grau, wenn nicht. Das ist die einzige Quelle,
+-- die weder von unserer Datenpflege noch von der Übersetzung abhängt.
+--
+-- nil (statt false) heisst weiterhin "keine Aussage" - es gibt an diesem
+-- Gegenstand keine Bonuszeile.
 local function ScanSocketBonus(slotId)
+    scanTip:SetOwner(UIParent, "ANCHOR_NONE")
     scanTip:ClearLines()
     scanTip:SetInventoryItem("player", slotId)
     local n = scanTip:NumLines() or 0
@@ -557,15 +765,16 @@ local function ScanSocketBonus(slotId)
         local line = _G["WeintCodexScanTipTextLeft" .. i]
         local txt = line and line:GetText()
         if txt and txt:find(SOCKET_BONUS_PREFIX, 1, true) then
+            local active = IsGreenLine(line)
             local stat, value = ParseStatText(txt)
             local clean = txt:gsub("^%s*" .. SOCKET_BONUS_PREFIX .. "%s*", "")
             if stat and value then
-                return { stat = stat, value = value }, clean
+                return { stat = stat, value = value }, clean, active
             end
-            return nil, clean
+            return nil, clean, active
         end
     end
-    return nil
+    return nil, nil, nil
 end
 
 --------------------------------------------------
@@ -585,15 +794,6 @@ end
 -- ab da mit dem. Damit zeigt die Liste auch bei falsch zugeordneten IDs
 -- die richtige Verzauberung an.
 --------------------------------------------------
-
-local function IsGreenLine(line)
-    if not (line and line.GetTextColor) then return false end
-    local ok, r, g, b = pcall(line.GetTextColor, line)
-    if not ok or type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then
-        return false
-    end
-    return r < 0.25 and g > 0.75 and b < 0.25
-end
 
 -- Grüne Zeile plausibilisieren, damit nicht z.B. eine Sockel-/Setbonus-
 -- Zeile als Verzauberung durchgeht.
@@ -1126,13 +1326,6 @@ local OFFHAND_ENCH_SLOT = {
     holdable = "Nebenhand",
 }
 
--- Item-ID für die Nachlieferung vormerken (GET_ITEM_INFO_RECEIVED, s.u.),
--- damit ein noch ungecachtes Item nicht dauerhaft aus der Wertung fällt.
-local function NotePendingItemInfo(link)
-    local itemId = link and tonumber(link:match("item:(%d+):"))
-    if itemId then pendingItemInfoIds[itemId] = true end
-end
-
 --------------------------------------------------
 -- VERZAUBERKUNST
 -- Ringe kann nur verzaubern, wer den Beruf selbst geskillt hat.
@@ -1262,16 +1455,12 @@ end
 
 --------------------------------------------------
 -- BEWERTUNG: Stein / Verzauberung
+--
+-- ScoreStats (gewichtete Summe ohne Rücksicht auf Caps) ist seit 2.5.0.0
+-- durch GemValue weiter unten ersetzt — eine Wertung, die den Cap nicht
+-- kennt, war der Grund, warum Empfehlung und Sockelbonus-Entscheidung
+-- auseinanderliefen.
 --------------------------------------------------
-
-local function ScoreStats(stats, weights)
-    if not stats or not weights then return 0 end
-    local score = 0
-    for stat, value in pairs(stats) do
-        score = score + value * (weights[stat] or 0)
-    end
-    return score
-end
 
 local function IsInList(id, list)
     if not id or not list then return false end
@@ -1313,16 +1502,33 @@ local GEM_SUBCLASS_COLOR = {
     [0] = "rot",  [1] = "blau",   [2] = "gelb", [3] = "lila",
     [4] = "grün", [5] = "orange", [6] = "meta",
     [7] = "einfach", [8] = "prismatic",
+    [9] = "hydraulik", [10] = "zahnrad",
 }
 
+-- DER CLIENT GEWINNT ÜBER DIE TABELLE — dieselbe Regel, die für
+-- Verzauberungen seit 2.0.0.3 gilt (siehe modules/stat_match.lua) und die
+-- hier bis 2.5.0.0 umgekehrt stand: gefragt wurde zuerst unsere `color`-
+-- Spalte, der Client war nur Rückfall.
+--
+-- Die Spalte ist Handarbeit an genau der Datei, deren Namen Blizzard mitten
+-- in MoP umbenannt hat, und sie ist nachweislich falsch: 76589 ("Perfekter
+-- geschickter Alexandrit", +160 Treffer +120 Ausdauer) steht dort als
+-- `grün`. Grün ist in MoP gelb+blau, also EIN gelber und EIN blauer Wert —
+-- Treffer und Ausdauer sind beide blau. Der Stein stand damit als erste
+-- Empfehlung für GELBE Sockel des Schutzkriegers, wo er den Sockelbonus
+-- gar nicht auslösen kann.
+--
+-- Die Unterklasse ist am Client abzulesen, lokalisierungsfrei und driftet
+-- nicht. Unsere Tabelle bleibt nur für den kalten Cache stehen.
 local function GemColor(gemId)
     if not gemId then return nil end
-    local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
-    if db and db.color then return db.color end
     local _, _, _, _, _, _, _, _, _, _, _, classId, subclassId = GetItemInfo(gemId)
     if classId == 3 and subclassId then
-        return GEM_SUBCLASS_COLOR[subclassId]
+        local fromClient = GEM_SUBCLASS_COLOR[subclassId]
+        if fromClient then return fromClient end
     end
+    local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
+    if db and db.color then return db.color end
     return nil
 end
 
@@ -1338,174 +1544,355 @@ local function GemMatchesSocket(gemColor, socketColor)
     return accepts[gemColor] == true
 end
 
--- Erster Stein einer Liste, der KEINEN bereits übercappten Stat liefert.
--- Sitzt in einer eigenen Funktion, weil ihn zwei Stellen brauchen, die
--- sich sonst widersprechen: die Empfehlung und die Sockelbonus-
--- Entscheidung, die diese Empfehlung vorwegnehmen muss.
-local function FirstUncappedGem(list, overStats)
-    if not list then return nil end
-    if not (overStats and next(overStats)) then return list[1] end
-    for _, id in ipairs(list) do
-        local st = SM.GemStats(id)
-        local blocked = false
-        if st then
-            for stat in pairs(overStats) do
-                if st[stat] then blocked = true; break end
+--------------------------------------------------
+-- WERTUNG EINES STEINS — MIT CAP-SPIELRAUM
+--
+-- Ersetzt seit 2.5.0.0 ScoreStats + FirstUncappedGem + die binäre Menge
+-- `overStats`. Die alte Fassung war eine Klippe: FirstUncappedGem verwarf
+-- einen Stein GANZ, sobald er irgendeinen übercappten Stat lieferte. Ein
+-- *Stechender Dioptas* (+160 Krit, +160 Treffer) ist am Trefferkap aber
+-- immer noch 160 Krit wert — er zählte 0. Zusammen mit der 0,25-%-Schwelle
+-- kippte das ganze Item-Urteil an einem Viertelprozentpunkt.
+--
+-- `headroom` sagt je gecapptem Stat, wie viel Wertung bis zum Cap noch
+-- etwas bringt:
+--   Key fehlt -> Stat ist ungecappt und zählt voll
+--   0         -> am Cap, weitere Punkte sind wertlos
+--   N         -> die nächsten N Punkte zählen, der Rest nicht
+--
+-- Damit muss auch keine Farbliste mehr "bis zum Ende tragen" (der Kopf von
+-- data/spec_profiles.lua verlangte das, und 14 von 39 Profilen hielten es
+-- nicht ein): ein Trefferstein am Cap ist einfach 0 wert, statt aus der
+-- Liste zu fallen und die Sockelbonus-Entscheidung ohne Vergleichswert
+-- zurückzulassen.
+--------------------------------------------------
+
+local function GemValue(stats, weights, headroom)
+    if not stats or not weights then return 0 end
+    local score = 0
+    for stat, value in pairs(stats) do
+        local w = weights[stat] or 0
+        if w ~= 0 and value and value > 0 then
+            local room = headroom and headroom[stat]
+            local counted = (room and value > room) and room or value
+            score = score + counted * w
+        end
+    end
+    return score
+end
+
+-- Wie viel des Steins läuft in einen gecappten Stat hinein? Der Planer
+-- zieht das vom Spielraum ab, damit nicht jeder Sockel denselben Restweg
+-- zum Cap für sich verbucht.
+local function ConsumeHeadroom(stats, headroom)
+    if not (stats and headroom) then return end
+    for stat, value in pairs(stats) do
+        local room = headroom[stat]
+        if room and value and value > 0 then
+            headroom[stat] = math.max(0, room - value)
+        end
+    end
+end
+
+--------------------------------------------------
+-- KANDIDATENTOPF JE SPEC
+--
+-- Bis 2.5.0.0 war `bestGems` acht Listen je Sockelfarbe, und die
+-- Empfehlung nahm `bestGems[farbe][1]`. Daran hingen drei Schwächen, die
+-- alle dieselbe Wurzel haben — die Farbschlüssel trugen eine Entscheidung,
+-- die eigentlich der Steinfarbe zusteht:
+--   * `orange`/`lila`/`grün` sind Steinfarben, keine Sockelfarben. MoP-Items
+--     haben nur rot/gelb/blau/meta/prisma; die Listen waren unerreichbar
+--     und sahen trotzdem autoritativ aus (genau die Form des 2.3.0.1-Bugs).
+--   * Die Liste musste "bis zum Ende tragen", sonst stand die
+--     Sockelbonus-Entscheidung am Cap ohne Vergleichswert da.
+--   * Und ein Juwelier-Schlangenauge in der Liste hob den Bezugswert für
+--     ALLE anderen Steine um die Hälfte an (480 statt 320 Krit), sodass ein
+--     korrekter Stein von "ok" auf "falsch" fiel — bei jemandem, der den
+--     Beruf gar nicht hat.
+--
+-- Der Topf ist die Vereinigung aller Listen. Welche Steine für DIESEN
+-- Sockel in Frage kommen, entscheidet danach die Steinfarbe (Client!) gegen
+-- die Sockelfarbe — nicht mehr, unter welchem Schlüssel jemand den Stein
+-- eingetragen hat.
+--------------------------------------------------
+
+local JEWELCRAFTING_SKILL_LINE = 755
+
+local function HasJewelcrafting()
+    if type(WeintCodex_GetProfessionSkills) ~= "function" then return false end
+    local skills = WeintCodex_GetProfessionSkills()
+    return skills[JEWELCRAFTING_SKILL_LINE] ~= nil
+end
+
+-- Wie viele Schlangenaugen erlaubt MoP? Die Zahl steht in
+-- data/professions.lua und wird hier gelesen statt ein zweites Mal
+-- hingeschrieben.
+local function JewelcrafterGemLimit()
+    local prof = WeintCodex_ProfessionPerks and WeintCodex_ProfessionPerks[JEWELCRAFTING_SKILL_LINE]
+    if not prof or not prof.perks then return 0 end
+    for _, perk in ipairs(prof.perks) do
+        if perk.kind == "gems" then return perk.count or 0 end
+    end
+    return 0
+end
+
+local gemPoolCache = {}
+
+-- Alle Steine, die das Profil irgendwo empfiehlt — ohne die Meta-Steine,
+-- die in keinen farbigen Sockel passen. Reihenfolge der Farbschlüssel bleibt
+-- als schwacher Rangfolge-Hinweis erhalten (frühere Einträge gewinnen einen
+-- Gleichstand), trägt aber keine Entscheidung mehr.
+local function GemPool(profile, profileKey)
+    if not (profile and profile.bestGems) then return {} end
+    local key = profileKey or tostring(profile)
+    local cached = gemPoolCache[key]
+    if cached then return cached end
+
+    local pool, seen = {}, {}
+    for color, list in pairs(profile.bestGems) do
+        if color ~= "meta" then
+            for _, id in ipairs(list) do
+                if not seen[id] then
+                    seen[id] = true
+                    pool[#pool + 1] = id
+                end
             end
         end
-        if not blocked then return id end
     end
-    return nil
+    gemPoolCache[key] = pool
+    return pool
 end
 
--- Empfehlung für einen Sockel: erster Stein der Liste,
--- der KEINEN bereits übercappten Stat liefert. Sind alle
--- Kandidaten der Sockelfarbe gecappt, weiche auf die
--- prismatische Liste aus (z.B. reiner Primärstat).
+local function IsJcGem(gemId)
+    local db = WeintCodex_Gems and WeintCodex_Gems[gemId]
+    return (db and db.jcOnly) == true
+end
+
+-- Kandidaten für einen Sockel.
 --
--- decision (optional): Ergebnis von EvaluateSocketBonus. Lohnt sich
--- das Farb-Matchen für dieses Item NICHT (decision.worthwhile == false),
--- empfehlen wir für farbige Sockel den reinen Primärstein
--- (prismatic), statt einen schwächeren Farb-Stein für einen
--- geringwertigen Sockelbonus zu opfern.
-local function PickGemRecommendation(socketColor, profile, overStats, decision)
-    if not profile or not profile.bestGems then return nil end
-
-    local list
-    if decision and decision.worthwhile == false and socketColor ~= "meta" then
-        -- Bonus ignorieren: den kuratierten Universalstein (prismatic)
-        -- empfehlen; Fallback auf die Farb-Liste.
-        list = profile.bestGems.prismatic or profile.bestGems[socketColor]
-    else
-        list = profile.bestGems[socketColor] or profile.bestGems.prismatic
+-- DER TOPF ERSETZT DIE KURATIERTEN LISTEN NICHT, ER ERGÄNZT SIE — und das
+-- ist keine Vorsicht, sondern die Lehre aus einem Gegenbeispiel. Ranked man
+-- den ganzen Topf frei nach Wertung, empfiehlt das Addon Jägern einen
+-- Kritstein statt eines Beweglichkeitssteins: HUNTER_MARKSMANSHIP wiegt
+-- Krit mit 80 gegen Beweglichkeit 100, und 320 Krit (25.600) schlägt damit
+-- 160 Beweglichkeit (16.000). Die kuratierte Liste desselben Profils sagt
+-- `prismatic = { Feingeschliffener Rubellit }`, also Beweglichkeit. Die
+-- Gewichte eines Profils und seine Listen widersprechen sich hier — und
+-- CLAUDE.md sagt zu Recht, dass ein Gewicht eine Aussage über das Spiel ist
+-- und nicht daran gedreht wird, bis eine Liste passt. Also entscheidet
+-- weiterhin die Liste, wo sie etwas sagt.
+--
+--   IGNORE-Kandidaten: bestGems[Sockelfarbe] + bestGems.prismatic
+--                      (genau die Menge, aus der auch bis 2.5.0.0 die
+--                       Empfehlung kam — nur ohne die Cap-Klippe)
+--   MATCH-Kandidaten:  zusätzlich jeder Stein des Topfes, der die Farbe
+--                      DIESES Sockels bedient. Das ist der Ausweg für die
+--                      14 Profile, deren `blau` nur aus einem Treffer- oder
+--                      Waffenkundestein besteht: am Cap war deren einziger
+--                      Kandidat 0 wert, `colorScore` fiel auf 0 und die
+--                      Entscheidung erklärte den Sockelbonus pauschal für
+--                      wertlos, statt ihn auszurechnen.
+local function CandidateList(profile, pool, socketColor, mustMatch)
+    local list, seen = {}, {}
+    local function add(id)
+        if id and not seen[id] then seen[id] = true; list[#list + 1] = id end
     end
-    if not list then return nil end
 
-    if overStats and next(overStats) then
-        local pick = FirstUncappedGem(list, overStats)
-        if not pick and profile.bestGems.prismatic then
-            pick = FirstUncappedGem(profile.bestGems.prismatic, overStats)
+    local best = profile.bestGems
+    if socketColor and best[socketColor] then
+        for _, id in ipairs(best[socketColor]) do add(id) end
+    end
+    if not mustMatch and best.prismatic then
+        for _, id in ipairs(best.prismatic) do add(id) end
+    end
+    if mustMatch then
+        for _, id in ipairs(pool) do
+            if GemMatchesSocket(GemColor(id), socketColor) == true then add(id) end
         end
-        if pick then return pick end
     end
-    return list[1]
+    return list
+end
+
+-- Bester Kandidat aus einer Liste.
+--   mustMatch  – nur Steine, die den Sockelbonus dieses Sockels auslösen
+--   allowJC    – Schlangenaugen zugelassen (Beruf da UND Kontingent frei)
+-- Rückgabe: gemId, wert
+local function BestCandidate(list, socketColor, mustMatch, allowJC, weights, headroom)
+    local bestId, bestValue = nil, -1
+    for _, id in ipairs(list) do
+        local ok = true
+        if not allowJC and IsJcGem(id) then ok = false end
+        if ok and mustMatch then
+            -- Unbekannte Steinfarbe (nil) zählt hier NICHT als Treffer: wir
+            -- empfehlen keinen Stein, von dem wir nicht wissen, ob er den
+            -- Bonus auslöst, den wir gerade für lohnend erklären.
+            ok = (GemMatchesSocket(GemColor(id), socketColor) == true)
+        end
+        if ok then
+            local value = GemValue(SM.GemStats(id), weights, headroom)
+            if value > bestValue then
+                bestId, bestValue = id, value
+            end
+        end
+    end
+    if not bestId then return nil, 0 end
+    return bestId, bestValue
+end
+
+local function IsColoredSocket(color)
+    return color == "rot" or color == "gelb" or color == "blau"
 end
 
 --------------------------------------------------
--- SOCKELBONUS-ENTSCHEIDUNG (pro Item)
---   Vergleicht zwei Strategien für ein Item:
---     IGNORE: in jedem farbigen Sockel den kuratierten Universalstein
---             (bestGems.prismatic[1], z.B. der reine Haupt-Sekundärstein)
---             -> kein Bonus, dafür überall der stärkste Einzelstein.
---     MATCH:  in jedem farbigen Sockel den besten FARBLICH passenden
---             Stein (bestGems[Farbe][1]) -> aktiviert den Sockelbonus.
---   Anker ist bewusst der kuratierte prismatische Stein (nicht der
---   rechnerisch höchste über alle Listen) — sonst würden Treffer-/
---   Waffenkunde-Steine über ihrem Cap als "beste" empfohlen.
---   Ist der Bonus für die Klasse wertlos (Gewicht ~0, z.B. Ausweichen
---   auf einem reinen DPS-Item), verliert MATCH und wir empfehlen den
---   stärkeren Universalstein — genau das gewünschte Verhalten.
+-- PLANITEM — DIE EINE RECHNUNG JE GEGENSTAND
 --
---   BEIDE SEITEN RECHNEN MIT GECAPPTEN STATS. Ein Stein, dessen Wertung
---   in einem Stat über dem Cap steckt, ist keine Wertung mehr — weder als
---   Anker noch als Farb-Kandidat. Ohne das trafen Entscheidung und
---   Empfehlung verschiedene Aussagen über dasselbe Item.
+-- Bis 2.5.0.0 beantworteten DREI Funktionen unabhängig voneinander die
+-- Frage "welchen Stein würden wir nehmen": EvaluateSocketBonus (für die
+-- Bonuszeile), PickGemRecommendation (für die Empfehlungsspalte) und
+-- EvaluateGem (für das Urteil, mit einer eigenen Bezugsgrösse). Jede
+-- Fehlermeldung seit 2.0.0.3 war eine weitere Klammer, die sie synchron
+-- halten sollte — FirstUncappedGem war 2.3.0.1s Versuch davon und deckte
+-- EvaluateGems eigene Referenzrechnung bis heute nicht ab. Zwei Zeilen
+-- derselben Seite mit "85 %" meinten deshalb nicht dasselbe: einmal
+-- gemessen am prismatischen Anker, einmal am besten Stein der Farbliste.
 --
---   Rückgabe (Tabelle):
---     bonus       = { stat, value } | nil
---     bonusScore  = gewichteter Wert des Bonus
---     matchCost   = Wertungsverlust durchs Farb-Matchen
---     worthwhile  = bool (Bonus lohnt den Farb-Match) -> EMPFEHLUNG
---     active      = bool | nil (Bonus liegt an)       -> ZUSTAND
---     pureId      = empfohlener Universalstein (erster ungecappter)
---     pureScore   = dessen gewichtete Wertung (Bewertungs-Anker)
+-- Jetzt rechnet eine Funktion, und Empfehlung, Steinurteil und Bonuszeile
+-- lesen alle aus ihrem Ergebnis. Sie KÖNNEN sich nicht mehr widersprechen.
+--
+-- Zwei Strategien, die bessere gewinnt:
+--   IGNORE  je Sockel der stärkste Kandidat, ohne Farbbedingung
+--   MATCH   je farbigem Sockel der stärkste Kandidat, der den Bonus
+--           auslöst, plus der Bonus selbst
+--
+-- Rückgabe (Tabelle):
+--   gems[i]      empfohlener Stein für sockets[i]
+--   value[i]     dessen Wertung mit dem Spielraum AN DIESER STELLE
+--   room[i]      der Spielraum-Schnappschuss dieser Stelle (das Urteil über
+--                den angelegten Stein misst mit demselben Massstab)
+--   match        bool  – der Plan aktiviert den Sockelbonus
+--   total/alt    Wertung beider Strategien (trägt die Begründung)
+--   bonus, bonusValue, bonusUnknown
 --------------------------------------------------
 
--- Ist der Sockelbonus an diesem Gegenstand TATSÄCHLICH aktiv? Das steht
--- an den angelegten Steinen und hat mit unserer Empfehlung nichts zu tun.
--- Rückgabe: true | false | nil (mindestens ein Stein farblich unbekannt,
--- oder gar kein farbiger Sockel am Gegenstand).
-local function SocketBonusActive(sockets)
-    local anyColored, unknown = false, false
-    for _, socket in ipairs(sockets) do
-        local color = socket.color
-        if color and color ~= "meta" and color ~= "prismatic" then
-            anyColored = true
-            if not socket.gemId then return false end
-            local matches = GemMatchesSocket(GemColor(socket.gemId), color)
-            if matches == false then return false end
-            if matches == nil then unknown = true end
-        end
-    end
-    if not anyColored or unknown then return nil end
-    return true
-end
-
-local function EvaluateSocketBonus(bonus, sockets, profile, overStats)
-    local decision = { bonus = bonus, worthwhile = true }
-    decision.active = SocketBonusActive(sockets)
-    if not profile or not profile.bestGems or not profile.statWeights then
-        return decision
+local function PlanItem(sockets, bonus, bonusText, profile, ctx)
+    local plan = {
+        gems = {}, value = {}, room = {},
+        bonus = bonus, bonusText = bonusText,
+        match = false,
+    }
+    if not (profile and profile.bestGems and profile.statWeights) then
+        return plan
     end
 
     local weights = profile.statWeights
+    local pool    = ctx.pool
+    local live    = ctx.headroom
 
-    -- Der Anker ist der Stein, den die Empfehlung ohne Bonus WIRKLICH
-    -- vorschlagen würde — also der erste ungecappte, nicht blind
-    -- prismatic[1]. Sonst rechnet die Entscheidung mit einem anderen Stein
-    -- als die Zeile darunter empfiehlt.
-    local pureId = FirstUncappedGem(profile.bestGems.prismatic, overStats)
-                   or (profile.bestGems.prismatic and profile.bestGems.prismatic[1])
-    decision.pureId = pureId
-    if not pureId then return decision end
-
-    local pureScore = ScoreStats(SM.GemStats(pureId), weights)
-    decision.pureScore = pureScore
-
-    -- Ohne bekannten Bonus: bisheriges (farbbasiertes) Verhalten.
-    if not bonus then return decision end
-
-    local bonusScore = (weights[bonus.stat] or 0) * bonus.value
-    decision.bonusScore = bonusScore
-
-    -- Kosten des Matchens: pro FARBIGEM Sockel die Wertungsdifferenz
-    -- zwischen dem Universalstein und dem besten farblich passenden
-    -- Empfehlungsstein. Ist der passende Stein gleich gut oder besser
-    -- (z.B. roter Primärstein im roten Sockel), kostet der Sockel 0 ->
-    -- Matchen ist gratis.
-    --
-    -- CAPS GEHÖREN HIERHER, NICHT ERST IN DIE EMPFEHLUNG. Der beste blaue
-    -- Stein des Furor-Kriegers ist "Stechender Dioptas" (+160 Krit, +160
-    -- Treffer) — solange Treffer unter dem Cap liegt, schlägt er den reinen
-    -- Kritstein und Matchen ist gratis. Am Trefferkap ist seine halbe
-    -- Wertung wertlos, und der Bonus von +60 Stärke bezahlt die Differenz
-    -- nicht mehr. Genau das rechnete diese Funktion nicht mit: sie erklärte
-    -- das Matchen für lohnend, während die Empfehlungszeile darunter wegen
-    -- desselben Caps längst den gelben Kritstein vorschlug.
-    local matchCost = 0
-    for _, socket in ipairs(sockets) do
-        local color = socket.color
-        if color and color ~= "meta" and color ~= "prismatic" then
-            local colorList = profile.bestGems[color]
-            local colorScore
-            if not colorList or #colorList == 0 then
-                -- Keine Liste für diese Farbe: wir wissen nichts, was gegen
-                -- das Matchen spricht (bisheriges Verhalten).
-                colorScore = pureScore
-            else
-                local colorId = FirstUncappedGem(colorList, overStats)
-                -- Kein passender Stein mehr übrig, der nicht in einen
-                -- gecappten Stat läuft: Matchen kostet dann die volle
-                -- Wertung des Universalsteins, nicht bloss eine Differenz.
-                colorScore = colorId and ScoreStats(SM.GemStats(colorId), weights) or 0
-            end
-            local diff = pureScore - colorScore
-            if diff > 0 then matchCost = matchCost + diff end
-        end
+    -- Der Bonus zählt nur, soweit er nicht in einen gecappten Stat läuft:
+    -- "+180 Treffer" ist am Trefferkap kein Grund, irgendetwas zu opfern.
+    local bonusValue = 0
+    if bonus then
+        bonusValue = GemValue({ [bonus.stat] = bonus.value }, weights, live)
     end
-    decision.matchCost  = matchCost
-    decision.worthwhile = bonusScore >= matchCost
-    return decision
+    plan.bonusValue = bonusValue
+
+    -- Eine Bonuszeile, die wir nicht lesen konnten, ist kein Bonus von 0.
+    -- Ihn wegzuwerfen, weil wir ihn nicht messen können, wäre die Behauptung
+    -- eines Wissens, das nicht da ist — im Zweifel matchen.
+    plan.bonusUnknown = (bonusText ~= nil and bonus == nil)
+
+    local anyColored = false
+    for _, socket in ipairs(sockets) do
+        if IsColoredSocket(socket.color) then anyColored = true; break end
+    end
+
+    -- Beide Strategien durchrechnen. Der Spielraum wird dabei NICHT
+    -- verbraucht — das passiert erst unten für die Gewinnerin, sonst
+    -- bezahlte die zweite Variante für die erste.
+    local function Run(mustMatch)
+        local room  = {}
+        for stat, v in pairs(live) do room[stat] = v end
+        local picks, values, rooms, total = {}, {}, {}, 0
+        for i, socket in ipairs(sockets) do
+            local snapshot = {}
+            for stat, v in pairs(room) do snapshot[stat] = v end
+            rooms[i] = snapshot
+
+            local id, value
+            if socket.color == "meta" then
+                -- Meta-Sockel stehen ausserhalb: dort entscheiden
+                -- Proc-Effekte, die in keiner Zahl stehen.
+                id = profile.bestGems.meta and profile.bestGems.meta[1]
+                value = id and GemValue(SM.GemStats(id), weights, room) or 0
+            else
+                local needMatch = mustMatch and IsColoredSocket(socket.color)
+                local cands = CandidateList(profile, pool, socket.color, needMatch)
+                id, value = BestCandidate(cands, socket.color, needMatch,
+                                          ctx.allowJC, weights, room)
+                if not id and needMatch then
+                    -- Kein farblich passender Kandidat im Topf: dieser Sockel
+                    -- kann den Bonus nicht halten, die Strategie scheitert.
+                    return nil
+                end
+            end
+
+            picks[i], values[i] = id, value
+            total = total + value
+            if id then ConsumeHeadroom(SM.GemStats(id), room) end
+        end
+        return { gems = picks, value = values, room = rooms, total = total }
+    end
+
+    local ignore = Run(false)
+    local match  = anyColored and Run(true) or nil
+
+    if match then
+        match.total = match.total + bonusValue
+        -- Unlesbarer Bonus: im Zweifel matchen (s.o.).
+        if plan.bonusUnknown then match.total = math.max(match.total, (ignore and ignore.total or 0)) end
+    end
+
+    local winner, loser
+    if match and ignore then
+        if match.total >= ignore.total then
+            winner, loser, plan.match = match, ignore, true
+        else
+            winner, loser, plan.match = ignore, match, false
+        end
+    else
+        winner, loser = (match or ignore), (match and ignore or nil)
+        plan.match = (winner == match)
+    end
+    if not winner then return plan end
+
+    plan.gems     = winner.gems
+    plan.value    = winner.value
+    plan.room     = winner.room
+    plan.total    = winner.total
+    plan.altTotal = loser and loser.total or nil
+
+    -- Erst jetzt den echten Spielraum verbrauchen: das ist der Plan, den wir
+    -- empfehlen, und die nächsten Slots sollen mit dem rechnen, was danach
+    -- noch übrig ist. Ohne das bekäme jeder Sockel denselben Restweg zum
+    -- Cap gutgeschrieben und die Seite empföhle zehn Treffersteine für eine
+    -- Lücke, die einer schliesst.
+    for _, id in ipairs(plan.gems) do
+        if id then ConsumeHeadroom(SM.GemStats(id), live) end
+    end
+    if plan.match and bonus then
+        ConsumeHeadroom({ [bonus.stat] = bonus.value }, live)
+    end
+
+    -- Schlangenaugen-Kontingent mitzählen (Grenze gilt charakterweit).
+    if ctx.allowJC then
+        for _, id in ipairs(plan.gems) do
+            if id and IsJcGem(id) then ctx.jcLeft = (ctx.jcLeft or 0) - 1 end
+        end
+        if (ctx.jcLeft or 0) <= 0 then ctx.allowJC = false end
+    end
+
+    return plan
 end
 
 --------------------------------------------------
@@ -1523,35 +1910,22 @@ local LEGENDARY_META = {
     [95344] = { TANK = true },                               -- Unbezähmbarer Urdiamant
 }
 
--- Gibt zurück: status, qualityPct (oder nil), unbekannt (bool), equiv
--- decision (optional): Ergebnis von EvaluateSocketBonus. Lohnt sich das
--- Matchen für dieses Item nicht, ist der reine Primärstein (prismatic)
--- das Ziel: ein solcher Off-Color-Stein zählt dann als OPTIMAL (statt
--- fälschlich "falsch"), ein Farb-Stein nur als "ok" (Empfehlung: umsockeln).
--- Lohnt es sich dagegen, kann ein farblich nicht passender Stein nie
--- "Optimal" sein — er kostet den Bonus, den wir gerade für lohnend
--- erklärt haben.
+--------------------------------------------------
+-- URTEIL ÜBER EINEN ANGELEGTEN STEIN
 --
--- Statquelle ist seit 2.0.0.3 durchgehend SM.GemStats statt
--- WeintCodex_GemStats: fehlt ein Stein in data/gem_stats.lua, fragt der
--- Werteabgleich den Client (GetItemStats, lokalisierungsfrei). Vorher war
--- eine Lücke in der Datendatei gleichbedeutend mit "kein Urteil möglich" —
--- der Stein landete auf "ok/unbekannt", egal wie gut oder schlecht er war.
-local function EvaluateGem(gemId, socketColor, profile, decision)
+-- Gemessen wird gegen den Stein, den PlanItem für GENAU DIESEN Sockel
+-- empfiehlt, mit GENAU DEM Spielraum, der an dieser Stelle galt — eine
+-- Bezugsgrösse, nicht mehr zwei. Die Schwellen (90 % / 65 %) sind die
+-- bisherigen.
+--
+-- Rückgabe: status, qualityPct, unbekannt, equiv
+--------------------------------------------------
+
+local function EvaluateGem(gemId, socket, index, profile, plan)
     if not gemId then return "missing", nil, false end
 
     local gemColor = GemColor(gemId)
-    local isMeta   = (gemColor == "meta") or (socketColor == "meta")
-
-    -- GEMESSEN WIRD GEGEN DIE FARBE DES SOCKELS, nicht gegen die des
-    -- Steins (siehe SOCKET_ACCEPTS weiter oben): bestGems[Farbe] ist die
-    -- Empfehlung FÜR einen Sockel dieser Farbe, und exakt diese Liste
-    -- benutzt auch PickGemRecommendation für die Zeile daneben.
-    local colorKey = socketColor or gemColor
-
-    -- Löst der angelegte Stein den Sockelbonus überhaupt aus? nil heisst
-    -- "Steinfarbe unbekannt" — dann nicht abwerten.
-    local matches  = GemMatchesSocket(gemColor, socketColor)
+    local isMeta   = (gemColor == "meta") or (socket.color == "meta")
 
     -- Legendärer Meta-Stein: rollengerecht => optimal,
     -- andere Rolle => nur Hinweis (nie "falsch")
@@ -1563,81 +1937,58 @@ local function EvaluateGem(gemId, socketColor, profile, decision)
         return "ok", nil, false
     end
 
-    -- Sockelbonus lohnt sich für dieses Item nicht: der kuratierte
-    -- Universalstein ist das Ziel. Bewertung erfolgt gegen dessen Wertung,
-    -- damit ein starker Off-Color-Stein OPTIMAL zählt (statt fälschlich
-    -- "falsch") und ein schwächerer Farb-Stein (nur wegen des geringen
-    -- Bonus) "ok" wird.
-    local ignoreBonus = decision and decision.worthwhile == false and not isMeta
-    if ignoreBonus and decision.pureScore and decision.pureScore > 0 then
-        local weights = profile and profile.statWeights
-        local myStats = SM.GemStats(gemId)
-        if weights and myStats then
-            local pct = math.floor((ScoreStats(myStats, weights) / decision.pureScore) * 100 + 0.5)
-            if pct >= 90 then return "optimal", pct, false end
-            if pct >= 65 then return "ok", pct, false end
-            return "wrong", pct, false
-        end
-        -- Ohne Bewertungsgrundlage: nicht abwerten.
+    local recId = plan and plan.gems and plan.gems[index]
+    if not recId then
+        -- Keine Empfehlung für diesen Sockel: nichts behaupten.
         return "ok", nil, true
     end
+    if gemId == recId then return "optimal", 100, false end
 
-    local bestList = profile and profile.bestGems and colorKey
-                     and profile.bestGems[colorKey]
-
-    -- Der Sockelbonus lohnt sich (sonst wären wir oben schon raus), also
-    -- kostet ein farblich nicht passender Stein diesen Bonus. So gut seine
-    -- Werte auch sind — "Optimal" ist er damit nicht, denn genau darüber
+    -- Der Plan hält den Sockelbonus: ein farblich unpassender Stein kostet
+    -- genau den Bonus, den wir gerade für lohnend erklärt haben. So gut
+    -- seine Werte auch sind — "Optimal" ist er damit nicht, denn darüber
     -- steht die Zeile "Sockelbonus: … aktiv". Beides muss dasselbe sagen.
+    local matches = GemMatchesSocket(gemColor, socket.color)
     local function Rank(status, pct, unknown, equiv)
-        if status == "optimal" and matches == false then
+        if status == "optimal" and plan.match and matches == false then
             return "ok", pct, unknown, equiv
         end
         return status, pct, unknown, equiv
     end
 
-    if IsInList(gemId, bestList) then
-        return Rank("optimal", 100, false)
-    end
-
-    local weights = profile and profile.statWeights
     local myStats = SM.GemStats(gemId)
 
-    -- FALLBACK FÜR DEN FALLBACK (Steine): Werteabgleich vor Wertungsrechnung.
-    --
+    -- WERTEABGLEICH VOR WERTUNGSRECHNUNG (seit 2.0.0.3):
     -- Blizzard hat die deutschen Steinnamen mitten in MoP Classic umbenannt
     -- (Zinnoberonyx -> Aragonit, Urdiamant -> Bergkristall, siehe Kopf von
     -- data/gems.lua) und es gibt zu vielen Schliffen wertgleiche Zweit-IDs
     -- (Juwelier-Schlangenaugen, "perfekte" Varianten). Ein Stein, der exakt
     -- dieselben Werte liefert wie die Empfehlung, IST die Empfehlung — auch
-    -- wenn seine ID nicht in bestGems steht. Nur so wird er nicht zum
+    -- wenn seine ID eine andere ist. Nur so wird er nicht zum
     -- Handlungsbedarf erklärt, den es nicht gibt.
-    if myStats and bestList then
+    if myStats then
         local verdict, refId, ratio =
-            SM.MatchAgainstList(myStats, bestList, SM.GemStats)
+            SM.MatchAgainstList(myStats, { recId }, SM.GemStats)
         if SM.IsMatch(verdict) then
             return Rank("optimal", 100, false,
                         { verdict = verdict, refId = refId, ratio = ratio })
         end
     end
 
-    if weights and myStats and bestList then
-        local myScore = ScoreStats(myStats, weights)
-        local best = 0
-        for _, bid in ipairs(bestList) do
-            local s = ScoreStats(SM.GemStats(bid), weights)
-            if s > best then best = s end
-        end
-        if best > 0 then
-            local pct = math.floor((myScore / best) * 100 + 0.5)
-            if pct >= 90 then return Rank("optimal", pct, false) end
-            if pct >= 65 then return "ok", pct, false end
-            -- Meta-Steine nie als "falsch" werten: ihre Proc-Effekte
-            -- (z.B. Mana-Ersparnis, Schadensreduktion) stecken nicht
-            -- in den reinen Statwerten.
-            if isMeta then return "ok", pct, false end
-            return "wrong", pct, false
-        end
+    local weights = profile and profile.statWeights
+    local room    = plan.room and plan.room[index]
+    local best    = plan.value and plan.value[index]
+    if weights and myStats and best and best > 0 then
+        local myScore = GemValue(myStats, weights, room)
+        local pct = math.floor((myScore / best) * 100 + 0.5)
+        if pct > 100 then pct = 100 end
+        if pct >= 90 then return Rank("optimal", pct, false) end
+        if pct >= 65 then return "ok", pct, false end
+        -- Meta-Steine nie als "falsch" werten: ihre Proc-Effekte
+        -- (z.B. Mana-Ersparnis, Schadensverringerung) stecken nicht
+        -- in den reinen Statwerten.
+        if isMeta then return "ok", pct, false end
+        return "wrong", pct, false
     end
 
     -- Stein unbekannt oder keine Bewertungsgrundlage
@@ -1781,16 +2132,42 @@ local function ScanCharacter()
     local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
     local capStates = BuildCapStates(profile)
 
-    -- Welche Stats stehen schon über ihrem Cap? Das muss VOR der
-    -- Sockelbonus-Entscheidung feststehen, nicht erst im Overcap-Pass
-    -- danach: sie rechnete sonst mit einem Stein, den die Empfehlung
-    -- wegen genau dieses Caps gar nicht mehr vorschlägt (Furor-Krieger am
-    -- Trefferkap: Entscheidung "matchen", Empfehlung "reiner Kritstein").
-    -- Das Markieren der einzelnen Zeilen bleibt unten — dafür braucht es
-    -- die Zeilen, für die Menge der gecappten Stats reicht capStates.
+    -- CAP-SPIELRAUM FÜR DIE SOCKELEMPFEHLUNG.
+    --
+    -- Bis 2.5.0.0 stand hier eine binäre Menge `overStats` ("dieser Stat ist
+    -- über dem Cap"), und FirstUncappedGem warf jeden Stein weg, der davon
+    -- irgendetwas lieferte. Jetzt sagt der Spielraum, wie viel Wertung in
+    -- einem gecappten Stat überhaupt noch etwas bringt — ein Hybridstein
+    -- behält am Cap seine andere Hälfte, statt ganz zu verschwinden.
+    --
+    -- Der Spielraum wird beim Planen der Slots VERBRAUCHT (siehe PlanItem).
+    -- Ohne das bekäme jeder Sockel denselben Restweg zum Cap gutgeschrieben
+    -- und die Seite empföhle zehn Treffersteine für eine Lücke, die einer
+    -- schliesst. Die Reihenfolge ist die von EQUIP_SLOTS und damit stabil.
+    local headroom = {}
+    for _, cs in ipairs(capStates) do
+        headroom[cs.stat] = math.max(0, cs.underRating or 0)
+    end
+
+    -- Der Overcap-Pass weiter unten markiert ANGELEGTE Steine, deren Wertung
+    -- ganz verschwendet ist. Das ist die andere Frage (was liegt an?) und
+    -- bleibt bei der bisherigen Schwelle.
     local overStats = {}
     for _, cs in ipairs(capStates) do
         if cs.overPct > 0.25 then overStats[cs.stat] = true end
+    end
+
+    -- Kandidatentopf und Schlangenaugen-Kontingent gelten für den ganzen
+    -- Charakter, nicht je Gegenstand.
+    local planCtx = {
+        pool     = GemPool(profile, profileKey),
+        headroom = headroom,
+        allowJC  = false,
+        jcLeft   = 0,
+    }
+    if HasJewelcrafting() then
+        planCtx.jcLeft  = JewelcrafterGemLimit()
+        planCtx.allowJC = planCtx.jcLeft > 0
     end
 
     local scan = {
@@ -1864,17 +2241,30 @@ local function ScanCharacter()
             -- das hin (ihr Cache ist warm, und sie zeigt eine Zeile,
             -- keine Einblendung) - modules/gearalert.lua darf darauf
             -- keinen Alarm stuetzen und liest den Wert je Zeile mit.
-            local sockets, socketsKnown = ScanItemSockets(link, slotDef.id)
+            local sockets, socketsKnown, socketSource = ScanItemSockets(link, slotDef.id)
             if #sockets > 0 then
-                -- Sockelbonus des Items auslesen und pro Item einmal
-                -- entscheiden, ob Farb-Matchen den Bonus wert ist.
-                local bonus, bonusText = ScanSocketBonus(slotDef.id)
-                local decision = EvaluateSocketBonus(bonus, sockets, profile, overStats)
-                decision.bonusText = bonusText
+                -- Sockelbonus auslesen (Wert UND Zustand kommen vom Client)
+                -- und den Gegenstand einmal durchrechnen. Empfehlung,
+                -- Steinurteil und Bonuszeile lesen danach alle aus `plan`.
+                local bonus, bonusText, bonusActive = ScanSocketBonus(slotDef.id)
+                local plan = PlanItem(sockets, bonus, bonusText, profile, planCtx)
+                plan.active = bonusActive
 
-                for _, socket in ipairs(sockets) do
+                for socketIndex, socket in ipairs(sockets) do
                     local status, qualityPct, unknown, equiv =
-                        EvaluateGem(socket.gemId, socket.color, profile, decision)
+                        EvaluateGem(socket.gemId, socket, socketIndex, profile, plan)
+
+                    -- Ohne Basisdaten kennt ScanItemSockets die eingebauten
+                    -- Sockel nicht: alle Steine stuenden als prismatische
+                    -- "Zusatzsockel" da und wuerden gegen die falsche Liste
+                    -- gemessen, ein leerer Guertel meldete eine fehlende
+                    -- Schnalle. Das ist eine Aussage ueber unseren Cache,
+                    -- nicht ueber die Ruestung - die Zeile wird deshalb
+                    -- nicht gewertet (neutral zaehlt in CountRows nicht mit)
+                    -- und fuellt sich nach der Nachlieferung von selbst.
+                    if not socketsKnown then
+                        status, qualityPct, unknown, equiv = "neutral", nil, true, nil
+                    end
                     scan.gems.rows[#scan.gems.rows + 1] = {
                         slotId     = slotDef.id,
                         slotName   = slotDef.name,
@@ -1886,8 +2276,10 @@ local function ScanCharacter()
                         qualityPct = qualityPct,
                         unknown    = unknown,
                         equiv      = equiv,
-                        decision   = decision,
+                        plan       = plan,
+                        recId      = plan.gems and plan.gems[socketIndex] or nil,
                         socketsKnown = socketsKnown,
+                        socketSource = socketSource,
                     }
                 end
             end
@@ -1947,12 +2339,9 @@ local function ScanCharacter()
         end
     end
 
-    -- Empfehlungen für Sockel-Reihen setzen (Overcap-bereinigt,
-    -- Sockelbonus-Entscheidung berücksichtigt)
-    for _, row in ipairs(scan.gems.rows) do
-        row.recId = PickGemRecommendation(row.socket.color, profile,
-            next(overStats) and overStats or nil, row.decision)
-    end
+    -- Die Empfehlung steht seit 2.5.0.0 schon oben in der Zeile (`plan`).
+    -- Sie hier ein zweites Mal auszurechnen war genau die Doppelung, aus
+    -- der Empfehlung und Entscheidung auseinanderlaufen konnten.
 
     --------------------------------------------------
     -- 3) Zählen & Score
@@ -2270,6 +2659,136 @@ function WeintCodex.Charakter.DumpEnchants()
         print("  |cffaaaaaaKeine Verzauberungen/Steine gefunden.|r")
     end
     print("  |cff4A4A52Zeilenweise Rohausgabe des Tooltips: /wc vz zeilen|r")
+    print("  |cff4A4A52Sockelfolge, Bonus-Zustand und Planrechnung: /wc sockel|r")
+end
+
+--------------------------------------------------
+-- /wc sockel — WAS WURDE GELESEN, WAS WURDE GERECHNET
+--
+-- Diese Fehlerklasse war von aussen nicht diagnostizierbar, und das ist
+-- der Grund, warum sie ueber fuenf Releases hinweg wiederkam: in KEINER
+-- Ausgabe stand, in welcher Reihenfolge die Sockel eines Gegenstands
+-- gelesen wurden, woher diese Reihenfolge kam (bis 2.5.0.0 war sie
+-- erfunden), ob der Sockelbonus tatsaechlich anliegt, oder mit welchem
+-- Cap-Spielraum der Planer gerechnet hat.
+--
+-- Dieselbe Ueberlegung wie bei /wc vz zeilen und /wc alarm berufe. Bewusst
+-- ein eigener Befehl, er fuellt bei voller Ausruestung mehrere Bildschirme.
+--------------------------------------------------
+
+local function FormatHeadroom(headroom)
+    local parts = {}
+    for stat, room in pairs(headroom or {}) do
+        parts[#parts + 1] = string.format("%s=%d", stat, math.floor(room + 0.5))
+    end
+    table.sort(parts)
+    return (#parts > 0) and table.concat(parts, ", ") or "keine Caps"
+end
+
+function WeintCodex.Charakter.DumpSockets()
+    local profile, profileKey = GetCurrentSpecProfile()
+    print("|cffD4A24A[WeintCodex]|r Sockel-Diagnose ("
+        .. tostring(profileKey or "kein Profil") .. "):")
+
+    if not profile then
+        print("  |cffff5555Kein Spec-Profil - es kann nichts geplant werden.|r")
+        return
+    end
+
+    local capStates = BuildCapStates(profile)
+    local headroom = {}
+    for _, cs in ipairs(capStates) do
+        headroom[cs.stat] = math.max(0, cs.underRating or 0)
+        print(string.format("  |cff4A4A52Cap %s: %.2f%% / %.2f%%, Spielraum %d Wertung|r",
+            cs.label or cs.stat, cs.current or 0, cs.capPct or 0,
+            math.floor(headroom[cs.stat] + 0.5)))
+    end
+
+    local pool = GemPool(profile, profileKey)
+    local jc   = HasJewelcrafting()
+    print(string.format("  |cff4A4A52Kandidatentopf: %d Steine · Juwelenschleifen: %s|r",
+        #pool, jc and ("ja, " .. JewelcrafterGemLimit() .. " Schlangenaugen") or "nein"))
+
+    local ctx = {
+        pool = pool, headroom = headroom,
+        allowJC = jc and JewelcrafterGemLimit() > 0 or false,
+        jcLeft  = jc and JewelcrafterGemLimit() or 0,
+    }
+
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local sockets, known, source = ScanItemSockets(link, slotDef.id)
+            if #sockets > 0 then
+                -- Beide Wege nebeneinander: weichen sie ab, gewinnt der
+                -- Tooltip - und genau dann will man es wissen.
+                local stats = GetItemStatsCompat and GetItemStatsCompat(link)
+                local counted = {}
+                for _, si in ipairs(SOCKET_STAT_ORDER) do
+                    local n = stats and stats[si.stat]
+                    if n and n > 0 then
+                        counted[#counted + 1] = si.color .. "x" .. n
+                    end
+                end
+
+                local seq = {}
+                for _, s in ipairs(sockets) do
+                    seq[#seq + 1] = s.color .. (s.buckle and "(Schnalle)"
+                                                 or s.extra and "(Zusatz)" or "")
+                end
+
+                print(string.format("|cffD4A24A%s|r  Folge: %s  |cff4A4A52[Quelle: %s]|r",
+                    slotDef.name, table.concat(seq, " > "),
+                    source == "tooltip" and "Tooltip (echte Reihenfolge)"
+                        or source == "stats" and "|cffff9900nur Anzahlen - Zuordnung geraten|r"
+                        or "|cffff5555nichts gelesen|r"))
+                if #counted > 0 then
+                    print("   |cff4A4A52GetItemStats zaehlt: "
+                        .. table.concat(counted, ", ") .. "|r")
+                end
+                if not known then
+                    print("   |cffff9900Gegenstandsdaten noch nicht im Cache -"
+                        .. " nicht gewertet.|r")
+                end
+
+                local bonus, bonusText, active = ScanSocketBonus(slotDef.id)
+                if bonusText then
+                    print(string.format("   Sockelbonus: %s  |cff4A4A52[gelesen: %s]|r  %s",
+                        bonusText,
+                        bonus and (bonus.stat .. "=" .. bonus.value)
+                              or "|cffff9900nicht lesbar|r",
+                        active == true and "|cff22C55EZeile ist gruen -> liegt an|r"
+                            or active == false and "|cffFFBB22Zeile ist grau -> liegt nicht an|r"
+                            or "|cff888888Farbe unbestimmt|r"))
+                end
+
+                local before = FormatHeadroom(ctx.headroom)
+                local plan = PlanItem(sockets, bonus, bonusText, profile, ctx)
+                print(string.format("   Plan: %s  |cff4A4A52(matchen %s, ignorieren %s; Bonus %s)|r",
+                    plan.match and "|cff22C55EFarben matchen|r"
+                               or "|cffFFBB22Bonus ignorieren|r",
+                    plan.match and string.format("%.0f", plan.total or 0)
+                                or string.format("%.0f", plan.altTotal or 0),
+                    plan.match and string.format("%.0f", plan.altTotal or 0)
+                                or string.format("%.0f", plan.total or 0),
+                    string.format("%.0f", plan.bonusValue or 0)))
+                print("   |cff4A4A52Spielraum vorher: " .. before
+                    .. " · nachher: " .. FormatHeadroom(ctx.headroom) .. "|r")
+
+                for i, socket in ipairs(sockets) do
+                    local recId = plan.gems and plan.gems[i]
+                    local cur   = socket.gemId
+                    print(string.format("     %d) %-16s ist: %-34s soll: %s |cff4A4A52(%.0f)|r",
+                        i, SOCKET_COLOR_LABEL[socket.color] or "?",
+                        cur and (GetGemDisplayName(cur) .. " ["
+                                 .. (GemColor(cur) or "Farbe?") .. "]")
+                            or "|cffff5555leer|r",
+                        recId and GetGemDisplayName(recId) or "-",
+                        plan.value and plan.value[i] or 0))
+                end
+            end
+        end
+    end
 end
 
 --------------------------------------------------
@@ -2823,38 +3342,47 @@ function ShowGems()
                     and ("  " .. WeintCodex.ColorText("textGhost", row.itemName)) or ""))
             yOff = yOff - 20
 
-            -- Sockelbonus + Entscheidung (genutzt / ignoriert)
-            local dec = row.decision
-            if dec and dec.bonus and dec.bonusText then
-                -- ZWEI AUSSAGEN, NICHT EINE. "genutzt" stand hier für
-                -- `worthwhile ~= false` — also für unsere EMPFEHLUNG,
-                -- formuliert wie eine Tatsache über den Gegenstand. An
-                -- einem blauen Sockel mit gelbem Stein behauptete das
-                -- Fenster damit einen Bonus, den es nicht gibt (gemeldet
-                -- am Furor-Krieger: "Sockelbonus: +60 Stärke — genutzt"
-                -- über "Blauer Sockel #1: Glatter Goldberyll").
-                -- dec.active liest den Zustand an den ANGELEGTEN Steinen
-                -- ab; nil heisst "Steinfarbe unbekannt".
+            -- Sockelbonus: ZWEI AUSSAGEN, NICHT EINE.
+            --
+            -- "genutzt" stand hier bis 2.3.0.1 für unsere EMPFEHLUNG,
+            -- formuliert wie eine Tatsache über den Gegenstand. An einem
+            -- blauen Sockel mit gelbem Stein behauptete das Fenster damit
+            -- einen Bonus, den es nicht gibt ("Sockelbonus: +60 Stärke —
+            -- genutzt" über "Blauer Sockel #1: Glatter Goldberyll").
+            --
+            -- Getrennt sind sie seither, aber der ZUSTAND war bis 2.5.0.0
+            -- selbst noch eine Herleitung aus Steinfarben — mit drei
+            -- Unbekannten, von denen zwei danebenlagen. Er kommt jetzt aus
+            -- der Farbe der Tooltipzeile (plan.active, siehe
+            -- ScanSocketBonus): der Client zeichnet den Sockelbonus grün,
+            -- wenn er anliegt. nil heisst weiterhin "keine Aussage".
+            local plan = row.plan
+            if plan and plan.bonusText then
                 local verdict
-                if dec.worthwhile == false then
-                    if dec.active == true then
-                        verdict = "|cffFFBB22aktiv, lohnt sich aber nicht — reiner Primärstein ist stärker|r"
-                    elseif dec.active == false then
-                        verdict = "|cff22C55Ebewusst ignoriert — reiner Primärstein ist stärker|r"
+                if plan.match == false then
+                    if plan.active == true then
+                        verdict = "|cffFFBB22aktiv, lohnt sich aber nicht — der stärkere Stein wiegt mehr|r"
+                    elseif plan.active == false then
+                        verdict = "|cff22C55Ebewusst ignoriert — der stärkere Stein wiegt mehr|r"
                     else
-                        verdict = "|cff22C55Elohnt sich nicht — reiner Primärstein ist stärker|r"
+                        verdict = "|cff22C55Elohnt sich nicht — der stärkere Stein wiegt mehr|r"
                     end
-                elseif dec.active == true then
-                    verdict = "|cff22C55Eaktiv (Farben passen)|r"
-                elseif dec.active == false then
-                    verdict = "|cffFFBB22nicht aktiv — Steinfarbe passt nicht zum Sockel|r"
+                elseif plan.active == true then
+                    verdict = "|cff22C55Eaktiv|r"
+                elseif plan.active == false then
+                    verdict = "|cffFFBB22lohnt sich, liegt aber nicht an — Steinfarbe passt nicht zum Sockel|r"
                 else
                     verdict = "|cff4A4A52lohnt sich — Farben matchen|r"
+                end
+                -- Eine Bonuszeile, die wir nicht lesen konnten, ist kein
+                -- Bonus von 0: das sagen statt es zu verschweigen.
+                if plan.bonusUnknown then
+                    verdict = verdict .. " |cff888888(Wert nicht lesbar)|r"
                 end
                 local bonusLine = inner:CreateFontString(nil, "OVERLAY")
                 bonusLine:SetFont(WeintCodex.Fonts.sans, 9, "")
                 bonusLine:SetPoint("TOPLEFT", inner, "TOPLEFT", 16, yOff - 1)
-                bonusLine:SetText("|cff4A4A52Sockelbonus: " .. dec.bonusText
+                bonusLine:SetText("|cff4A4A52Sockelbonus: " .. plan.bonusText
                     .. " — " .. verdict)
                 yOff = yOff - 15
             end
@@ -2896,6 +3424,14 @@ function ShowGems()
             sockName = "Zusatzsockel"
         else
             sockName = (SOCKET_COLOR_LABEL[row.socket.color] or "?") .. " #" .. row.socket.index
+            -- Konnte die Reihenfolge nicht am Grundgegenstand abgelesen
+            -- werden, stimmen die Farben nur als MENGE und ihre Zuordnung
+            -- zu den einzelnen Steinen ist geraten (siehe ScanItemSockets).
+            -- Genau das war bis 2.5.0.0 der Normalfall und in keiner
+            -- Ausgabe zu sehen.
+            if row.socketSource ~= "tooltip" and row.socket.orderKnown == nil then
+                sockName = sockName .. " |cff888888(?)|r"
+            end
         end
         local lbl = rf:CreateFontString(nil, "OVERLAY")
         lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
@@ -2910,7 +3446,11 @@ function ShowGems()
         curLbl:SetPoint("LEFT", rf, "LEFT", 232, 0)
         curLbl:SetWidth(232)
         curLbl:SetJustifyH("LEFT")
-        if row.status == "missing" then
+        if row.socketsKnown == false then
+            -- Sagen statt urteilen (siehe ScanCharacter). Die Zeile füllt
+            -- sich, sobald der Client die Gegenstandsdaten nachliefert.
+            curLbl:SetText("|cff888888Gegenstandsdaten noch nicht geladen …|r")
+        elseif row.status == "missing" then
             curLbl:SetText(row.socket.buckle
                 and "|cffff5555— Schnalle fehlt / Sockel leer! —|r"
                 or  "|cffff5555— Leerer Sockel! —|r")
@@ -2932,7 +3472,7 @@ function ShowGems()
             curLbl:SetTextColor(info.color[1], info.color[2], info.color[3])
         end
 
-        if row.recId and row.status ~= "optimal" then
+        if row.recId and row.status ~= "optimal" and row.socketsKnown ~= false then
             -- Kaputte/unauflösbare Empfehlungs-ID nicht anzeigen und nichts
             -- empfehlen, das namensgleich schon eingesetzt ist.
             local recName = GetGemDisplayName(row.recId)

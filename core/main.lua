@@ -83,6 +83,18 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
+    -- Sockel-Diagnose: was wurde gelesen, und was hat der Planer daraus
+    -- gerechnet? Bewusst ein eigener Befehl neben /wc vz - diese
+    -- Fehlerklasse (falsche Sockelreihenfolge, Bonus-Zustand, Cap-Spielraum)
+    -- war von aussen ueberhaupt nicht diagnostizierbar, weil keine Ausgabe
+    -- die Sockelfolge oder ihre Quelle nannte.
+    if cmd == "sockel" or cmd == "sockets" then
+        if WeintCodex.Charakter and WeintCodex.Charakter.DumpSockets then
+            WeintCodex.Charakter.DumpSockets()
+        end
+        return
+    end
+
     -- Addon-Tour manuell erneut aufrufen (z.B. zum Testen)
     if cmd == "tour" then
         if WeintCodex.Onboarding and WeintCodex.Onboarding.ShowTour then
