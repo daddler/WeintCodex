@@ -44,20 +44,41 @@
 --   keine Raidbuffs und keine Reforge-Absicht). Eine der beiden als
 --   "nicht ideal" zu melden, behauptet ein Wissen, das nicht da ist —
 --   genau daran ist der gemeldete Elementarschamane hängengeblieben.
---   bestGems     = { [Sockelfarbe] = { id1, id2, ... } }
---                  -> Schlüssel: meta, rot, gelb, blau, orange, lila,
---                     grün, prismatic. Alle IDs gelten als "optimal".
---                  -> SOCKELfarbe, nicht Steinfarbe: MoP-Gegenstände haben
---                     nur rote, gelbe, blaue, Meta- und Prismasockel. Die
---                     Liste beantwortet "was gehört in einen Sockel dieser
---                     Farbe" — ein farblich passender Mischstein darf und
---                     soll dort stehen (blau -> grüner Dioptas).
---                  -> REIHENFOLGE IST RANGFOLGE, und die Liste muss bis
---                     zum Ende tragen: die Sockelbonus-Entscheidung nimmt
---                     den ersten Stein, der nicht in einen gecappten Stat
---                     läuft. Bleibt keiner übrig, gilt Farb-Matchen als
---                     wertlos — deshalb gehört hinter die Treffer-/
---                     Waffenkunde-Steine immer noch einer ohne.
+--   bestGems     = { [Schlüssel] = { id1, id2, ... } }
+--                  -> Schlüssel: meta, rot, gelb, blau, prismatic
+--                     (SOCKELfarben) sowie orange, lila, grün
+--                     (STEINfarben, siehe unten). Alle IDs gelten als
+--                     vertretbar; id1 ist, was auf einen leeren Sockel
+--                     dieser Farbe gehört.
+--                  -> rot/gelb/blau/prismatic sind SOCKELfarben: MoP-
+--                     Gegenstände haben nur rote, gelbe, blaue, Meta- und
+--                     Prismasockel. Die Liste beantwortet "was gehört in
+--                     einen Sockel dieser Farbe" — ein farblich passender
+--                     Mischstein darf und soll dort stehen (blau -> grüner
+--                     Dioptas).
+--                  -> orange/lila/grün beantworten diese Frage NICHT (es
+--                     gibt keine orangen Sockel). Bis 2.5.0.0 waren sie
+--                     deshalb schlicht unerreichbar — 78 Listen, die
+--                     autoritativ aussahen und nie gelesen wurden. Seit
+--                     2.5.0.0 haben sie eine Aufgabe: der Planer zieht aus
+--                     ALLEN Listen des Profils die Steine, die die Farbe
+--                     eines Sockels bedienen, wenn er den Sockelbonus
+--                     halten will. Ein lila Stein (rot+blau) ist damit ein
+--                     Kandidat für rote und blaue Sockel. Was hier steht,
+--                     wird also benutzt — aber die Farbe des Steins
+--                     entscheidet, wo, und die liest das Addon am Client
+--                     (Unterklasse des Gegenstands), nicht an diesem
+--                     Schlüssel.
+--                  -> REIHENFOLGE IST RANGFOLGE. Die Liste muss NICHT mehr
+--                     "bis zum Ende tragen": bis 2.5.0.0 nahm die
+--                     Sockelbonus-Entscheidung den ersten Stein, der in
+--                     KEINEN gecappten Stat läuft, und ohne einen solchen
+--                     galt Farb-Matchen pauschal als wertlos. 21 von 39
+--                     Profilen hielten diese Regel nicht ein. Jetzt zählt
+--                     ein Stein am Cap einfach nur noch mit dem, was
+--                     ausserhalb des Caps liegt (GemValue in
+--                     modules/charakter.lua), und der Planer sucht
+--                     notfalls im ganzen Profil weiter.
 --   gemNote      = Freitext-Hinweis für die Sockel-Seite
 --------------------------------------------------
 
@@ -205,7 +226,18 @@ WeintCodex_SpecProfiles = {
             -- Ausweichstein war hier bis 2.0.1.0 die zweite Wahl, obwohl
             -- der grüne Meisterschafts-/Ausdauerstein beide Werte bringt,
             -- die dem Schutzkrieger etwas nützen — er steht jetzt davor.
-            gelb      = { 76589, 76656, 76698 },  -- Perfekter Alexandrit (Treffer+Ausdauer); Imposanter Dioptas (Meister+Ausdauer); Ausweichen
+            --
+            -- 2.5.0.0: der *Perfekte geschickte Alexandrit* (76589) stand
+            -- hier an erster Stelle und ist damit die Empfehlung für jeden
+            -- gelben Sockel gewesen. Er trägt Treffer + Ausdauer — beides
+            -- blaue Werte, die Kombination kann kein grüner Schliff sein
+            -- (siehe die Notiz am Eintrag in data/gems.lua). Ein blauer
+            -- Stein löst keinen gelben Sockelbonus aus, die Empfehlung warf
+            -- ihn also weg. Unabhängig davon sagen die Gewichte dieses
+            -- Profils selbst, dass der Imposante Dioptas 96 % mehr bringt
+            -- (Meisterschaft 72 gegen Treffer 90 am 7,5-%-Cap) — zwei Gründe,
+            -- die auf denselben Stein zeigen.
+            gelb      = { 76656, 76698 },         -- Imposanter Dioptas (Meister+Ausdauer); Subtiler Goldberyll (Ausweichen)
             blau      = { 76639, 76636 },         -- Gediegener Chrysokoll (Ausdauer); Massiver (Treffer)
             orange    = { 76664 },                -- Bruchfester Aragonit (Parieren+Ausweichen)
             lila      = { 76690, 76683 },         -- Kunzit d. Verteidigers; Fixierender (Parieren+Treffer)
@@ -331,12 +363,17 @@ WeintCodex_SpecProfiles = {
 
     HUNTER_BEASTMASTERY = {
         role = "RANGED",
+        -- JAEGER HABEN KEINEN WAFFENKUNDE-CAP. Fernkampfangriffe koennen
+        -- in MoP weder pariert noch ausgewichen werden - Waffenkunde tut
+        -- fuer einen Jaeger nichts. Bis 2.5.0.0 stand hier ein Cap von
+        -- 7,5 % samt Gewicht 85, und die Waffenkunde-Karte meldete jedem
+        -- Jaeger dauerhaft ein Defizit ("es fehlen ca. N Wertung"), das er
+        -- nicht schliessen konnte und nicht schliessen sollte.
         caps = {
             { stat = "hit",       typ = "ranged", pct = 7.5 },
-            { stat = "expertise",                 pct = 7.5 },
         },
         statWeights = {
-            agility = 100, hit = 88, expertise = 85,
+            agility = 100, hit = 88,
             crit = 75, haste = 68, mastery = 60, stamina = 10,
         },
         bestEnchants = {
@@ -360,17 +397,22 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit überall (Feingeschliffener Rubellit / Tödlicher Aragonit). Jäger brauchen 7,5% Treffer UND 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit überall (Feingeschliffener Rubellit / Tödlicher Aragonit). Cap: 7,5% Treffer — Waffenkunde bringt Fernkämpfern nichts.",
     },
 
     HUNTER_MARKSMANSHIP = {
         role = "RANGED",
+        -- JAEGER HABEN KEINEN WAFFENKUNDE-CAP. Fernkampfangriffe koennen
+        -- in MoP weder pariert noch ausgewichen werden - Waffenkunde tut
+        -- fuer einen Jaeger nichts. Bis 2.5.0.0 stand hier ein Cap von
+        -- 7,5 % samt Gewicht 85, und die Waffenkunde-Karte meldete jedem
+        -- Jaeger dauerhaft ein Defizit ("es fehlen ca. N Wertung"), das er
+        -- nicht schliessen konnte und nicht schliessen sollte.
         caps = {
             { stat = "hit",       typ = "ranged", pct = 7.5 },
-            { stat = "expertise",                 pct = 7.5 },
         },
         statWeights = {
-            agility = 100, hit = 88, expertise = 85,
+            agility = 100, hit = 88,
             crit = 80, haste = 65, mastery = 55, stamina = 10,
         },
         bestEnchants = {
@@ -394,17 +436,22 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Krit. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Krit. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht).",
     },
 
     HUNTER_SURVIVAL = {
         role = "RANGED",
+        -- JAEGER HABEN KEINEN WAFFENKUNDE-CAP. Fernkampfangriffe koennen
+        -- in MoP weder pariert noch ausgewichen werden - Waffenkunde tut
+        -- fuer einen Jaeger nichts. Bis 2.5.0.0 stand hier ein Cap von
+        -- 7,5 % samt Gewicht 85, und die Waffenkunde-Karte meldete jedem
+        -- Jaeger dauerhaft ein Defizit ("es fehlen ca. N Wertung"), das er
+        -- nicht schliessen konnte und nicht schliessen sollte.
         caps = {
             { stat = "hit",       typ = "ranged", pct = 7.5 },
-            { stat = "expertise",                 pct = 7.5 },
         },
         statWeights = {
-            agility = 100, hit = 88, expertise = 85,
+            agility = 100, hit = 88,
             crit = 70, haste = 62, mastery = 50, stamina = 10,
         },
         bestEnchants = {
@@ -428,7 +475,7 @@ WeintCodex_SpecProfiles = {
             ["grün"]  = { 76643, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht).",
     },
 
     --------------------------------------------------
@@ -1630,6 +1677,240 @@ function WeintCodex_ValidateEnchantWeights()
     if #problems > 0 then
         print("|cffD4A24A[WeintCodex]|r |cffff5555Datenprüfung: "
             .. #problems .. " Empfehlung(en) widersprechen den eigenen Gewichten:|r")
+        for _, msg in ipairs(problems) do
+            print("  |cffff9900" .. msg .. "|r")
+        end
+    end
+    return problems
+end
+
+--------------------------------------------------
+-- STEINDATEN GEGEN SICH SELBST PRÜFEN
+--
+-- Für Verzauberungen gibt es diese Prüfung seit 2.3.1.0
+-- (WeintCodex_ValidateEnchantWeights). Für Steine gab es sie nicht — und
+-- genau die Lücken, die sie gefunden hätte, sind es, an denen die
+-- Sockelseite über fünf Releases hinweg falsch bewertet hat:
+--
+--   * 21 von 39 Profilen führen unter `blau` ausschliesslich Treffer- oder
+--     Waffenkundesteine. Am Cap war deren Wertung 0, und bis 2.5.0.0
+--     erklärte das Addon den Sockelbonus damit auf jedem Gegenstand mit
+--     blauem Sockel für wertlos. Der Kopf dieser Datei verlangt seit
+--     2.3.0.1, dass die Liste "bis zum Ende trägt" — nichts prüfte es.
+--   * `data/gems.lua` behauptet Farben, die aus den Werten nicht folgen
+--     können (76589: "grün" mit Treffer + Ausdauer, beides blaue Werte).
+--   * Ein Juwelier-Schlangenauge als einzige Empfehlung einer Farbe ist
+--     für alle Nicht-Juweliere gar keine Empfehlung.
+--   * Und ein Profil, dessen Gewichte seiner eigenen ersten Empfehlung
+--     widersprechen, hat entweder die falsche Liste oder das falsche
+--     Gewicht — beides will man wissen, bevor jemand es meldet.
+--
+-- Gemeldet, nicht repariert: eine Zahl in diesen Dateien ist eine Aussage
+-- über das Spiel, und die trifft ein Mensch.
+--------------------------------------------------
+
+-- MoP-Farbalgebra, abgelesen an den Grundschliffen des Spiels:
+--   rot  Bold/Delicate/Brilliant (Primärwert), Precise (Waffenkunde),
+--        Flashing (Parieren)
+--   gelb Smooth (Krit), Quick (Tempo), Fractured (Meisterschaft),
+--        Subtle (Ausweichen)
+--   blau Solid (Ausdauer), Sparkling (Willenskraft), Rigid (Treffer)
+-- Die Mischfarben tragen je einen Wert aus beiden Töpfen.
+local GEM_STAT_COLOR = {
+    strength = "rot", agility = "rot", intellect = "rot",
+    expertise = "rot", parry = "rot",
+    crit = "gelb", haste = "gelb", mastery = "gelb", dodge = "gelb",
+    stamina = "blau", spirit = "blau", hit = "blau",
+}
+
+local MIXED_COLOR = {
+    orange   = { rot = true, gelb = true },
+    lila     = { rot = true, blau = true },
+    ["grün"] = { gelb = true, blau = true },
+}
+
+-- Bedient ein Stein DIESER Farbe einen Sockel JENER Farbe? Dieselbe Regel
+-- wie SOCKET_ACCEPTS in modules/charakter.lua — hier noch einmal, weil
+-- data/ nicht auf modules/ zugreifen darf (Ladereihenfolge der .toc).
+local SOCKET_ACCEPTS_DATA = {
+    rot  = { rot = true,  orange = true, lila = true },
+    gelb = { gelb = true, orange = true, ["grün"] = true },
+    blau = { blau = true, lila = true,   ["grün"] = true },
+}
+
+local function ColorServesSocket(gemColor, socketColor)
+    if not gemColor then return false end
+    if gemColor == "prismatic" or gemColor == "einfach" then return true end
+    local accepts = SOCKET_ACCEPTS_DATA[socketColor]
+    return (accepts and accepts[gemColor]) == true
+end
+
+function WeintCodex_ValidateGemWeights()
+    local gems     = WeintCodex_Gems or {}
+    local gemStats = WeintCodex_GemStats or {}
+    local problems = {}
+
+    -- 1) Farbe gegen Werte (data/gems.lua gegen data/gem_stats.lua)
+    for id, gem in pairs(gems) do
+        local stats = gemStats[id]
+        local color = gem.color
+        if stats and color and color ~= "meta" and color ~= "prismatic"
+           and color ~= "einfach" then
+            local buckets = {}
+            for stat in pairs(stats) do
+                local b = GEM_STAT_COLOR[stat]
+                if b then buckets[b] = true end
+            end
+            local allowed = MIXED_COLOR[color]
+            if allowed then
+                -- Mischfarbe: MUSS beide Grundtöpfe bedienen.
+                for b in pairs(buckets) do
+                    if not allowed[b] then
+                        problems[#problems + 1] = string.format(
+                            "gems.lua %d (%s): Farbe %s, liefert aber %s-Werte",
+                            id, tostring(gem.name), color, b)
+                    end
+                end
+                local n = 0
+                for _ in pairs(buckets) do n = n + 1 end
+                if n < 2 then
+                    local only = next(buckets)
+                    problems[#problems + 1] = string.format(
+                        "gems.lua %d (%s): Farbe %s verlangt zwei Grundfarben,"
+                        .. " die Werte sind aber nur %s",
+                        id, tostring(gem.name), color, tostring(only))
+                end
+            else
+                for b in pairs(buckets) do
+                    if b ~= color then
+                        problems[#problems + 1] = string.format(
+                            "gems.lua %d (%s): Farbe %s, liefert aber %s-Werte",
+                            id, tostring(gem.name), color, b)
+                    end
+                end
+            end
+        end
+    end
+
+    -- 2) Profile
+    for specKey, profile in pairs(WeintCodex_SpecProfiles) do
+        local best    = profile.bestGems
+        local weights = profile.statWeights
+        if best and weights then
+            local capped = {}
+            for _, cap in ipairs(profile.caps or {}) do
+                capped[cap.stat] = true
+                if cap.spiritZaehlt then capped.spirit = true end
+            end
+
+            local function Score(id, ignoreCapped)
+                local st = gemStats[id]
+                if not st then return nil end
+                local total = 0
+                for stat, value in pairs(st) do
+                    if not (ignoreCapped and capped[stat]) then
+                        total = total + value * (weights[stat] or 0)
+                    end
+                end
+                return total
+            end
+
+            for _, color in ipairs({ "rot", "gelb", "blau", "prismatic" }) do
+                local list = best[color]
+                if list and #list > 0 then
+                    -- a) Fehlt ein Stein in gem_stats.lua? (ValidateSpecData
+                    --    prüft nur gegen gems.lua)
+                    for _, id in ipairs(list) do
+                        if not gemStats[id] then
+                            problems[#problems + 1] = string.format(
+                                "%s / %s: Stein-ID %d fehlt in gem_stats.lua",
+                                specKey, color, id)
+                        end
+                    end
+
+                    -- b) Bleibt am Cap überhaupt ein Stein übrig, der die
+                    --    Farbe dieses Sockels bedient?
+                    --
+                    --    Bis 2.5.0.0 zählte dafür nur die Farbliste selbst,
+                    --    und 21 von 39 Profilen führen unter `blau` nur
+                    --    Treffer- oder Waffenkundesteine — am Cap fiel deren
+                    --    Wertung auf 0 und der Sockelbonus galt pauschal als
+                    --    wertlos. Der Planer sucht inzwischen im ganzen Topf
+                    --    des Profils nach einem farblich passenden Stein,
+                    --    also wird auch hier der Topf gefragt. Und gefragt
+                    --    wird, was der Planer fragt: bleibt am Cap noch
+                    --    WERTUNG übrig? Nicht mehr "gibt es einen Stein ganz
+                    --    ohne gecappten Stat" — ein Hybridstein behält seine
+                    --    andere Hälfte, das ist der Sinn des Spielraums.
+                    if next(capped) and color ~= "prismatic" then
+                        local free = false
+                        for listColor, other in pairs(best) do
+                            if listColor ~= "meta" then
+                                for _, id in ipairs(other) do
+                                    local st = gemStats[id]
+                                    local gemColor = gems[id] and gems[id].color
+                                    if st and ColorServesSocket(gemColor, color) then
+                                        local left = Score(id, true)
+                                        if left and left > 0 then free = true end
+                                    end
+                                end
+                            end
+                        end
+                        if not free then
+                            problems[#problems + 1] = string.format(
+                                "%s / %s: am Cap bleibt im ganzen Profil kein"
+                                .. " farblich passender Stein - der Sockelbonus"
+                                .. " ist dort nicht zu halten",
+                                specKey, color)
+                        end
+                    end
+
+                    -- c) Nur Juwelier-Steine ist fuer alle anderen nichts.
+                    local nonJc = false
+                    for _, id in ipairs(list) do
+                        if not (gems[id] and gems[id].jcOnly) then nonJc = true end
+                    end
+                    if not nonJc then
+                        problems[#problems + 1] = string.format(
+                            "%s / %s: nur Juwelier-Steine empfohlen",
+                            specKey, color)
+                    end
+
+                    -- d) Widerspricht das Profil seiner eigenen ersten
+                    --    Empfehlung? Gerechnet ohne die gecappten Stats,
+                    --    weil die am Cap ohnehin nichts beitragen.
+                    --    Nur der staerkste Widerspruch je Liste: sonst
+                    --    meldet eine Liste mit drei besseren Eintraegen
+                    --    dreimal dasselbe.
+                    local firstId = list[1]
+                    local firstScore = Score(firstId, true)
+                    if firstScore and firstScore > 0 then
+                        local worstId, worstScore = nil, firstScore * 1.25
+                        for _, id in ipairs(list) do
+                            local s = Score(id, true)
+                            if s and s > worstScore
+                               and not (gems[id] and gems[id].jcOnly) then
+                                worstId, worstScore = id, s
+                            end
+                        end
+                        if worstId then
+                            problems[#problems + 1] = string.format(
+                                "%s / %s: %s steht vorn, %s ist nach den"
+                                .. " eigenen Gewichten aber %.0f%% besser",
+                                specKey, color,
+                                tostring(gems[firstId] and gems[firstId].name or firstId),
+                                tostring(gems[worstId] and gems[worstId].name or worstId),
+                                (worstScore / firstScore - 1) * 100)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if #problems > 0 then
+        print("|cffD4A24A[WeintCodex]|r |cffff5555Steinprüfung: "
+            .. #problems .. " Befund(e):|r")
         for _, msg in ipairs(problems) do
             print("  |cffff9900" .. msg .. "|r")
         end

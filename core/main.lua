@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.4.1.2"
+WeintCodex.Version = "2.5.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -79,6 +79,18 @@ SlashCmdList["WEINTCODEX"] = function(msg)
             WeintCodex.Charakter.DumpEnchantLines()
         elseif WeintCodex.Charakter.DumpEnchants then
             WeintCodex.Charakter.DumpEnchants()
+        end
+        return
+    end
+
+    -- Sockel-Diagnose: was wurde gelesen, und was hat der Planer daraus
+    -- gerechnet? Bewusst ein eigener Befehl neben /wc vz - diese
+    -- Fehlerklasse (falsche Sockelreihenfolge, Bonus-Zustand, Cap-Spielraum)
+    -- war von aussen ueberhaupt nicht diagnostizierbar, weil keine Ausgabe
+    -- die Sockelfolge oder ihre Quelle nannte.
+    if cmd == "sockel" or cmd == "sockets" then
+        if WeintCodex.Charakter and WeintCodex.Charakter.DumpSockets then
+            WeintCodex.Charakter.DumpSockets()
         end
         return
     end
@@ -179,6 +191,17 @@ local function OnEvent(self, event, addonName)
         -- abgeglichen.
         if WeintCodex_ValidateEnchantWeights then
             WeintCodex_ValidateEnchantWeights()
+        end
+
+        -- Und dasselbe fuer die Steine (2.5.0.0). Fuer Verzauberungen gibt
+        -- es die Pruefung seit 2.3.1.0, fuer Steine gab es sie nicht - und
+        -- genau die Luecken, die sie findet, sind es, an denen die
+        -- Sockelseite ueber fuenf Releases falsch bewertet hat: eine
+        -- Farbliste, die am Cap nichts mehr hergibt, eine Steinfarbe, die
+        -- aus den Werten nicht folgen kann, und ein Profil, dessen Gewichte
+        -- seiner eigenen ersten Empfehlung widersprechen.
+        if WeintCodex_ValidateGemWeights then
+            WeintCodex_ValidateGemWeights()
         end
 
         -- Dasselbe für die BiS-Listen: warnt, falls ein Eintrag einen

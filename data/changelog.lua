@@ -7,6 +7,20 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.5.0.0",
+        date    = "25.08.2026",
+        notes   = {
+            "Die Sockelseite hat seit fuenf Releases falsch bewertet, und die Ursache lag unter der Rechnung: die Reihenfolge der Sockel eines Gegenstands war erfunden. Der Client meldet nur, WIE VIELE Sockel welcher Farbe ein Teil hat, nie in welcher Reihenfolge - abgezaehlt wurde trotzdem in einer festen Folge. Bei jedem Teil mit zwei verschiedenfarbigen Sockeln konnten Stein und Sockelfarbe damit vertauscht sein.",
+            "Gefragt wird jetzt der Spielclient selbst: der Tooltip des Grundgegenstands listet alle Sockel leer und in echter Reihenfolge. Auch ob ein Sockelbonus anliegt, wird jetzt abgelesen statt geraten - der Client zeichnet die Zeile gruen, wenn er greift.",
+            "Auf Teilen mit blauem Sockel galt der Sockelbonus fuer die halbe Belegschaft pauschal als wertlos: bei 21 von 39 Specs bestand die blaue Steinliste nur aus Treffer- und Waffenkundesteinen, und am Cap war die damit rechnerisch nichts mehr wert. Betroffen waren alle Jaeger und Schurken, Frost- und Unheilig-DK, Verstaerker, Windwandler, Wildheit sowie alle Magier und Hexenmeister.",
+            "Ein Stein am Cap zaehlt jetzt mit dem, was ausserhalb des Caps liegt, statt ganz wegzufallen - und Empfehlung, Steinurteil und Bonuszeile kommen aus EINER Rechnung, statt aus dreien, die man synchron halten muss.",
+            "Juwelier-Schlangenaugen werden nur noch empfohlen, wer den Beruf hat, und hoechstens zwei. Bisher drueckten sie als Listeneintrag jeden korrekten 320er Stein von \"ok\" auf \"falsch\" - auch bei Nicht-Juwelieren.",
+            "Kennt der Client ein Teil noch nicht, wird darueber nicht mehr geurteilt: die Zeile sagt es und fuellt sich nach, sobald die Daten da sind.",
+            "Jaegern wird kein Waffenkunde-Cap mehr angezeigt. Fernkampfangriffe koennen nicht pariert oder ausgewichen werden, Waffenkunde bringt ihnen nichts - die Karte meldete ein Defizit, das niemand schliessen kann.",
+            "Neu: |cffD4A24A/wc sockel|r zeigt je Teil die gelesene Sockelfolge samt Quelle, die Bonuszeile mit ihrer Farbe und beide Planvarianten mit ihren Wertungen. Und eine Datenpruefung beim Login meldet Widersprueche in den Steinlisten, wie es sie fuer Verzauberungen schon gibt.",
+        },
+    },
+    {
         version = "2.4.1.2",
         date    = "24.08.2026",
         notes   = {

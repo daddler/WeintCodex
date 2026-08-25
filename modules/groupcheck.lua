@@ -151,7 +151,13 @@ local function ScanUnit(unit)
                 end
             end
 
-            local sockets, statsKnown = CH.ScanItemSockets(link, slotDef.id)
+            -- Dritter Parameter false: KEIN Tooltip-Scan. Die Seite zaehlt
+            -- nur belegte Sockel und braucht keine Sockelfarben - und ein
+            -- Tooltip-Scan ueber 16 Slots mal 25 Spieler waere genau die
+            -- Zumutung fuer den Client, die sich diese Seite verboten hat
+            -- (siehe Kopf). Die Charakterseite braucht die Farben und holt
+            -- sie sich dort.
+            local sockets, statsKnown = CH.ScanItemSockets(link, slotDef.id, false)
 
             -- Ohne Basisdaten kennt ScanItemSockets die eingebauten
             -- Sockelplaetze nicht. Das als "keine Sockel" zu zaehlen
