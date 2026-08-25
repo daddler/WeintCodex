@@ -31,7 +31,7 @@ WeintCodex_GemStats = {
     [76885] = { intellect = 216 },   -- Brennender Urdiamant
     [76886] = { strength = 216 },    -- Widerhallender Urdiamant
     [76895] = { stamina = 432 },     -- Asketischer Urdiamant (Tank)
-    [76888] = { spirit = 432 },      -- Revitalisierender Urdiamant (Heiler)
+    [76888] = { spirit = 432 },      -- Belebender Bergkristall (Heiler)
 
     --------------------------------------------------
     -- ROT (Rubellit): 160 Primärstat / 320 Sekundärstat

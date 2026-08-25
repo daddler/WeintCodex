@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.0.2",
+        date    = "25.08.2026",
+        notes   = {
+            "Behoben: auf der Sockel-Seite wurde fuer den Meta-Sockel der kaufbare Bergkristall vorgeschlagen statt des legendaeren aus der Wrathion-Reihe - dem Heilpriester also der |cffD4A24ABelebende|r statt des |cffD4A24AMutigen|r. Das galt in 38 von 39 Spec-Profilen und betraf jede Rolle.",
+            "Merkwuerdig daran: wer den legendaeren Stein schon traegt, bekam ihn immer als \"Optimal\" bestaetigt - das Addon hielt ihn an einer Stelle fuer den besten und schlug daneben einen anderen vor. Jetzt sagen beide dasselbe.",
+            "Der Heilig-Paladin bekam sogar den |cffD4A24ABrennenden Bergkristall|r vorgeschlagen: ein Stein mit +3% kritischem Schaden und ohne Willenskraft, also einer fuer Zauber-DPS.",
+            "Behoben: der Stein 76888 heisst am deutschen Client |cffD4A24ABelebender Bergkristall|r; im Addon stand \"Revitalisierender\". Sichtbar wurde das nur ohne geladenen Gegenstands-Cache.",
+        },
+    },
+    {
         version = "2.6.0.1",
         date    = "25.08.2026",
         notes   = {

@@ -2,6 +2,21 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.6.0.2] – 2026-08-25
+
+### Behoben
+- **Der Meta-Sockel bekam den kaufbaren Bergkristall empfohlen statt des legendären.** Gemeldet am Heiligpriester: vorgeschlagen wurde der *Belebende Bergkristall* (76888), richtig ist der *Mutige Bergkristall* (95345) aus der Wrathion-Reihe. Es war kein Tippfehler in einem Profil, sondern die Reihenfolge in **38 von 39** `bestGems.meta`-Listen — jede Rolle war betroffen: Heiler bekamen den Belebenden statt des Mutigen, Zauber-DPS den Brennenden statt des Finsteren, Nahkampf/Fernkampf den Agilen bzw. Widerscheinenden statt des Geladenen, Tanks den Strengen statt des Unbeugsamen
+- **Das Addon widersprach sich dabei selbst.** `LEGENDARY_META` in `modules/charakter.lua` erklärt genau diese vier Steine seit jeher für „immer optimal, besser als jeder kaufbare Meta-Stein" — wer einen trug, bekam ihn also bestätigt, während die Zeile daneben einen anderen vorschlug. Zwei Stellen, eine Tatsache, zwei Antworten; das ist der eigentliche Befund, und deshalb ist es überall korrigiert und nicht nur beim Heiligpriester
+- **Der Heilig-Paladin führte als kaufbaren Meta sogar den *Brennenden Bergkristall*** (+216 Intelligenz, +3 % kritischer *Schaden*) — einen Zauber-DPS-Stein ohne Willenskraft. Der Rückfall ist jetzt der *Belebende*, wie bei den anderen vier Heilspecs
+- **Der Prot-Paladin ebenso**: sein nicht-legendärer Rückfall war der *Widerscheinende* (+216 Stärke), obwohl das eigene Profil Ausdauer mit 80 und Stärke mit 45 gewichtet. Jetzt der *Strenge* (+432 Ausdauer), wie bei jedem anderen Tank
+- **Drei Offensiv-Profile** (Blut-DK, Braumeister, Wächter) kannten den legendären Stein gar nicht; ihre beiden Geschwister (Schutzkrieger, Schutzpaladin) schon
+- **Stein 76888 heißt am deutschen Client *Belebender Bergkristall*,** nicht „Revitalisierender". Der Anzeigename kommt zur Laufzeit aus `GetItemInfo()`, der Eintrag in `data/gems.lua` ist reiner Rückfall für den kalten Gegenstands-Cache — genau deshalb ist die falsche Schreibweise seit dem Umbenennungs-Audit im Juli unbemerkt geblieben. `95345` („Mutiger Bergkristall") ist mit derselben Meldung bestätigt
+
+### Technisch
+- Kein Fehlalarm durch die neue Reihenfolge: `EvaluateGem` deckelt die Wertung bei 100 % und stuft Meta-Steine nie als „falsch" ein (ihre Proc-Effekte stehen in keiner Zahl). Wer den kaufbaren Stein trägt, liest weiterhin „Optimal"
+- `WeintCodex_ValidateGemWeights()` prüft `meta` bewusst **nicht** gegen die Gewichte — nach reiner Wertung wäre der Belebende (432 Willenskraft) dem Mutigen (324) überlegen, und genau das ist der Grund, warum der Meta-Sockel in `PlanItem` `meta[1]` unverändert nimmt statt zu rechnen. Die Liste entscheidet; die Regel steht jetzt im Kopf von `data/spec_profiles.lua`
+- Vor und nach der Änderung meldet die Steinprüfung dieselben sechs (vorbestehenden) Befunde
+
 ## [2.6.0.1] – 2026-08-25
 
 ### Behoben

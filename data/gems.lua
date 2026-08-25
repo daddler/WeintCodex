@@ -32,14 +32,21 @@
 --   Mutiger Urdiamant       -> Mutiger Bergkristall       (95345)
 --   Brennender Urdiamant    -> Brennender Bergkristall    (76885)
 --   Agiler Urdiamant        -> Agiler Bergkristall        (76884)
---   Revitalisierender Urdiamant -> Revitalisierender Bergkristall (76888)
+--   Revitalisierender Urdiamant -> Belebender Bergkristall    (76888)
 --   Finsterer Urdiamant     -> Finsterer Bergkristall      (95347)
 -- Damit sind alle 9 Meta-/Legendär-Steine auf "Bergkristall" umgestellt.
 -- Weitere geänderte Grundsteinnamen (gleiche IDs):
 --   Starrer Chrysokoll  -> Massiver Chrysokoll   (76636)
 --   Blitzender Rubellit -> Scheinender Rubellit  (76695)
--- Die restlichen Meta-Namen (95347/95345/76884/76885/76888) werden
+-- Die restlichen Meta-Namen (95347/95345/76884/76885) werden
 -- beim jeweiligen Klassen-Audit bestätigt und dann nachgezogen.
+--
+-- ERKENNTNIS (08/2026, Heiligpriester-Meldung): 76888 heißt am
+-- deutschen Client "Belebender Bergkristall", nicht
+-- "Revitalisierender". Aufgefallen ist das nur, weil die
+-- Sockel-Seite ihn vorschlug — der Name kommt zur Laufzeit von
+-- GetItemInfo(), der Eintrag hier ist reiner Rückfall. 95345
+-- ("Mutiger Bergkristall") ist mit derselben Meldung bestätigt.
 --
 -- Deutsche Grundsteine (MoP, aktuell):
 --   Meta   = Bergkristall         Rot    = Rubellit
@@ -67,7 +74,7 @@ WeintCodex_Gems = {
     [76885] = { name = "Brennender Bergkristall",     color = "meta", stats = "+216 Intelligenz, +3% kritischer Schaden" },
     [76886] = { name = "Widerscheinender Bergkristall", color = "meta", stats = "+216 Stärke, +3% kritischer Schaden" },
     [76895] = { name = "Strenger Bergkristall",         color = "meta", stats = "+432 Ausdauer, +2% Rüstung aus Gegenständen" },
-    [76888] = { name = "Revitalisierender Bergkristall", color = "meta", stats = "+432 Willenskraft, +3% kritische Heilung" },
+    [76888] = { name = "Belebender Bergkristall",      color = "meta", stats = "+432 Willenskraft, +3% kritische Heilung" },
 
     --------------------------------------------------
     -- ROT (Rubellit): 160 Primär / 320 Sekundär

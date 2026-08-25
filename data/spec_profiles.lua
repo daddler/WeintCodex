@@ -79,6 +79,23 @@
 --                     ausserhalb des Caps liegt (GemValue in
 --                     modules/charakter.lua), und der Planer sucht
 --                     notfalls im ganzen Profil weiter.
+--                  -> META IST EIN SONDERFALL. Der Meta-Sockel nimmt
+--                     `meta[1]` unverändert (PlanItem in
+--                     modules/charakter.lua) und wird NICHT nach Gewichten
+--                     bewertet: dort entscheiden Proc-Effekte, die in
+--                     keiner Zahl stehen. Deshalb steht vorn IMMER der
+--                     legendäre Bergkristall der Rolle (Wrathion-Reihe,
+--                     5.2: 95345 Heiler, 95347 Zauber-DPS, 95346
+--                     Nahkampf/Fernkampf, 95344 Tank), der kaufbare nur
+--                     als zweiter. Bis 2.6.0.1 war es umgekehrt, und damit
+--                     widersprach die Empfehlung der Bewertung: LEGENDARY_META
+--                     in modules/charakter.lua erklärt genau diese vier
+--                     Steine für "immer optimal, besser als jeder kaufbare
+--                     Meta-Stein" — während die Sockel-Seite daneben den
+--                     kaufbaren vorschlug. Zwei Stellen, eine Tatsache,
+--                     zwei Antworten. Gemeldet wurde es am Heiligpriester
+--                     ("Belebender Bergkristall vorgeschlagen, es müsste
+--                     der Mutige sein"); es galt in 38 von 39 Profilen.
 --   gemNote      = Freitext-Hinweis für die Sockel-Seite
 --------------------------------------------------
 
@@ -123,7 +140,7 @@ WeintCodex_SpecProfiles = {
         -- Sockelboni matchen, wenn sie sich lohnen: Rot -> Gravierter
         -- Aragonit (Str+Krit), Blau -> Stechender Dioptas (Krit+Treffer).
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76661, 76693, 76696 },  -- match: Gravierter Aragonit; Präziser Rubellit (Waffenkunde-Cap); Klobiger
             gelb      = { 76697, 83146 },         -- Glatter Goldberyll (Krit) / JC-Schlangenauge
             -- Am Trefferkap sind beide wertlos — Gezackter Dioptas
@@ -168,7 +185,7 @@ WeintCodex_SpecProfiles = {
         -- bonus daran hängt, und der reine Kritstein nur dort, wo keiner
         -- verloren geht (Zusatzsockel, gelbe Sockel).
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76661, 76693, 76696 },
             gelb      = { 76697, 83146 },
             -- Dritter Eintrag wie beim Waffen-Krieger: am Trefferkap
@@ -219,7 +236,7 @@ WeintCodex_SpecProfiles = {
         -- Sockelboni matchen, wenn lohnend: Rot -> Kunzit des Verteidigers,
         -- Orange -> Bruchfester Aragonit, Grün -> Perfekter Alexandrit.
         bestGems = {
-            meta      = { 76895, 95344 },
+            meta      = { 95344, 76895 },
             rot       = { 76690, 76695, 76691 },  -- Kunzit d. Verteidigers (Parieren+Ausdauer); Parieren; Str+Ausdauer
             -- Gelber Sockel: der Stein muss gelb ODER grün sein (grün =
             -- gelb+blau), sonst geht der Sockelbonus verloren. Ein reiner
@@ -271,7 +288,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95345 },         -- Brennender / Mutiger Bergkristall
+            meta      = { 95345, 76888 },         -- Mutiger (legendär) / Belebender
             rot       = { 76694, 83150 },         -- Glänzender Rubellit (Int)
             gelb      = { 76700, 76699 },         -- Frakturierter (Meister) / Spiegelnder (Tempo, Ewige Flamme)
             blau      = { 76686, 76638 },         -- Geläuterter Kunzit (Int+Wille); Funkelnder (Wille)
@@ -308,7 +325,7 @@ WeintCodex_SpecProfiles = {
         -- Control-Tank: Waffenkunde-Hardcap (15%) + Treffer zuerst, dann
         -- Meisterschaft/Ausdauer. Sockelboni (Waffk./Treffer/Tempo/Ausdauer) matchen.
         bestGems = {
-            meta      = { 95344, 76886 },         -- Unbeugsamer (def); Widerscheinender (non-leg)
+            meta      = { 95344, 76895 },         -- Unbeugsamer (legendär) / Strenger
             rot       = { 76693, 76695 },         -- Präziser Rubellit (Waffk.-Cap); Parieren
             gelb      = { 76700, 76699 },         -- Frakturierter (Meister def); Spiegelnder (Tempo)
             blau      = { 76639, 76636 },         -- Gediegener (Ausdauer def); Massiver (Treffer)
@@ -344,7 +361,7 @@ WeintCodex_SpecProfiles = {
         -- Tempo bis 50% Gesamt-Tempo, danach Meisterschaft. Sockelboni
         -- lohnen fast immer (starke Tempo-/Meister-Hybride je Farbe).
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76667, 76693, 76696 },  -- Tückischer (Waffk.+Tempo, match); Präziser (Waffk.-Cap); Klobiger
             gelb      = { 76699, 76700 },         -- Spiegelnder (Tempo <50%); Frakturierter (Meister >50%)
             blau      = { 76684, 76636 },         -- Geätzter (Str+Treffer); Massiver (Treffer-Cap)
@@ -388,7 +405,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76697, 76699 },
             blau      = { 76680 },
@@ -427,7 +444,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76697, 76699 },
             blau      = { 76680 },
@@ -466,7 +483,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76697, 76700 },
             blau      = { 76680 },
@@ -504,7 +521,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76700, 76699 },
             blau      = { 76680 },
@@ -538,7 +555,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76699, 76700 },
             blau      = { 76680 },
@@ -572,7 +589,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76699, 76697 },
             blau      = { 76680 },
@@ -608,7 +625,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76888, 95345 },
+            meta      = { 95345, 76888 },
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76699 },
             blau      = { 76686, 76638 },
@@ -640,7 +657,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76888, 95345 },
+            meta      = { 95345, 76888 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76686, 76638 },
@@ -674,7 +691,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76682, 76636, 76638 },
@@ -714,7 +731,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
-            meta      = { 76895, 95344 },
+            meta      = { 95344, 76895 },
             rot       = { 76695, 76693 },
             gelb      = { 76700, 76698 },
             blau      = { 76639 },
@@ -748,7 +765,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84578 },
         },
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76696, 83141 },
             gelb      = { 76700, 76697 },
             blau      = { 76684 },
@@ -783,7 +800,7 @@ WeintCodex_SpecProfiles = {
         },
         -- Ab ~ilvl 540 lohnt sich Krit mehr als reine Stärke-Sockelung.
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76696, 83141 },
             gelb      = { 76697, 76699 },
             blau      = { 76684 },
@@ -821,7 +838,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76699 },
             blau      = { 76682, 76636, 76638 },
@@ -855,7 +872,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76700, 76699 },
             blau      = { 76680 },
@@ -887,7 +904,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76888, 95345 },
+            meta      = { 95345, 76888 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76686, 76638 },
@@ -925,7 +942,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76699 },
             blau      = { 76682, 76636 },
@@ -959,7 +976,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76697, 76699 },
             blau      = { 76682, 76636 },
@@ -993,7 +1010,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76682, 76636 },
@@ -1031,7 +1048,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },         -- Spiegelnder Goldberyll (Tempo)
             blau      = { 76682, 76636 },
@@ -1065,7 +1082,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76699 },
             blau      = { 76682, 76636 },
@@ -1099,7 +1116,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76697 },         -- Frakturierter Goldberyll (Meister)
             blau      = { 76682, 76636 },
@@ -1137,7 +1154,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
-            meta      = { 76895, 95344 },
+            meta      = { 95344, 76895 },
             rot       = { 76692, 83151 },
             gelb      = { 76700, 76697 },
             blau      = { 76639 },
@@ -1169,7 +1186,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76888, 95345 },
+            meta      = { 95345, 76888 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76700 },
             blau      = { 76686, 76638 },
@@ -1203,7 +1220,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76700, 76699 },         -- Frakturierter Goldberyll (Meisterschaft)
             blau      = { 76636 },                -- Massiver Chrysokoll (reiner Treffer)
@@ -1241,7 +1258,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76885, 95347 },
+            meta      = { 95347, 76885 },
             rot       = { 76694, 83150 },
             gelb      = { 76699, 76697 },
             blau      = { 76682, 76636, 76638 },
@@ -1277,7 +1294,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575 },
         },
         bestGems = {
-            meta      = { 76884, 95346 },
+            meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
             gelb      = { 76697, 76700 },
             blau      = { 76680 },
@@ -1313,7 +1330,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
-            meta      = { 76895, 95344 },
+            meta      = { 95344, 76895 },
             rot       = { 76692, 83151 },
             gelb      = { 76697, 76700 },
             blau      = { 76639 },
@@ -1345,7 +1362,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84576 },
         },
         bestGems = {
-            meta      = { 76888, 95345 },
+            meta      = { 95345, 76888 },
             rot       = { 76694, 83150 },
             gelb      = { 76700, 76699 },
             blau      = { 76686, 76638 },
@@ -1388,7 +1405,7 @@ WeintCodex_SpecProfiles = {
         -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
         -- matchen, wenn sie sich lohnen (Rot -> Listiger Aragonit).
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76659, 76693, 76696 },  -- Listiger Aragonit (Waffenkunde+Krit); Präziser; Klobiger
             gelb      = { 76697, 83146 },         -- Glatter Goldberyll (Krit)
             blau      = { 76641, 76636 },
@@ -1424,7 +1441,7 @@ WeintCodex_SpecProfiles = {
         },
         -- Offensiv: Waffenkunde-Hardcap + Treffer, dann Tempo/Krit (Rache-DPS).
         bestGems = {
-            meta      = { 76886, 95346 },
+            meta      = { 95346, 76886 },
             rot       = { 76667, 76693, 76696 },  -- Tückischer (Waffk.+Tempo); Präziser; Klobiger
             gelb      = { 76699, 76700 },         -- Spiegelnder (Tempo); Frakturierter (Meister)
             blau      = { 76636, 76639 },         -- Massiver (Treffer); Gediegener (Ausdauer)
@@ -1460,7 +1477,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
-            meta      = { 76886, 76895 },
+            meta      = { 95346, 76886 },
             rot       = { 76696, 83141 },
             gelb      = { 76697, 76700 },
             blau      = { 76684 },
@@ -1496,7 +1513,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
-            meta      = { 76884, 76895 },
+            meta      = { 95346, 76884 },
             rot       = { 76693, 76692 },         -- Präziser Rubellit (Waffenkunde-Cap)
             gelb      = { 76699, 76697 },         -- Spiegelnder Goldberyll (Tempo)
             blau      = { 76680 },
@@ -1530,7 +1547,7 @@ WeintCodex_SpecProfiles = {
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
-            meta      = { 76884, 76895 },
+            meta      = { 95346, 76884 },
             rot       = { 76693, 76692 },         -- Präziser Rubellit (Waffenkunde-Cap)
             gelb      = { 76697, 76699 },
             blau      = { 76636, 76639 },         -- Massiver Chrysokoll (reiner Treffer)
