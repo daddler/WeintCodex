@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.5.0.0"
+WeintCodex.Version = "2.6.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -63,6 +63,19 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if cmd == "import" then
         if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
             WeintCodex.Sync.ShowImportDialog()
+        end
+        return
+    end
+
+    -- Einstellungsseite (modules/settings.lua). Sie ist der Ort, an dem jeder
+    -- der Befehle hier oben auch als Schaltflaeche steht - deshalb ist dieser
+    -- eine Befehl der einzige, den man sich merken muesste.
+    if verb == "einstellungen" or verb == "optionen" or verb == "settings"
+       or verb == "config" then
+        if not (WeintCodex.MainFrame and WeintCodex.Navigation) then return end
+        WeintCodex.MainFrame:Show()
+        if WeintCodex.Navigation.GoToTab then
+            WeintCodex.Navigation.GoToTab("settings")
         end
         return
     end
@@ -262,6 +275,19 @@ local function OnEvent(self, event, addonName)
         WeintCodex_SavedData.window.width  = WeintCodex_SavedData.window.width  or 1500
         WeintCodex_SavedData.window.height = WeintCodex_SavedData.window.height or 800
 
+        -- Fensterverhalten (2.6.0.0). Bis dahin lag das Hauptfenster fest auf
+        -- FULLSCREEN_DIALOG und stand damit ueber Taschen, Charakterbogen und
+        -- den Dialogen des Clients, und ESC schloss es nicht. Vorgabe ist
+        -- jetzt: ESC schliesst, und das Fenster draengt sich nicht vor.
+        -- Ausdruecklich `== nil` und nicht `or`, sonst liesse sich escClose
+        -- nie abschalten.
+        if WeintCodex_SavedData.window.escClose == nil then
+            WeintCodex_SavedData.window.escClose = true
+        end
+        if WeintCodex_SavedData.window.topmost == nil then
+            WeintCodex_SavedData.window.topmost = false
+        end
+
         -- Migration auf das Redesign (Icon-Rail + Inspector-Spalte benötigen
         -- mehr Breite): alte, kleinere gespeicherte Fenstergrößen einmalig anheben.
         if WeintCodex_SavedData.window.width < 1180 then
@@ -305,11 +331,17 @@ local function OnEvent(self, event, addonName)
         WeintCodex.ApplySavedWindow()
     end
 
+    -- ESC-Verhalten und Fensterebene aus denselben SavedData (core/ui.lua).
+    if WeintCodex.ApplyWindowBehaviour then
+        WeintCodex.ApplyWindowBehaviour()
+    end
+
     if WeintCodex.ResetToHome then
         WeintCodex.ResetToHome()
     end
 
-    print("|cffD4A24A[WeintCodex]|r |cff22C55Ev" .. WeintCodex.Version .. "|r geladen. |cffaaaaaa/wc zum Öffnen.|r")
+    print("|cffD4A24A[WeintCodex]|r |cff22C55Ev" .. WeintCodex.Version
+        .. "|r geladen. |cffaaaaaa/wc zum Öffnen, /wc einstellungen für die Optionen.|r")
 end
 
 local loader = CreateFrame("Frame")

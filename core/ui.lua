@@ -855,6 +855,226 @@ function WeintCodex.CreateSegmentedControl(parent, opts)
 end
 
 --------------------------------------------------
+-- Schalter (Ein/Aus) und Regler
+--------------------------------------------------
+-- Beides gab es bis 2.6.0.0 nur als Eigenbau in modules/rotationtrainer.lua,
+-- weil sonst nirgends etwas umzuschalten war: jede Option des Addons stand
+-- allein hinter einem Slash-Befehl. Mit der Einstellungsseite ist der Schalter
+-- die haeufigste Bedienform des Addons ueberhaupt - also gehoert er hierher
+-- und nicht ein zweites Mal in die Seite, die ihn zuerst braucht.
+--
+-- Der Schalter liest seinen Zustand ueber `get` und schreibt ihn ueber `set`.
+-- Bewusst kein eigener Speicher im Widget: die Wahrheit steht in den
+-- SavedData des jeweiligen Moduls, und ein zweiter Stand daneben waere genau
+-- die Sorte Abweichung, die man erst bemerkt, wenn beide sich widersprechen.
+--
+-- opts: { label=, description=, width=, height=,
+--         get=function() end, set=function(on) end,
+--         disabled=function() end, disabledHint=, onChange=function(on) end }
+--------------------------------------------------
+
+function WeintCodex.CreateToggle(parent, opts)
+    opts = opts or {}
+
+    local row = CreateFrame("Button", nil, parent)
+    row:SetHeight(opts.height or (opts.description and 46 or 34))
+    -- Die Breite muss VOR dem ersten Sync stehen: die Erlaeuterung leitet ihre
+    -- Breite von der Zeile ab, und ohne sie meldet GetStringHeight die Hoehe
+    -- einer einzigen Zeile - der umbrochene Rest laege dann in der naechsten.
+    if opts.width then row:SetWidth(opts.width) end
+
+    local hover = row:CreateTexture(nil, "BACKGROUND")
+    hover:SetAllPoints(row)
+    hover:SetColorTexture(1, 1, 1, 0)
+
+    -- Der Schalter selbst: Bahn plus Knauf. Beides eigene Texturen statt
+    -- eines CheckButtons - das Blizzard-Kaestchen bringt seine eigene
+    -- Grafiksprache mit und faellt in dieser Oberflaeche sofort auf. Beide
+    -- bleiben eckig: CutCorners deckt Ecken mit der Farbe des Untergrunds ab
+    -- und braucht dafuer einen Frame, eine Textur hat keine.
+    local track = row:CreateTexture(nil, "ARTWORK")
+    track:SetSize(34, 16)
+    track:SetPoint("LEFT", row, "LEFT", 0, 0)
+
+    local knob = row:CreateTexture(nil, "OVERLAY")
+    knob:SetSize(12, 12)
+
+    local label = row:CreateFontString(nil, "OVERLAY")
+    label:SetFont(F.sans, 13, "")
+    label:SetJustifyH("LEFT")
+    label:SetText(opts.label or "")
+
+    local hint
+    if opts.description then
+        label:SetPoint("TOPLEFT", row, "TOPLEFT", 46, -2)
+        label:SetPoint("RIGHT",   row, "RIGHT",  -12, 0)
+        hint = row:CreateFontString(nil, "OVERLAY")
+        hint:SetFont(F.mono, 9, "")
+        hint:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -4)
+        hint:SetPoint("RIGHT",   row,   "RIGHT",    -12, 0)
+        hint:SetJustifyH("LEFT")
+        hint:SetTextColor(unpack(C.textFaint))
+        hint:SetText(opts.description)
+    else
+        label:SetPoint("LEFT",  row, "LEFT",   46, 0)
+        label:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+    end
+    row._label, row._hint = label, hint
+
+    local function Disabled()
+        return opts.disabled and opts.disabled() and true or false
+    end
+
+    -- Die Erlaeuterung bricht um, sobald sie breiter ist als die Zeile. Mit
+    -- fester Zeilenhoehe laege die naechste Zeile dann darin - dieselbe
+    -- Ueberlegung wie bei TextHeight in modules/gearalert.lua, und
+    -- gemessen wird erst, nachdem der Text steht.
+    local baseH = opts.height or (opts.description and 46 or 34)
+    local function FitHeight()
+        if not hint then
+            row:SetHeight(baseH)
+            return
+        end
+        local ok, h = pcall(hint.GetStringHeight, hint)
+        if not ok or type(h) ~= "number" or h <= 0 then h = 11 end
+        row:SetHeight(math.max(baseH, 23 + math.ceil(h) + 6))
+    end
+
+    row.Sync = function(self)
+        local off = Disabled()
+        local on  = (not off) and opts.get and opts.get() and true or false
+        knob:ClearAllPoints()
+        if on then
+            track:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.85)
+            knob:SetColorTexture(unpack(C.ink))
+            knob:SetPoint("RIGHT", track, "RIGHT", -2, 0)
+            label:SetTextColor(unpack(C.textBright))
+        else
+            track:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 1.0)
+            knob:SetColorTexture(unpack(off and C.textGhost or C.textDim))
+            knob:SetPoint("LEFT", track, "LEFT", 2, 0)
+            label:SetTextColor(unpack(off and C.textDim or C.textMuted))
+        end
+        if hint then
+            hint:SetText((off and opts.disabledHint) or opts.description or "")
+            FitHeight()
+        end
+    end
+
+    row:SetScript("OnEnter", function(self)
+        if Disabled() then return end
+        hover:SetColorTexture(1, 1, 1, 0.03)
+    end)
+    row:SetScript("OnLeave", function() hover:SetColorTexture(1, 1, 1, 0) end)
+    row:SetScript("OnClick", function(self)
+        if Disabled() then return end
+        local nextValue = not (opts.get and opts.get())
+        if opts.set then opts.set(nextValue) end
+        self:Sync()
+        if opts.onChange then opts.onChange(nextValue) end
+    end)
+
+    row:Sync()
+    return row
+end
+
+--------------------------------------------------
+-- Regler
+--------------------------------------------------
+-- opts: { label=, min=, max=, step=, get=, set=, format=function(v) end,
+--         width= }
+--
+-- `set` bekommt den Wert schon gerastert; `format` liefert die Beschriftung
+-- rechts. Der Regler schreibt bei jeder Bewegung - eine Fensterskalierung,
+-- die erst beim Loslassen greift, laesst sich nicht einstellen, weil man
+-- waehrend des Ziehens nicht sieht, was man tut.
+--------------------------------------------------
+
+function WeintCodex.CreateSlider(parent, opts)
+    opts = opts or {}
+    local minV  = opts.min or 0
+    local maxV  = opts.max or 1
+    local step  = opts.step or 0.05
+
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(opts.height or 46)
+
+    local label = row:CreateFontString(nil, "OVERLAY")
+    label:SetFont(F.sans, 13, "")
+    label:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -2)
+    label:SetTextColor(unpack(C.textMuted))
+    label:SetText(opts.label or "")
+
+    local value = row:CreateFontString(nil, "OVERLAY")
+    value:SetFont(F.monoMedium, 11, "")
+    value:SetPoint("TOPRIGHT", row, "TOPRIGHT", -2, -2)
+    value:SetTextColor(unpack(C.textNormal))
+
+    local slider = CreateFrame("Slider", nil, row)
+    slider:SetOrientation("HORIZONTAL")
+    slider:EnableMouse(true)
+    slider:SetHeight(16)
+    slider:SetPoint("BOTTOMLEFT",  row, "BOTTOMLEFT",  0, 4)
+    slider:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 4)
+    slider:SetMinMaxValues(minV, maxV)
+    slider:SetValueStep(step)
+    if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
+
+    local track = slider:CreateTexture(nil, "ARTWORK")
+    track:SetHeight(4)
+    track:SetPoint("LEFT",  slider, "LEFT",  0, 0)
+    track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
+    track:SetColorTexture(unpack(C.surface3))
+
+    local fill = slider:CreateTexture(nil, "OVERLAY")
+    fill:SetHeight(4)
+    fill:SetPoint("LEFT", track, "LEFT", 0, 0)
+    fill:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.85)
+
+    local thumb = slider:CreateTexture(nil, "OVERLAY")
+    thumb:SetTexture(WHITE)
+    thumb:SetVertexColor(unpack(C.accentBright))
+    thumb:SetSize(10, 14)
+    slider:SetThumbTexture(thumb)
+
+    local function Snap(v)
+        v = math.max(minV, math.min(maxV, tonumber(v) or minV))
+        return math.floor((v - minV) / step + 0.5) * step + minV
+    end
+
+    -- Der eingefaerbte Teil der Bahn haengt an der Breite, und die steht bei
+    -- einem beidseitig verankerten Regler beim Bauen noch nicht fest. Deshalb
+    -- eine eigene Funktion, die auch aus OnSizeChanged heraus laeuft - sonst
+    -- bliebe die Fuellung bis zur ersten Bewegung des Reglers leer.
+    local current = minV
+    local function Paint(v)
+        current = v
+        value:SetText(opts.format and opts.format(v) or tostring(v))
+        local w = slider:GetWidth() or 0
+        fill:SetWidth(w > 1 and math.max(1, w * (v - minV) / (maxV - minV)) or 1)
+        if v > minV then fill:Show() else fill:Hide() end
+    end
+
+    row.Sync = function()
+        local v = Snap(opts.get and opts.get() or minV)
+        slider:SetValue(v)
+        Paint(v)
+    end
+
+    slider:SetScript("OnValueChanged", function(_, raw)
+        local v = Snap(raw)
+        Paint(v)
+        if opts.set then opts.set(v) end
+    end)
+    slider:SetScript("OnSizeChanged", function() Paint(current) end)
+
+    row._slider = slider
+    row:SetScript("OnShow", function(self) self.Sync() end)
+    row.Sync()
+    return row
+end
+
+--------------------------------------------------
 -- Fortschrittsbalken
 --------------------------------------------------
 
@@ -1130,7 +1350,10 @@ WeintCodex.Metrics = {
 local frame = CreateFrame("Frame", "WeintCodexMainFrame", UIParent)
 frame:SetSize(FRAME_W, FRAME_H)
 frame:SetPoint("CENTER")
-frame:SetFrameStrata("FULLSCREEN_DIALOG")
+-- Ebene und ESC-Verhalten kommen aus den SavedData und werden von
+-- ApplyWindowBehaviour() gesetzt (siehe unten). Der Anfangswert hier ist nur
+-- der, mit dem das Fenster bis zum ADDON_LOADED dasteht.
+frame:SetFrameStrata("HIGH")
 frame:SetToplevel(true)
 frame:SetMovable(true)
 frame:EnableMouse(true)
@@ -1159,6 +1382,76 @@ local function ApplySavedWindow()
         if w.scale  then frame:SetScale(w.scale)    end
     end
 end
+
+--------------------------------------------------
+-- Fensterverhalten: ESC und Ebene
+--------------------------------------------------
+-- Bis 2.5.0.0 lag das Hauptfenster fest auf FULLSCREEN_DIALOG und stand damit
+-- ueber allem, was der Client sonst oeffnet - Taschen, Charakterbogen,
+-- Handelsfenster, sogar ueber Blizzards eigenen Bestaetigungsdialogen. Und es
+-- reagierte auf ESC nicht, weil dafuer der GLOBALE Name des Frames in
+-- UISpecialFrames stehen muss; er existiert ("WeintCodexMainFrame"), war dort
+-- aber nie eingetragen. Beides zusammen ergab ein Fenster, das man nur ueber
+-- sein eigenes Kreuz wieder loswird und das solange jede andere Oberflaeche
+-- verdeckt.
+--
+-- Beides ist jetzt einstellbar und steht in SavedData.window:
+--   escClose - ESC schliesst das Fenster (Vorgabe an)
+--   topmost  - Fenster ueber allen anderen halten (Vorgabe aus)
+--
+-- Die Vorgabeebene ist HIGH: darueber liegen die Dialoge des Clients (DIALOG,
+-- FULLSCREEN_DIALOG), darunter die Weltfenster. Das Suchergebnis-Feld bleibt
+-- auf DIALOG und damit ueber dem eigenen Fenster - das ist auch der Grund,
+-- warum es hier nicht mitgezogen wird.
+--
+-- UISpecialFrames traegt Namen, keine Frames: der Eintrag muss deshalb per
+-- Zeichenkette gesucht und entfernt werden, und er darf nur EINMAL drinstehen
+-- (CloseSpecialWindows laeuft die Liste sonst zweimal ueber denselben Frame).
+--------------------------------------------------
+
+local ESC_FRAME_NAME = "WeintCodexMainFrame"
+
+local function SetEscapeClose(enabled)
+    local list = _G.UISpecialFrames
+    if type(list) ~= "table" then return end
+
+    for i = #list, 1, -1 do
+        if list[i] == ESC_FRAME_NAME then table.remove(list, i) end
+    end
+    if enabled then
+        table.insert(list, ESC_FRAME_NAME)
+    end
+end
+
+-- Vorgabewerte an einer Stelle, damit Einstellungsseite und Fenster
+-- dieselbe Antwort geben, solange noch nichts gespeichert wurde.
+function WeintCodex.WindowBehaviour()
+    local w = (WeintCodex.SavedData and WeintCodex.SavedData.window) or {}
+    local esc = w.escClose
+    if esc == nil then esc = true end
+    return (esc and true or false), (w.topmost and true or false)
+end
+
+function WeintCodex.ApplyWindowBehaviour()
+    local esc, topmost = WeintCodex.WindowBehaviour()
+    frame:SetFrameStrata(topmost and "FULLSCREEN_DIALOG" or "HIGH")
+    SetEscapeClose(esc)
+end
+
+-- Vorgabegroesse zurueckholen. Die Zahlen stehen nur hier, damit ein
+-- geaenderter Entwurf sie nicht an zwei Stellen braucht.
+function WeintCodex.ResetWindowSize()
+    local w = WeintCodex.SavedData and WeintCodex.SavedData.window
+    if not w then return end
+    w.width, w.height, w.scale = FRAME_W, FRAME_H, 1.0
+    ApplySavedWindow()
+end
+
+WeintCodex.WindowLimits = {
+    minW = FRAME_MIN_W, maxW = FRAME_MAX_W,
+    minH = FRAME_MIN_H, maxH = FRAME_MAX_H,
+    defW = FRAME_W,     defH = FRAME_H,
+}
 
 --------------------------------------------------
 -- Titelleiste

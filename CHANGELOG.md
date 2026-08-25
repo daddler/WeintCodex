@@ -2,6 +2,34 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.6.0.0] – 2026-08-25
+
+### Neu
+- **Ein Einstellungsbereich im Addon — jede Option als Schalter statt als Befehl.** Bis hierher gab es für keine einzige Einstellung dieses Addons eine Schaltfläche. Ob der Ausrüstungs-Alarm überhaupt meldet, ob er einen Ton spielt, ob sich der Rotationshelfer an der Puppe von selbst öffnet, ob das Minimap-Symbol da ist — all das hing an `/wc alarm ton`, an einem Fenster, das man erst öffnen musste, um es abschalten zu können, oder an gar nichts. Ein Slash-Befehl ist die Bedienung für den, der ihn schon kennt; wer ihn nicht kennt, erfährt nie, dass es die Einstellung gibt. Neuer Navigationspunkt *System › Einstellungen* mit fünf Seiten: **Fenster & Ansicht**, **Ausrüstungs-Alarm**, **Rotationshelfer**, **Diagnose** und **Zugriff & Daten**
+- **Zu jedem Slash-Befehl gibt es jetzt einen Knopf.** `/wc alarm an|aus|ton|erinnern|erneut|jetzt|test|bewegen|berufe`, `/wc training|stop|check|id`, `/wc vz`, `/wc vz zeilen`, `/wc sockel`, `/wc access`, `/wc access reset`, `/wc tour` — alle bleiben bestehen (im Raid ist der Befehl der schnellere Weg), aber keiner ist mehr die einzige Bedienung. Der Tooltip jedes Knopfes nennt den zugehörigen Befehl, damit die Seite auch der Ort ist, an dem man ihn kennenlernt
+- **`/wc einstellungen`** (auch `/wc optionen`) öffnet die Seite — der einzige Befehl, den man sich noch merken müsste
+- **Schalter und Regler als Bausteine** (`WeintCodex.CreateToggle`, `WeintCodex.CreateSlider` in `core/ui.lua`). Beides gab es vorher nur als Eigenbau im Rotationshelfer, weil sonst nirgends etwas umzuschalten war. Ein Schalter hält **keinen** eigenen Stand: er liest über `get` und schreibt über `set`, die Wahrheit bleibt in den SavedData des jeweiligen Moduls
+- **Zwei Einstellungen zum Fensterverhalten**, die es vorher nicht gab: *Mit Esc schließen* und *Über allen anderen Fenstern halten*
+- **Fenstergröße als Regler** (70 – 120 %) samt *Größe zurücksetzen*. Die Skalierung stand bisher nur in den SavedData
+
+### Behoben
+- **Das Hauptfenster ließ sich nicht mit Esc schließen.** Dafür muss der *globale* Name des Frames in `UISpecialFrames` stehen; er existiert seit jeher (`WeintCodexMainFrame`), war dort aber nie eingetragen. Jetzt ist er es — abschaltbar, falls jemand es anders will
+- **Das Hauptfenster lag über allem, was der Client sonst öffnet.** Es stand fest auf `FULLSCREEN_DIALOG` und damit über Taschen, Charakterbogen, Handelsfenster und selbst über Blizzards eigenen Bestätigungsdialogen. Zusammen mit dem fehlenden Esc ergab das ein Fenster, das man nur über sein eigenes Kreuz wieder loswird und das solange jede andere Oberfläche verdeckt. Vorgabe ist jetzt `HIGH`: darüber liegen die Dialoge des Spiels, darunter die Weltfenster — und wer es anders will, schaltet es an
+- **`/wc alarm test` lief mit einem Lua-Fehler auf, wenn gerade nichts offen war.** Der erfundene Ersatzbefund trug kein `perks`-Feld, und `Headline()` liest bei genau einem Eintrag `#e.perks`. Der Fehler traf also ausgerechnet den Fall, für den die Testmeldung da ist: einen Charakter ohne echten Befund. Die Beispielzeile hat jetzt dieselbe Form wie eine echte
+
+### Geändert
+- **Die fünf Schalter des Rotationshelfers stehen an beiden Stellen** — im Helferfenster wie bisher und zusätzlich in den Einstellungen. Sie lesen und schreiben denselben Speicher, und wer an einer Stelle umschaltet, sieht es sofort an der anderen. Dasselbe für den Ausrüstungs-Alarm: ein Slash-Befehl bei offener Einstellungsseite zieht die Schalter nach
+- **Der Spalten-Umschalter der Bossnotizen ist auch eine Einstellung** (*Notizen zweispaltig*). Derselbe Speicher wie der Umschalter in der Kopfzeile des Notizfeldes; das Zusammenführen von Spalte 2 nach Spalte 1 übernimmt weiterhin das Feld selbst beim nächsten Aufbau
+- `GA.Command` ruft nur noch die neue API auf (`GA.SetOption`, `GA.CheckNow`, `GA.ForgetAcks`, `GA.ResetPosition`, `GA.ShowTest`), damit Schalter und Befehl nicht zwei Wege durch denselben Zustand nehmen
+
+### Technisch
+- `WeintCodex.ApplyWindowBehaviour()` / `WeintCodex.WindowBehaviour()` in `core/ui.lua` sind die eine Stelle für Ebene und Esc. `UISpecialFrames` trägt **Namen**, keine Frames: der Eintrag wird per Zeichenkette gesucht und entfernt, und er darf nur einmal drinstehen, sonst läuft `CloseSpecialWindows` zweimal über denselben Frame
+- Neu in `SavedData.window`: `escClose` (Vorgabe an) und `topmost` (Vorgabe aus). Beide werden ausdrücklich über `== nil` vorbelegt und nicht über `or` — sonst ließe sich `escClose` nie abschalten
+- `modules/settings.lua` baut sein Seitengerüst **einmal** und tauscht nur den Inhalt: WoW gibt Frames nie wieder frei, und ein frischer Bildlaufrahmen je Reiterklick wäre eine Sammlung, die nur wächst. Die Größe des Bildlauffelds kommt aus Ankern statt aus einer Messung — dieselbe Falle wie beim Detailbereich
+- Der Navigationseintrag trägt bewusst **kein** `feature`: eine gesperrte Einstellungsseite versperrte genau den Weg, über den man den Alarm abstellt, wenn einen die Sperre erst gestört hat
+- Die Navigationsspalte ist damit bei 676 px von 684 verfügbaren (kleinstes Fenster, abzüglich Titelleiste und Kontozeile). Die Rechnung steht als Kommentar über der `tabs`-Tabelle — der nächste Eintrag passt nicht mehr ohne Bildlauf
+- Neue APIs: `GA.GetOption/SetOption/AckCount/CheckNow/ForgetAcks/ResetPosition/ShowTest`, `RotationTrainer.GetOption/SetOption/IsShown/ClearMuted`, `Minimap.IsShown/SetShown`, `Navigation.ActivateIndex`
+
 ## [2.5.0.0] – 2026-08-25
 
 ### Behoben

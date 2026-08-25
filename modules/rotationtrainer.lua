@@ -1522,6 +1522,53 @@ function WeintCodex.RotationTrainer.PrintCheck()
     RE.PrintDiagnostics(currentSpecKey)
 end
 
+-- Die fuenf Schalter des Fensters auch von aussen: bis 2.5.0.0 waren sie
+-- nur ueber die Einstellungsseite IM Trainerfenster erreichbar, das sich
+-- wiederum nur an einer Trainingspuppe oder ueber "/wc training" oeffnet.
+-- Wer den Helfer abschalten wollte, musste ihn dafuer erst aufmachen.
+-- Gelesen und geschrieben wird derselbe Speicher wie dort - eine zweite
+-- Wahrheit daneben gaebe es nicht zu gewinnen.
+function WeintCodex.RotationTrainer.GetOption(key)
+    if DEFAULT_SETTINGS[key] == nil then return nil end
+    return Settings()[key] and true or false
+end
+
+function WeintCodex.RotationTrainer.SetOption(key, value)
+    if DEFAULT_SETTINGS[key] == nil then return end
+    Settings()[key] = value and true or false
+    -- Die Schalter im Trainerfenster lesen ihren Zustand nur beim Aufbau der
+    -- Seite. Steht das Fenster offen, waehrend jemand nebenan im Hauptfenster
+    -- umschaltet, zeigte es sonst den alten Stand.
+    if optionsPanel and optionsPanel.toggles then
+        for _, toggle in ipairs(optionsPanel.toggles) do toggle.Sync() end
+    end
+    -- Und umgekehrt: die Einstellungsseite fuehrt dieselben fuenf Schalter.
+    if WeintCodex.Settings and WeintCodex.Settings.Refresh then
+        WeintCodex.Settings.Refresh()
+    end
+    WeintCodex.RotationTrainer.Refresh()
+end
+
+function WeintCodex.RotationTrainer.IsShown()
+    return frame and frame:IsShown() and true or false
+end
+
+-- Stummgeschaltete Zeilen der aktuellen Spec wieder hoerbar machen.
+-- Gibt zurueck, wie viele es waren, damit der Aufrufer das sagen kann,
+-- statt eine Zahl zu behaupten.
+function WeintCodex.RotationTrainer.ClearMuted()
+    RefreshSpec()
+    local muted = MutedFor(currentSpecKey)
+    if not muted then return 0 end
+    local n = 0
+    for key in pairs(muted) do
+        muted[key] = nil
+        n = n + 1
+    end
+    WeintCodex.RotationTrainer.Refresh()
+    return n
+end
+
 -- Für "/wc training" auf einem unbekannten Ziel: meldet die NPC-ID,
 -- damit DUMMY_NPC_IDS ergänzt werden kann.
 function WeintCodex.RotationTrainer.PrintTargetId()

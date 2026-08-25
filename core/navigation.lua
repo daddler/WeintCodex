@@ -45,7 +45,20 @@ local tabs = {
       group = "Gilde", feature = "materials.view" },
     { id = "weakauras",  icon = ICON_PATH .. "nav_weakauras",  label = "WeakAuras" },
     { id = "import",     icon = ICON_PATH .. "nav_import",     label = "Import" },
+
+    -- Bewusst OHNE feature: die Einstellungen sind die Bedienung des Addons
+    -- selbst, keine gildeninterne Lieferung. Eine gesperrte Einstellungsseite
+    -- wuerde ausserdem genau den Weg versperren, ueber den man den Alarm
+    -- abstellt, wenn einen die Sperre erst gestoert hat.
+    { id = "settings",   icon = ICON_PATH .. "nav_einstellungen", label = "Einstellungen",
+      group = "System" },
 }
+
+-- Hoehenrechnung der Spalte, damit der naechste Eintrag nicht still unter der
+-- Kontozeile am Fuss verschwindet: 12 Innenabstand + 4x40 Gruppenkopf +
+-- 12x42 Eintrag = 676. Zur Verfuegung stehen bei kleinstem Fenster
+-- 780 - 40 (Titelleiste) - 56 (Kontozeile) = 684. Wer hier etwas ergaenzt,
+-- rechnet also nach oder gibt der Spalte einen Bildlauf.
 
 -- tabId -> Feature, einzige Quelle bleibt die tabs-Tabelle oben.
 local tabFeature = {}
@@ -578,6 +591,17 @@ function WeintCodex.Navigation.ActivateFirst()
     if sidebarItems[1] then
         sidebarItems[1]:Click()
     end
+end
+
+-- Wie ActivateFirst, nur auf einen bestimmten Eintrag. Gebraucht von Seiten,
+-- die beim Wiederbetreten dort weitermachen wollen, wo man aufgehoert hat -
+-- ein Tabwechsel wirft die Unternavigation neu auf, und ohne das spraenge
+-- z.B. die Einstellungsseite nach jedem Abstecher auf ihren ersten Reiter
+-- zurueck. Faellt auf den ersten Eintrag zurueck, wenn es den gesuchten
+-- nicht gibt.
+function WeintCodex.Navigation.ActivateIndex(index)
+    local btn = sidebarItems[index] or sidebarItems[1]
+    if btn then btn:Click() end
 end
 
 --------------------------------------------------
@@ -1664,6 +1688,10 @@ function WeintCodex.Navigation.SwitchTo(tabId)
     elseif tabId == "import" then
         if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
             WeintCodex.Sync.ShowImportDialog()
+        end
+    elseif tabId == "settings" then
+        if WeintCodex.Settings and WeintCodex.Settings.Show then
+            WeintCodex.Settings.Show()
         end
     end
 end

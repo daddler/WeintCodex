@@ -198,3 +198,39 @@ if not WeintCodex.MainFrame then
                                 )
 
                                 end)
+
+----------------------------------------------------------
+-- Sichtbarkeit
+----------------------------------------------------------
+-- LibDBIcon fuehrt den Zustand in derselben Tabelle, die es bei der
+-- Registrierung bekommen hat (`hide`), verlaesst sich aber darauf, dass
+-- Show/Hide ueber die Bibliothek laufen - das blosse Umsetzen des Feldes
+-- greift erst beim naechsten Login. Deshalb beides zusammen.
+--
+-- Vor PLAYER_LOGIN ist der Knopf noch nicht registriert; das Feld wird dann
+-- trotzdem geschrieben, und die Registrierung liest es kurz darauf.
+----------------------------------------------------------
+
+function WeintCodex.Minimap.IsShown()
+
+    return not GetDB().hide
+
+end
+
+function WeintCodex.Minimap.SetShown(shown)
+
+    local db = GetDB()
+
+    db.hide = not shown
+
+    if DBIcon.IsRegistered and not DBIcon:IsRegistered("WeintCodex") then
+        return
+    end
+
+    if shown then
+        DBIcon:Show("WeintCodex")
+    else
+        DBIcon:Hide("WeintCodex")
+    end
+
+end

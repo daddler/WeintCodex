@@ -1525,6 +1525,21 @@ function GA.PrintProfessions()
     end
 end
 
+-- Erfundener Befund fuer Testmeldung und Ziehmodus. Die Form muss exakt
+-- der von Collect() entsprechen - Headline() liest `#e.perks`, und ein
+-- Eintrag ohne dieses Feld liess "/wc alarm test" auf einem Charakter ohne
+-- echten Befund mit einem Lua-Fehler auflaufen (genau dann also, wenn man
+-- die Testmeldung ueberhaupt braucht).
+local function SampleEntry(slotId, slotName, enchant, sockets)
+    return {
+        slotId  = slotId, slotName = slotName, link = nil,
+        enchant = enchant and true or false,
+        sockets = sockets or 0,
+        buckle  = false,
+        perks   = {},
+    }
+end
+
 -- Beispielmeldung mit den eigenen Daten, sonst mit erfundenen. Sie
 -- laesst sich im Ziehmodus verschieben und quittiert beim Klick
 -- nichts - der Befund darin kann erfunden sein.
@@ -1532,11 +1547,82 @@ function GA.ShowMover()
     local entries = Collect()
     if not entries or #entries == 0 then
         entries = {
-            { slotId = 9,  slotName = "Handgelenke", enchant = true,  sockets = 0 },
-            { slotId = 10, slotName = "Hände",       enchant = false, sockets = 1 },
+            SampleEntry(9,  "Handgelenke", true,  0),
+            SampleEntry(10, "Hände",       false, 1),
         }
     end
     moveMode = true
+    GA.Show(entries, "manual")
+end
+
+--------------------------------------------------
+-- Einstellungen und Aktionen als API
+--------------------------------------------------
+-- Dieselben Handgriffe, die "/wc alarm ..." ausloest - nur ohne den Umweg
+-- ueber eine Befehlszeichenkette. Die Einstellungsseite (modules/settings.lua)
+-- liest und schreibt darueber; GA.Command ruft ab 2.6.0.0 ebenfalls nur noch
+-- diese Funktionen auf, damit Schalter und Befehl nicht zwei Wege durch
+-- denselben Zustand nehmen.
+--------------------------------------------------
+
+-- Erlaubte Schluessel: enabled, sound, restReminder. Bewusst kein freier
+-- Durchgriff auf den ganzen Speicher - `acked` und `pos` sind kein Schalter.
+local OPTION_KEYS = { enabled = true, sound = true, restReminder = true }
+
+function GA.GetOption(key)
+    if not OPTION_KEYS[key] then return nil end
+    return Store()[key] and true or false
+end
+
+function GA.SetOption(key, value)
+    if not OPTION_KEYS[key] then return end
+    local s = Store()
+    s[key] = value and true or false
+    -- Ausschalten heisst auch: eine stehende Meldung geht weg. Sonst bliebe
+    -- genau die Flaeche stehen, die man gerade abgeschaltet hat.
+    if key == "enabled" and not s.enabled then GA.Hide() end
+end
+
+-- Zahl der weggeklickten Befunde - die Einstellungsseite beschriftet damit
+-- ihre Schaltflaeche, statt eine Zahl zu behaupten, die niemand nachsieht.
+function GA.AckCount()
+    local n = 0
+    for _ in pairs(Store().acked or {}) do n = n + 1 end
+    return n
+end
+
+function GA.CheckNow()
+    retries = 0
+    RunCheck("manual", nil)
+end
+
+-- Der Rueckweg fuer alles Weggeklickte. Ohne ihn waere eine einmal
+-- quittierte Luecke fuer immer stumm, und die einzige Abhilfe stuende in
+-- den SavedData.
+function GA.ForgetAcks()
+    local s = Store()
+    local n = GA.AckCount()
+    s.acked = {}
+    -- Die Kostenbremse gleich mit, sonst bliebe es bis zu fuenf Minuten
+    -- still, obwohl man gerade um die Meldung gebeten hat.
+    lastAmbient = 0
+    retries = 0
+    RunCheck("manual", nil)
+    return n
+end
+
+function GA.ResetPosition()
+    Store().pos = nil
+    if frame then RestorePosition() end
+end
+
+-- Beispielmeldung mit den eigenen Daten, sonst mit einer erfundenen Zeile.
+function GA.ShowTest()
+    local entries = Collect()
+    if not entries or #entries == 0 then
+        entries = { SampleEntry(9, "Handgelenke", true, 0) }
+    end
+    moveMode = false
     GA.Show(entries, "manual")
 end
 
@@ -1544,32 +1630,24 @@ function GA.Command(rest)
     local s = Store()
 
     if rest == "an" or rest == "ein" or rest == "on" then
-        s.enabled = true
+        GA.SetOption("enabled", true)
         GA.PrintStatus()
 
     elseif rest == "aus" or rest == "off" then
-        s.enabled = false
-        GA.Hide()
+        GA.SetOption("enabled", false)
         GA.PrintStatus()
 
     elseif rest == "ton" or rest == "sound" then
-        s.sound = not s.sound
+        GA.SetOption("sound", not s.sound)
         GA.PrintStatus()
 
     elseif rest == "ruhe" or rest == "ruhebereich"
            or rest == "erinnern" or rest == "erinnerung" then
-        s.restReminder = not s.restReminder
+        GA.SetOption("restReminder", not s.restReminder)
         GA.PrintStatus()
 
     elseif rest == "test" then
-        local entries = Collect()
-        if not entries or #entries == 0 then
-            entries = {
-                { slotId = 9, slotName = "Handgelenke", enchant = true, sockets = 0 },
-            }
-        end
-        moveMode = false
-        GA.Show(entries, "manual")
+        GA.ShowTest()
 
     elseif rest == "berufe" or rest == "beruf" then
         GA.PrintProfessions()
@@ -1578,29 +1656,24 @@ function GA.Command(rest)
         GA.ShowMover()
 
     elseif rest == "zuruecksetzen" or rest == "zurücksetzen" then
-        s.pos = nil
-        if frame then RestorePosition() end
+        GA.ResetPosition()
         Say("Position des Ausrüstungs-Alarms zurückgesetzt.")
 
     elseif rest == "erneut" or rest == "wieder" or rest == "reset" then
-        -- Der Rueckweg fuer alles Weggeklickte. Ohne ihn waere eine
-        -- einmal quittierte Luecke fuer immer stumm, und die einzige
-        -- Abhilfe stuende in den SavedData.
-        local n = 0
-        for _ in pairs(s.acked or {}) do n = n + 1 end
-        s.acked = {}
-        -- Die Kostenbremse gleich mit, sonst bliebe es bis zu fünf
-        -- Minuten still, obwohl man gerade um die Meldung gebeten hat.
-        lastAmbient = 0
+        local n = GA.ForgetAcks()
         Say(n .. " weggeklickte Befund(e) vergessen - sie melden sich wieder.")
-        retries = 0
-        RunCheck("manual", nil)
 
     elseif rest == "jetzt" or rest == "pruefen" or rest == "prüfen" then
-        retries = 0
-        RunCheck("manual", nil)
+        GA.CheckNow()
 
     else
         GA.PrintStatus()
+    end
+
+    -- Steht die Einstellungsseite gerade offen, zeigen ihre Schalter sonst
+    -- den Stand von vor dem Befehl. Dieselbe Ueberlegung wie beim
+    -- Schalterabgleich in modules/rotationtrainer.lua.
+    if WeintCodex.Settings and WeintCodex.Settings.Refresh then
+        WeintCodex.Settings.Refresh()
     end
 end

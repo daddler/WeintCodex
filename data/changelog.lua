@@ -7,6 +7,18 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.0.0",
+        date    = "25.08.2026",
+        notes   = {
+            "Neu: ein Einstellungsbereich im Addon (|cffD4A24A/wc einstellungen|r oder System > Einstellungen in der Navigation). Bis jetzt gab es fuer keine einzige Option dieses Addons eine Schaltflaeche - ob der Ausruestungs-Alarm meldet, ob er einen Ton spielt, ob sich der Rotationshelfer an der Puppe oeffnet: alles hing an einem Slash-Befehl, den man kennen musste.",
+            "Zu jedem Befehl gibt es jetzt einen Knopf: Alarm an/aus, Ton, Erinnerungen, Weggeklicktes vergessen, Testmeldung, Meldung verschieben - dazu die fuenf Schalter des Rotationshelfers, die Diagnoseausgaben und das Zugriffsprofil. Die Befehle bleiben alle bestehen, und jeder Tooltip nennt seinen.",
+            "Das Hauptfenster laesst sich jetzt mit Esc schliessen. Dafuer muss der Name des Fensters in einer Liste des Spiels stehen - er war dort nie eingetragen.",
+            "Und es draengt sich nicht mehr vor: bisher lag es fest ueber Taschen, Charakterbogen und selbst ueber den Dialogen des Spiels. Beides ist abschaltbar, falls jemand es anders will.",
+            "Neu dazu: die Fenstergroesse als Regler (70-120 %) mit einem Knopf zum Zuruecksetzen, ein Schalter fuer das Minimap-Symbol und einer fuer zweispaltige Bossnotizen.",
+            "Behoben: |cffD4A24A/wc alarm test|r lief mit einem Fehler auf, wenn gerade gar nichts offen war - also genau in dem Fall, fuer den die Testmeldung da ist.",
+        },
+    },
+    {
         version = "2.5.0.0",
         date    = "25.08.2026",
         notes   = {
