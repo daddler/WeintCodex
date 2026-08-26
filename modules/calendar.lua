@@ -122,7 +122,12 @@ end
 local WATCH_TICK  = 0.5
 
 -- Takte ohne Zuwachs, nach denen der Stand als stehend gilt.
-local WATCH_STALL = 16
+--
+-- Vier Sekunden: /wc kalender am gemeldeten Fall hat gezeigt, dass vom
+-- ersten Schwung genau EINE Einladung ankommt, und laenger auf die
+-- uebrigen 24 zu warten kostet nur Zeit. Kommt dagegen wirklich noch
+-- etwas nach, setzt jeder Zuwachs den Zaehler zurueck.
+local WATCH_STALL = 8
 
 -- Harte Obergrenze, damit ein Entwurf nicht ewig pollt. Der Ablauf
 -- oben endet weit vorher; das hier ist der Riegel, nicht die Regel.
@@ -130,6 +135,13 @@ local WATCH_MAX   = 400
 
 -- Wie oft ein offener Name einzeln nachgefasst wird.
 local RESEND_ROUNDS = 2
+
+-- Wie lange auf die Antwort EINER Nachfrage gewartet wird, bevor die
+-- naechste rausgeht. Kommt sie frueher, geht die naechste sofort raus -
+-- der Lauf taktet sich damit am Server und nicht an einer geratenen
+-- Zahl. Ohne diese Selbsttaktung waere ein fester Abstand entweder zu
+-- kurz (dann faellt wieder die Haelfte weg) oder zu lang.
+local RESEND_GAP = 4
 
 --------------------------------------------------
 -- Einzeln nachfassen
@@ -141,9 +153,23 @@ local RESEND_ROUNDS = 2
 -- hinterherkommt, faellt weg. Sichtbar war das als "2 von 25
 -- bestaetigt" - der Ersteller und der erste Name.
 --
--- Nachgefasst wird deshalb einer je Takt, und erst dann, wenn der
--- Stand steht. Waehrend noch Bestaetigungen eintrudeln, waere ein
--- zweiter Anlauf nur zusaetzlicher Verkehr auf derselben Leitung.
+-- Belegt ist das inzwischen: /wc kalender zeigte am gemeldeten Fall,
+-- dass die Schreibweisen stimmen (Cynsaria steht auf OokOok und wurde
+-- als nacktes "Cynsaria" angefragt, Feritas-Everlook wurde sogar
+-- realmfremd aufgeloest) - angekommen ist trotzdem nur die erste
+-- Anfrage. Es liegt also nicht an den Namen, sondern am Durchsatz.
+--
+-- Nachgefasst wird deshalb einzeln, und immer nur EINE Anfrage
+-- gleichzeitig: die naechste geht raus, sobald die vorige bestaetigt
+-- ist (oder RESEND_GAP Takte ohne Antwort vergangen sind). Erst dann,
+-- wenn der Stand steht - waehrend noch Bestaetigungen eintrudeln,
+-- waere ein zweiter Anlauf nur zusaetzlicher Verkehr auf derselben
+-- Leitung.
+--
+-- Zurueck kommen zwei Werte: was geschickt wurde, und unter welchem
+-- Namen es in der Liste der offenen Zeilen steht. Die beiden koennen
+-- sich unterscheiden, sobald die zweite Runde die andere Schreibweise
+-- nimmt, und gewartet wird auf den zweiten.
 --
 -- Geht der Aufruf gar nicht mehr durch, wird nicht weiter
 -- nachgefasst: einmal ist ein Fehlschlag eine Information, fuenfzigmal
@@ -187,7 +213,7 @@ local function ResendOneInvite(draft, missing)
                         return nil
                     end
 
-                    return send
+                    return send, name
                 end
             end
         end
@@ -1071,7 +1097,8 @@ local function CreateCalendarFrame()
         draft.sinceSend = (draft.sinceSend or WATCH_STALL) + 1
 
         --
-        -- Steht der Stand, wird einzeln nachgefasst - einer je Takt.
+        -- Steht der Stand, wird einzeln nachgefasst - und immer nur
+        -- EINE Anfrage gleichzeitig.
         --
         -- Gestartet wird damit erst, wenn nichts mehr nachkommt; ist es
         -- aber einmal gestartet, laeuft es durch. Sonst legte jede
@@ -1079,19 +1106,47 @@ local function CreateCalendarFrame()
         -- Takte still, und bei zwanzig offenen Namen zoege sich der
         -- Lauf auf Minuten - waehrend der Raidlead davorsitzt.
         --
+        local open = {}
+
+        for _, name in ipairs(missing) do
+            open[name] = true
+        end
+
+        -- Ist die laufende Nachfrage beantwortet, geht die naechste
+        -- sofort raus; sonst wird ihr RESEND_GAP Takte Zeit gelassen.
+        -- Danach gilt sie als unbeantwortet - ein Name, den es nicht
+        -- gibt, wird nie bestaetigt und darf den Rest nicht aufhalten.
+        if draft.pendingKey then
+            if not open[draft.pendingKey] then
+                draft.pendingKey = nil
+            else
+                draft.pendingTicks = (draft.pendingTicks or 0) + 1
+
+                if draft.pendingTicks >= RESEND_GAP then
+                    draft.pendingKey = nil
+                end
+            end
+        end
+
         local resent
 
-        if draft.resendCount or draft.sinceProgress >= WATCH_STALL then
-            resent = ResendOneInvite(draft, missing)
+        if not draft.pendingKey
+           and (draft.resendCount or draft.sinceProgress >= WATCH_STALL) then
 
-            if resent then
-                draft.sinceSend = 0
+            local sent, key = ResendOneInvite(draft, missing)
+
+            if sent then
+                resent             = sent
+                draft.pendingKey   = key
+                draft.pendingTicks = 0
+                draft.sinceSend    = 0
             end
         end
 
         local waiting = draft.ticks < WATCH_MAX
             and (draft.sinceProgress < WATCH_STALL
                  or draft.sinceSend < WATCH_STALL
+                 or draft.pendingKey ~= nil
                  or resent ~= nil)
 
         if waiting then
