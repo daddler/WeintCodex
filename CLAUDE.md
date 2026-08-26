@@ -44,6 +44,22 @@ python3 .github/scripts/release_notes.py v1.3.3.2
 
 `Manual Release` uses its output whenever the `notes` input is empty; `Pack and Attach` fills an empty body of an already-published release from the same source and leaves a non-empty one alone.
 
+##### Patchnotes werden für Spieler geschrieben, nicht für dieses Repository
+
+**Wer sie liest, kennt keine Dateinamen.** Die Notizen dieses Addons wurden so geschrieben, wie hier gedacht wird — mit Dateinamen, Funktionsnamen, SavedVariables-Schlüsseln und Sätzen über die *Ursache* eines Fehlers statt über seine *Wirkung*. In dieser Datei ist das genau richtig. Im Update-Popup nach dem Login, im Release-Text auf GitHub und auf der Update-Karte der Companion steht dagegen ein Spieler, der wissen will, ob ihn das betrifft und was er jetzt anders sieht. „`headroom` speist jetzt auch die Treppe aus `data/breakpoints.lua`" beantwortet keine der beiden Fragen.
+
+Fünf Regeln für jeden Text, den ein Spieler zu sehen bekommt — also für `data/changelog.lua` **und** für alles oberhalb von `### Technisch` in `CHANGELOG.md`:
+
+- **Kein Dateiname, kein Funktionsname, kein SavedVariables-Schlüssel.** Slash-Befehle (`/wc tempo`), Seiten- und Knopfnamen (*Werteverteilung & Caps*, *Automatisch*) sind ausdrücklich erlaubt: sie sind Bedienung, nicht Innenleben.
+- **Wirkung vor Ursache.** Ein Eintrag beantwortet in dieser Reihenfolge: Was ging nicht (oder fehlte)? Was ist jetzt anders? Muss ich etwas tun? Die dritte Frage ist meistens mit „nein" beantwortet, und dann steht sie auch nicht da.
+- **Kurze Sätze, ein Gedanke pro Zeile.** Kein Halbsatz, der zwei Gedanken über einen Gedankenstrich verbindet, und keine Verschachtelung über drei Zeilen.
+- **Zahlen nur, wo man sie selbst sieht.** Eine Konstante, die im Spiel nirgends auftaucht, sagt niemandem etwas.
+- **Die Kurzfassung ist kurz.** `data/changelog.lua` ist das, was im Spiel gelesen wird: höchstens fünf Zeilen je Fassung, jede für sich verständlich, hervorgehoben wird nur, worauf man klicken oder tippen kann.
+
+Das Technische geht dabei **nicht** verloren, es rutscht nur nach unten: `CHANGELOG.md` ist beides, Release-Text und Nachschlagewerk für die Entwicklung, und `### Technisch` steht als letzte Überschrift eines Abschnitts. Der Prüfstein ist immer derselbe: **würde jemand, der das Addon nur spielt, nach diesem Satz wissen, ob ihn das betrifft?** Wenn nicht, gehört er unter `### Technisch`.
+
+Dieselbe Regel gilt drüben in WeintCompanion, und dort hängt seit deren 2.4.1 noch etwas daran: die Update-Karte zeigt über dem Knopf die Notizen der Fassung, die **installiert** ist, beschriftet mit ihrer Nummer. Was ein Update mitbringt, steht dort hinter *Alle Änderungen ansehen*. Für uns heißt das: der Abschnitt einer Fassung wird nach dem Release nicht mehr umgeschrieben — er ist ab dann der Text, den jeder Spieler mit dieser Fassung vor sich hat.
+
 ## Architecture
 
 ### Global namespace, no module system

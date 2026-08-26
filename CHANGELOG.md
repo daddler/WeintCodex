@@ -2,6 +2,21 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.6.2.1] – 2026-08-26
+
+**Die Änderungsnotizen sind ab jetzt einfacher geschrieben.**
+
+### Geändert
+- **Diese Liste ist für dich geschrieben, nicht für die Entwicklung.** Bisher standen hier Dateinamen, Funktionsnamen und lange Sätze über die *Ursache* eines Fehlers. Wer das Addon spielt, konnte daraus oft nicht einmal ablesen, ob ihn eine Änderung überhaupt betrifft
+- Was oben steht, sagt jetzt in dieser Reihenfolge: was nicht ging, was jetzt anders ist, und ob du etwas tun musst (meistens nichts). Kurze Sätze, ein Gedanke pro Zeile, und Zahlen nur da, wo du sie im Spiel auch siehst
+- Dasselbe gilt für die Meldung, die nach einem Update beim Einloggen aufgeht: höchstens fünf Zeilen, jede für sich verständlich
+- Das Technische ist nicht weg, es steht unten unter *Technisch*
+
+### Technisch
+- Die fünf Regeln dafür stehen in `CLAUDE.md`, im Abschnitt über das Release, und gelten wortgleich drüben in WeintCompanion
+- Ein einmal veröffentlichter Abschnitt wird nicht mehr umgeschrieben: WeintCompanion zeigt seit 2.4.1 über dem Update-Knopf die Notizen der **installierten** Fassung, beschriftet mit ihrer Nummer — der Text ist ab dem Release also das, was jeder Spieler mit dieser Fassung vor sich hat
+- Keine Änderung am Code des Addons
+
 ## [2.6.2.0] – 2026-08-26
 
 Gemeldet: „Stand jetzt wird immer noch ein Tempo-Stein vorgeschlagen, obwohl man am Cap ist." Das Addon konnte das bis hierher gar nicht wissen — es kannte genau zwei Grenzen, Trefferwertung und Waffenkunde, und Tempo war für den Planer ein Wert ohne Obergrenze.

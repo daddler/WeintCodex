@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.2.1",
+        date    = "26.08.2026",
+        notes   = {
+            "Diese Meldung ist ab jetzt |cffD4A24Aeinfacher geschrieben|r. Bisher standen hier Dateinamen und lange Saetze ueber die Ursache eines Fehlers - fuer die Entwicklung richtig, fuer dich meist nicht zu gebrauchen.",
+            "Kuenftig steht hier, was nicht ging, was jetzt anders ist und ob du etwas tun musst. Meistens musst du nichts tun.",
+            "Hoechstens fuenf Zeilen je Fassung, kurze Saetze, und Zahlen nur da, wo du sie im Spiel auch siehst.",
+            "Am Addon selbst aendert sich mit dieser Fassung nichts.",
+        },
+    },
+    {
         version = "2.6.2.0",
         date    = "26.08.2026",
         notes   = {
