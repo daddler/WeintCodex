@@ -96,6 +96,19 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
+    -- Kalender-Diagnose: was gibt der Client an Einladungsfunktionen her,
+    -- welchen Realm vergleicht das Addon, und welcher Name wuerde je
+    -- Spieler angefragt? Eigener Befehl aus demselben Grund wie
+    -- /wc sockel: "24 von 25 nicht gefunden" sieht bei einer fehlenden
+    -- Client-Funktion, einem falsch verglichenen Realm und einem
+    -- wirklich falschen Charakternamen identisch aus.
+    if verb == "kalender" or verb == "calendar" then
+        if WeintCodex.Calendar and WeintCodex.Calendar.Dump then
+            WeintCodex.Calendar.Dump()
+        end
+        return
+    end
+
     -- Sockel-Diagnose: was wurde gelesen, und was hat der Planer daraus
     -- gerechnet? Bewusst ein eigener Befehl neben /wc vz - diese
     -- Fehlerklasse (falsche Sockelreihenfolge, Bonus-Zustand, Cap-Spielraum)

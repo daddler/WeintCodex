@@ -10,6 +10,10 @@ WeintCodex_ChangelogData = {
         version = "2.6.1.0",
         date    = "26.08.2026",
         notes   = {
+            "Behoben: der Kalender-Eintrag lud niemanden ein - \"1 von 25 bestaetigt\", der Rest \"nicht gefunden\". Zwei Ursachen, beide sahen gleich aus.",
+            "Der eigene Realm wurde in der falschen Schreibweise verglichen: gespeichert wird er ohne Leerzeichen (|cffD4A24AOokOok|r), verglichen wurde gegen die Anzeigeform |cffD4A24AOok Ook|r. Auf so einem Realm ging der Vergleich nie auf - auch der Nachbar vom eigenen Realm bekam ein \"-OokOok\" angehaengt, und den kennt der Server so nicht.",
+            "Und ein fehlgeschlagener Einladungsaufruf war von einem unbekannten Namen nicht zu unterscheiden: der Rueckgabewert wurde weggeworfen. 25 stille Fehlschlaege sehen danach aus wie 25 unbekannte Charaktere - und die Meldung riet dann zur Schreibweise, also zum Falschen.",
+            "Die Meldung sagt jetzt, was wirklich los war, und |cffD4A24A/wc kalender|r zeigt, was der Client hergibt und welcher Name je Spieler angefragt wird.",
             "Der Kalender-Invite laedt jetzt die |cffD4A24Aangekuendigte Aufstellung|r ein - also genau die Gruppe, die im Announcement des Raidleads steht.",
             "Bisher lud er jeden ein, der irgendwie zugesagt hatte: die Ersatzbank und die Vorlaeufigen waren mit dabei. Die Anmeldezeile trug naemlich gar keinen Status, alle drei Faelle sahen gleich aus. Aufgefallen ist es erst am Kalender.",
             "Gibt es fuer den Tag kein Announcement, zaehlen die Zusagen - und nur die. Vorlaeufig ist keine Zusage, die Ersatzbank ausdruecklich nicht.",

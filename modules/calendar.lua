@@ -57,6 +57,54 @@ local function HasCalendarAPI()
     return C_Calendar ~= nil and C_Calendar.CreatePlayerEvent ~= nil
 end
 
+--------------------------------------------------
+-- Womit wird eigentlich eingeladen?
+--------------------------------------------------
+-- Bis 2.6.1.0 stand hier ein blankes
+--
+--     pcall(C_Calendar.EventInvite, inviteName)
+--
+-- mit einem Kommentar daneben, der erklaerte, warum der Rueckgabewert
+-- nicht zaehlt: er sage nur, dass kein Lua-Fehler auftrat, und ob der
+-- Server den Namen findet, stehe erst in der Einladungsliste. Das
+-- stimmt fuer den Fall, dass die Funktion existiert - und verschluckt
+-- genau den, in dem sie es nicht tut. `pcall` auf einen nil-Wert
+-- liefert `false, "attempt to call a nil value"` und wirft nichts;
+-- fuenfundzwanzig stille Fehlschlaege hintereinander sehen danach
+-- exakt so aus wie fuenfundzwanzig Namen, die der Server nicht kennt.
+-- Der Eintrag entsteht, der Ersteller steht allein drin, und die
+-- Meldung beschuldigt die Schreibweise der Charakternamen.
+--
+-- Dieselbe Lehre wie beim Signalton des Ausruestungs-Alarms: ein
+-- Rueckfallweg, dessen Zweige alle schweigend scheitern koennen, ist
+-- kein Rueckfallweg. Also wird die Funktion einmal aufgeloest, ihr
+-- Name gemerkt, und jeder Aufruf auf Erfolg geprueft.
+--
+-- Mehrere Namen, weil sie sich je nach Client-Stand unterscheiden und
+-- keiner davon von hier aus zu belegen ist. Gefunden wird der erste,
+-- den es wirklich gibt; gibt es keinen, ist das eine Aussage und keine
+-- Vermutung.
+local INVITE_FUNCS = {
+    { name = "C_Calendar.EventInvite",
+      get  = function() return C_Calendar and C_Calendar.EventInvite end },
+    { name = "C_Calendar.AddEventInvite",
+      get  = function() return C_Calendar and C_Calendar.AddEventInvite end },
+    { name = "C_Calendar.EventInviteByGuid",
+      get  = function() return C_Calendar and C_Calendar.EventInviteByGuid end },
+    { name = "CalendarEventInvite",
+      get  = function() return CalendarEventInvite end },
+}
+
+local function ResolveInviteFunc()
+    for _, entry in ipairs(INVITE_FUNCS) do
+        local fn = entry.get()
+        if type(fn) == "function" then
+            return fn, entry.name
+        end
+    end
+    return nil, nil
+end
+
 -- Datum-String "YYYY-MM-DD" in Teile zerlegen
 local function ParseDate(dateStr)
     if not dateStr or dateStr == "" then
@@ -77,6 +125,24 @@ end
 -- Einladungsname fuer einen Spieler bestimmen. Crossrealm (z. B.
 -- Everlook/Ook Ook): braucht "Name-Realm", sonst reicht der reine
 -- Charaktername (Realm des einladenden Spielers wird angenommen).
+--
+-- Der eigene Realm kommt aus WeintCodex.Names.Me() und NICHT aus
+-- GetRealmName(). Das ist der Unterschied zwischen "Ook Ook" und
+-- "OokOok", und er war bis 2.6.1.0 der Grund, warum keine einzige
+-- Einladung ankam: gespeichert wird der Realm ueberall ohne
+-- Leerzeichen (modules/companion.lua beim Melden der Twinks,
+-- core/names.lua beim Zerlegen), verglichen wurde er hier aber gegen
+-- die Anzeigeform des Clients - die bei jedem Realm mit Leerzeichen im
+-- Namen danebengeht. Damit bekam auch der Nachbar vom eigenen Realm
+-- ein "-OokOok" angehaengt, und "Njiah-OokOok" kennt der Server als
+-- Charakter des eigenen Realms nicht. 24 von 25 "nicht gefunden", und
+-- die Fehlermeldung riet ausgerechnet zu dem Format, das der Fehler
+-- war.
+local function MyRealm()
+    local _, realm = WeintCodex.Names.Me()
+    return realm or ""
+end
+
 local function InviteNameFor(p, myRealm)
     if p.name:find("%-") then
         -- Manuelle Korrektur wurde bereits als "Name-Realm" eingegeben
@@ -243,7 +309,14 @@ local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, pl
     players = players or {}
 
     local requested = {}
-    local myRealm   = GetRealmName() or ""
+    local myRealm   = MyRealm()
+
+    -- Nicht durchgekommene Aufrufe. Getrennt von "der Server kennt den
+    -- Namen nicht" gefuehrt, weil das zwei verschiedene Antworten sind
+    -- und zu Verschiedenem raten: das eine ist eine Schreibweise, das
+    -- andere ein Client, der die Funktion nicht hat.
+    local blocked   = {}
+    local inviteFn, inviteFnName = ResolveInviteFunc()
 
     local ok, err = pcall(function()
         C_Calendar.CreatePlayerEvent()
@@ -259,11 +332,20 @@ local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, pl
 
         for _, p in ipairs(players) do
             local inviteName = InviteNameFor(p, myRealm)
-            -- Der Rueckgabewert von pcall sagt nur, dass der Aufruf
-            -- nicht in einen Lua-Fehler gelaufen ist. Ob der Server
-            -- den Namen findet, steht erst in der Einladungsliste -
-            -- genau darum wird hier nichts mehr mitgezaehlt.
-            pcall(C_Calendar.EventInvite, inviteName)
+
+            -- Der Rueckgabewert sagt NICHT, ob der Server den Namen
+            -- findet - das steht erst in der Einladungsliste. Er sagt
+            -- aber, ob der Aufruf ueberhaupt stattgefunden hat, und
+            -- das ist die Auskunft, die hier bisher fehlte.
+            if inviteFn then
+                local sent, callErr = pcall(inviteFn, inviteName)
+                if not sent then
+                    table.insert(blocked, tostring(callErr))
+                end
+            else
+                table.insert(blocked, "keine Einladungsfunktion")
+            end
+
             table.insert(requested, inviteName)
         end
     end)
@@ -275,12 +357,18 @@ local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, pl
         return nil
     end
 
+    -- Gemeldet wird das NICHT hier: die Statuszeile gehoert ab jetzt
+    -- WatchDraft, und was hier hineingeschrieben wuerde, waere eine
+    -- Zehntelsekunde spaeter ueberschrieben. Der Befund reist deshalb
+    -- am Entwurf mit.
     return {
-        title     = title,
-        dateStr   = dateStr,
-        hour      = hour or 20,
-        minute    = minute or 0,
-        requested = requested,
+        title      = title,
+        dateStr    = dateStr,
+        hour       = hour or 20,
+        minute     = minute or 0,
+        requested  = requested,
+        blocked    = blocked,
+        inviteFn   = inviteFnName,
     }
 end
 
@@ -332,6 +420,86 @@ local function SaveIngameCalendarEvent(draft, statusCallback)
 
     return true
 end
+--------------------------------------------------
+-- /wc kalender: was gibt der Client her, und was wird angefragt?
+--------------------------------------------------
+-- Diese Fehlerklasse war von aussen nicht diagnostizierbar, und das
+-- ist der Grund, warum sie so lange stand. Die Meldung "24 von 25
+-- nicht gefunden" sieht bei drei voellig verschiedenen Ursachen
+-- identisch aus:
+--
+--   * der Client hat die Einladungsfunktion gar nicht (jeder Aufruf
+--     scheiterte still),
+--   * der eigene Realm wurde falsch verglichen, sodass auch die
+--     Nachbarn vom eigenen Realm ein "-Realm" bekamen,
+--   * die Charaktere heissen wirklich anders.
+--
+-- Dieselbe Ueberlegung wie bei /wc vz zeilen und /wc alarm berufe:
+-- gedruckt wird, was gelesen wurde, nicht das Urteil darueber.
+--------------------------------------------------
+
+function WeintCodex.Calendar.Dump()
+    local function say(line)
+        print("|cffD4A24A[WeintCodex Kalender]|r " .. line)
+    end
+
+    local _, myRealm = WeintCodex.Names.Me()
+
+    say("Realm laut Client: |cffffffff" .. tostring(GetRealmName())
+        .. "|r, zum Vergleich benutzt: |cffffffff" .. myRealm .. "|r")
+
+    local _, inviteFnName = ResolveInviteFunc()
+
+    if inviteFnName then
+        say("Einladungsfunktion: |cff33D65E" .. inviteFnName .. "|r")
+    else
+        say("|cffE56B6BKeine Einladungsfunktion gefunden.|r Gesucht wurde nach:")
+        for _, entry in ipairs(INVITE_FUNCS) do
+            say("   " .. entry.name)
+        end
+    end
+
+    local api = {}
+    for _, key in ipairs({
+        "CreatePlayerEvent", "EventSetTitle", "EventSetDate", "EventSetTime",
+        "AddEvent", "CloseEvent", "GetNumInvites", "EventGetNumInvites",
+        "EventGetInvite", "OpenCalendar",
+    }) do
+        local have = C_Calendar and type(C_Calendar[key]) == "function"
+        table.insert(api, (have and "|cff33D65E" or "|cffE56B6B") .. key .. "|r")
+    end
+    say("C_Calendar: " .. table.concat(api, ", "))
+
+    local sd = WeintCodex.SavedData
+
+    for _, key in ipairs({ "raidWednesday", "raidThursday" }) do
+        local data = sd and sd[key]
+
+        if not data or not data.players or #data.players == 0 then
+            say(key .. ": keine Anmeldungen")
+        else
+            local hasLineup = WeintCodex.Raids.HasLineup(data)
+
+            say(key .. ": " .. #data.players .. " Zeilen, Aufstellung "
+                .. (hasLineup and "angekuendigt" or "nicht angekuendigt"))
+
+            for _, p in ipairs(data.players) do
+                local invited = WeintCodex.Raids.ShouldInvite(p, hasLineup)
+
+                say(string.format(
+                    "   %-18s realm=%-12s status=%-9s lineup=%-4s -> %s %s",
+                    p.name or "?",
+                    (p.realm ~= "" and p.realm) or "-",
+                    (p.status ~= "" and p.status) or "-",
+                    (p.lineup ~= "" and p.lineup) or "-",
+                    invited and InviteNameFor(p, myRealm) or "(keine Einladung)",
+                    WeintCodex.Raids.IsResolved(p) and ""
+                        or "|cffD4A24A(kein Charaktername)|r"))
+            end
+        end
+    end
+end
+
 --------------------------------------------------
 -- Kleines Input-Feld Helper
 --------------------------------------------------
@@ -705,6 +873,33 @@ local function CreateCalendarFrame()
 
         local confirmed, missing = DraftConfirmed(f.Draft.requested)
         local total = #f.Draft.requested
+        local blocked = f.Draft.blocked or {}
+
+        --
+        -- Zuerst der Fall, der bis 2.6.1.0 als "25 unbekannte
+        -- Charaktere" durchging: nicht ein einziger Aufruf ist
+        -- durchgekommen. Dann liegt es nicht an der Schreibweise, und
+        -- auf die zu zeigen schickt den Raidlead an die falsche
+        -- Stelle. Es lohnt auch kein Warten - der Server ist gar nicht
+        -- gefragt worden.
+        --
+        if #blocked > 0 and #blocked >= total and total > 0 then
+            f.CreateBtnLbl:SetText("|cffffffff"
+                .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 16)
+                .. "  Eintrag speichern|r")
+            f.StatusText:SetText("|cffE56B6B"
+                .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14)
+                .. " Keine einzige Einladung ist abgeschickt worden.|r\n"
+                .. "|cff888888"
+                .. (f.Draft.inviteFn
+                    and (f.Draft.inviteFn .. " scheiterte: " .. blocked[1])
+                    or "Dieser Client hat keine Einladungsfunktion, die "
+                       .. "WeintCodex kennt.")
+                .. "\nSpeichern geht trotzdem; einladen dann im "
+                .. "Ingame-Kalender von Hand. /wc kalender zeigt, was "
+                .. "der Client hergibt.|r")
+            return
+        end
 
         if not confirmed then
             -- Der Client gibt die Liste nicht her. Dann bleibt nur zu
@@ -745,12 +940,21 @@ local function CreateCalendarFrame()
             return
         end
 
+        -- Der Rat hier hiess bis 2.6.1.0 "Crossrealm: Name-Realm" - und
+        -- riet damit ausgerechnet zu der Schreibweise, die das Addon
+        -- ohnehin schon anhaengt und die der eigentliche Fehler war.
+        -- Genannt wird jetzt der eigene Realm, denn daran liegt es,
+        -- wenn ein Name faelschlich qualifiziert wurde.
+        local _, myRealm = WeintCodex.Names.Me()
+
         f.StatusText:SetText("|cffD4A24A" .. #confirmed .. " von " .. total
             .. " bestätigt.|r\n|cffE56B6BNicht gefunden:|r "
             .. table.concat(missing, ", ")
-            .. "\n|cff888888Diese Namen kennt der Server nicht - Schreibweise "
-            .. "prüfen (Crossrealm: Name-Realm) oder in der Anmeldeliste "
-            .. "korrigieren. Speichern geht trotzdem.|r")
+            .. "\n|cff888888Diese Namen kennt der Server nicht. Dein Realm: "
+            .. (myRealm ~= "" and myRealm or "unbekannt")
+            .. " - wer dort spielt, wird ohne Realm-Zusatz eingeladen. "
+            .. "Schreibweise in der Anmeldeliste korrigieren oder mit "
+            .. "/wc kalender nachsehen. Speichern geht trotzdem.|r")
     end
 
     f.ResetDraft = function()
