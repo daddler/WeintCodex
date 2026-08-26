@@ -22,6 +22,19 @@ läuft, und der Update-Prüfer der Companion vergleicht danach für
 immer eine Fassung, die sich selbst anders nennt. Dieselbe Begründung
 wie bei `scripts/check_version.py` drüben in WeintCompanion.
 
+Geprüft wird dabei auch die SCHREIBWEISE des Tags, und zwar
+buchstäblich. Das Release 2.6.0.3 wurde von Hand als `v.2.6.0.3`
+angelegt - ein Punkt zuviel. Hier fiel das nicht auf, weil
+`normalize()` bewusst nur die Zahlen liest; der Changelog-Abschnitt
+wurde gefunden, das ZIP gebaut, die Installation lief. Die Companion
+vergleicht an dieser Stelle aber ZEICHENKETTEN: `normalize_version()`
+in `core/companion_manager.py` entfernt ein führendes "v" und hält den
+Rest gegen die Fassung aus dem `.toc`. Aus ".2.6.0.3" wird damit nie
+"2.6.0.3" - und die Update-Prüfung meldete nach jeder Aktualisierung
+erneut ein Update auf dieselbe Nummer. Der Tag muss deshalb genau "v"
+plus die Fassung aus `WeintCodex.toc` lauten, und der ZIP-Name erbt
+diese Schreibweise ohnehin mit.
+
 Reines Python 3 ohne Abhängigkeiten - in der CI läuft es vor allem
 anderen.
 """
@@ -121,11 +134,41 @@ def section_for(text: str, version: str) -> str:
     return "\n".join(lines).strip()
 
 
+def spelling_problem(tag: str, toc: str) -> str:
+    """
+    Die Zahlen stimmen - aber schreibt der Tag sie so, wie das `.toc`
+    sie schreibt? Nur dann findet die Companion die installierte
+    Fassung wieder (siehe Kopf dieser Datei).
+    """
+
+    if not toc:
+        return ""
+
+    expected = "v" + toc.strip()
+
+    if tag.strip() in (expected, toc.strip()):
+        return ""
+
+    return (
+        f"Schreibweise: der Tag lautet {tag}, erlaubt ist genau "
+        f"{expected}. Die Zahlen stimmen - die Companion vergleicht "
+        "hier aber die Zeichenkette (fuehrendes \"v\" ab, Rest gegen "
+        "die Fassung im .toc). Jede andere Schreibweise heisst fuer "
+        "sie dauerhaft \"Update verfuegbar\", und zwar auf dieselbe "
+        "Nummer, die schon installiert ist."
+    )
+
+
 def problems_for(tag: str) -> list[str]:
 
     wanted = normalize(tag)
 
     found = []
+
+    spelling = spelling_problem(tag, toc_version())
+
+    if spelling:
+        found.append(spelling)
 
     for label, value in (
         ("WeintCodex.toc (## Version)", toc_version()),

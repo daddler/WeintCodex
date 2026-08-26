@@ -27,6 +27,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Erste Station, noch vor dem Bauen: passt der Tag zu den vier
+      # Stellen, die die Fassung nennen - und schreibt er sie GENAUSO?
+      # Das Release 2.6.0.3 lag als "v.2.6.0.3" vor, mit einem Punkt
+      # zuviel. Alles lief durch, nur die Update-Pruefung der Companion
+      # verglich danach ".2.6.0.3" gegen "2.6.0.3" und meldete nach
+      # jeder Aktualisierung erneut dasselbe Update. Ein Tag, der die
+      # Fassung anders schreibt, darf deshalb gar nicht erst ein ZIP
+      # bekommen - lieber ein rotes Kreuz als ein stiller Kreislauf.
+      - name: Tag und Fassungen pruefen
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python3 .github/scripts/release_notes.py "$TAG" > /dev/null
+
       - name: Create Addon Structure
         run: |
           mkdir WeintCodex

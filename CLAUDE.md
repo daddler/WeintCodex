@@ -24,6 +24,8 @@ Two workflows in `.github/workflows/` build the distributable ZIP by rsync-ing t
 
 Both pass tag/notes through `env:` rather than direct `${{ }}` interpolation into shell — preserve that pattern if you touch these workflows, it's there specifically to avoid shell injection via release notes content.
 
+**Der Tag muss buchstäblich `v` + die Fassung aus dem `.toc` heißen** (`v2.6.0.3`, nicht `v.2.6.0.3`). Das Release 2.6.0.3 lag mit einem Punkt zuviel vor: Changelog gefunden, ZIP gebaut, Installation lief — und die Update-Prüfung der Companion meldete danach nach *jeder* Aktualisierung erneut ein Update auf dieselbe Nummer. Sie vergleicht dort nämlich **Zeichenketten** (`normalize_version()` in `core/companion_manager.py` entfernt ein führendes „v" und hält den Rest gegen die Fassung im `.toc`), während `release_notes.py` bewusst nur die Zahlen liest — also fiel es hier nicht auf. Das Skript prüft die Schreibweise deshalb mit, und **beide** Workflows rufen es als erste Station vor dem Bauen auf (bis dahin lief es in `Manual Release` nur, wenn kein eigener Notes-Text übergeben wurde); ein falsch geschriebener Tag bekommt gar kein ZIP mehr, weil ein rotes Kreuz besser ist als ein stiller Kreislauf.
+
 #### Every release ships its changelog — this is not optional
 
 **A release with an empty description is a bug, not a stylistic choice.** It looked harmless from this side and was invisible here: the releases were created by hand with the notes field left empty, so the desktop app showed "Keine Änderungen gefunden." under *Addon & Updates* forever. That text was accurate — the release body really was empty — and useless, because `CHANGELOG.md` was maintained all along. The user's only way to find out what an update brings was to read the repository.
