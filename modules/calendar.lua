@@ -538,7 +538,17 @@ local function CreateCalendarFrame()
     local cbHealer = MakeCheckbox(leftPanel, "|cff7CC06E" .. WeintCodex.Icon("Interface\\Icons\\Spell_Holy_Renew", 14) .. "  Heiler einladen|r",  16, -308, true)
     local cbDps    = MakeCheckbox(leftPanel, "|cffE56B6B" .. WeintCodex.Icon("Interface\\Icons\\Ability_DualWield", 14) .. "  DPS einladen|r",     16, -332, true)
     local cbMerge  = MakeCheckbox(leftPanel, WeintCodex.ColorText("textNormal", WeintCodex.Icon("Interface\\Icons\\Achievement_Character_Human_Male", 14) .. "  Raidtage zusammenführen"), 16, -356, false)
+
+    -- Der Ausweg aus dem Filter, nicht sein Normalfall. Ohne Haken
+    -- gilt die angekuendigte Aufstellung (bzw. ohne Ankuendigung: die
+    -- Zusagen), mit Haken wird jeder eingeladen, der einen
+    -- Charakternamen hat - so wie bis 2.6.1.0. Sichtbar stehen lassen
+    -- statt weglassen: wer die Ersatzbank absichtlich mitnimmt, muss
+    -- das koennen, und ein Filter ohne Schalter ist nicht zu erklaeren.
+    local cbAll    = MakeCheckbox(leftPanel, WeintCodex.ColorText("textNormal", WeintCodex.Icon("Interface\\Icons\\INV_Misc_GroupLooking", 14) .. "  Auch Ersatzbank/Vorläufige"), 16, -380, false)
+
     f.CbMerge  = cbMerge
+    f.CbAll    = cbAll
     f.CbTank   = cbTank
     f.CbHealer = cbHealer
     f.CbDps    = cbDps
@@ -552,11 +562,12 @@ local function CreateCalendarFrame()
     cbHealer:SetScript("OnClick", CheckboxOnClick)
     cbDps:SetScript("OnClick", CheckboxOnClick)
     cbMerge:SetScript("OnClick", CheckboxOnClick)
+    cbAll:SetScript("OnClick", CheckboxOnClick)
 
     -- CREATE BUTTON (groß, prominent)
     local createBtn = CreateFrame("Button", nil, leftPanel)
     createBtn:SetSize(LEFT_W - 32, 44)
-    createBtn:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -392)
+    createBtn:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -416)
     SetSolidBg(createBtn, C.purple[1], C.purple[2], C.purple[3], 0.85)
     DrawBorder(createBtn, C.purple[1], C.purple[2], C.purple[3], 1.0, 1)
 
@@ -584,7 +595,7 @@ local function CreateCalendarFrame()
     -- Status text
     local statusText = leftPanel:CreateFontString(nil, "OVERLAY")
     statusText:SetFont(WeintCodex.Fonts.sans, 11, "")
-    statusText:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -448)
+    statusText:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 16, -472)
     statusText:SetWidth(LEFT_W - 32)
     statusText:SetJustifyH("LEFT")
     statusText:SetSpacing(3)
@@ -770,6 +781,7 @@ local function CreateCalendarFrame()
         if f.Draft then
             local draft   = f.Draft
             local skipped = draft.skipped or {}
+            local benched = draft.benched or {}
 
             SaveIngameCalendarEvent(draft, function(success, msg)
                 if success then
@@ -780,6 +792,16 @@ local function CreateCalendarFrame()
                             .. "\n|cff888888In Discord nachtragen: "
                             .. "/weintcharakter setzen - oder hier in der "
                             .. "Anmeldeliste ueber das Stift-Symbol.|r"
+                    end
+                    -- Wer wegen Ersatzbank oder Aufstellung draussen
+                    -- blieb, wird genannt und nicht bloss weggelassen:
+                    -- eine sichtbar fehlende Einladung ist besser als
+                    -- eine, die stillschweigend verschwindet - dieselbe
+                    -- Linie wie bei den Zeilen ohne Charakternamen.
+                    if #benched > 0 then
+                        msg = msg .. "\n|cff888888Nicht in der Aufstellung ("
+                            .. #benched .. "), keine Einladung:|r "
+                            .. table.concat(benched, ", ")
                     end
                     f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
                     print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
@@ -834,8 +856,19 @@ local function CreateCalendarFrame()
         -- sichtbar fehlt.
         local skipped = {}
 
+        -- Wer wegen seines Anmeldestatus bzw. der Aufstellung
+        -- draussen bleibt. Getrennt von `skipped` gezaehlt: das eine
+        -- ist eine Entscheidung ("sitzt auf der Ersatzbank"), das
+        -- andere eine Luecke ("wir kennen seinen Charakternamen
+        -- nicht"), und nur beim zweiten ist etwas zu tun.
+        local benched = {}
+
         local function AddInvitees(dayData)
             if dayData and dayData.players then
+                local hasLineup = WeintCodex.Raids
+                    and WeintCodex.Raids.HasLineup
+                    and WeintCodex.Raids.HasLineup(dayData)
+
                 for _, p in ipairs(dayData.players) do
                     local nameKey = p.name:lower()
                     if not seen[nameKey] then
@@ -846,7 +879,24 @@ local function CreateCalendarFrame()
                         end
                         if include then
                             seen[nameKey] = true
-                            if WeintCodex.Raids and WeintCodex.Raids.IsResolved
+
+                            -- Ersatzbank, Vorlaeufige und alle, die
+                            -- nicht in der angekuendigten Aufstellung
+                            -- stehen, bekommen keine Einladung. Bis
+                            -- 2.6.1.0 bekamen sie eine - der Bot
+                            -- schickte alle drei Statuswerte in einem
+                            -- Topf und die Zeile sagte nicht, welcher.
+                            -- Der Filter laesst sich abschalten
+                            -- (CbAll), weil ein Raidlead, der die
+                            -- Bank absichtlich mitnimmt, sonst gar
+                            -- keinen Weg dorthin haette.
+                            local invited = f.CbAll:GetChecked()
+                                or not (WeintCodex.Raids and WeintCodex.Raids.ShouldInvite)
+                                or WeintCodex.Raids.ShouldInvite(p, hasLineup)
+
+                            if not invited then
+                                table.insert(benched, p.name)
+                            elseif WeintCodex.Raids and WeintCodex.Raids.IsResolved
                                and not WeintCodex.Raids.IsResolved(p) then
                                 table.insert(skipped, p.name)
                             else
@@ -866,10 +916,26 @@ local function CreateCalendarFrame()
         end
 
         if #invitePlayers == 0 then
+            -- Der Grund entscheidet, was zu tun ist, also wird er
+            -- genannt: eine leere Aufstellung ist eine Entscheidung
+            -- (der Tag faellt aus), fehlende Charakternamen sind eine
+            -- Luecke. Beides unter "Filter pruefen" zu verbuchen
+            -- schickt den Raidlead an die falsche Stelle.
+            local reason
+
+            if #benched > 0 and #skipped == 0 then
+                reason = "Niemand aus dieser Auswahl steht in der "
+                    .. "Aufstellung. Häkchen 9487Auch "
+                    .. "Ersatzbank/Vorläufige94y setzen, oder im "
+                    .. "Discord ein neues Announcement machen."
+            else
+                reason = "Kein einzuladender Spieler mit Charakternamen. "
+                    .. "Filter prüfen oder Zuordnungen nachtragen."
+            end
+
             f.StatusText:SetText("|cffE56B6B"
                 .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14)
-                .. " Kein einzuladender Spieler mit Charakternamen. "
-                .. "Filter prüfen oder Zuordnungen nachtragen.|r")
+                .. " " .. reason .. "|r")
             return
         end
 
@@ -894,6 +960,7 @@ local function CreateCalendarFrame()
         if not draft then return end
 
         draft.skipped = skipped
+        draft.benched = benched
         f.Draft = draft
 
         print("|cffD4A24A[WeintCodex Kalender]|r |cff33D65E" ..
@@ -905,6 +972,12 @@ local function CreateCalendarFrame()
                 .. #skipped .. " Anmeldung(en) ohne "
                 .. "Charakternamen uebersprungen:|r "
                 .. table.concat(skipped, ", "))
+        end
+
+        if #benched > 0 then
+            print("|cffD4A24A[WeintCodex Kalender]|r |cff888888"
+                .. #benched .. " nicht in der Aufstellung, keine "
+                .. "Einladung:|r " .. table.concat(benched, ", "))
         end
 
         WatchDraft(0)
@@ -1265,8 +1338,19 @@ RefreshPlayerPreview = function(f, raidData)
     local players = {}
     local seen = {}
 
+    -- Die Vorschau trifft dieselbe Entscheidung wie der
+    -- Einladungslauf, und zwar ueber dieselbe Funktion: eine Vorschau,
+    -- die ihre Antwort selbst ausrechnet, zeigt irgendwann etwas
+    -- anderes an als gleich passiert - und dann ist sie schlimmer als
+    -- keine. Ausgeblendet wird hier trotzdem niemand: wer nicht
+    -- eingeladen wird, steht gedaempft mit seinem Grund in der Liste,
+    -- sonst waere "wo ist der Heiler hin" nicht zu beantworten.
     local function AddPlayers(dayData)
         if dayData and dayData.players then
+            local hasLineup = WeintCodex.Raids
+                and WeintCodex.Raids.HasLineup
+                and WeintCodex.Raids.HasLineup(dayData)
+
             for _, p in ipairs(dayData.players) do
                 local nameKey = p.name:lower()
                 if not seen[nameKey] then
@@ -1276,7 +1360,13 @@ RefreshPlayerPreview = function(f, raidData)
                     elseif (p.role ~= "TANK" and p.role ~= "HEALER") and f.CbDps:GetChecked() then include = true
                     end
                     if include then
-                        table.insert(players, p)
+                        table.insert(players, {
+                            entry     = p,
+                            hasLineup = hasLineup,
+                            invited   = f.CbAll:GetChecked()
+                                or not (WeintCodex.Raids and WeintCodex.Raids.ShouldInvite)
+                                or WeintCodex.Raids.ShouldInvite(p, hasLineup),
+                        })
                         seen[nameKey] = true
                     end
                 end
@@ -1317,6 +1407,7 @@ RefreshPlayerPreview = function(f, raidData)
     local healers    = 0
     local dps        = 0
     local unresolved = 0
+    local excluded   = 0
 
     local offsetY  = -4
     local altRow   = false
@@ -1333,10 +1424,19 @@ RefreshPlayerPreview = function(f, raidData)
         MONK="|cff00ff96",DRUID="|cffff7d0a",
     }
 
-    for _, p in ipairs(players) do
-        if p.role == "TANK"   then tanks   = tanks   + 1 end
-        if p.role == "HEALER" then healers = healers + 1 end
-        if p.role ~= "TANK" and p.role ~= "HEALER" then dps = dps + 1 end
+    for _, item in ipairs(players) do
+        local p = item.entry
+
+        -- Gezaehlt wird die Aufstellung, nicht die Anmeldeliste: die
+        -- Zahl darunter soll sagen, mit welcher Gruppe man gleich
+        -- losgeht, und nicht, wie viele sich gemeldet haben.
+        if item.invited then
+            if p.role == "TANK"   then tanks   = tanks   + 1 end
+            if p.role == "HEALER" then healers = healers + 1 end
+            if p.role ~= "TANK" and p.role ~= "HEALER" then dps = dps + 1 end
+        else
+            excluded = excluded + 1
+        end
 
         local row = CreateFrame("Frame", nil, pc)
         row:SetHeight(24)
@@ -1357,7 +1457,7 @@ RefreshPlayerPreview = function(f, raidData)
         local dot = row:CreateTexture(nil, "OVERLAY")
         dot:SetSize(8, 8)
         dot:SetPoint("LEFT", row, "LEFT", 4, 0)
-        dot:SetColorTexture(rc[1], rc[2], rc[3], 0.90)
+        dot:SetColorTexture(rc[1], rc[2], rc[3], item.invited and 0.90 or 0.25)
 
         -- Name. Ohne echten Charakternamen steht hier der
         -- Discord-Anzeigename - diese Zeile wird gar nicht eingeladen
@@ -1366,7 +1466,10 @@ RefreshPlayerPreview = function(f, raidData)
         local resolved = not (WeintCodex.Raids and WeintCodex.Raids.IsResolved)
             or WeintCodex.Raids.IsResolved(p)
 
-        if not resolved then
+        -- Nur wer ueberhaupt eingeladen werden soll, kann an einem
+        -- fehlenden Charakternamen scheitern. Die Ersatzbank ohne
+        -- Zuordnung ist kein offener Punkt.
+        if item.invited and not resolved then
             unresolved = unresolved + 1
         end
 
@@ -1374,21 +1477,32 @@ RefreshPlayerPreview = function(f, raidData)
         local nameLbl = row:CreateFontString(nil, "OVERLAY")
         nameLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
         nameLbl:SetPoint("LEFT", row, "LEFT", 18, 0)
-        if resolved then
+        if resolved and item.invited then
             nameLbl:SetText(ccol .. (p.name or "?") .. "|r")
         else
             nameLbl:SetText("|cff6A6A72" .. (p.name or "?") .. "|r")
         end
         nameLbl:SetWidth(160)
 
-        -- Class
+        -- Zweite Spalte: der Grund, wenn es einen gibt, sonst die
+        -- Klasse. Ein fehlender Charaktername steht vorn, weil er das
+        -- Einzige ist, wogegen sich etwas tun laesst.
         local classLbl = row:CreateFontString(nil, "OVERLAY")
         classLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
         classLbl:SetPoint("LEFT", row, "LEFT", 190, 0)
-        if resolved then
-            classLbl:SetText("|cff4A4A52" .. (p.class or "") .. "|r")
-        else
+
+        local label, colorName
+
+        if WeintCodex.Raids and WeintCodex.Raids.StatusLabel then
+            label, colorName = WeintCodex.Raids.StatusLabel(p, item.hasLineup)
+        end
+
+        if item.invited and not resolved then
             classLbl:SetText("|cffD4A24Akein Charakter|r")
+        elseif label then
+            classLbl:SetText(WeintCodex.ColorText(colorName or "textDim", label))
+        else
+            classLbl:SetText("|cff4A4A52" .. (p.class or "") .. "|r")
         end
         classLbl:SetWidth(120)
 
@@ -1400,8 +1514,10 @@ RefreshPlayerPreview = function(f, raidData)
 
     -- Gezaehlt wird, wer tatsaechlich eingeladen wird. "25 gesamt" bei
     -- 21 Einladungen waere genau die Zahl, der man vertraut und die
-    -- dann nicht stimmt.
-    local invitable = total - unresolved
+    -- dann nicht stimmt. Aus demselben Grund zaehlen seit 2.6.1.0 auch
+    -- Ersatzbank und Vorlaeufige nicht mehr mit: sie stehen in der
+    -- Liste, bekommen aber keine Einladung.
+    local invitable = total - unresolved - excluded
 
     local countText =
         "|cff8B95F5" .. tanks .. "T|r  " ..
@@ -1412,6 +1528,11 @@ RefreshPlayerPreview = function(f, raidData)
     if unresolved > 0 then
         countText = countText ..
             "  |cffD4A24A" .. unresolved .. " ohne Charakter|r"
+    end
+
+    if excluded > 0 then
+        countText = countText ..
+            "  |cff6B6B74" .. excluded .. " nicht aufgestellt|r"
     end
 
     -- Wie alt der Stand ist, gehoert genau hierhin: das ist die Zeile,

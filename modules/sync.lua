@@ -7,13 +7,22 @@
 --   WCIMPORT:BOSS:BossName:tank:Tip1,Tip2:healer:Tip1:dps:Tip1::NächsterBoss:...
 --
 -- RAID (Mittwoch):
---   WCIMPORT:RAIDWED:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|,Name2|HEALER|PALADIN|OokOok|Notiz,...
+--   WCIMPORT:RAIDWED:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|Notiz|companion|active|in|,...
 --
 -- RAID (Donnerstag):
---   WCIMPORT:RAIDTHU:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|,...
+--   WCIMPORT:RAIDTHU:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|...
 --
 -- RAID (Legacy – geht zu Mittwoch):
---   WCIMPORT:RAID:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|,...
+--   WCIMPORT:RAID:2026-06-14:2000:Raidtitel:Name1|TANK|WARRIOR|Everlook|...
+--
+-- Spielerfelder in dieser Reihenfolge:
+--   1 Name  2 Rolle  3 Klasse  4 Realm  5 Notiz
+--   6 Herkunft des Namens ("raidlead"/"companion"/"discord")
+--   7 Anmeldestatus des Tages ("active"/"tentative"/"bench")
+--   8 Aufstellung ("in"/"out"/leer = nicht angekündigt)
+--
+-- Angehängt wird immer hinten, nie umbelegt: ein älteres Addon liest
+-- nur bis zu dem Feld, das es kennt, und verhält sich unverändert.
 --
 -- (Uhrzeit als "HHMM" ohne Doppelpunkt; Realm-Feld leer = Realm des
 -- einladenden Spielers wird beim Kalender-Invite angenommen)
@@ -169,6 +178,28 @@ local function ParseRaidImport(payload)
                     -- waere nach einem Addon-Update ploetzlich das
                     -- ganze Roster "unbekannt".
                     source = (pparts[6] or ""):lower(),
+                    -- Feld 7: der Anmeldestatus dieses Tages
+                    -- ("active", "tentative", "bench"). Der Bot
+                    -- schickte alle drei schon immer in einem Topf,
+                    -- ohne sie zu benennen - der Kalender-Invite lud
+                    -- deshalb die Ersatzbank und die Vorlaeufigen mit
+                    -- ein. "absent" kommt gar nicht vor, eine
+                    -- Abmeldung ist keine Anmeldung.
+                    --
+                    -- Feld 8: die vom Raidlead angekuendigte
+                    -- Aufstellung. Drei Werte, nicht zwei: "in",
+                    -- "out" und LEER fuer "es wurde nichts
+                    -- angekuendigt". Der Unterschied traegt, denn er
+                    -- fuehrt zu entgegengesetztem Verhalten - ohne
+                    -- Ankuendigung werden die Zusagen eingeladen, mit
+                    -- Ankuendigung genau sie.
+                    --
+                    -- Beide fehlen bei einem aelteren Bot, und beide
+                    -- gelten dann als "keine Angabe" statt als
+                    -- Befund; sonst stuende nach einem Addon-Update
+                    -- schlagartig ein leerer Invite da.
+                    status = (pparts[7] or ""):lower(),
+                    lineup = (pparts[8] or ""):lower(),
                 }
             end
         end

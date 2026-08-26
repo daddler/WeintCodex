@@ -7,6 +7,19 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.1.0",
+        date    = "26.08.2026",
+        notes   = {
+            "Der Kalender-Invite laedt jetzt die |cffD4A24Aangekuendigte Aufstellung|r ein - also genau die Gruppe, die im Announcement des Raidleads steht.",
+            "Bisher lud er jeden ein, der irgendwie zugesagt hatte: die Ersatzbank und die Vorlaeufigen waren mit dabei. Die Anmeldezeile trug naemlich gar keinen Status, alle drei Faelle sahen gleich aus. Aufgefallen ist es erst am Kalender.",
+            "Gibt es fuer den Tag kein Announcement, zaehlen die Zusagen - und nur die. Vorlaeufig ist keine Zusage, die Ersatzbank ausdruecklich nicht.",
+            "Die Vorschau zeigt beides: wer eingeladen wird, steht in Klassenfarbe, wer nicht, gedaempft mit seinem Grund (|cff6B6B74Ersatzbank|r, |cff6B6B74vorlaeufig|r, |cff6B6B74nicht aufgestellt|r). Die Zahl darunter zaehlt nur noch die Einladungen.",
+            "Wer die Bank absichtlich mitnimmt, setzt den Haken |cffD4A24AAuch Ersatzbank/Vorlaeufige|r - dann laedt der Knopf wie frueher alle ein.",
+            "Auch die Anmeldeliste sagt es an der Zeile, sonst waere sie laenger als der Kalender, ohne dass sich der Unterschied ablesen liesse.",
+            "Braucht |cffD4A24AWeintCodex Bot|r in der neuen Fassung. Ein aelterer Bot schickt die Angaben nicht - dann bleibt alles wie bisher, statt dass ploetzlich ein leerer Invite dasteht.",
+        },
+    },
+    {
         version = "2.6.0.3",
         date    = "25.08.2026",
         notes   = {

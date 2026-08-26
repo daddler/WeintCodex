@@ -166,6 +166,99 @@ function WeintCodex.Raids.IsResolved(p)
 end
 
 --------------------------------------------------
+-- Wer wird eingeladen?
+--------------------------------------------------
+-- Die eine Stelle, an der diese Frage beantwortet wird. Gelesen von
+-- der Kalender-Vorschau, vom Einladungslauf und von der Anmeldeliste -
+-- drei Ansichten derselben Auskunft, und drei Fassungen davon waeren
+-- drei Gelegenheiten auseinanderzulaufen.
+--
+-- Bis 2.6.1.0 gab es die Frage gar nicht: die Zeile trug keinen
+-- Status, der Bot schickte Zusagen, Vorlaeufige und Ersatzbank in
+-- einem Topf, und der Kalender lud alles ein, was einen Charakternamen
+-- hatte. Auf der Ersatzbank zu sitzen und trotzdem eine Einladung zu
+-- bekommen ist die Sorte Fehler, die erst am Raidabend auffaellt.
+--
+-- Zwei Stufen, in dieser Reihenfolge:
+--
+--   1. Gibt es fuer diesen Tag eine ANGEKUENDIGTE AUFSTELLUNG (das
+--      Announcement des Raidleads), dann gilt genau sie. Sie ist die
+--      Entscheidung darueber, wer mitgeht - aus der Anmeldeliste ist
+--      die nicht abzuleiten, denn zugesagt zu haben heisst nicht,
+--      aufgestellt zu sein.
+--   2. Sonst zaehlen die ZUSAGEN. Vorlaeufig ist keine Zusage, und die
+--      Ersatzbank ist ausdruecklich keine.
+--
+-- "Es wurde nichts angekuendigt" und "du bist nicht aufgestellt" sind
+-- deshalb zwei verschiedene Antworten und nicht ein fehlendes Ja: sie
+-- fuehren zu entgegengesetztem Verhalten. Ein aelterer Bot schickt
+-- beide Felder nicht - dann gilt Stufe 2 mit leerem Status, und ein
+-- leerer Status zaehlt als Zusage. Sonst stuende nach einem
+-- Addon-Update ein leerer Invite da, und das saehe aus wie ein Defekt.
+--------------------------------------------------
+
+-- Wurde fuer diesen Tag eine Aufstellung angekuendigt? Das ist eine
+-- Eigenschaft des TAGES, nicht des Spielers - der Bot setzt das Feld
+-- an jeder Zeile des Tages, gefragt wird trotzdem ueber die ganze
+-- Liste, damit eine unvollstaendige Lieferung nicht die Haelfte des
+-- Rosters aussperrt.
+function WeintCodex.Raids.HasLineup(dayData)
+    if not dayData or not dayData.players then return false end
+
+    for _, p in ipairs(dayData.players) do
+        if p.lineup == "in" or p.lineup == "out" then
+            return true
+        end
+    end
+
+    return false
+end
+
+function WeintCodex.Raids.ShouldInvite(p, hasLineup)
+    if not p then return false end
+
+    if hasLineup then
+        return p.lineup == "in"
+    end
+
+    -- Leer heisst "aelterer Bot, keine Angabe" und zaehlt als Zusage.
+    return p.status == nil or p.status == "" or p.status == "active"
+end
+
+-- Kurzform fuer die Anzeige: Beschriftung und Farbname, oder nil, wenn
+-- es nichts zu sagen gibt (Zusage ohne Aufstellung ist der Normalfall
+-- und braucht keine Beschriftung).
+function WeintCodex.Raids.StatusLabel(p, hasLineup)
+    if not p then return nil end
+
+    if hasLineup then
+        if p.lineup == "in" then
+            return "Aufstellung", "green"
+        end
+        -- Warum jemand nicht aufgestellt ist, sagt der Bot nicht - und
+        -- es ist auch nicht die Frage. Genannt wird deshalb der
+        -- Anmeldestatus, damit die Zeile nicht bloss "nein" sagt.
+        if p.status == "bench" then
+            return "Ersatzbank", "textDim"
+        end
+        if p.status == "tentative" then
+            return "vorläufig", "textDim"
+        end
+        return "nicht aufgestellt", "textDim"
+    end
+
+    if p.status == "bench" then
+        return "Ersatzbank", "warning"
+    end
+
+    if p.status == "tentative" then
+        return "vorläufig", "warning"
+    end
+
+    return nil
+end
+
+--------------------------------------------------
 -- Wie alt ist dieser Stand?
 --------------------------------------------------
 -- Die Seite zeigte bis 2.2.0.0 nur das RAIDDATUM - also den Tag, an
@@ -572,6 +665,11 @@ local function RefreshRaidDisplay(raidData)
 
     local offsetY = -2
 
+    -- Ob fuer diesen Tag eine Aufstellung angekuendigt wurde, ist eine
+    -- Eigenschaft des Tages und wird deshalb einmal beantwortet, nicht
+    -- je Zeile.
+    local hasLineup = WeintCodex.Raids.HasLineup(raidData)
+
     local function DrawSection(players, sectionLabel, colorName)
         if #players == 0 then return end
 
@@ -647,9 +745,30 @@ local function RefreshRaidDisplay(raidData)
             roleLbl:SetWidth(110)
 
             local noteText = p.note
+            local noteTone = "textFaint"
+
+            -- Wer nicht mitgeht, steht in dieser Liste trotzdem - sie
+            -- ist die Anmeldeliste und nicht die Aufstellung. Dass er
+            -- keine Kalendereinladung bekommt, gehoert aber hierher:
+            -- sonst ist die Liste im Spiel laenger als der Kalender,
+            -- und es gibt nichts, woran sich der Unterschied ablesen
+            -- liesse. Dieselbe Auskunft und dieselbe Funktion wie in
+            -- der Kalender-Vorschau.
+            local stateLabel, stateTone =
+                WeintCodex.Raids.StatusLabel(p, hasLineup)
+
+            if stateLabel then
+                noteText = stateLabel
+                noteTone = stateTone or "textDim"
+
+                if p.note and p.note ~= "" then
+                    noteText = noteText .. " \194\183 " .. p.note
+                end
+            end
 
             if not resolved then
                 noteText = "Discord-Name \194\183 kein Charakter"
+                noteTone = "warning"
             end
 
             if noteText and noteText ~= "" then
@@ -658,8 +777,7 @@ local function RefreshRaidDisplay(raidData)
                 noteLbl:SetPoint("LEFT", row, "LEFT", COL_NOTE_X, 0)
                 noteLbl:SetPoint("RIGHT", row, "RIGHT", -30, 0)
                 noteLbl:SetJustifyH("LEFT")
-                noteLbl:SetText(WeintCodex.ColorText(
-                    resolved and "textFaint" or "warning", noteText))
+                noteLbl:SetText(WeintCodex.ColorText(noteTone, noteText))
             end
 
             -- Namen manuell korrigieren (falls Bot/Auto-Erkennung den

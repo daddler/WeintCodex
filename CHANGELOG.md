@@ -2,6 +2,28 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.6.1.0] – 2026-08-26
+
+### Neu
+- **Der Kalender-Invite nimmt die angekündigte Aufstellung als Grundlage.** Das Announcement des Raidleads ist der Moment, in dem aus der Anmeldeliste die Gruppe wird, die tatsächlich mitgeht — wer tankt, wer heilt, und vor allem, wer von den Zusagen nicht dabei ist. Diese Entscheidung war bis hierher flüchtig: sie stand als Embed in Discord und sonst nirgends. Der Bot hält sie jetzt fest (`raid_lineup`), schickt sie im Export mit, und `C_Calendar.EventInvite` bekommt genau sie
+- **Ohne Announcement zählen die Zusagen — und nur die.** „Vorläufig" ist keine Zusage, die Ersatzbank ausdrücklich nicht
+
+### Behoben
+- **Ersatzbank und Vorläufige standen im Kalender-Invite.** Der Bot exportierte `active`, `tentative` und `bench` in einem Topf, und die Anmeldezeile trug keinerlei Angabe darüber, welcher der drei Fälle vorlag — das Addon konnte sie also gar nicht auseinanderhalten und lud jeden ein, der einen Charakternamen hatte. Sichtbar wurde das frühestens am Kalender, und zwar an dem Abend, an dem es zählt
+
+### Geändert
+- **Die Kalender-Vorschau blendet niemanden aus, sie kennzeichnet.** Wer eingeladen wird, steht in Klassenfarbe; wer nicht, gedämpft mit seinem Grund (*Ersatzbank*, *vorläufig*, *nicht aufgestellt*) — „wo ist der Heiler hin" muss beantwortbar bleiben. Die Zahl darunter zählt nur noch die Einladungen, aus demselben Grund, aus dem sie schon die Zeilen ohne Charakternamen abzieht
+- **Die Erfolgsmeldung nennt, wer wegen der Aufstellung draussen blieb** — getrennt von den Zeilen ohne Charakternamen: das eine ist eine Entscheidung, das andere eine Lücke, und nur beim zweiten ist etwas zu tun
+- **Ein Haken „Auch Ersatzbank/Vorläufige"** ist der Ausweg für den Raidlead, der die Bank absichtlich mitnimmt. Sichtbar stehen gelassen statt weggelassen: ein Filter ohne Schalter ist nicht zu erklären
+- **Die Anmeldeliste sagt es an der Zeile.** Ohne das wäre die Liste im Spiel länger als der Kalender, und es gäbe nichts, woran sich der Unterschied ablesen liesse
+
+### Technisch
+- Die Spielerzeile des `WCIMPORT`-Formats hat zwei neue Felder: **7 = Anmeldestatus des Tages** (`active`/`tentative`/`bench`; `absent` kommt weiterhin gar nicht vor) und **8 = Aufstellung** (`in`/`out`/leer). Angehängt statt umbelegt, wie schon beim sechsten Feld: ein älteres Addon liest nur bis zu dem Feld, das es kennt
+- **Feld 8 hat drei Werte, nicht zwei.** Leer heisst „für diesen Tag wurde nichts angekündigt" und ist etwas anderes als „du bist nicht aufgestellt" — beide führen zu entgegengesetztem Verhalten, und aus einem Ja/Nein wäre der Unterschied nicht ablesbar. Dieselbe Linie wie überall: ein fehlender Wert behauptet nichts
+- **Ein älterer Bot schickt beide Felder nicht.** Dann gilt der bisherige Ablauf mit leerem Status, und ein leerer Status zählt als Zusage — sonst stünde nach dem Addon-Update schlagartig ein leerer Invite da, und das sähe aus wie ein Defekt
+- `WeintCodex.Raids.HasLineup()` / `.ShouldInvite()` / `.StatusLabel()` sind die eine Stelle, an der „wird dieser Spieler eingeladen" beantwortet wird. Gelesen von der Kalender-Vorschau, vom Einladungslauf und von der Anmeldeliste — drei Ansichten derselben Auskunft, und drei Fassungen davon wären drei Gelegenheiten auseinanderzulaufen
+- **Ob eine Aufstellung vorliegt, ist eine Eigenschaft des Tages**, nicht des Spielers. `HasLineup()` fragt trotzdem über die ganze Liste, damit eine unvollständige Lieferung nicht die Hälfte des Rosters aussperrt
+
 ## [2.6.0.3] – 2026-08-25
 
 ### Behoben
