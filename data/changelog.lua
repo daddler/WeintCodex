@@ -7,14 +7,23 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.1.1",
+        date    = "26.08.2026",
+        notes   = {
+            "Nachtrag zu 2.6.1.0: der Kalender-Eintrag lud danach immer noch nur |cffD4A24Aeinen|r Spieler ein.",
+            "Der Grund liegt nicht an den Namen - |cffD4A24A/wc kalender|r hat das belegt: die Schreibweisen stimmen, und ein realmfremder Name wurde sogar aufgeloest. Es ist der Durchsatz. Der Server beantwortet 25 Anfragen aus einem Rutsch nicht, nur die erste kommt an.",
+            "Nachgefasst wird jetzt einzeln, und immer nur eine Anfrage gleichzeitig: die naechste geht raus, sobald die vorige bestaetigt ist. Der Lauf taktet sich damit am Server statt an einer geratenen Zahl.",
+            "Ein Name, den es wirklich nicht gibt, wird nie bestaetigt - und haelt den Rest trotzdem nicht auf.",
+            "Ausserdem wird nicht mehr nach fester Frist aufgegeben, sondern gewartet, solange die Bestaetigungen steigen. Zwoelf Sekunden waren fuer einen Namen grosszuegig und fuer fuenfundzwanzig eine Fehlmeldung.",
+        },
+    },
+    {
         version = "2.6.1.0",
         date    = "26.08.2026",
         notes   = {
             "Behoben: der Kalender-Eintrag lud niemanden ein - \"1 von 25 bestaetigt\", der Rest \"nicht gefunden\". Zwei Ursachen, beide sahen gleich aus.",
             "Der eigene Realm wurde in der falschen Schreibweise verglichen: gespeichert wird er ohne Leerzeichen (|cffD4A24AOokOok|r), verglichen wurde gegen die Anzeigeform |cffD4A24AOok Ook|r. Auf so einem Realm ging der Vergleich nie auf - auch der Nachbar vom eigenen Realm bekam ein \"-OokOok\" angehaengt, und den kennt der Server so nicht.",
             "Und ein fehlgeschlagener Einladungsaufruf war von einem unbekannten Namen nicht zu unterscheiden: der Rueckgabewert wurde weggeworfen. 25 stille Fehlschlaege sehen danach aus wie 25 unbekannte Charaktere - und die Meldung riet dann zur Schreibweise, also zum Falschen.",
-            "Und danach kam trotzdem nur eine einzige Einladung durch: gewartet wurde nach fester Frist statt auf Fortschritt, und alle 25 Anfragen gingen in einem Rutsch raus - der Server beantwortet sie so nicht.",
-            "Jetzt wird gewartet, solange die Bestaetigungen steigen, und danach einzeln nachgefasst - immer nur eine Anfrage gleichzeitig, die naechste geht raus, sobald die vorige bestaetigt ist. Zweite Runde mit der anderen Schreibweise (mit und ohne Realm-Zusatz).",
             "Die Meldung sagt jetzt, was wirklich los war, und |cffD4A24A/wc kalender|r zeigt, was der Client hergibt und welcher Name je Spieler angefragt wird.",
             "Der Kalender-Invite laedt jetzt die |cffD4A24Aangekuendigte Aufstellung|r ein - also genau die Gruppe, die im Announcement des Raidleads steht.",
             "Bisher lud er jeden ein, der irgendwie zugesagt hatte: die Ersatzbank und die Vorlaeufigen waren mit dabei. Die Anmeldezeile trug naemlich gar keinen Status, alle drei Faelle sahen gleich aus. Aufgefallen ist es erst am Kalender.",
