@@ -105,6 +105,97 @@ local function ResolveInviteFunc()
     return nil, nil
 end
 
+--------------------------------------------------
+-- Wie lange auf die Bestaetigungen gewartet wird
+--------------------------------------------------
+-- Bis 2.6.1.0 waren es vierundzwanzig Versuche zu einer halben
+-- Sekunde, mit der Begruendung, zwoelf Sekunden seien "grosszuegig
+-- fuer eine Namensaufloesung". Das ist eine Aussage ueber EINEN Namen.
+-- Fuenfundzwanzig davon beantwortet der Server nicht in zwoelf
+-- Sekunden, und danach stand als Ergebnis da, die Charaktere gebe es
+-- nicht - eine feste Frist macht aus "der Server ist noch nicht
+-- fertig" eine Tatsachenbehauptung ueber fremde Charakternamen.
+--
+-- Gewartet wird deshalb auf FORTSCHRITT: solange die Zahl der
+-- bestaetigten Einladungen steigt, ist nichts entschieden. Erst wenn
+-- sie steht, ist die Stille eine Antwort.
+local WATCH_TICK  = 0.5
+
+-- Takte ohne Zuwachs, nach denen der Stand als stehend gilt.
+local WATCH_STALL = 16
+
+-- Harte Obergrenze, damit ein Entwurf nicht ewig pollt. Der Ablauf
+-- oben endet weit vorher; das hier ist der Riegel, nicht die Regel.
+local WATCH_MAX   = 400
+
+-- Wie oft ein offener Name einzeln nachgefasst wird.
+local RESEND_ROUNDS = 2
+
+--------------------------------------------------
+-- Einzeln nachfassen
+--------------------------------------------------
+-- Der erste Durchlauf schickt alle Einladungen in einem einzigen
+-- Frame ab - das muss er, denn er haengt am Klick. Beobachtet wurde
+-- danach, dass genau EINE davon ankommt: der Server beantwortet die
+-- Namensaufloesung offenbar nicht im Bulk, und was in derselben Frist
+-- hinterherkommt, faellt weg. Sichtbar war das als "2 von 25
+-- bestaetigt" - der Ersteller und der erste Name.
+--
+-- Nachgefasst wird deshalb einer je Takt, und erst dann, wenn der
+-- Stand steht. Waehrend noch Bestaetigungen eintrudeln, waere ein
+-- zweiter Anlauf nur zusaetzlicher Verkehr auf derselben Leitung.
+--
+-- Geht der Aufruf gar nicht mehr durch, wird nicht weiter
+-- nachgefasst: einmal ist ein Fehlschlag eine Information, fuenfzigmal
+-- ist er Laerm.
+local function ResendOneInvite(draft, missing)
+    if not draft or not draft.invite then return nil end
+
+    draft.resent = draft.resent or {}
+
+    local alternate = draft.alternate or {}
+
+    --
+    -- Runden aussen, Namen innen: erst bekommt JEDER offene Name seine
+    -- zweite Anfrage in der urspruenglichen Schreibweise, danach alle
+    -- die andere. Andersherum - beide Runden eines Namens direkt
+    -- hintereinander - bekaeme der Letzte der Liste seine erste
+    -- Nachfrage erst, wenn alle vor ihm zweimal durch sind. Genau
+    -- diese Reihenfolge hilft niemandem, wenn der Server drosselt, und
+    -- gedrosselt zu werden ist der Verdacht, aus dem heraus hier
+    -- ueberhaupt nachgefasst wird.
+    --
+    -- Zweite Runde ist die andere Schreibweise. Gibt es keine (nackter
+    -- Name ohne bekannten Realm), ist der Name durch: denselben String
+    -- ein drittes Mal zu schicken sagt nichts Neues.
+    --
+    for round = 1, RESEND_ROUNDS do
+        for _, name in ipairs(missing) do
+            if (draft.resent[name] or 0) < round then
+
+                local send = (round == 1) and name or alternate[name]
+
+                draft.resent[name] = round
+
+                if send then
+                    draft.resendCount = (draft.resendCount or 0) + 1
+
+                    local sent = pcall(draft.invite, send)
+
+                    if not sent then
+                        draft.invite = nil
+                        return nil
+                    end
+
+                    return send
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
 -- Datum-String "YYYY-MM-DD" in Teile zerlegen
 local function ParseDate(dateStr)
     if not dateStr or dateStr == "" then
@@ -152,6 +243,36 @@ local function InviteNameFor(p, myRealm)
         return p.name .. "-" .. p.realm
     end
     return p.name
+end
+
+-- Die andere Schreibweise desselben Spielers: zu "Name-Realm" der
+-- nackte Name, zum nackten Namen "Name-Realm".
+--
+-- Gebraucht wird sie beim Nachfassen. Denselben String ein zweites Mal
+-- zu schicken, nachdem der Server ihn schon einmal nicht aufgeloest
+-- hat, bringt keine neue Auskunft; die andere Schreibweise schon. Und
+-- der Realm ist genau der Teil der Zeile, der fehlen oder falsch sein
+-- kann - er stammt aus der Zuordnung des Raidleads oder aus der
+-- Meldung des Spielers, beides von Hand gepflegt.
+--
+-- Erst in der zweiten Runde, und nur fuer Namen, die der Server schon
+-- abgelehnt hat: gaebe es den Namen auf beiden Realms, luede die
+-- Blindprobe den Falschen mit ein. Nach einer Ablehnung ist dieses
+-- Risiko klein und die Auskunft die einzige, die noch zu holen ist.
+local function AlternateInviteName(inviteName, realm, myRealm)
+    if not inviteName or inviteName == "" then return nil end
+
+    local base, qualified = WeintCodex.Names.Split(inviteName)
+
+    if qualified ~= "" then
+        return base
+    end
+
+    local other = (realm and realm ~= "" and realm) or myRealm
+
+    if not other or other == "" then return nil end
+
+    return base .. "-" .. other
 end
 
 --------------------------------------------------
@@ -316,6 +437,7 @@ local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, pl
     -- und zu Verschiedenem raten: das eine ist eine Schreibweise, das
     -- andere ein Client, der die Funktion nicht hat.
     local blocked   = {}
+    local alternate = {}
     local inviteFn, inviteFnName = ResolveInviteFunc()
 
     local ok, err = pcall(function()
@@ -347,6 +469,8 @@ local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, pl
             end
 
             table.insert(requested, inviteName)
+            alternate[inviteName] =
+                AlternateInviteName(inviteName, p.realm, myRealm)
         end
     end)
 
@@ -368,7 +492,9 @@ local function PrepareIngameCalendarEvent(title, desc, dateStr, hour, minute, pl
         minute     = minute or 0,
         requested  = requested,
         blocked    = blocked,
+        alternate  = alternate,
         inviteFn   = inviteFnName,
+        invite     = inviteFn,
     }
 end
 
@@ -868,12 +994,13 @@ local function CreateCalendarFrame()
 
     -- Wieviele der angefragten Namen der Server inzwischen bestaetigt
     -- hat. Reines Lesen, laeuft also ausserhalb des Klick-Stapels.
-    local function WatchDraft(attempt)
+    local function WatchDraft()
         if not f.Draft then return end
 
-        local confirmed, missing = DraftConfirmed(f.Draft.requested)
-        local total = #f.Draft.requested
-        local blocked = f.Draft.blocked or {}
+        local draft = f.Draft
+        local confirmed, missing = DraftConfirmed(draft.requested)
+        local total = #draft.requested
+        local blocked = draft.blocked or {}
 
         --
         -- Zuerst der Fall, der bis 2.6.1.0 als "25 unbekannte
@@ -891,8 +1018,8 @@ local function CreateCalendarFrame()
                 .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14)
                 .. " Keine einzige Einladung ist abgeschickt worden.|r\n"
                 .. "|cff888888"
-                .. (f.Draft.inviteFn
-                    and (f.Draft.inviteFn .. " scheiterte: " .. blocked[1])
+                .. (draft.inviteFn
+                    and (draft.inviteFn .. " scheiterte: " .. blocked[1])
                     or "Dieser Client hat keine Einladungsfunktion, die "
                        .. "WeintCodex kennt.")
                 .. "\nSpeichern geht trotzdem; einladen dann im "
@@ -927,16 +1054,61 @@ local function CreateCalendarFrame()
             return
         end
 
-        -- Rund zwoelf Sekunden sind grosszuegig fuer eine
-        -- Namensaufloesung. Danach ist ein fehlender Name kein
-        -- Wartezustand mehr, sondern eine Antwort: den Charakter gibt
-        -- es so nicht.
-        if attempt < 24 then
-            f.StatusText:SetText("|cffD4A24A"
-                .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14)
-                .. " Der Server bestätigt die Einladungen … "
-                .. #confirmed .. " von " .. total .. ".|r")
-            C_Timer.After(0.5, function() WatchDraft(attempt + 1) end)
+        --
+        -- Ab hier wird auf Fortschritt gewartet, nicht auf eine feste
+        -- Zahl von Versuchen (siehe WATCH_STALL). Solange die Zahl der
+        -- Bestaetigungen steigt, ist nichts entschieden.
+        --
+        draft.ticks = (draft.ticks or 0) + 1
+
+        if #confirmed > (draft.best or 0) then
+            draft.best         = #confirmed
+            draft.sinceProgress = 0
+        else
+            draft.sinceProgress = (draft.sinceProgress or 0) + 1
+        end
+
+        draft.sinceSend = (draft.sinceSend or WATCH_STALL) + 1
+
+        --
+        -- Steht der Stand, wird einzeln nachgefasst - einer je Takt.
+        --
+        -- Gestartet wird damit erst, wenn nichts mehr nachkommt; ist es
+        -- aber einmal gestartet, laeuft es durch. Sonst legte jede
+        -- eintreffende Bestaetigung das Nachfassen fuer WATCH_STALL
+        -- Takte still, und bei zwanzig offenen Namen zoege sich der
+        -- Lauf auf Minuten - waehrend der Raidlead davorsitzt.
+        --
+        local resent
+
+        if draft.resendCount or draft.sinceProgress >= WATCH_STALL then
+            resent = ResendOneInvite(draft, missing)
+
+            if resent then
+                draft.sinceSend = 0
+            end
+        end
+
+        local waiting = draft.ticks < WATCH_MAX
+            and (draft.sinceProgress < WATCH_STALL
+                 or draft.sinceSend < WATCH_STALL
+                 or resent ~= nil)
+
+        if waiting then
+            if draft.resendCount then
+                f.StatusText:SetText("|cffD4A24A"
+                    .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14)
+                    .. " Es wird einzeln nachgefragt … "
+                    .. #confirmed .. " von " .. total .. " bestätigt, "
+                    .. #missing .. " offen.|r")
+            else
+                f.StatusText:SetText("|cffD4A24A"
+                    .. WeintCodex.Icon("Interface\\Icons\\INV_Misc_PocketWatch_01", 14)
+                    .. " Der Server bestätigt die Einladungen … "
+                    .. #confirmed .. " von " .. total .. ".|r")
+            end
+
+            C_Timer.After(WATCH_TICK, WatchDraft)
             return
         end
 
@@ -950,7 +1122,12 @@ local function CreateCalendarFrame()
         f.StatusText:SetText("|cffD4A24A" .. #confirmed .. " von " .. total
             .. " bestätigt.|r\n|cffE56B6BNicht gefunden:|r "
             .. table.concat(missing, ", ")
-            .. "\n|cff888888Diese Namen kennt der Server nicht. Dein Realm: "
+            .. "\n|cff888888"
+            .. (draft.resendCount
+                and ("Einzeln nachgefragt (" .. draft.resendCount
+                     .. " Anfragen) - ohne Antwort. ")
+                or "")
+            .. "Diese Namen kennt der Server nicht. Dein Realm: "
             .. (myRealm ~= "" and myRealm or "unbekannt")
             .. " - wer dort spielt, wird ohne Realm-Zusatz eingeladen. "
             .. "Schreibweise in der Anmeldeliste korrigieren oder mit "
@@ -1184,7 +1361,7 @@ local function CreateCalendarFrame()
                 .. "Einladung:|r " .. table.concat(benched, ", "))
         end
 
-        WatchDraft(0)
+        WatchDraft()
     end)
 
     --------------------------------------------------
