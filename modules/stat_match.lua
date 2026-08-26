@@ -278,6 +278,39 @@ local ITEM_MOD_MAP = {
 
 local GetItemStatsCompat = GetItemStats or (C_Item and C_Item.GetItemStats)
 
+--------------------------------------------------
+-- ITEM_MOD_*-Tabelle des Clients -> unsere Statschlüssel.
+--
+-- Exportiert, weil die Tempo-Schwellen in modules/charakter.lua die Werte
+-- ANGELEGTER Gegenstände brauchen (Umschmiede-Reserve), und eine zweite
+-- Abschrift dieser Zuordnung wäre genau die Doppelpflege, an der die
+-- Verzauberungserkennung schon einmal gescheitert ist.
+--
+-- Rückgabe: stats | nil (nil = nichts Verwertbares darin)
+--------------------------------------------------
+function SM.NormalizeItemStats(raw)
+    if type(raw) ~= "table" then return nil end
+    local out, n = {}, 0
+    for key, value in pairs(raw) do
+        local mapped = ITEM_MOD_MAP[key]
+        if mapped and type(value) == "number" and value ~= 0 then
+            out[mapped] = (out[mapped] or 0) + value
+            n = n + 1
+        end
+    end
+    if n == 0 then return nil end
+    return out
+end
+
+-- Werte eines angelegten Gegenstands (voller Item-Link, also inklusive
+-- Steinen und Verzauberung, soweit der Client sie mitrechnet).
+function SM.ItemStats(link)
+    if not (GetItemStatsCompat and link) then return nil end
+    local ok, raw = pcall(GetItemStatsCompat, link)
+    if not ok then return nil end
+    return SM.NormalizeItemStats(raw)
+end
+
 -- Eigener Scan-Tooltip. Bewusst NICHT der aus charakter.lua: der wird dort
 -- für Item-Slots benutzt und beide Dateien setzen ihn mitten im jeweils
 -- anderen Durchlauf neu — ein gemeinsamer Tooltip liefert dann die Zeilen

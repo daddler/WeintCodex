@@ -1454,6 +1454,428 @@ local function BuildCapStates(profile)
 end
 
 --------------------------------------------------
+-- TEMPO-SCHWELLEN: TREPPE, ZIEL UND UMSCHMIEDE-RESERVE
+--
+-- Treffer und Waffenkunde sind Decken: darueber ist jeder Punkt wertlos,
+-- und BuildCapStates rechnet genau damit. Tempo hat keine Decke, sondern
+-- eine Treppe (siehe data/breakpoints.lua) — und deshalb konnte das Addon
+-- bis 2.6.1.1 gar nicht wissen, wann ein Tempostein nichts mehr bringt.
+-- Gemeldet wurde genau das: "es wird immer noch ein Tempostein
+-- vorgeschlagen, obwohl man am Cap ist".
+--
+-- DIE ENTSCHEIDUNG IST NICHT "WELCHE STUFE IST DIE RICHTIGE", SONDERN
+-- "IST DIE NAECHSTE UEBERHAUPT ZU ERREICHEN".
+--
+-- Welche Stufe man anpeilt, haengt an Ausruestungsstand, Raidbuffs und
+-- Guide — nichts davon steht in einer Tabelle, die wir pflegen koennten,
+-- und eine hineingeschriebene Wunschzahl waere genau die Sorte
+-- Handpflege, an der data/enchants.lua schon zweimal gescheitert ist.
+-- Was sich dagegen ausrechnen laesst, ist die REICHWEITE: wieviel
+-- Wertung durch Umschmieden und durch die Sockel ueberhaupt noch zu
+-- bewegen ist. Daraus folgt das Ziel von selbst:
+--
+--   * Liegt eine Stufe innerhalb der Reichweite, ist die hoechste davon
+--     das Ziel — Tempo zaehlt bis dorthin und der Planer darf Tempo
+--     empfehlen.
+--   * Liegt keine mehr drin, ist die zuletzt erreichte Stufe das Ende.
+--     Weiteres Tempo bringt keinen Tick mehr, der Spielraum ist 0, und
+--     was darueber liegt, gehoert umgeschmiedet. Das ist der Fall aus
+--     dem Fehlerbericht.
+--   * Ist noch keine Stufe erreicht UND keine in Reichweite, wird
+--     NICHTS behauptet: Tempo bleibt ungecappt wie bisher. Eine Aussage
+--     ueber unsere Rechenlage ist keine Aussage ueber die Ausruestung.
+--
+-- Die Reichweite ist bewusst eine OBERGRENZE (jede Umschmiedung zaehlt
+-- mit ihrem groesstmoeglichen Anteil, jeder Sockel mit einem vollen
+-- Sekundaerstein). Eine zu grosse Reichweite laesst die Stufe als
+-- erreichbar gelten und aendert dann gar nichts — eine zu kleine wuerde
+-- Tempo kappen, das noch etwas bringt. Von zwei Irrtuemern ist das der
+-- harmlose.
+--
+-- Und der Spieler behaelt das letzte Wort: das Ziel laesst sich auf der
+-- Seite "Werteverteilung & Caps" auf jede Stufe der Treppe setzen oder
+-- ganz abschalten. Wer eine Stufe ueber einen Schmuckproc erreicht, weiss
+-- mehr als diese Rechnung.
+--------------------------------------------------
+
+-- Kampfwertungsindizes des Clients (dieselbe Numerierung wie CR_INDEX oben).
+local CR_HASTE_INDEX = { melee = 18, ranged = 19, spell = 20 }
+local CR_CRIT_INDEX  = { melee = 9,  ranged = 10, spell = 11 }
+
+-- Nur Rueckfall, falls der Charakterbogen keinen Quotienten hergibt
+-- (Stufe 90). Gerechnet wird sonst mit dem, was der Client selbst meldet.
+local THRESHOLD_RATING_FALLBACK = { haste = 425, crit = 600, mastery = 600 }
+
+local THRESHOLD_LABEL = {
+    haste = { melee = "Tempo (Nahkampf)", ranged = "Tempo (Fernkampf)",
+              spell = "Tempo (Zauber)" },
+    crit  = { melee = "Kritische Trefferchance", ranged = "Kritische Trefferchance",
+              spell = "Kritische Zaubertrefferchance" },
+}
+
+-- Ein reiner Sekundaerstein bringt in MoP 320 Wertung. Die Zahl steht hier
+-- als Obergrenze fuer "was koennten die Sockel noch beitragen" — nicht als
+-- Empfehlung, die trifft weiterhin PlanItem.
+local SECONDARY_GEM_RATING = 320
+
+-- Umschmieden verschiebt 40 % EINES Sekundaerwerts eines Gegenstands in
+-- einen anderen, den der Gegenstand nicht bereits traegt.
+local REFORGE_SHARE = 0.4
+local REFORGE_STATS = {
+    crit = true, haste = true, mastery = true, hit = true,
+    expertise = true, dodge = true, parry = true, spirit = true,
+}
+
+local function SafeNum(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    local ok, value = pcall(fn, ...)
+    if ok and type(value) == "number" then return value end
+    return nil
+end
+
+-- Der GESAMTWERT laut Charakterbogen, also inklusive Raidbuffs — das ist
+-- die Zahl, an der die Ticks haengen. Antwortet der Client nicht, ist das
+-- Ergebnis nil und es wird nichts behauptet.
+local function LiveTotalPct(stat, typ)
+    if stat == "haste" then
+        if typ == "spell" then
+            return SafeNum(_G.UnitSpellHaste, "player") or SafeNum(_G.GetHaste)
+        elseif typ == "ranged" then
+            return SafeNum(_G.GetRangedHaste) or SafeNum(_G.GetHaste)
+        end
+        return SafeNum(_G.GetMeleeHaste) or SafeNum(_G.GetHaste)
+    elseif stat == "crit" then
+        if typ == "spell" then
+            local best
+            for school = 2, 7 do
+                local v = SafeNum(_G.GetSpellCritChance, school)
+                if v and (not best or v > best) then best = v end
+            end
+            return best
+        elseif typ == "ranged" then
+            return SafeNum(_G.GetRangedCritChance)
+        end
+        return SafeNum(_G.GetCritChance)
+    end
+    return nil
+end
+
+-- Anteil, der aus der WERTUNG kommt, und wieviel Wertung ein Prozentpunkt
+-- davon kostet.
+local function RatingBasis(stat, typ)
+    local idx = (stat == "haste") and CR_HASTE_INDEX[typ or "melee"]
+             or (stat == "crit")  and CR_CRIT_INDEX[typ or "melee"]
+             or nil
+    local rating = idx and SafeNum(_G.GetCombatRating, idx) or 0
+    local bonus  = idx and SafeNum(_G.GetCombatRatingBonus, idx) or 0
+    local perPct = THRESHOLD_RATING_FALLBACK[stat] or RATING_PER_PCT_FALLBACK
+    if bonus > 0.05 and rating > 0 then
+        perPct = rating / bonus
+    end
+    return rating, bonus, perPct
+end
+
+-- Wieviel Wertung kostet EIN PROZENTPUNKT GESAMTWERT?
+--
+-- Buffs wirken multiplikativ: mit 5 % Raidtempo macht ein Prozentpunkt aus
+-- der Wertung 1,05 Prozentpunkte auf dem Charakterbogen. Wer den Abstand
+-- zur naechsten Stufe (ein Gesamtwert!) mit der reinen Wertungsumrechnung
+-- multipliziert, verlangt deshalb zu viel Wertung. Der Faktor faellt aus
+-- den beiden Zahlen heraus, die der Client ohnehin meldet.
+local function BuffFactor(totalPct, ratingPct)
+    if not totalPct or not ratingPct then return 1 end
+    local f = (1 + totalPct / 100) / (1 + ratingPct / 100)
+    if f < 0.5 or f > 2 then return 1 end   -- unplausibel: lieber nicht rechnen
+    return f
+end
+
+--------------------------------------------------
+-- UMSCHMIEDE-RESERVE (Obergrenze)
+--
+-- Je angelegtem Gegenstand laesst sich 40 % EINES Sekundaerwerts
+-- verschieben. Was in `stat` hinein kann, kommt deshalb nur von
+-- Gegenstaenden, die `stat` noch NICHT tragen; was heraus kann, nur von
+-- denen, die ihn tragen.
+--
+-- Bewusst eine Obergrenze und als solche beschriftet: die Werte kommen aus
+-- GetItemStats, und ob der Client eine bereits umgeschmiedete Verteilung
+-- oder die des Grundgegenstands meldet, ist von hier aus nicht zu belegen.
+-- Fuer die Frage "ist die naechste Stufe ueberhaupt erreichbar" ist die
+-- Obergrenze die richtige Richtung (siehe oben).
+--------------------------------------------------
+
+local function ReforgeReserve(stat)
+    local gain, drop = 0, 0
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        local stats = link and SM.ItemStats and SM.ItemStats(link)
+        if stats then
+            local own = stats[stat]
+            if own and own > 0 then
+                drop = drop + own * REFORGE_SHARE
+            else
+                local biggest = 0
+                for key, value in pairs(stats) do
+                    if REFORGE_STATS[key] and value > biggest then biggest = value end
+                end
+                gain = gain + biggest * REFORGE_SHARE
+            end
+        end
+    end
+    return gain, drop
+end
+
+-- Was koennten die Sockel noch beitragen? Auch das eine Obergrenze: jeder
+-- Sockel mit einem vollen Sekundaerstein, ohne Ruecksicht darauf, was dort
+-- gerade steckt. Gezaehlt wird ueber den billigen Weg (wantColors = false,
+-- dieselbe Ueberlegung wie im Gruppencheck) — hier zaehlt die Anzahl,
+-- nicht die Farbe.
+local function SocketReserve()
+    local count = 0
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local sockets = ScanItemSockets(link, slotDef.id, false)
+            count = count + #sockets
+        end
+    end
+    return count * SECONDARY_GEM_RATING, count
+end
+
+--------------------------------------------------
+-- ZIEL DES SPIELERS (überschreibt die Rechnung)
+--   mode = "auto"   die Rechnung oben entscheidet (Vorgabe)
+--   mode = "aus"    keine Schwelle, Tempo zaehlt wie bisher unbegrenzt
+--   mode = "stufe"  feste Stufe, `pct` ist ihr Prozentwert
+--------------------------------------------------
+
+local function StatTargetStore(create)
+    local sd = WeintCodex.SavedData
+    if not sd then return nil end
+    if not sd.statTargets then
+        if not create then return nil end
+        sd.statTargets = {}
+    end
+    return sd.statTargets
+end
+
+local function StatTargetKey(profileKey, tankStyle)
+    return GetEffectiveProfileKey(profileKey, tankStyle)
+end
+
+local function GetStatTarget(profileKey, tankStyle, stat)
+    local store = StatTargetStore(false)
+    local key   = StatTargetKey(profileKey, tankStyle)
+    local perSpec = store and key and store[key]
+    return perSpec and perSpec[stat] or nil
+end
+
+function WeintCodex.Charakter.SetStatTarget(stat, entry)
+    local _, profileKey, tankStyle = GetCurrentSpecProfile()
+    local key = StatTargetKey(profileKey, tankStyle)
+    if not key then return end
+    local store = StatTargetStore(true)
+    if not store then return end
+    store[key] = store[key] or {}
+    store[key][stat] = entry
+    -- Kein Cache zu leeren: ScanCharacter rechnet bei jedem Aufbau neu,
+    -- und die Aufrufer zeichnen die Seite direkt danach.
+end
+
+--------------------------------------------------
+-- ZUSTAND EINER TEMPO-TREPPE
+--
+-- Rueckgabe je Eintrag in data/breakpoints.lua eine Tabelle mit denselben
+-- Feldnamen wie ein Cap-Zustand (`current`, `capPct`, `overPct`,
+-- `overRating`, `underRating`, `label`, `wasted`), damit der Overcap-Pass
+-- und die Balken sie ohne Sonderfall lesen — plus dem, was nur eine Treppe
+-- hat: `ladder`, `reached`, `nextRung`, `target`, `reforgeGain/Drop`,
+-- `socketReserve`, `reach`.
+--
+-- `capPct == nil` heisst ausdruecklich "kein Ziel": weder gekappt noch
+-- erreicht, und dann sagt die Seite genau das.
+--------------------------------------------------
+
+local function BuildBreakpointStates(profile, profileKey, tankStyle)
+    local states = {}
+    if not profile or not profileKey then return states end
+    if type(WeintCodex_BreakpointLadder) ~= "function" then return states end
+
+    -- Der Tankstil hat einen eigenen Profilschluessel (…_OFFENSIVE) und darf
+    -- eine eigene Treppe haben; ohne einen faellt er auf die Basis-Spec
+    -- zurueck, so wie bei der Ausruestung (modules/bis.lua) und anders als
+    -- bei der Rotation, wo eine falsche Liste schlechter waere als keine.
+    local effKey = GetEffectiveProfileKey(profileKey, tankStyle)
+    local bpKey  = (WeintCodex_Breakpoints and effKey
+                    and WeintCodex_Breakpoints[effKey]) and effKey or profileKey
+    local def = WeintCodex_Breakpoints and WeintCodex_Breakpoints[bpKey]
+    if not def then return states end
+
+    local ladder = WeintCodex_BreakpointLadder(bpKey)
+    if not ladder or #ladder == 0 then return states end
+
+    local stat, typ = def.stat or "haste", def.typ or "spell"
+
+    local current = LiveTotalPct(stat, typ)
+    if not current then
+        -- Der Client hat nicht geantwortet. Ohne den Istwert ist jede
+        -- Stufenaussage geraten — also keine.
+        return states
+    end
+
+    local _, ratingPct, perPctRating = RatingBasis(stat, typ)
+    local buffFactor = BuffFactor(current, ratingPct)
+    local perPct = perPctRating / buffFactor
+
+    local reforgeGain, reforgeDrop = ReforgeReserve(stat)
+    local socketReserve, socketCount = SocketReserve()
+    local reach = reforgeGain + socketReserve
+
+    -- Erreichte Stufe und naechste Stufe darueber.
+    local reached, nextRung
+    for _, rung in ipairs(ladder) do
+        if rung.pct <= current + 0.001 then
+            reached = rung
+        elseif not nextRung then
+            nextRung = rung
+        end
+    end
+
+    -- Hoechste Stufe in Reichweite. Bewusst die HOECHSTE und nicht die
+    -- naechste: geplant wird die ganze Ausruestung auf einmal, und wer nur
+    -- bis zur naechsten Stufe rechnet, hoert nach einem einzigen Stein auf.
+    local reachable
+    for _, rung in ipairs(ladder) do
+        if rung.pct > current and (rung.pct - current) * perPct <= reach then
+            reachable = rung
+        end
+    end
+
+    local target, targetSource = reachable, "auto"
+
+    -- Der Spieler ueberschreibt.
+    local own = GetStatTarget(profileKey, tankStyle, stat)
+    if own and own.mode == "aus" then
+        target, targetSource = nil, "aus"
+    elseif own and own.mode == "stufe" and own.pct then
+        target, targetSource = nil, "spieler"
+        for _, rung in ipairs(ladder) do
+            if math.abs(rung.pct - own.pct) < 0.01 then target = rung end
+        end
+        if not target then
+            target = { pct = own.pct, label = own.label or "eigenes Ziel" }
+        end
+    end
+
+    local state = {
+        kind          = "breakpoint",
+        stat          = stat,
+        typ           = typ,
+        label         = (THRESHOLD_LABEL[stat] and THRESHOLD_LABEL[stat][typ])
+                        or THRESHOLD_LABEL.haste.spell,
+        current       = current,
+        perPct        = perPct,
+        perPctRating  = perPctRating,
+        buffFactor    = buffFactor,
+        ratingPct     = ratingPct,
+        ladder        = ladder,
+        reached       = reached,
+        nextRung      = nextRung,
+        target        = target,
+        targetSource  = targetSource,
+        reforgeGain   = reforgeGain,
+        reforgeDrop   = reforgeDrop,
+        socketReserve = socketReserve,
+        socketCount   = socketCount,
+        reach         = reach,
+        note          = def.note,
+        specKey       = bpKey,
+        wasted        = {},
+    }
+
+    if targetSource == "aus" then
+        -- Ausdruecklich abgeschaltet: kein Ziel, kein Spielraum, keine
+        -- Aussage. Tempo zaehlt wie vor 2.6.2.0.
+        state.capPct      = nil
+        state.headroom    = nil
+    elseif target and target.pct > current then
+        state.capPct      = target.pct
+        state.overPct     = current - target.pct
+        state.overRating  = 0
+        state.underRating = (target.pct - current) * perPct
+        state.headroom    = state.underRating
+    elseif reached then
+        -- Keine Stufe mehr in Reichweite (oder das eigene Ziel liegt
+        -- bereits hinter uns): hier ist Schluss.
+        state.capPct      = (target and target.pct) or reached.pct
+        state.capped      = true
+        state.overPct     = current - state.capPct
+        state.overRating  = math.max(0, state.overPct * perPct)
+        state.underRating = 0
+        state.headroom    = 0
+    else
+        -- Noch keine Stufe erreicht und keine in Reichweite: nichts
+        -- behaupten (siehe Kopf dieses Abschnitts).
+        state.capPct      = nil
+        state.headroom    = nil
+        state.outOfReach  = true
+    end
+
+    states[#states + 1] = state
+    return states
+end
+
+--------------------------------------------------
+-- WOHIN MIT DEM UEBERSCHUSS?
+--
+-- Ueber einer Decke oder hinter der letzten erreichbaren Stufe ist
+-- Wertung nicht verloren — sie steht am falschen Platz, und Umschmieden
+-- ist der Weg, sie zu bewegen. Ein Befund, der das nicht mitsagt, laesst
+-- den Spieler mit "verschwendet" allein; genau darum ging der
+-- Fehlerbericht ("gerade weil sonst Werte umsonst sind").
+--
+-- Genommen wird der hoechstgewichtete Sekundaerwert, der NICHT selbst an
+-- einer Grenze steht. Ohne Gewichte oder ohne Kandidaten kommt nil
+-- zurueck und der Text nennt dann kein Ziel, statt eines zu erfinden.
+--------------------------------------------------
+
+local REFORGE_TARGET_LABEL = {
+    crit = "kritische Trefferwertung", haste = "Tempo", mastery = "Meisterschaft",
+    hit = "Trefferwertung", expertise = "Waffenkunde",
+    dodge = "Ausweichen", parry = "Parieren", spirit = "Willenskraft",
+}
+
+-- Vorschlagsreihenfolge einer Verzauberungszeile: die von
+-- PreferredEnchantId gewaehlte ID zuerst, danach der Rest der Liste als
+-- Rueckfall (eine ID, die der Client nicht aufloesen kann, darf den
+-- Vorschlag nicht verschlucken — siehe FirstResolvableName).
+local function EnchantRecList(row)
+    if not row.recId then return row.bestList end
+    if not row.bestList then return { row.recId } end
+    local out = { row.recId }
+    for _, id in ipairs(row.bestList) do
+        if id ~= row.recId then out[#out + 1] = id end
+    end
+    return out
+end
+
+local function BestReforgeTarget(profile, capped, exclude)
+    local weights = profile and profile.statWeights
+    if not weights then return nil end
+    local bestStat, bestWeight
+    for stat in pairs(REFORGE_STATS) do
+        local w = weights[stat]
+        if w and w > 0 and stat ~= exclude and not (capped and capped[stat]) then
+            if not bestWeight or w > bestWeight then
+                bestStat, bestWeight = stat, w
+            end
+        end
+    end
+    if not bestStat then return nil end
+    return bestStat, REFORGE_TARGET_LABEL[bestStat] or bestStat
+end
+
+--------------------------------------------------
 -- BEWERTUNG: Stein / Verzauberung
 --
 -- ScoreStats (gewichtete Summe ohne Rücksicht auf Caps) ist seit 2.5.0.0
@@ -1593,6 +2015,47 @@ local function ConsumeHeadroom(stats, headroom)
         end
     end
 end
+
+--------------------------------------------------
+-- WELCHE VERZAUBERUNG SCHLAGEN WIR VOR?
+--
+-- `bestList` ist eine MENGE vertretbarer Verzauberungen; id1 ist nur die,
+-- die auf ein noch unverzaubertes Teil gehoert (Kopf von
+-- spec_profiles.lua). Liefert id1 einen Wert, der an einer Grenze steht —
+-- Trefferkap erreicht, Tempo-Schwelle erreicht —, dann ist sie als
+-- VORSCHLAG die schlechteste der Liste: sie bringt Wertung, die nichts
+-- mehr bewirkt. Genau das war die zweite Haelfte des Fehlerberichts, denn
+-- eine Verzauberung ist Wertung wie ein Stein.
+--
+-- Drei Zurueckhaltungen, und jede steht fuer einen Fehlalarm:
+--   * Umgereiht wird NUR, wenn id1 komplett ins Leere laeuft (Wert 0).
+--     "Etwas weniger wert" ist kein Grund, eine kuratierte Liste
+--     umzusortieren — dieselbe Regel wie beim Kandidatentopf der Steine.
+--   * Proc-Verzauberungen (Tanzender Stahl, Jadegeist, DK-Runen) haben
+--     bewusst keine Werte. Sie werden nie verdraengt und verdraengen nie.
+--   * Das URTEIL ueber eine angelegte Verzauberung aendert sich dadurch
+--     nicht: was in der Liste steht, bleibt optimal. Nur der Vorschlag
+--     wechselt.
+--------------------------------------------------
+
+local function PreferredEnchantId(bestList, profile, headroom)
+    if not bestList or #bestList == 0 then return nil end
+    local weights = profile and profile.statWeights
+    if not (weights and headroom) then return bestList[1] end
+
+    local firstStats = SM.EnchantStats and SM.EnchantStats(bestList[1])
+    if not firstStats then return bestList[1] end
+    if GemValue(firstStats, weights, headroom) > 0 then return bestList[1] end
+
+    for i = 2, #bestList do
+        local stats = SM.EnchantStats(bestList[i])
+        if stats and GemValue(stats, weights, headroom) > 0 then
+            return bestList[i]
+        end
+    end
+    return bestList[1]
+end
+
 
 --------------------------------------------------
 -- KANDIDATENTOPF JE SPEC
@@ -2142,6 +2605,7 @@ end
 local function ScanCharacter()
     local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
     local capStates = BuildCapStates(profile)
+    local breakpointStates = BuildBreakpointStates(profile, profileKey, tankStyle)
 
     -- CAP-SPIELRAUM FÜR DIE SOCKELEMPFEHLUNG.
     --
@@ -2155,9 +2619,22 @@ local function ScanCharacter()
     -- Ohne das bekäme jeder Sockel denselben Restweg zum Cap gutgeschrieben
     -- und die Seite empföhle zehn Treffersteine für eine Lücke, die einer
     -- schliesst. Die Reihenfolge ist die von EQUIP_SLOTS und damit stabil.
+    --
+    -- Seit 2.6.2.0 speisen zwei Quellen denselben Spielraum: die Decken
+    -- (Treffer/Waffenkunde) und die Tempo-Treppe. Fuer den Planer ist das
+    -- dieselbe Frage — wieviel Wertung bringt in diesem Stat ueberhaupt
+    -- noch etwas —, und genau deshalb ist es EIN Topf und nicht zwei
+    -- Rechnungen nebeneinander (dieselbe Lehre wie bei PlanItem).
     local headroom = {}
     for _, cs in ipairs(capStates) do
         headroom[cs.stat] = math.max(0, cs.underRating or 0)
+    end
+    for _, bp in ipairs(breakpointStates) do
+        -- headroom == nil heisst "keine Aussage": der Stat bleibt dann
+        -- ungecappt, statt mit 0 als wertlos zu gelten.
+        if bp.headroom ~= nil then
+            headroom[bp.stat] = math.max(0, bp.headroom)
+        end
     end
 
     -- Der Overcap-Pass weiter unten markiert ANGELEGTE Steine, deren Wertung
@@ -2167,6 +2644,13 @@ local function ScanCharacter()
     for _, cs in ipairs(capStates) do
         if cs.overPct > 0.25 then overStats[cs.stat] = true end
     end
+
+    -- Kopie VOR dem Planen. PlanItem VERBRAUCHT den Spielraum; fuer die
+    -- Frage "welcher Stat steht ueberhaupt an einer Grenze" zaehlt aber
+    -- der Stand am Anfang, sonst gaelte nach dem letzten Slot jeder Stat
+    -- als gecappt.
+    local headroomAtStart = {}
+    for stat, room in pairs(headroom) do headroomAtStart[stat] = room end
 
     -- Kandidatentopf und Schlangenaugen-Kontingent gelten für den ganzen
     -- Charakter, nicht je Gegenstand.
@@ -2187,6 +2671,7 @@ local function ScanCharacter()
         tankStyle   = tankStyle,
         specDisplay = specDisplay,
         caps        = capStates,
+        breakpoints = breakpointStates,
         enchants    = { rows = {} },
         gems        = { rows = {} },
         issues      = {},
@@ -2241,7 +2726,7 @@ local function ScanCharacter()
                     status       = status,
                     equiv        = equiv,
                     bestList     = bestList,
-                    recId        = bestList and bestList[1] or nil,
+                    recId        = PreferredEnchantId(bestList, profile, headroomAtStart),
                 }
             end
 
@@ -2302,10 +2787,30 @@ local function ScanCharacter()
     --    die einen bereits gecappten Stat liefern und
     --    deren kompletter Wert verschwendet ist.
     --    (z.B. weitere Treffer-Steine trotz 15% Cap)
+    --
+    -- Seit 2.6.2.0 laeuft derselbe Pass auch ueber eine erreichte
+    -- Tempo-Treppe, deren naechste Stufe ausser Reichweite ist. Das ist
+    -- dieselbe Aussage — diese Wertung bringt nichts mehr —, und sie
+    -- zweimal getrennt zu rechnen waere genau die Doppelung, aus der
+    -- Empfehlung und Urteil auseinanderlaufen. Was sich unterscheidet, ist
+    -- der TEXT: eine Decke ist etwas anderes als eine Treppe, deshalb
+    -- traegt die Zeile `capKind` mit.
     --------------------------------------------------
 
+    local wasteStates = {}
     for _, cs in ipairs(capStates) do
-        if cs.overPct > 0.25 then
+        if cs.overPct > 0.25 then wasteStates[#wasteStates + 1] = cs end
+    end
+    for _, bp in ipairs(breakpointStates) do
+        -- Nur eine ERREICHTE Stufe ohne erreichbare naechste erzeugt
+        -- Ueberschuss. Steht das Ziel noch vor uns, ist gar nichts zuviel.
+        if bp.capped and (bp.overRating or 0) >= 1 then
+            wasteStates[#wasteStates + 1] = bp
+        end
+    end
+
+    for _, cs in ipairs(wasteStates) do
+        do
             local budget = cs.overRating
             local cands = {}
 
@@ -2343,6 +2848,7 @@ local function ScanCharacter()
                 if cand.value <= budget then
                     cand.row.status  = "overcap"
                     cand.row.capStat = cs.stat
+                    cand.row.capKind = cs.kind or "cap"
                     budget = budget - cand.value
                     cs.wasted[#cs.wasted + 1] = cand
                 end
@@ -2410,7 +2916,7 @@ local function ScanCharacter()
     for _, row in ipairs(scan.enchants.rows) do
         if row.status == "missing" then
             local rec = FirstResolvableName(
-                row.bestList or { row.recId }, GetEnchantDisplayName)
+                EnchantRecList(row), GetEnchantDisplayName)
             issues[#issues + 1] = { prio = 1, status = "missing",
                 text = row.slotName .. ": Verzauberung fehlt"
                     .. (rec and (" — Empfehlung: " .. rec) or "") }
@@ -2452,20 +2958,107 @@ local function ScanCharacter()
         end
     end
 
+    --------------------------------------------------
+    -- CAPS UND SCHWELLEN — UND WAS MAN DAGEGEN TUT
+    --
+    -- Bis 2.6.1.1 endete der Befund ueber einem Cap mit "Umsockeln!". Das
+    -- ist nur die halbe Antwort und meistens die teurere: Wertung ueber
+    -- einer Grenze steht nicht falsch IM Stein, sie steht im falschen
+    -- Stat, und der Weg dorthin heisst Umschmieden. Deshalb nennt jeder
+    -- dieser Texte jetzt beides — die Menge, die daneben liegt, und
+    -- wohin damit.
+    --------------------------------------------------
+
+    -- Welcher Stat steht an einer Grenze? (Stand VOR dem Planen — der
+    -- Spielraum wird beim Planen verbraucht, fuer diese Frage zaehlt der
+    -- Anfangsstand.)
+    local cappedStats = {}
+    for stat, room in pairs(headroomAtStart) do
+        if room <= 0 then cappedStats[stat] = true end
+    end
+
+    -- Umschmiede-Reserve je Stat, einmal je Scan berechnet (jeder Aufruf
+    -- liest 16 Gegenstaende).
+    local reserveCache = {}
+    local function Reserve(stat)
+        local cached = reserveCache[stat]
+        if not cached then
+            local gain, drop = ReforgeReserve(stat)
+            cached = { gain = gain, drop = drop }
+            reserveCache[stat] = cached
+        end
+        return cached.gain, cached.drop
+    end
+
     for _, cs in ipairs(capStates) do
         if cs.overPct > 0.25 and #cs.wasted > 0 then
             local totalWaste = 0
             for _, w in ipairs(cs.wasted) do totalWaste = totalWaste + w.value end
+            local _, targetLabel = BestReforgeTarget(profile, cappedStats, cs.stat)
             issues[#issues + 1] = { prio = 2, status = "overcap",
                 text = string.format(
-                    "%s über dem Cap: %.1f%% / %.1f%% — %d Quelle(n), %d Wertung verschwendet. Umsockeln!",
-                    cs.label, cs.current, cs.capPct, #cs.wasted, totalWaste) }
+                    "%s über dem Cap: %.1f%% / %.1f%% — %d Quelle(n), %d Wertung liegen daneben. Umschmieden%s oder umsockeln.",
+                    cs.label, cs.current, cs.capPct, #cs.wasted, totalWaste,
+                    targetLabel and (" in " .. targetLabel) or "") }
         elseif cs.overPct < -0.3 then
+            local gain = Reserve(cs.stat)
             issues[#issues + 1] = { prio = 2, status = "wrong",
                 text = string.format(
-                    "%s unter dem Cap: %.1f%% / %.1f%% — es fehlen ca. %d Wertung%s.",
+                    "%s unter dem Cap: %.1f%% / %.1f%% — es fehlen ca. %d Wertung%s. Umschmieden bewegt bis zu ~%d Wertung.",
                     cs.label, cs.current, cs.capPct, math.ceil(cs.underRating),
-                    cs.spiritZaehlt and " (Willenskraft zählt mit)" or "") }
+                    cs.spiritZaehlt and " (Willenskraft zählt mit)" or "",
+                    math.floor(gain + 0.5)) }
+        end
+    end
+
+    --------------------------------------------------
+    -- TEMPO-SCHWELLEN
+    --
+    -- Drei Ausgaenge, und sie raten zu Verschiedenem — deshalb drei Texte
+    -- und nicht einer mit Klammern:
+    --   * Ziel voraus      -> sammeln, und zwar so viel
+    --   * Stufe erreicht,
+    --     naechste zu weit -> aufhoeren und den Rest umschmieden
+    --   * gar nichts in
+    --     Reichweite       -> nichts behaupten (steht nur auf der Seite)
+    --------------------------------------------------
+
+    for _, bp in ipairs(breakpointStates) do
+        if bp.capped and (bp.overRating or 0) >= 1 then
+            local _, targetLabel = BestReforgeTarget(profile, cappedStats, bp.stat)
+            -- WARUM hier Schluss ist, sind zwei verschiedene Antworten: die
+            -- Rechnung sagt "nicht erreichbar", ein selbst gesetztes Ziel
+            -- sagt "so gewollt". Beides in einen Satz zu giessen hiesse,
+            -- dem Spieler seine eigene Entscheidung als Unerreichbarkeit zu
+            -- verkaufen — und die Zahl daneben widerspraeche ihm sogar.
+            local nextText = ""
+            if bp.nextRung and bp.targetSource == "spieler" then
+                nextText = string.format(
+                    " Die nächste (%.1f%%, %s) läge ~%d Wertung höher, dein Ziel steht aber darunter.",
+                    bp.nextRung.pct, bp.nextRung.label,
+                    math.ceil((bp.nextRung.pct - bp.current) * bp.perPct))
+            elseif bp.nextRung then
+                nextText = string.format(
+                    " Die nächste (%.1f%%, %s) ist ~%d Wertung entfernt und mit Umschmieden und Sockeln (~%d) nicht zu erreichen.",
+                    bp.nextRung.pct, bp.nextRung.label,
+                    math.ceil((bp.nextRung.pct - bp.current) * bp.perPct),
+                    math.floor(bp.reach + 0.5))
+            end
+            issues[#issues + 1] = { prio = 2, status = "overcap",
+                text = string.format(
+                    "%s: %.1f%% — Schwelle %s (%.1f%%) erreicht.%s ~%d Wertung bringen keinen Tick mehr — umschmieden%s.",
+                    bp.label, bp.current,
+                    (bp.reached and bp.reached.label) or "?",
+                    bp.capPct or 0, nextText,
+                    math.floor((bp.overRating or 0) + 0.5),
+                    targetLabel and (" in " .. targetLabel) or "") }
+        elseif bp.target and bp.underRating and bp.underRating > 0 then
+            local gain = Reserve(bp.stat)
+            issues[#issues + 1] = { prio = 3, status = "ok",
+                text = string.format(
+                    "%s: %.1f%% — bis zur Schwelle %s (%.1f%%) fehlen ~%d Wertung. Umschmieden bewegt bis zu ~%d Wertung.",
+                    bp.label, bp.current, bp.target.label or "?", bp.target.pct,
+                    math.ceil(bp.underRating), math.floor(gain + 0.5)) }
         end
     end
 
@@ -2697,7 +3290,7 @@ local function FormatHeadroom(headroom)
 end
 
 function WeintCodex.Charakter.DumpSockets()
-    local profile, profileKey = GetCurrentSpecProfile()
+    local profile, profileKey, tankStyle = GetCurrentSpecProfile()
     print("|cffD4A24A[WeintCodex]|r Sockel-Diagnose ("
         .. tostring(profileKey or "kein Profil") .. "):")
 
@@ -2713,6 +3306,22 @@ function WeintCodex.Charakter.DumpSockets()
         print(string.format("  |cff4A4A52Cap %s: %.2f%% / %.2f%%, Spielraum %d Wertung|r",
             cs.label or cs.stat, cs.current or 0, cs.capPct or 0,
             math.floor(headroom[cs.stat] + 0.5)))
+    end
+
+    -- Die Tempo-Treppe speist denselben Topf (siehe ScanCharacter). Sie
+    -- hier wegzulassen hiesse, dass die Diagnose mit anderen Zahlen
+    -- rechnet als die Seite - genau die Sorte Abweichung, wegen der es
+    -- diesen Befehl ueberhaupt gibt.
+    for _, bp in ipairs(BuildBreakpointStates(profile, profileKey, tankStyle)) do
+        if bp.headroom ~= nil then
+            headroom[bp.stat] = math.max(0, bp.headroom)
+        end
+        print(string.format("  |cff4A4A52Schwelle %s: %.2f%% / %s, Spielraum %s (%s) - /wc tempo zeigt die Treppe|r",
+            bp.label or bp.stat, bp.current or 0,
+            bp.capPct and string.format("%.2f%%", bp.capPct) or "kein Ziel",
+            bp.headroom and string.format("%d Wertung", math.floor(bp.headroom + 0.5))
+                         or "ungedeckelt",
+            bp.targetSource or "auto"))
     end
 
     local pool = GemPool(profile, profileKey)
@@ -2798,6 +3407,110 @@ function WeintCodex.Charakter.DumpSockets()
                         plan.value and plan.value[i] or 0))
                 end
             end
+        end
+    end
+end
+
+
+--------------------------------------------------
+-- /wc tempo — DIE TREPPE, IHRE HERLEITUNG UND WAS DARAUS FOLGT
+--
+-- Eigener Befehl aus demselben Grund wie /wc sockel und /wc vz zeilen:
+-- "es wird ein Tempostein vorgeschlagen, obwohl ich am Cap bin" sieht von
+-- aussen bei einer falschen Laufzeit in data/breakpoints.lua, bei einem
+-- Client, der den Istwert nicht meldet, bei einer zu gross geschaetzten
+-- Reichweite und bei einem selbst gesetzten Ziel voellig identisch aus.
+-- Diese Ausgabe unterscheidet sie.
+--
+-- Gedruckt wird deshalb JEDE Zwischenzahl: welche Client-Funktion
+-- geantwortet hat, wieviel davon aus Wertung kommt, der Buff-Faktor, die
+-- Umschmiede-Reserve, und je Stufe ihre Herleitung aus Laufzeit und
+-- Tickabstand. Wer eine falsche Zahl in der Datendatei sucht, findet sie
+-- hier und nirgends sonst.
+--------------------------------------------------
+
+function WeintCodex.Charakter.DumpBreakpoints()
+    local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
+    print("|cffD4A24A[WeintCodex]|r Tempo-Schwellen ("
+        .. tostring(specDisplay or profileKey or "kein Profil") .. "):")
+
+    if not profile then
+        print("  |cffff5555Kein Spec-Profil - es kann nichts gerechnet werden.|r")
+        return
+    end
+
+    -- 1) Was der Client hergibt. Auch die Funktionen, die NICHT
+    --    antworten, stehen hier: ein fehlender Wert ist eine Auskunft.
+    local probes = {
+        { "UnitSpellHaste(player)", SafeNum(_G.UnitSpellHaste, "player") },
+        { "GetMeleeHaste()",        SafeNum(_G.GetMeleeHaste) },
+        { "GetRangedHaste()",       SafeNum(_G.GetRangedHaste) },
+        { "GetHaste()",             SafeNum(_G.GetHaste) },
+        { "GetCritChance()",        SafeNum(_G.GetCritChance) },
+    }
+    for _, probe in ipairs(probes) do
+        print(string.format("  |cff4A4A52%-24s %s|r", probe[1],
+            probe[2] and string.format("%.2f %%", probe[2]) or "|cffff9900keine Antwort|r"))
+    end
+
+    local states = BuildBreakpointStates(profile, profileKey, tankStyle)
+    if #states == 0 then
+        local effKey = GetEffectiveProfileKey(profileKey, tankStyle)
+        local hasData = WeintCodex_Breakpoints
+            and (WeintCodex_Breakpoints[effKey] or WeintCodex_Breakpoints[profileKey])
+        if hasData then
+            print("  |cffff9900Fuer diese Spec sind Schwellen hinterlegt, aber es"
+                .. " kam kein Zustand zustande - meist, weil der Client den"
+                .. " Istwert nicht gemeldet hat (siehe oben).|r")
+        else
+            print("  |cff4A4A52Fuer diese Spec sind keine Tempo-Schwellen"
+                .. " hinterlegt. Tempo zaehlt hier wie jeder andere"
+                .. " Sekundaerwert - das ist Absicht, siehe Kopf von"
+                .. " data/breakpoints.lua.|r")
+        end
+        return
+    end
+
+    for _, bp in ipairs(states) do
+        print(string.format("|cffD4A24A%s|r  ist: %.2f %%  (davon aus Wertung %.2f %%,"
+            .. " Buff-Faktor x%.3f)", bp.label, bp.current, bp.ratingPct or 0,
+            bp.buffFactor or 1))
+        print(string.format("  |cff4A4A52%d Wertung je Prozentpunkt Gesamtwert"
+            .. " (%d je Prozentpunkt aus Wertung)|r",
+            math.floor(bp.perPct + 0.5), math.floor((bp.perPctRating or 0) + 0.5)))
+        print(string.format("  |cff4A4A52Reichweite %d Wertung = Umschmieden bis %d"
+            .. " (rein) / %d (raus) + %d Sockel a %d|r",
+            math.floor(bp.reach + 0.5), math.floor(bp.reforgeGain + 0.5),
+            math.floor(bp.reforgeDrop + 0.5), bp.socketCount or 0,
+            SECONDARY_GEM_RATING))
+
+        print(string.format("  Ziel: %s  |cff4A4A52[Quelle: %s]|r  Spielraum: %s",
+            bp.target and string.format("%.2f %% (%s)", bp.target.pct,
+                                        bp.target.label or "?")
+                      or "|cffFFBB22keines|r",
+            bp.targetSource == "spieler" and "selbst gesetzt"
+                or bp.targetSource == "aus" and "abgeschaltet"
+                or "gerechnet",
+            bp.headroom and string.format("%d Wertung", math.floor(bp.headroom + 0.5))
+                         or "|cff888888ungedeckelt (keine Aussage)|r"))
+        if bp.capped then
+            print(string.format("  |cffcc88ffGekappt: %d Wertung liegen hinter der"
+                .. " Schwelle und bringen keinen Tick mehr.|r",
+                math.floor((bp.overRating or 0) + 0.5)))
+        end
+
+        print("  |cff4A4A52Treppe (Laufzeit / Tickabstand -> Prozent):|r")
+        for _, rung in ipairs(bp.ladder or {}) do
+            local e = rung.effect or {}
+            local reached = rung.pct <= bp.current + 0.001
+            print(string.format("    %s%6.2f %%|r  %-38s |cff4A4A52%g s / %g s,"
+                .. " %d. Tick%s|r  %s",
+                reached and "|cff22C55E" or "|cff6B6B74", rung.pct,
+                rung.label or "?", e.duration or 0, e.tick or 0, rung.ticks or 0,
+                e.verify and ", unbestaetigt" or "",
+                reached and "|cff22C55Eerreicht|r"
+                    or string.format("|cff4A4A52~%d Wertung|r",
+                                     math.ceil((rung.pct - bp.current) * bp.perPct))))
         end
     end
 end
@@ -3228,7 +3941,14 @@ function ShowEnchants()
             -- "Optimal" — und der naechste Fehlerbericht kommt bestimmt.
             local note = row.equiv and SM.VerdictNote(row.equiv.verdict)
             if row.status == "overcap" then
-                curLbl:SetText(n .. " |cffcc88ff(Stat über Cap!)|r")
+                -- Decke und Treppe sind zwei verschiedene Aussagen: ueber
+                -- dem Trefferkap ist die Wertung wertlos, hinter der
+                -- letzten erreichbaren Tempo-Stufe bringt sie nur keinen
+                -- Tick mehr. Ein Text fuer beides waere fuer einen der
+                -- beiden Faelle falsch.
+                curLbl:SetText(n .. (row.capKind == "breakpoint"
+                    and " |cffcc88ff(hinter der Schwelle!)|r"
+                    or  " |cffcc88ff(Stat über Cap!)|r"))
             elseif note then
                 curLbl:SetText(n .. " |cff4A4A52(" .. note .. ")|r")
             elseif row.unverified then
@@ -3256,7 +3976,7 @@ function ShowEnchants()
             -- IDs ("Unbekannt (ID …)") werden übersprungen.
             local curName = row.displayName or (row.enchId and GetEnchantDisplayName(row.enchId))
             local recName = FirstResolvableName(
-                row.bestList or { row.recId }, GetEnchantDisplayName, curName)
+                EnchantRecList(row), GetEnchantDisplayName, curName)
             if recName then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
                 recLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
@@ -3470,7 +4190,9 @@ function ShowGems()
             local note = row.equiv and SM.VerdictNote(row.equiv.verdict)
             local suffix = ""
             if row.status == "overcap" then
-                suffix = " |cffcc88ff(über Cap!)|r"
+                suffix = (row.capKind == "breakpoint")
+                    and " |cffcc88ff(hinter der Schwelle!)|r"
+                    or  " |cffcc88ff(über Cap!)|r"
             elseif note then
                 -- Werteabgleich statt ID-Treffer (siehe EvaluateGem)
                 suffix = " |cff4A4A52(" .. note .. ")|r"
@@ -4129,6 +4851,211 @@ end
 
 local werteFrame = nil
 
+--------------------------------------------------
+-- EINE TEMPO-TREPPE ZEICHNEN
+--
+-- Die Seite muss drei verschiedene Lagen erklaeren, und sie raten zu
+-- Verschiedenem — deshalb steht hier keine Zahl ohne ihren Satz:
+--   * Ziel voraus       -> so viel fehlt noch
+--   * Stufe erreicht,
+--     naechste zu weit  -> so viel liegt daneben, und wohin damit
+--   * nichts erreichbar -> ausdruecklich KEINE Aussage
+--
+-- Und die Treppe selbst steht mit da. Ohne sie waere "Ziel 25,0 %" eine
+-- Zahl, die man glauben muss; mit ihr ist sie eine Stufe mit Namen, die
+-- man im Zauberbuch nachsehen kann — und die man mit einem Klick gegen
+-- eine andere tauscht, denn welche Stufe man anpeilt, weiss der Spieler
+-- besser als diese Rechnung.
+--
+-- Gibt genutzte Hoehe zurueck.
+--------------------------------------------------
+
+-- Wieviele Stufen der Treppe werden gezeigt? Die Liste einer DoT-Spec hat
+-- bis zu drei Dutzend Sprossen, und die oberen sind mit MoP-Ausruestung
+-- nicht zu erreichen. Gezeigt wird das Fenster um den Istwert.
+local LADDER_BELOW, LADDER_ABOVE = 2, 4
+
+-- Gemessene statt geschaetzter Texthoehe, mit derselben Absicherung wie in
+-- modules/settings.lua: die Saetze brechen um, und ein noch nicht
+-- gezeichneter FontString meldet mitunter 0 - mit festen Abstaenden laege
+-- die naechste Zeile dann darin.
+local function TextHeight(fs, minimum)
+    local ok, h = pcall(fs.GetStringHeight, fs)
+    if not ok or type(h) ~= "number" or h <= 0 then return minimum end
+    return math.max(minimum, math.ceil(h))
+end
+
+local function DrawBreakpointSection(parent, x, y, w, bp, onChange)
+    local top = y
+
+    local function Line(text, size, indent)
+        local fs = parent:CreateFontString(nil, "OVERLAY")
+        fs:SetFont(WeintCodex.Fonts.sans, size or 9, "")
+        fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x + (indent or 0), y)
+        fs:SetWidth(w - (indent or 0))
+        fs:SetJustifyH("LEFT")
+        fs:SetText(text)
+        y = y - (TextHeight(fs, 12) + 4)
+        return fs
+    end
+
+    -- Kopfzeile: Istwert und Ziel
+    local head
+    if bp.capPct then
+        head = string.format("%s%s|r  |cffddddff%.1f%% / %.1f%%|r  %s",
+            StatusColorStr(bp.capped and "overcap" or "optimal"), bp.label,
+            bp.current, bp.capPct,
+            bp.capped
+                and string.format("|cffcc88ff~%d Wertung hinter der Schwelle|r",
+                                  math.floor((bp.overRating or 0) + 0.5))
+                or  string.format("|cffFFBB22~%d Wertung bis zur Schwelle|r",
+                                  math.ceil(bp.underRating or 0)))
+    else
+        head = string.format("%s%s|r  |cffddddff%.1f%%|r  |cff888888kein Ziel|r",
+            StatusColorStr("neutral"), bp.label, bp.current)
+    end
+    Line(head, 10)
+
+    -- Balken (nur mit Ziel — ohne Ziel gibt es keinen Bezugswert)
+    if bp.capPct and bp.capPct > 0 then
+        local barBg = parent:CreateTexture(nil, "ARTWORK")
+        barBg:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+        barBg:SetSize(w, 7)
+        barBg:SetColorTexture(C.surface3[1], C.surface3[2], C.surface3[3], 0.90)
+
+        local frac = bp.current / bp.capPct
+        if frac > 1 then frac = 1 elseif frac < 0 then frac = 0 end
+        if frac > 0.01 then
+            local col = STATUS[bp.capped and "overcap" or "optimal"].color
+            local bar = parent:CreateTexture(nil, "OVERLAY")
+            bar:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+            bar:SetSize(math.max(2, w * frac), 7)
+            bar:SetColorTexture(col[1], col[2], col[3], 0.85)
+        end
+        y = y - 13
+    end
+
+    -- Der Satz zur Lage.
+    if bp.targetSource == "aus" then
+        Line("|cff888888Schwellen für diese Spec abgeschaltet — Tempo zählt"
+            .. " wie jeder andere Wert.|r", 9)
+    elseif bp.outOfReach then
+        Line("|cff888888Noch keine Stufe erreicht und keine in Reichweite —"
+            .. " deshalb wird hier nichts behauptet und Tempo bleibt"
+            .. " ungedeckelt.|r", 9)
+    elseif bp.capped then
+        local why
+        if bp.nextRung and bp.targetSource == "spieler" then
+            why = string.format(
+                "Die nächste (%s, %.1f%%) läge ~%d Wertung höher — dein Ziel"
+                .. " steht darunter.",
+                bp.nextRung.label, bp.nextRung.pct,
+                math.ceil((bp.nextRung.pct - bp.current) * bp.perPct))
+        elseif bp.nextRung then
+            why = string.format(
+                "Die nächste (%s, %.1f%%) ist ~%d Wertung entfernt — mit"
+                .. " Umschmieden und Sockeln sind höchstens ~%d zu bewegen.",
+                bp.nextRung.label, bp.nextRung.pct,
+                math.ceil((bp.nextRung.pct - bp.current) * bp.perPct),
+                math.floor(bp.reach + 0.5))
+        else
+            why = "Darüber gibt es keine Stufe mehr."
+        end
+        Line(string.format("|cffcc88ffErreicht: %s (%.1f%%)%s. %s|r",
+            (bp.reached and bp.reached.label) or "—", bp.capPct or 0,
+            (bp.targetSource == "spieler") and " |cff888888(selbst gesetzt)|r" or "",
+            why), 9)
+        Line("|cffcc88ffWeiteres Tempo bringt keinen Tick mehr. Der Planer"
+            .. " schlägt deshalb keine Temposteine mehr vor; was daneben"
+            .. " liegt, gehört umgeschmiedet.|r", 9)
+    elseif bp.target then
+        Line(string.format(
+            "|cffFFBB22Ziel: %s (%.1f%%)%s — es fehlen ~%d Wertung.|r",
+            bp.target.label or "—", bp.target.pct,
+            (bp.targetSource == "spieler") and " |cff888888(selbst gesetzt)|r" or "",
+            math.ceil(bp.underRating or 0)), 9)
+    end
+
+    -- Woraus die Reichweite besteht. Ausdruecklich als Obergrenze
+    -- beschriftet: die Werte kommen aus GetItemStats, und ob der Client
+    -- eine bereits umgeschmiedete Verteilung meldet, ist von hier aus
+    -- nicht zu belegen.
+    Line(string.format(
+        "|cff4A4A52Reichweite höchstens ~%d Wertung: Umschmieden bis ~%d"
+        .. " (40 %% je Gegenstand) · %d Sockel ~%d · %d Wertung je Prozentpunkt%s.|r",
+        math.floor(bp.reach + 0.5), math.floor(bp.reforgeGain + 0.5),
+        bp.socketCount or 0, math.floor(bp.socketReserve + 0.5),
+        math.floor(bp.perPct + 0.5),
+        (bp.buffFactor and bp.buffFactor > 1.001)
+            and string.format(" (Buffs ×%.2f eingerechnet)", bp.buffFactor) or ""), 8)
+
+    if bp.note then
+        Line("|cff4A4A52" .. bp.note .. "|r", 8)
+    end
+
+    -- Die Treppe.
+    local ladder = bp.ladder or {}
+    local currentIndex = 0
+    for i, rung in ipairs(ladder) do
+        if rung.pct <= bp.current + 0.001 then currentIndex = i end
+    end
+    local from = math.max(1, currentIndex - LADDER_BELOW + 1)
+    local to   = math.min(#ladder, currentIndex + LADDER_ABOVE)
+
+    y = y - 4
+    for i = from, to do
+        local rung = ladder[i]
+        local reached = rung.pct <= bp.current + 0.001
+        local isTarget = bp.target and math.abs(bp.target.pct - rung.pct) < 0.01
+
+        local row = parent:CreateFontString(nil, "OVERLAY")
+        row:SetFont(WeintCodex.Fonts.mono or WeintCodex.Fonts.sans, 9, "")
+        row:SetPoint("TOPLEFT", parent, "TOPLEFT", x + 8, y)
+        row:SetWidth(w - 70)
+        row:SetJustifyH("LEFT")
+        row:SetText(string.format("%s%s %5.1f %%  %s|r%s",
+            isTarget and "|cffD4A24A" or (reached and "|cff22C55E" or "|cff6B6B74"),
+            isTarget and "\226\150\184" or (reached and "\226\151\143" or "\226\151\139"),
+            rung.pct, rung.label,
+            (not reached) and string.format("|cff4A4A52  (~%d Wertung)|r",
+                math.ceil((rung.pct - bp.current) * bp.perPct)) or ""))
+
+        if onChange then
+            local btn = MakeBtn(parent, isTarget and "Ziel" or "als Ziel", 56, 16, function()
+                WeintCodex.Charakter.SetStatTarget(bp.stat,
+                    { mode = "stufe", pct = rung.pct, label = rung.label })
+                onChange()
+            end)
+            btn:SetPoint("TOPLEFT", parent, "TOPLEFT", x + w - 60, y + 1)
+        end
+        y = y - 16
+    end
+
+    if to < #ladder then
+        Line(string.format("|cff3A3A42… %d weitere Stufen, alle jenseits"
+            .. " dessen, was MoP-Ausrüstung hergibt.|r", #ladder - to), 8, 8)
+    end
+
+    -- Umschalter: die Rechnung, eine eigene Stufe (oben je Sprosse) oder aus.
+    if onChange then
+        y = y - 2
+        local auto = MakeBtn(parent, "Automatisch", 100, 18, function()
+            WeintCodex.Charakter.SetStatTarget(bp.stat, nil)
+            onChange()
+        end)
+        auto:SetPoint("TOPLEFT", parent, "TOPLEFT", x + 8, y)
+
+        local off = MakeBtn(parent, "Schwellen aus", 110, 18, function()
+            WeintCodex.Charakter.SetStatTarget(bp.stat, { mode = "aus" })
+            onChange()
+        end)
+        off:SetPoint("TOPLEFT", parent, "TOPLEFT", x + 116, y)
+        y = y - 24
+    end
+
+    return top - y
+end
+
 function ShowWerteverteilung()
     activeCharakterView = "werte"
     local cp = GetContentPanel()
@@ -4148,47 +5075,70 @@ function ShowWerteverteilung()
     divider:SetHeight(1)
     divider:SetColorTexture(C.borderStrong[1], C.borderStrong[2], C.borderStrong[3], 1.0)
 
-    local yOff = -(HEAD_H + 14)
+    -- BILDLAUF STATT FESTER FLAECHE.
+    --
+    -- Bis 2.6.1.1 waren es zwei Abschnitte auf einer festen Flaeche, und das
+    -- ging gerade so auf. Mit der Tempo-Treppe kommt ein dritter dazu, der
+    -- je nach Spec unterschiedlich lang ist — als feste Flaeche liefe er
+    -- unten heraus statt abgeschnitten zu werden, und zwar unerreichbar
+    -- (dieselbe Falle wie beim Changelog-Popup, siehe core/onboarding.lua).
+    -- Die Groesse kommt aus Ankern, nicht aus einer Messung: CreateScrollArea
+    -- verlangt Pixelmasse, also wird danach umgehaengt.
+    local sf, body = WeintCodex.CreateScrollArea(werteFrame, 16, -(HEAD_H + 14),
+        100, 100, true)
+    sf:ClearAllPoints()
+    sf:SetPoint("TOPLEFT",     werteFrame, "TOPLEFT",  16, -(HEAD_H + 14))
+    sf:SetPoint("BOTTOMRIGHT", werteFrame, "BOTTOMRIGHT", -16, 26)
+    sf.scrollBarHideable = true
+    local BODY_W = 430
+    -- Untergrenze, falls OnSizeChanged nicht mehr feuert (der Rahmen hat
+    -- seine Groesse aus den Ankern schon, bevor der Handler haengt).
+    body:SetWidth(BODY_W + 10)
+    sf:SetScript("OnSizeChanged", function(self, w)
+        if w and w > 20 then body:SetWidth(w - 10) end
+    end)
+
+    local yOff = 0
 
     -- =============================================
     -- CAPS
     -- =============================================
-    local capHdr = werteFrame:CreateFontString(nil, "OVERLAY")
+    local capHdr = body:CreateFontString(nil, "OVERLAY")
     capHdr:SetFont(WeintCodex.Fonts.sans, 10, "")
-    capHdr:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
+    capHdr:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
     capHdr:SetText("|cff4A4A52— SEKUNDÄRSTAT-CAPS (live vom Charakterbogen) —|r")
     yOff = yOff - 20
 
     if #scan.caps == 0 then
-        local none = werteFrame:CreateFontString(nil, "OVERLAY")
+        local none = body:CreateFontString(nil, "OVERLAY")
         none:SetFont(WeintCodex.Fonts.sans, 10, "")
-        none:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
+        none:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
         none:SetText(scan.profile
             and "|cff4A4A52Für diese Spec gibt es keine Pflicht-Caps (Heiler).|r"
             or  "|cffff9900Kein Spec-Profil — Caps können nicht geprüft werden.|r")
         yOff = yOff - 24
     else
         for _, cs in ipairs(scan.caps) do
-            yOff = yOff - DrawCapBar(werteFrame, 16, yOff, 420, cs)
+            yOff = yOff - DrawCapBar(body, 0, yOff, BODY_W, cs)
             if cs.note then
-                local note = werteFrame:CreateFontString(nil, "OVERLAY")
+                local note = body:CreateFontString(nil, "OVERLAY")
                 note:SetFont(WeintCodex.Fonts.sans, 8, "")
-                note:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
+                note:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
                 note:SetText("|cff4A4A52" .. cs.note .. "|r")
                 yOff = yOff - 14
             end
             if cs.overPct > 0.25 and #cs.wasted > 0 then
                 for _, w in ipairs(cs.wasted) do
-                    local src = werteFrame:CreateFontString(nil, "OVERLAY")
+                    local src = body:CreateFontString(nil, "OVERLAY")
                     src:SetFont(WeintCodex.Fonts.sans, 8, "")
-                    src:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 26, yOff)
+                    src:SetPoint("TOPLEFT", body, "TOPLEFT", 10, yOff)
                     local nm
                     if w.art == "Stein" then
                         nm = GetGemDisplayName(w.row.gemId)
                     else
                         nm = w.row.displayName or GetEnchantDisplayName(w.row.enchId)
                     end
-                    src:SetText(string.format("|cffcc88ff> %s: %s (%s, +%d) austauschen|r",
+                    src:SetText(string.format("|cffcc88ff> %s: %s (%s, +%d) umschmieden oder tauschen|r",
                         w.row.slotName or "?", nm or "?", w.art, w.value))
                     yOff = yOff - 13
                 end
@@ -4200,11 +5150,42 @@ function ShowWerteverteilung()
     yOff = yOff - 10
 
     -- =============================================
+    -- TEMPO-SCHWELLEN
+    -- =============================================
+    local bpHdr = body:CreateFontString(nil, "OVERLAY")
+    bpHdr:SetFont(WeintCodex.Fonts.sans, 10, "")
+    bpHdr:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
+    bpHdr:SetText("|cff4A4A52— TEMPO-SCHWELLEN (aus Laufzeit und Tickabstand gerechnet) —|r")
+    yOff = yOff - 20
+
+    if #scan.breakpoints == 0 then
+        local none = body:CreateFontString(nil, "OVERLAY")
+        none:SetFont(WeintCodex.Fonts.sans, 9, "")
+        none:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
+        none:SetWidth(BODY_W)
+        none:SetJustifyH("LEFT")
+        none:SetText("|cff4A4A52Für diese Spec sind keine Tempo-Schwellen"
+            .. " hinterlegt — Tempo zählt hier wie jeder andere Sekundärwert."
+            .. " Das ist keine Lücke, sondern die Aussage: eine erfundene"
+            .. " Schwelle wäre die schlechtere Auskunft (siehe"
+            .. " data/breakpoints.lua).|r")
+        yOff = yOff - (TextHeight(none, 40) + 10)
+    else
+        for _, bp in ipairs(scan.breakpoints) do
+            yOff = yOff - DrawBreakpointSection(body, 0, yOff, BODY_W, bp,
+                                                ShowWerteverteilung)
+            yOff = yOff - 6
+        end
+    end
+
+    yOff = yOff - 6
+
+    -- =============================================
     -- STAT-SUMMEN
     -- =============================================
-    local hdr = werteFrame:CreateFontString(nil, "OVERLAY")
+    local hdr = body:CreateFontString(nil, "OVERLAY")
     hdr:SetFont(WeintCodex.Fonts.sans, 10, "")
-    hdr:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
+    hdr:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
     hdr:SetText("|cff4A4A52— WERTE-SUMMEN DER AUSRÜSTUNG —|r")
     yOff = yOff - 22
 
@@ -4214,9 +5195,9 @@ function ShowWerteverteilung()
         local value = totals[key]
         if value and value > 0 then
             anyStat = true
-            local row = CreateFrame("Frame", nil, werteFrame)
-            row:SetSize(420, 20)
-            row:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
+            local row = CreateFrame("Frame", nil, body)
+            row:SetSize(BODY_W, 20)
+            row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
             SetSolidBg(row, C.surface2[1], C.surface2[2], C.surface2[3], 0.55)
 
             local lbl = row:CreateFontString(nil, "OVERLAY")
@@ -4235,16 +5216,22 @@ function ShowWerteverteilung()
     end
 
     if not anyStat then
-        local none = werteFrame:CreateFontString(nil, "OVERLAY")
+        local none = body:CreateFontString(nil, "OVERLAY")
         none:SetFont(WeintCodex.Fonts.sans, 12, "")
-        none:SetPoint("TOPLEFT", werteFrame, "TOPLEFT", 16, yOff)
+        none:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
         none:SetText("|cffaaaaaaKeine Werte ermittelt (Charakter einloggen / Items anlegen).|r")
+        yOff = yOff - 24
     end
+
+    -- Erst Text, dann gemessene Hoehe, dann Hoehe des Bildlaufinhalts —
+    -- die Sichtbarkeit der Leiste haengt an der Differenz zur Sichtflaeche.
+    body:SetHeight(math.max(10, -yOff + 10))
 
     local hint = werteFrame:CreateFontString(nil, "OVERLAY")
     hint:SetFont(WeintCodex.Fonts.sans, 9, "")
     hint:SetPoint("BOTTOMLEFT", werteFrame, "BOTTOMLEFT", 16, 8)
-    hint:SetText("|cff3A3A42Cap-Werte kommen live vom Charakterbogen (inkl. Rassenboni & Buffs). Summen = reine Item-Stats.|r")
+    hint:SetText("|cff3A3A42Cap- und Tempowerte kommen live vom Charakterbogen"
+        .. " (inkl. Rassenboni & Buffs). Summen = reine Item-Stats.|r")
 
     local capRows = {}
     for _, cs in ipairs(scan.caps) do
@@ -4257,11 +5244,21 @@ function ShowWerteverteilung()
             valueColor = vc,
         }
     end
+    for _, bp in ipairs(scan.breakpoints) do
+        capRows[#capRows + 1] = {
+            label = bp.label,
+            value = bp.capPct
+                and string.format("%.1f%% / %.1f%%", bp.current, bp.capPct)
+                or  string.format("%.1f%% · kein Ziel", bp.current),
+            valueColor = bp.capped and "violet"
+                         or bp.capPct and "warning" or "textFaint",
+        }
+    end
     if #capRows == 0 then
         capRows[1] = { label = "Keine Pflicht-Caps für diese Spec", valueColor = "textFaint" }
     end
     ShowScoreInspector(nil, {
-        { type = "header", text = "Sekundärstat-Caps" },
+        { type = "header", text = "Caps & Schwellen" },
         { type = "rows", rows = capRows },
         { type = "divider" },
         { type = "button", label = "Zur Priorisierung", onClick = ShowPriorisierung },

@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.6.1.1"
+WeintCodex.Version = "2.6.2.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -105,6 +105,19 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if verb == "kalender" or verb == "calendar" then
         if WeintCodex.Calendar and WeintCodex.Calendar.Dump then
             WeintCodex.Calendar.Dump()
+        end
+        return
+    end
+
+    -- Tempo-Diagnose: die Treppe der eigenen Spec, ihre Herleitung aus
+    -- Laufzeit und Tickabstand, das gerechnete Ziel und der Spielraum,
+    -- mit dem der Planer arbeitet. Eigener Befehl aus demselben Grund wie
+    -- /wc sockel: "es wird ein Tempostein vorgeschlagen, obwohl ich am
+    -- Cap bin" sieht bei einer falschen Laufzeit in der Datendatei, einem
+    -- stummen Client und einem selbst gesetzten Ziel gleich aus.
+    if cmd == "tempo" or cmd == "haste" or cmd == "schwellen" then
+        if WeintCodex.Charakter and WeintCodex.Charakter.DumpBreakpoints then
+            WeintCodex.Charakter.DumpBreakpoints()
         end
         return
     end
@@ -228,6 +241,16 @@ local function OnEvent(self, event, addonName)
         -- seiner eigenen ersten Empfehlung widersprechen.
         if WeintCodex_ValidateGemWeights then
             WeintCodex_ValidateGemWeights()
+        end
+
+        -- Und die Tempo-Schwellen (2.6.2.0): warnt, wenn Laufzeit und
+        -- Tickabstand eines Effekts keine ganze Grundtickzahl ergeben -
+        -- dann stimmt eine der beiden Zahlen nicht, und aus ihr faellt
+        -- eine ganze Treppe. Die Zahlen selbst kann die Pruefung nicht
+        -- belegen; dafuer steht `verify` am Eintrag und /wc tempo druckt
+        -- je Stufe ihre Herleitung aus.
+        if WeintCodex_ValidateBreakpointData then
+            WeintCodex_ValidateBreakpointData()
         end
 
         -- Dasselbe für die BiS-Listen: warnt, falls ein Eintrag einen

@@ -7,6 +7,20 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.6.2.0",
+        date    = "26.08.2026",
+        notes   = {
+            "Gemeldet: es wird immer noch ein |cffD4A24ATempostein|r vorgeschlagen, obwohl man am Cap ist. Wissen konnte das Addon es nicht - es kannte genau zwei Grenzen, Treffer und Waffenkunde. Tempo war fuer den Planer ein Wert ohne Obergrenze.",
+            "Jetzt kennt es die |cffD4A24ATempo-Schwellen|r: ein DoT oder HoT gewinnt einen Tick, sobald genug Tempo da ist, und dazwischen aendert sich nichts. Unterhalb der angepeilten Stufe zaehlt Tempo, darueber nicht mehr - genau wie am Trefferkap.",
+            "Ein Tempostein hinter der Schwelle wird deshalb nicht mehr vorgeschlagen, und ein angelegter faellt als |cffcc88ffhinter der Schwelle|r auf. Dasselbe gilt fuer Verzauberungen: laeuft die erste Empfehlung ins Leere, kommt die naechste dran, die noch etwas bringt.",
+            "|cffD4A24AUmschmieden zaehlt mit|r: ob die naechste Stufe ueberhaupt erreichbar ist, entscheidet, was Umschmieden und die freien Sockel noch bewegen koennen. Ist keine mehr drin, ist Schluss - und der Rest gehoert umgeschmiedet, was jeder Cap-Befund jetzt auch dazusagt.",
+            "Die Stufen sind |cffD4A24Agerechnet, nicht abgeschrieben|r: hinterlegt sind nur Laufzeit und Tickabstand je Zauber, den Rest rechnet das Addon. Eine Tabelle abgeschriebener Wertungszahlen gilt immer nur fuer eine Ausruestungsstufe und einen Guide.",
+            "Auf der Seite |cffD4A24AWerteverteilung & Caps|r steht die ganze Treppe: erreichte und kommende Stufen mit dem Abstand in Wertung. Welche man anpeilt, ist eine Entscheidung - jede Stufe hat einen Knopf, dazu |cffD4A24AAutomatisch|r und |cffD4A24ASchwellen aus|r.",
+            "Hinterlegt sind die sieben DoT-/HoT-Specs, bei denen \"bis zur Stufe und dann umschmieden\" wirklich der Rat ist. Fuer alle anderen aendert sich nichts - eine erfundene Schwelle waere die schlechtere Auskunft.",
+            "|cffD4A24A/wc tempo|r zeigt die Treppe mit ihrer Herleitung, den Istwert des Clients, die Umschmiede-Reserve und das gerechnete Ziel.",
+        },
+    },
+    {
         version = "2.6.1.1",
         date    = "26.08.2026",
         notes   = {

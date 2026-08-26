@@ -557,6 +557,14 @@ local function ViewDiagnose(y)
               if CH and CH.DumpSockets then CH.DumpSockets()
               else Say("Charaktermodul nicht bereit.") end
           end },
+        { text = "Tempo-Schwellen",
+          tooltip = "/wc tempo — die Treppe der eigenen Spec mit ihrer"
+              .. " Herleitung aus Laufzeit und Tickabstand, das gerechnete"
+              .. " Ziel und die Umschmiede-Reserve.",
+          onClick = function()
+              if CH and CH.DumpBreakpoints then CH.DumpBreakpoints()
+              else Say("Charaktermodul nicht bereit.") end
+          end },
     })
 
     y = Buttons(y, {
@@ -600,6 +608,7 @@ local function ViewDiagnose(y)
                   WeintCodex_ValidateSpecData,
                   WeintCodex_ValidateEnchantWeights,
                   WeintCodex_ValidateGemWeights,
+                  WeintCodex_ValidateBreakpointData,
                   WeintCodex_ValidateBiSData,
               }
               for _, fn in ipairs(checks) do
