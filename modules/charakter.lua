@@ -2097,7 +2097,7 @@ local function PreferredEnchantId(bestList, profile, headroom, capInfo)
     local dead
     for stat, value in pairs(firstStats) do
         local room = headroom[stat]
-        if room ~= nil and room <= 0 and value and value > 0 then dead = stat break end
+        if room ~= nil and room <= 0 and value and value > 0 then dead = stat; break end
     end
 
     for i = 2, #bestList do
@@ -2307,10 +2307,15 @@ local function ExplainGem(id, socket, room, weights, plan, ctx)
     -- (b) Welcher HOEHER gewichtete Wert ist ausgeschieden — und warum?
     -- Genau das ist die Frage hinter jeder Rueckfrage zur Sockelseite:
     -- "wieso kein Trefferstein, ich bin doch unter dem Cap?"
+    -- Ohne Anfuehrer gibt es kein "hoeher gewichtet als": dann steht hier
+    -- nichts, statt einen Wert mit Gewicht 0 als ausgeschieden zu melden.
     local blocked, blockedW = nil, leadW
-    for stat, w in pairs(weights) do
-        if REFORGE_STAT_KEYS[stat] and w > blockedW and (room[stat] or 1) <= 0 then
-            blocked, blockedW = stat, w
+    if lead then
+        for stat, w in pairs(weights) do
+            if REFORGE_STAT_KEYS[stat] and w > 0 and w > blockedW
+               and (room[stat] or 1) <= 0 then
+                blocked, blockedW = stat, w
+            end
         end
     end
     if blocked then
@@ -4242,15 +4247,33 @@ function ShowEnchants()
         -- der Sockelseite: "nicht ideal" ist ein Befund, kein Rat.
         local why = row.reason
         if row.status == "missing" and row.recReason then why = row.recReason end
-        local rowH = why and 54 or 40
-        -- Bei zwei Zeilen rutscht die erste nach oben; ohne Begruendung
-        -- bleibt alles, wo es war.
-        local lineY = why and 7 or 0
 
         local rf = CreateFrame("Frame", nil, inner)
-        rf:SetSize(inner:GetWidth() - 4, rowH)
+        rf:SetSize(inner:GetWidth() - 4, 40)
         rf:SetPoint("TOPLEFT", inner, "TOPLEFT", 2, yOff)
         SetSolidBg(rf, C.surface2[1], C.surface2[2], C.surface2[3], 0.68)
+
+        -- DIE HOEHE WIRD GEMESSEN, NICHT GESCHAETZT (siehe ShowGems).
+        -- Der Text steht deshalb vor den uebrigen Feldern: sie richten sich
+        -- an der fertigen Zeilenhoehe aus.
+        local rowH = 40
+        if why then
+            local whyLbl = rf:CreateFontString(nil, "OVERLAY")
+            whyLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+            whyLbl:SetPoint("TOPLEFT",  rf, "TOPLEFT",  30, -36)
+            whyLbl:SetPoint("TOPRIGHT", rf, "TOPRIGHT", -8, -36)
+            whyLbl:SetJustifyH("LEFT")
+            whyLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+            whyLbl:SetText(why)
+            local ok, h = pcall(whyLbl.GetStringHeight, whyLbl)
+            rowH = 40 + math.ceil((ok and type(h) == "number" and h > 0) and h or 11) + 2
+            rf:SetHeight(rowH)
+        end
+
+        -- Die mittig verankerten Felder sollen dort stehen, wo sie ohne
+        -- Begruendung stuenden: der Versatz haelt ihre absolute Lage fest,
+        -- unabhaengig davon, wie hoch die Zeile geworden ist.
+        local lineY = rowH / 2 - 20
 
         local stripe = rf:CreateTexture(nil, "BORDER")
         stripe:SetSize(3, rowH)
@@ -4268,7 +4291,7 @@ function ShowEnchants()
 
         local slotLbl = rf:CreateFontString(nil, "OVERLAY")
         slotLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-        slotLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -6 + lineY)
+        slotLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -6)
         slotLbl:SetWidth(140)
         slotLbl:SetWordWrap(false)
         slotLbl:SetJustifyH("LEFT")
@@ -4278,7 +4301,7 @@ function ShowEnchants()
         if row.itemName then
             local itemLbl = rf:CreateFontString(nil, "OVERLAY")
             itemLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
-            itemLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -20 + lineY)
+            itemLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -20)
             itemLbl:SetWordWrap(false)
             itemLbl:SetJustifyH("LEFT")
             -- Einzeilig kuerzen statt umbrechen zu lassen, sonst kollidiert
@@ -4352,16 +4375,6 @@ function ShowEnchants()
                 recLbl:SetJustifyH("LEFT")
                 recLbl:SetText("|cffD4A24A> " .. recName .. "|r")
             end
-        end
-
-        if why then
-            local whyLbl = rf:CreateFontString(nil, "OVERLAY")
-            whyLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
-            whyLbl:SetPoint("TOPLEFT",  rf, "TOPLEFT",  30, -36)
-            whyLbl:SetPoint("TOPRIGHT", rf, "TOPRIGHT", -8, -36)
-            whyLbl:SetJustifyH("LEFT")
-            whyLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
-            whyLbl:SetText(why)
         end
 
         yOff = yOff - (rowH + 2)
@@ -4507,18 +4520,37 @@ function ShowGems()
         -- bekommen, kommt gar nicht auf die Idee, dass es eine Antwort
         -- gibt. Zwei Begruendungen, weil es zwei Fragen sind: warum diese
         -- Empfehlung, und was ist am angelegten Stein.
+        -- Zwei Fragen, zwei Antworten: bei einem Befund steht dort, was
+        -- daran ist; sonst, warum die Empfehlung so lautet.
         local why = row.recReason
-        if row.reason and row.status ~= "optimal" then
-            why = row.reason
-        elseif row.reason and row.status == "optimal" and not why then
+        if row.reason and (row.status ~= "optimal" or not why) then
             why = row.reason
         end
-        local rowH = why and 44 or 30
 
         local rf = CreateFrame("Frame", nil, inner)
-        rf:SetSize(inner:GetWidth() - 4, rowH)
+        rf:SetSize(inner:GetWidth() - 4, 30)
         rf:SetPoint("TOPLEFT", inner, "TOPLEFT", 2, yOff)
         SetSolidBg(rf, C.surface2[1], C.surface2[2], C.surface2[3], 0.60)
+
+        -- DIE HOEHE WIRD GEMESSEN, NICHT GESCHAETZT.
+        -- Die Begruendung ist ein ganzer Satz und bricht im kleinsten
+        -- Fenster um; mit fester Zeilenhoehe laege die naechste Zeile darin
+        -- (dieselbe Ueberlegung wie bei CreateToggle in core/ui.lua). Der
+        -- Text steht deshalb VOR den uebrigen Feldern, damit die Hoehe der
+        -- Zeile schon feststeht, wenn sie sich daran ausrichten.
+        local rowH, whyLbl = 30, nil
+        if why then
+            whyLbl = rf:CreateFontString(nil, "OVERLAY")
+            whyLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+            whyLbl:SetPoint("TOPLEFT",  rf, "TOPLEFT",  42, -24)
+            whyLbl:SetPoint("TOPRIGHT", rf, "TOPRIGHT", -8, -24)
+            whyLbl:SetJustifyH("LEFT")
+            whyLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+            whyLbl:SetText(why)
+            local ok, h = pcall(whyLbl.GetStringHeight, whyLbl)
+            rowH = 28 + math.ceil((ok and type(h) == "number" and h > 0) and h or 11) + 4
+            rf:SetHeight(rowH)
+        end
 
         local stripe = rf:CreateTexture(nil, "BORDER")
         stripe:SetSize(3, rowH)
@@ -4527,7 +4559,7 @@ function ShowGems()
 
         -- Bei zwei Zeilen rutscht die erste nach oben; ohne Begruendung
         -- bleibt alles, wo es war.
-        local lineY = why and 8 or 0
+        local lineY = why and (rowH / 2 - 15) or 0
 
         -- Sockelfarbe als Punkt
         local dc = SOCKET_DOT_COLOR[row.socket.color] or { 0.55, 0.55, 0.55 }
@@ -4616,16 +4648,6 @@ function ShowGems()
                 recLbl:SetJustifyH("LEFT")
                 recLbl:SetText("|cffD4A24A> " .. recName .. "|r")
             end
-        end
-
-        if why then
-            local whyLbl = rf:CreateFontString(nil, "OVERLAY")
-            whyLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
-            whyLbl:SetPoint("TOPLEFT",  rf, "TOPLEFT",  42, -24)
-            whyLbl:SetPoint("TOPRIGHT", rf, "TOPRIGHT", -8, -24)
-            whyLbl:SetJustifyH("LEFT")
-            whyLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
-            whyLbl:SetText(why)
         end
 
         yOff = yOff - (rowH + 2)

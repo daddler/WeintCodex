@@ -1233,8 +1233,14 @@ local function Signature()
         parts[#parts + 1] = (GetInventoryItemLink("player", slotDef.id) or "-")
                             .. (RE.IsLocked(slotDef.id) and "!" or "")
     end
+    -- Die Kampfwertungen gerundet, und zwar grob: sie schwanken mit jedem
+    -- Schmuckproc und jedem Raidbuff, und eine Kennung, die daran haengt,
+    -- wuerde den Plan mitten im Kampf immer wieder verwerfen — samt der
+    -- Auskunft, mit der die Sockelseite rechnet. Eine echte Umschmiedung
+    -- bewegt mehrere hundert Punkte und faellt trotzdem auf; ausserdem
+    -- traegt der Item-Link sie ohnehin.
     for _, key in ipairs(R.STATS) do
-        parts[#parts + 1] = floor(LiveRating(key, "melee"))
+        parts[#parts + 1] = floor(LiveRating(key, "melee") / 100)
     end
     return table.concat(parts, "|")
 end
@@ -1416,15 +1422,6 @@ local function Pump()
         end
         worker = nil
         Notify()
-    end
-end
-
--- Nur fuer den Testlauf ausserhalb des Spiels: einen Rechenschritt von Hand
--- ausloesen. Im Spiel taktet Pump() sich ueber C_Timer selbst.
-function RE.Pump_TEST()
-    if worker and coroutine.status(worker) == "suspended" then
-        local ok = coroutine.resume(worker)
-        if not ok or coroutine.status(worker) == "dead" then worker = nil end
     end
 end
 
