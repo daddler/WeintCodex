@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.6.2.1"
+WeintCodex.Version = "2.7.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -118,6 +118,20 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if cmd == "tempo" or cmd == "haste" or cmd == "schwellen" then
         if WeintCodex.Charakter and WeintCodex.Charakter.DumpBreakpoints then
             WeintCodex.Charakter.DumpBreakpoints()
+        end
+        return
+    end
+
+    -- Umschmieden (BETA, modules/reforge.lua). Der Planer ist ab Werk aus
+    -- und muss eingeschaltet werden - er gibt Gold aus, und seine
+    -- Vorschlaege sind noch nicht belastbar.
+    --   /wc umschmieden          Seite oeffnen
+    --   /wc umschmieden an|aus   Planer ein-/ausschalten
+    --   /wc umschmieden fenster  Liste auch ohne Umschmieder zeigen
+    --   /wc umschmieden pruefen  jede Zwischenzahl in den Chat
+    if verb == "umschmieden" or verb == "reforge" or verb == "schmieden" then
+        if WeintCodex.Reforge and WeintCodex.Reforge.Command then
+            WeintCodex.Reforge.Command(rest)
         end
         return
     end
@@ -256,6 +270,17 @@ local function OnEvent(self, event, addonName)
         -- Dasselbe für die BiS-Listen: warnt, falls ein Eintrag einen
         -- Boss- oder Slot-Namen nutzt, den es nicht gibt (Tippfehler
         -- würden das Item sonst still nirgends anzeigen).
+        -- Und die Paartabelle des Umschmiedens (2.7.0.0): sie wird aus
+        -- der Statreihenfolge erzeugt, kann also keinen Zahlendreher
+        -- enthalten - was die Pruefung meldet, waere ein Fehler in der
+        -- Erzeugung selbst. Sie laeuft trotzdem, weil an dieser Tabelle
+        -- die laufende Nummer haengt, die der Umschmieder bekommt: liegt
+        -- sie daneben, wird etwas anderes geschmiedet als angezeigt, und
+        -- das faellt erst auf, wenn das Gold weg ist.
+        if WeintCodex_ValidateReforgeData then
+            WeintCodex_ValidateReforgeData()
+        end
+
         if WeintCodex_ValidateBiSData then
             WeintCodex_ValidateBiSData()
         end

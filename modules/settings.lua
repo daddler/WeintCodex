@@ -449,6 +449,97 @@ local function ViewGearAlert(y)
 end
 
 --------------------------------------------------
+-- Abschnitt: Umschmieden (Beta)
+--------------------------------------------------
+-- Der einzige Abschnitt dieser Seite, dessen Hauptschalter AUS vorbelegt
+-- ist. Das Werkzeug ist in Entwicklung, seine Vorschlaege sind noch nicht
+-- belastbar, und es gibt Gold aus - es darf niemandem passieren. Der
+-- Hinweis darauf steht deshalb ueber dem Schalter und nicht darunter: wer
+-- ihn erst nach dem Umlegen liest, hat ihn zu spaet gelesen.
+--------------------------------------------------
+
+local function ViewReforge(y)
+    local RE = WeintCodex.ReforgeEngine
+    if not RE then
+        return Note(y, "Der Umschmiede-Planer ist nicht geladen.", "textDim")
+    end
+
+    y = Note(y, WeintCodex.ColorText("goldBright", "In Entwicklung.")
+        .. " Der Planer rechnet mit den Gewichten und Grenzen deiner Spec"
+        .. " — dieselben, mit denen auch Sockel und Verzauberungen bewertet"
+        .. " werden. Was er ausrechnet, ist aber noch nicht geprüft: sieh"
+        .. " dir jede Zeile an, bevor du beim Umschmieder Gold ausgibst.",
+        "textMuted")
+
+    y = Group(y, "Umschmieden",
+        "Rechnet aus, welcher Wert auf welchem Teil besser woanders stünde,"
+        .. " und schmiedet das beim Umschmieder mit einem Klick um.")
+
+    y = Toggle(y, {
+        label = "Umschmiede-Planer aktivieren",
+        description = "Fügt Charakter → Umschmieden hinzu und öffnet das Fenster"
+            .. " beim Umschmieder. Ohne diesen Schalter bleibt alles davon aus.",
+        get = function() return RE.Enabled() end,
+        set = function(on)
+            RE.SetOption("enabled", on)
+            if not on and WeintCodex.Reforge and WeintCodex.Reforge.HideForge then
+                WeintCodex.Reforge.HideForge()
+            end
+        end,
+        onChange = SyncToggles,
+    })
+
+    y = Toggle(y, {
+        label = "Fenster beim Umschmieder öffnen",
+        description = "Sobald du mit einem Umschmieder sprichst, steht die Liste daneben.",
+        get = function() return RE.GetOption("autoOpen") end,
+        set = function(on) RE.SetOption("autoOpen", on) end,
+        disabled = function() return not RE.Enabled() end,
+        disabledHint = "Erst mit aktivem Planer.",
+    })
+
+    y = Buttons(y, {
+        { text = "Fenster jetzt anzeigen", kind = "ghost",
+          tooltip = "Zeigt die Liste auch ohne Umschmieder (/wc umschmieden fenster).",
+          onClick = function()
+              if WeintCodex.Reforge then WeintCodex.Reforge.ShowForge(true) end
+          end },
+        { text = "Diagnose ausgeben", kind = "ghost",
+          tooltip = "Schreibt jede Zwischenzahl in den Chat: gelesene Itemwerte,"
+              .. " Aufwertungsfaktor, angelegte Umschmiedung, gerechnetes Ziel"
+              .. " und die laufende Nummer, die der Umschmieder bekäme"
+              .. " (/wc umschmieden prüfen).",
+          onClick = function()
+              if WeintCodex.Reforge then WeintCodex.Reforge.Dump() end
+          end },
+    })
+
+    y = Spacer(y, 8)
+    y = Group(y, "Gesperrte Teile")
+
+    local locked = 0
+    local store = WeintCodex.SavedData and WeintCodex.SavedData.reforge
+    for _ in pairs((store and store.locked) or {}) do locked = locked + 1 end
+
+    y = Info(y, "Vom Planer ausgenommen", tostring(locked),
+        locked > 0 and "gold" or "textFaint")
+    y = Note(y, "Ein Klick auf eine Zeile der Seite nimmt das Teil aus der"
+        .. " Planung — für Ausrüstung, die aus einem Grund so bleiben soll,"
+        .. " den diese Rechnung nicht kennt.", "textDim")
+
+    y = Buttons(y, {
+        { text = "Alle Sperren lösen",
+          onClick = function()
+              if store then store.locked = {} end
+              if WeintCodex.ReforgeEngine then WeintCodex.ReforgeEngine.Invalidate() end
+              WeintCodex.Settings.Refresh()
+          end },
+    })
+
+    return y
+end
+
+--------------------------------------------------
 -- Abschnitt: Rotationshelfer
 --------------------------------------------------
 
@@ -744,6 +835,9 @@ local VIEWS = {
     { key = "rotation", label = "Rotationshelfer",   title = "Rotationshelfer",
       sub = "Prioritätenliste an der Trainingspuppe.",
       render = ViewRotation },
+    { key = "reforge",  label = "Umschmieden",      title = "Umschmieden (Beta)",
+      sub = "Wohin mit der Wertung, die am falschen Platz sitzt.",
+      render = ViewReforge },
     { key = "diagnose", label = "Diagnose",          title = "Diagnose",
       sub = "Ausgaben für Fehlermeldungen und Datenpflege.",
       render = ViewDiagnose },

@@ -1520,7 +1520,13 @@ local SECONDARY_GEM_RATING = 320
 
 -- Umschmieden verschiebt 40 % EINES Sekundaerwerts eines Gegenstands in
 -- einen anderen, den der Gegenstand nicht bereits traegt.
-local REFORGE_SHARE = 0.4
+--
+-- Die Zahl steht seit 2.7.0.0 in data/reforge.lua, weil der
+-- Umschmiede-Planer mit derselben rechnet. Zwei Konstanten fuer dieselbe
+-- Zahl waeren genau die Doppelung, aus der Empfehlung und Urteil
+-- auseinanderlaufen; der Rueckfall hier gilt nur, falls die Datendatei
+-- einmal nicht geladen ist.
+local REFORGE_SHARE = (WeintCodex_Reforge and WeintCodex_Reforge.COEFF) or 0.4
 local REFORGE_STATS = {
     crit = true, haste = true, mastery = true, hit = true,
     expertise = true, dodge = true, parry = true, spirit = true,
@@ -5691,14 +5697,37 @@ function WeintCodex.Charakter.Show()
     -- 2.0.0.0 ein eigener Navigationspunkt mit eigener Reiterleiste. Sie
     -- hing hier, weil Bewertung und Lektionen zum Charakter gehoeren - das
     -- traegt jetzt die Navigationsgruppe "Charakter", die beide enthaelt.
-    WeintCodex.Navigation.BuildSidebar("Charakter", {
+    local items = {
         { label = "Übersicht",       onClick = ShowUebersicht },
         { label = "Verzauberungen",  onClick = ShowEnchants },
         { label = "Sockel",          onClick = ShowGems },
         { label = "Werteverteilung", onClick = ShowWerteverteilung },
-        { label = "Priorisierung",   onClick = ShowPriorisierung },
-        { label = "Twinks",          onClick = ShowTwinkverwaltung },
-    })
+    }
+
+    -- UMSCHMIEDEN STEHT NUR DA, WENN ES EINGESCHALTET IST.
+    --
+    -- Das Werkzeug ist in Entwicklung und gibt Gold aus; es darf niemandem
+    -- passieren, sondern muss unter Einstellungen -> Umschmieden
+    -- eingeschaltet werden (siehe modules/reforge_engine.lua). Ein Reiter,
+    -- der ausgegraut dasteht, waere die halbe Loesung: er verspricht etwas,
+    -- das nicht da ist. Der Eintrag wird bei jedem Aufbau der Seitenleiste
+    -- neu entschieden, also ist der Schalter sofort wirksam.
+    --
+    -- Der Eintrag haengt hier und nicht in der Navigationsspalte: dort ist
+    -- kein Platz mehr (die Rechnung steht ueber der tabs-Tabelle in
+    -- core/navigation.lua), und die Frage "wohin mit der Wertung" gehoert
+    -- ohnehin neben Sockel und Werteverteilung. Gezeichnet wird sie von
+    -- modules/reforge.lua; darum ruft jene Seite Charakter.LeaveView() auf.
+    if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Enabled()
+       and WeintCodex.Reforge and WeintCodex.Reforge.ShowPage then
+        items[#items + 1] = { label = "Umschmieden",
+                              onClick = WeintCodex.Reforge.ShowPage }
+    end
+
+    items[#items + 1] = { label = "Priorisierung", onClick = ShowPriorisierung }
+    items[#items + 1] = { label = "Twinks",        onClick = ShowTwinkverwaltung }
+
+    WeintCodex.Navigation.BuildSidebar("Charakter", items)
     WeintCodex.Navigation.ActivateFirst()
 end
 
