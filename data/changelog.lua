@@ -10,11 +10,11 @@ WeintCodex_ChangelogData = {
         version = "2.7.0.0",
         date    = "27.08.2026",
         notes   = {
-            "Neu: |cffD4A24AUmschmieden|r. Das Addon rechnet aus, welcher Wert auf welchem Teil besser woanders staende - mit denselben Gewichten und Grenzen, mit denen es auch Steine und Verzauberungen bewertet.",
-            "Gerechnet wird so gruendlich wie in |cffD4A24AReforge Lite|r: nicht Teil fuer Teil das Naechstbeste, sondern die beste Verteilung als Ganzes. Treffer- und Waffenkunde-Cap stehen danach so genau, wie es die Ausruestung zulaesst.",
-            "Die Liste steht unter |cffD4A24ACharakter -> Umschmieden|r: je Teil von-nach, wieviel, und warum. Ein Klick auf eine Zeile nimmt das Teil aus der Planung. Beim Umschmieder geht dieselbe Liste als Fenster auf, |cffD4A24AAlles umschmieden|r erledigt sie in einem Zug.",
-            "|cffE56B6BDas ist eine Beta|r und deshalb |cffE56B6Bab Werk aus|r. Einschalten unter |cffD4A24AEinstellungen -> Umschmieden|r. Sieh dir die Vorschlaege an, bevor du Gold ausgibst.",
-            "|cffD4A24A/wc umschmieden|r oeffnet die Seite, |cffD4A24A/wc umschmieden pruefen|r zeigt jede Zwischenzahl.",
+            "Neu: |cffD4A24AUmschmieden|r. Das Addon rechnet aus, welcher Wert auf welchem Teil besser woanders staende, und schmiedet das beim Umschmieder mit einem Klick um. So gruendlich gerechnet wie in |cffD4A24AReforge Lite|r: nicht Teil fuer Teil das Naechstbeste, sondern die beste Verteilung als Ganzes.",
+            "Wichtiger noch: |cffD4A24ASockel, Verzauberungen und Umschmieden rechnen jetzt miteinander|r. Umschmieden kostet Gold, ein Sockel ist einmalig - was das Umschmieden fuellt, muss kein Stein fuellen. Bisher standen deshalb Treffersteine da, wo Krit hingehoert.",
+            "Und andersherum: ein Stein ueber dem Cap gilt nicht mehr als verschwendet, wenn das Umschmieden den Ueberschuss ohnehin verschiebt.",
+            "|cffD4A24AJede Empfehlung sagt jetzt, warum|r - unter jeder Zeile bei Sockeln und Verzauberungen steht der Grund: welcher Wert hier der staerkste ist, welcher wegfaellt und weshalb (Kap erreicht, hinter der Tempo-Schwelle, oder das erledigt das Umschmieden).",
+            "|cffE56B6BDer Umschmiede-Planer ist eine Beta und ab Werk aus|r: |cffD4A24AEinstellungen -> Umschmieden|r. Solange er aus ist, aendert sich an Sockeln und Verzauberungen nichts. |cffD4A24A/wc umschmieden pruefen|r zeigt jede Zwischenzahl.",
         },
     },
     {

@@ -1240,7 +1240,12 @@ local function Signature()
 end
 
 local function BuildPlan(signature)
-    local scan = WeintCodex.Charakter.Scan()
+    -- NUR die Grenzen, nicht der volle Ausruestungs-Scan. Zwei Gruende, und
+    -- der zweite ist der wichtigere: es spart sechzehn Tooltips je Lauf,
+    -- UND es loest den Kreis auf. Die Sockelplanung in
+    -- modules/charakter.lua liest das Ergebnis dieses Planers (RE.CapOutlook)
+    -- — riefe der Planer hier den vollen Scan, riefe der Scan wieder ihn.
+    local scan = WeintCodex.Charakter.CapContext()
     local items, problem, pending = ScanItems()
     if problem then
         cache = { signature = signature, plan = { ok = false, problem = problem } }
@@ -1427,7 +1432,7 @@ function RE.GetPlan(force)
     if not RE.Enabled() then
         return { ok = false, problem = "Der Umschmiede-Planer ist ausgeschaltet." }
     end
-    if not (WeintCodex.Charakter and WeintCodex.Charakter.Scan) then
+    if not (WeintCodex.Charakter and WeintCodex.Charakter.CapContext) then
         return { ok = false, problem = "Charaktermodul nicht geladen." }
     end
 
@@ -1466,6 +1471,60 @@ function RE.GetPlan(force)
     Pump()
     if cache and cache.signature == signature then return cache.plan end
     return { ok = false, computing = true }
+end
+
+--------------------------------------------------
+-- WAS DER PLAN AN DEN GRENZEN SCHON ERLEDIGT
+--
+-- Die eine Auskunft, die die Sockelplanung braucht — und der Grund, warum
+-- Umschmieden und Sockel ueberhaupt zusammengehoeren:
+--
+--   UMSCHMIEDEN KOSTET GOLD, EIN SOCKEL IST EINMALIG.
+--
+-- Ein Sockel laesst sich einmal vergeben; Umschmieden bewegt 40 % eines
+-- Sekundaerwerts je Gegenstand und laesst sich jederzeit zuruecknehmen. Wer
+-- einen Sockel benutzt, um ein Kap zu fuellen, das das Umschmieden ohnehin
+-- fuellt, verschenkt den Sockel. Genau das hat die Sockelseite bis 2.7.0.0
+-- getan: sie rechnete mit dem Abstand zum Kap, den sie GERADE sah, und
+-- empfahl Treffersteine fuer eine Luecke, die das Umschmieden umsonst
+-- schliesst.
+--
+-- DREI ZURUECKHALTUNGEN, und jede ist eine Aussage ueber unser Wissen:
+--   * Nur ein FERTIGER Plan zaehlt. Waehrend gerechnet wird, gibt es keine
+--     Auskunft — und dann bleibt die Sockelseite bei ihrer bisherigen
+--     Rechnung, statt mit halben Zahlen zu arbeiten.
+--   * Nur ein Plan zur AKTUELLEN Ausruestung zaehlt (Kennungsvergleich).
+--     Ein Plan von vor drei Gegenstaenden ist eine Aussage ueber eine
+--     Ausruestung, die es nicht mehr gibt.
+--   * Es wird NIE gerechnet. Diese Funktion laeuft mitten im Scan; wuerde
+--     sie einen Lauf anstossen, riefe der Lauf wieder den Scan.
+--
+-- Ist der Planer aus, kommt nil — und alles bleibt, wie es vor 2.7.0.0 war.
+--------------------------------------------------
+
+function RE.CapOutlook()
+    if not RE.Enabled() then return nil end
+    if worker then return nil end
+    if not (cache and cache.plan and cache.plan.ok and cache.plan.ctx) then return nil end
+    if cache.signature ~= Signature() then return nil end
+
+    local out = {}
+    for key, goal in pairs(cache.plan.ctx.target) do
+        local after = cache.plan.after[key] or 0
+        out[key] = {
+            label   = goal.label or R.LABEL[key],
+            kind    = goal.kind,
+            require = goal.require,
+            target  = goal.rating,
+            before  = cache.plan.before[key] or 0,
+            after   = after,
+            -- Schliesst der Plan diese Grenze von selbst?
+            closes  = after >= goal.rating - 1,
+            -- Und raeumt er einen Ueberschuss weg, der jetzt noch dasteht?
+            over    = max(0, after - goal.rating),
+        }
+    end
+    return out, cache.plan.changes
 end
 
 --------------------------------------------------

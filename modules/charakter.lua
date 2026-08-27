@@ -1851,6 +1851,38 @@ local REFORGE_TARGET_LABEL = {
     dodge = "Ausweichen", parry = "Parieren", spirit = "Willenskraft",
 }
 
+local REFORGE_STAT_KEYS = {
+    crit = true, haste = true, mastery = true, hit = true,
+    expertise = true, dodge = true, parry = true, spirit = true,
+}
+
+local function StatName(stat)
+    return REFORGE_TARGET_LABEL[stat] or stat
+end
+
+-- Kurzform fuer Begruendungen. "kritische Trefferwertung (Gewicht 58) ist
+-- hier der staerkste Wert" liest sich niemand zu Ende; in einem Fliesstext
+-- mitten in der Zeile zaehlt die Laenge. Die Liste steht in
+-- data/reforge.lua, weil sie dort ohnehin gebraucht wird.
+local function StatShort(stat)
+    return (WeintCodex_Reforge and WeintCodex_Reforge.SHORT
+            and WeintCodex_Reforge.SHORT[stat])
+        or REFORGE_TARGET_LABEL[stat] or stat
+end
+
+-- Warum zaehlt dieser Wert nicht mehr? Drei Gruende, drei Texte — ein Text
+-- fuer alle drei waere fuer zwei davon falsch.
+local function BlockedReason(stat, capInfo)
+    local info = capInfo and capInfo[stat]
+    if info and info.closedByReforge then
+        return "das erledigt das Umschmieden"
+    elseif info and info.kind == "breakpoint" then
+        return "hinter der Tempo-Schwelle"
+    end
+    return "Grenze erreicht"
+end
+
+
 -- Vorschlagsreihenfolge einer Verzauberungszeile: die von
 -- PreferredEnchantId gewaehlte ID zuerst, danach der Rest der Liste als
 -- Rueckfall (eine ID, die der Client nicht aufloesen kann, darf den
@@ -2044,19 +2076,37 @@ end
 --     wechselt.
 --------------------------------------------------
 
-local function PreferredEnchantId(bestList, profile, headroom)
+local function PreferredEnchantId(bestList, profile, headroom, capInfo)
     if not bestList or #bestList == 0 then return nil end
     local weights = profile and profile.statWeights
-    if not (weights and headroom) then return bestList[1] end
+    if not (weights and headroom) then
+        return bestList[1], "Erste Wahl deines Spec-Profils."
+    end
 
     local firstStats = SM.EnchantStats and SM.EnchantStats(bestList[1])
-    if not firstStats then return bestList[1] end
-    if GemValue(firstStats, weights, headroom) > 0 then return bestList[1] end
+    if not firstStats then
+        return bestList[1], "Erste Wahl deines Spec-Profils."
+    end
+    if GemValue(firstStats, weights, headroom) > 0 then
+        return bestList[1], "Erste Wahl deines Spec-Profils."
+    end
+
+    -- Die erste Wahl laeuft komplett ins Leere. Welcher Wert daran schuld
+    -- ist, gehoert in die Begruendung: sonst steht dort eine Verzauberung,
+    -- die in keinem Guide als erste genannt wird, und niemand weiss warum.
+    local dead
+    for stat, value in pairs(firstStats) do
+        local room = headroom[stat]
+        if room ~= nil and room <= 0 and value and value > 0 then dead = stat break end
+    end
 
     for i = 2, #bestList do
         local stats = SM.EnchantStats(bestList[i])
         if stats and GemValue(stats, weights, headroom) > 0 then
-            return bestList[i]
+            return bestList[i], dead and string.format(
+                "Statt der ersten Wahl: deren %s zählt hier nicht mehr (%s).",
+                StatShort(dead), BlockedReason(dead, capInfo))
+                or "Statt der ersten Wahl: die bringt hier keine Wertung mehr."
         end
     end
     return bestList[1]
@@ -2214,6 +2264,80 @@ local function IsColoredSocket(color)
 end
 
 --------------------------------------------------
+-- WARUM DIESER STEIN?
+--
+-- Eine Empfehlung ist das eine, die Begruendung das andere. Wer
+-- "Glatter Goldberyll" liest, weiss nicht, ob das an seiner Spec haengt, an
+-- einem Kap oder an einem Sockelbonus — und ohne diese Auskunft bleibt ihm
+-- nur, es zu glauben oder es zu lassen. Beides ist schlecht: geglaubte
+-- Empfehlungen fallen beim ersten Zweifel um, und eine, die man nicht
+-- nachvollziehen kann, ist von einer falschen nicht zu unterscheiden.
+--
+-- DIE BEGRUENDUNG WIRD ABGELESEN, NICHT DAZUERFUNDEN. Jeder Halbsatz hier
+-- entspricht einer Verzweigung, die in PlanItem tatsaechlich gefallen ist:
+-- welcher Wert die Wertung angefuehrt hat, welcher hoeher gewichtete dabei
+-- ausgeschieden ist und warum, und wie die Sockelbonus-Entscheidung
+-- ausgegangen ist. Ein Text, der etwas anderes sagt als die Rechnung, waere
+-- schlimmer als gar keiner.
+--------------------------------------------------
+
+local function ExplainGem(id, socket, room, weights, plan, ctx)
+    if socket.color == "meta" then
+        return "Meta-Sockel — hier entscheidet der Proc-Effekt, nicht die Wertung."
+    end
+    if not (id and weights) then return nil end
+
+    local parts = {}
+    local stats = SM.GemStats(id)
+    room = room or {}
+
+    -- (a) Welcher Wert des Steins fuehrt die Wertung an?
+    local lead, leadW = nil, -1
+    if stats then
+        for stat, value in pairs(stats) do
+            local w = weights[stat] or 0
+            if value and value > 0 and w > leadW then lead, leadW = stat, w end
+        end
+    end
+    if lead then
+        parts[#parts + 1] = string.format("%s (Gewicht %d) ist hier der stärkste Wert",
+            StatShort(lead), leadW)
+    end
+
+    -- (b) Welcher HOEHER gewichtete Wert ist ausgeschieden — und warum?
+    -- Genau das ist die Frage hinter jeder Rueckfrage zur Sockelseite:
+    -- "wieso kein Trefferstein, ich bin doch unter dem Cap?"
+    local blocked, blockedW = nil, leadW
+    for stat, w in pairs(weights) do
+        if REFORGE_STAT_KEYS[stat] and w > blockedW and (room[stat] or 1) <= 0 then
+            blocked, blockedW = stat, w
+        end
+    end
+    if blocked then
+        parts[#parts + 1] = string.format("%s (%d) zählt hier nicht mehr — %s",
+            StatShort(blocked), blockedW, BlockedReason(blocked, ctx and ctx.capInfo))
+    end
+
+    -- (c) Die Sockelbonus-Entscheidung, in Worten statt in Zahlen.
+    if IsColoredSocket(socket.color) and (plan.bonusText or plan.bonus) then
+        if plan.match then
+            parts[#parts + 1] = "Farbe passt und hält den Sockelbonus"
+        else
+            parts[#parts + 1] = "der Sockelbonus wiegt weniger als der stärkere Stein"
+        end
+    end
+
+    -- (d) Schlangenaugen sind kontingentiert; ohne diesen Hinweis sieht die
+    -- Empfehlung fuer jeden ohne Juwelenschleifen nach einem Fehler aus.
+    if IsJcGem(id) then
+        parts[#parts + 1] = "Schlangenauge — nur mit Juwelenschleifen, begrenzte Zahl"
+    end
+
+    if #parts == 0 then return nil end
+    return table.concat(parts, " · ")
+end
+
+--------------------------------------------------
 -- PLANITEM — DIE EINE RECHNUNG JE GEGENSTAND
 --
 -- Bis 2.5.0.0 beantworteten DREI Funktionen unabhängig voneinander die
@@ -2352,6 +2476,14 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     plan.total    = winner.total
     plan.altTotal = loser and loser.total or nil
 
+    -- Die Begruendung entsteht HIER und nicht in der Zeichenfunktion: dort
+    -- waere sie eine zweite Herleitung derselben Entscheidung, und genau
+    -- daran ist die Sockelbewertung schon einmal auseinandergelaufen.
+    plan.why = {}
+    for i, socket in ipairs(sockets) do
+        plan.why[i] = ExplainGem(plan.gems[i], socket, plan.room[i], weights, plan, ctx)
+    end
+
     -- Erst jetzt den echten Spielraum verbrauchen: das ist der Plan, den wir
     -- empfehlen, und die nächsten Slots sollen mit dem rechnen, was danach
     -- noch übrig ist. Ohne das bekäme jeder Sockel denselben Restweg zum
@@ -2401,7 +2533,14 @@ local LEGENDARY_META = {
 -- Rückgabe: status, qualityPct, unbekannt, equiv
 --------------------------------------------------
 
-local function EvaluateGem(gemId, socket, index, profile, plan)
+--------------------------------------------------
+-- Das Urteil ueber den ANGELEGTEN Stein bekommt seit 2.7.0.0 ebenfalls
+-- einen Satz dazu. "Nicht ideal (72 %)" beantwortet nicht, was daran fehlt;
+-- der Rueckschluss vom Prozentsatz auf den Grund ist genau die Arbeit, die
+-- der Spieler nicht leisten kann, weil er die Rechnung nicht sieht.
+--------------------------------------------------
+
+local function EvaluateGem(gemId, socket, index, profile, plan, ctx)
     if not gemId then return "missing", nil, false end
 
     local gemColor = GemColor(gemId)
@@ -2412,28 +2551,34 @@ local function EvaluateGem(gemId, socket, index, profile, plan)
     local leg = LEGENDARY_META[gemId]
     if leg then
         if not profile or not profile.role or leg[profile.role] then
-            return "optimal", 100, false
+            return "optimal", 100, false, nil,
+                "Legendärer Meta-Stein — besser als jeder kaufbare und passend zu deiner Rolle."
         end
-        return "ok", nil, false
+        return "ok", nil, false, nil,
+            "Legendärer Meta-Stein, aber für eine andere Rolle gedacht."
     end
 
     local recId = plan and plan.gems and plan.gems[index]
     if not recId then
         -- Keine Empfehlung für diesen Sockel: nichts behaupten.
-        return "ok", nil, true
+        return "ok", nil, true, nil,
+            "Für diesen Sockel führt das Spec-Profil keine Empfehlung — deshalb kein Urteil."
     end
-    if gemId == recId then return "optimal", 100, false end
+    if gemId == recId then
+        return "optimal", 100, false, nil, plan.why and plan.why[index] or nil
+    end
 
     -- Der Plan hält den Sockelbonus: ein farblich unpassender Stein kostet
     -- genau den Bonus, den wir gerade für lohnend erklärt haben. So gut
     -- seine Werte auch sind — "Optimal" ist er damit nicht, denn darüber
     -- steht die Zeile "Sockelbonus: … aktiv". Beides muss dasselbe sagen.
     local matches = GemMatchesSocket(gemColor, socket.color)
-    local function Rank(status, pct, unknown, equiv)
+    local function Rank(status, pct, unknown, equiv, reason)
         if status == "optimal" and plan.match and matches == false then
-            return "ok", pct, unknown, equiv
+            return "ok", pct, unknown, equiv,
+                "Werte stimmen, aber die Farbe bricht den Sockelbonus, den der Plan hält."
         end
-        return status, pct, unknown, equiv
+        return status, pct, unknown, equiv, reason
     end
 
     local myStats = SM.GemStats(gemId)
@@ -2451,7 +2596,8 @@ local function EvaluateGem(gemId, socket, index, profile, plan)
             SM.MatchAgainstList(myStats, { recId }, SM.GemStats)
         if SM.IsMatch(verdict) then
             return Rank("optimal", 100, false,
-                        { verdict = verdict, refId = refId, ratio = ratio })
+                        { verdict = verdict, refId = refId, ratio = ratio },
+                        "Liefert dieselben Werte wie die Empfehlung — eine andere ID, derselbe Stein.")
         end
     end
 
@@ -2462,17 +2608,40 @@ local function EvaluateGem(gemId, socket, index, profile, plan)
         local myScore = GemValue(myStats, weights, room)
         local pct = math.floor((myScore / best) * 100 + 0.5)
         if pct > 100 then pct = 100 end
-        if pct >= 90 then return Rank("optimal", pct, false) end
-        if pct >= 65 then return "ok", pct, false end
+
+        -- Woran liegt der Abstand? Meistens an genau einem Wert, der an
+        -- einer Grenze steht — und das ist die Auskunft, die weiterhilft,
+        -- nicht die Prozentzahl.
+        local reason
+        local dead, deadValue = nil, 0
+        for stat, value in pairs(myStats) do
+            local r = room and room[stat]
+            if r ~= nil and value and value > 0 and r <= 0 and value > deadValue then
+                dead, deadValue = stat, value
+            end
+        end
+        if dead then
+            reason = string.format("%s zählt hier nicht mehr (%s) — die Wertung liegt brach.",
+                StatShort(dead), BlockedReason(dead, ctx and ctx.capInfo))
+        elseif pct < 90 then
+            reason = string.format("Bringt %d %% der Wertung des empfohlenen Steins.", pct)
+        end
+
+        if pct >= 90 then return Rank("optimal", pct, false, nil, reason) end
+        if pct >= 65 then return "ok", pct, false, nil, reason end
         -- Meta-Steine nie als "falsch" werten: ihre Proc-Effekte
         -- (z.B. Mana-Ersparnis, Schadensverringerung) stecken nicht
         -- in den reinen Statwerten.
-        if isMeta then return "ok", pct, false end
-        return "wrong", pct, false
+        if isMeta then
+            return "ok", pct, false, nil,
+                "Meta-Stein — der Proc-Effekt steht in keiner Wertung, deshalb kein Urteil."
+        end
+        return "wrong", pct, false, nil, reason
     end
 
     -- Stein unbekannt oder keine Bewertungsgrundlage
-    return "ok", nil, true
+    return "ok", nil, true, nil,
+        "Zu diesem Stein liegen keine Werte vor — er wird deshalb nicht bewertet."
 end
 
 -- Schulter-Inschriften: Inschriftler tragen die selbst erstellbare
@@ -2608,10 +2777,37 @@ end
 -- Ein Durchlauf liefert alle Daten für alle Seiten.
 --------------------------------------------------
 
-local function ScanCharacter()
+--------------------------------------------------
+-- NUR DIE GRENZEN, OHNE DEN GANZEN SCAN
+--
+-- Caps und Tempo-Treppe haengen an Spec-Profil und Charakterbogen, nicht an
+-- Steinen und Verzauberungen. Wer nur sie braucht, soll nicht sechzehn
+-- Tooltips lesen muessen — und genau das braucht der Umschmiede-Planer
+-- (modules/reforge_engine.lua).
+--
+-- Der Zuschnitt ist ausserdem das, was den Kreis aufloest: der Planer liest
+-- die Grenzen, die Sockelplanung liest das Ergebnis des Planers. Riefe der
+-- Planer den vollen Scan, riefe der Scan wieder den Planer.
+--------------------------------------------------
+
+local function CapContext()
     local profile, profileKey, tankStyle, specDisplay = GetCurrentSpecProfile()
-    local capStates = BuildCapStates(profile)
-    local breakpointStates = BuildBreakpointStates(profile, profileKey, tankStyle)
+    return {
+        profile     = profile,
+        profileKey  = profileKey,
+        tankStyle   = tankStyle,
+        specDisplay = specDisplay,
+        caps        = BuildCapStates(profile),
+        breakpoints = BuildBreakpointStates(profile, profileKey, tankStyle),
+    }
+end
+
+local function ScanCharacter()
+    local capCtx = CapContext()
+    local profile, profileKey, tankStyle, specDisplay =
+        capCtx.profile, capCtx.profileKey, capCtx.tankStyle, capCtx.specDisplay
+    local capStates        = capCtx.caps
+    local breakpointStates = capCtx.breakpoints
 
     -- CAP-SPIELRAUM FÜR DIE SOCKELEMPFEHLUNG.
     --
@@ -2643,6 +2839,46 @@ local function ScanCharacter()
         end
     end
 
+    --------------------------------------------------
+    -- UND WAS DAS UMSCHMIEDEN OHNEHIN ERLEDIGT (seit 2.7.0.0)
+    --
+    -- UMSCHMIEDEN KOSTET GOLD, EIN SOCKEL IST EINMALIG.
+    --
+    -- Ein Sockel laesst sich einmal vergeben; Umschmieden bewegt 40 % eines
+    -- Sekundaerwerts je Gegenstand und laesst sich jederzeit zuruecknehmen.
+    -- Wer einen Sockel benutzt, um ein Kap zu fuellen, das das Umschmieden
+    -- ohnehin fuellt, verschenkt den Sockel — und genau das hat diese Seite
+    -- bis hierher getan. Sie rechnete mit dem Abstand zum Kap, den sie
+    -- GERADE sah, und empfahl deshalb Treffersteine fuer eine Luecke, die
+    -- das Umschmieden umsonst schliesst. Das ist die haeufigste Sorte
+    -- falscher Sockelempfehlung.
+    --
+    -- Der Spielraum ist deshalb nicht mehr "wieviel fehlt bis zum Kap",
+    -- sondern "wieviel fehlt NACH dem Umschmieden" — dieselbe Groesse, nur
+    -- richtig gemessen. Damit fallen beide Fehler weg: der Trefferstein,
+    -- den es nicht braucht, und die Meldung "verschwendet" fuer einen
+    -- Ueberschuss, den das Umschmieden gerade wegraeumt.
+    --
+    -- Die Reihenfolge, die daraus folgt, ist die der Guides: erst
+    -- umschmieden, dann sockeln. Sie steht als Hinweis auf der Seite, denn
+    -- ohne sie sieht die Empfehlung nach Willkuer aus.
+    --
+    -- IST DER PLANER AUS ODER RECHNET ER NOCH, AENDERT SICH NICHTS.
+    -- CapOutlook() gibt dann nil, und diese Seite rechnet wie vor 2.7.0.0.
+    -- Ein halber Plan ist keine Auskunft.
+    --------------------------------------------------
+    local reforgeOutlook
+    if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.CapOutlook then
+        reforgeOutlook = WeintCodex.ReforgeEngine.CapOutlook()
+    end
+    if reforgeOutlook then
+        for stat, look in pairs(reforgeOutlook) do
+            if headroom[stat] ~= nil then
+                headroom[stat] = math.max(0, look.target - look.after)
+            end
+        end
+    end
+
     -- Der Overcap-Pass weiter unten markiert ANGELEGTE Steine, deren Wertung
     -- ganz verschwendet ist. Das ist die andere Frage (was liegt an?) und
     -- bleibt bei der bisherigen Schwelle.
@@ -2660,9 +2896,30 @@ local function ScanCharacter()
 
     -- Kandidatentopf und Schlangenaugen-Kontingent gelten für den ganzen
     -- Charakter, nicht je Gegenstand.
+    -- Woran steht ein Wert, wenn sein Spielraum 0 ist? Ein Kap, eine
+    -- Tempo-Schwelle und "das erledigt das Umschmieden" sind drei
+    -- verschiedene Auskuenfte, und nur mit dieser Unterscheidung ergibt die
+    -- Begruendung an der Zeile Sinn (siehe ExplainGem).
+    local capInfo = {}
+    for _, cs in ipairs(capStates) do
+        capInfo[cs.stat] = { kind = "cap", label = cs.label }
+    end
+    for _, bp in ipairs(breakpointStates) do
+        if bp.capPct ~= nil then
+            capInfo[bp.stat] = { kind = "breakpoint", label = bp.label }
+        end
+    end
+    if reforgeOutlook then
+        for stat, look in pairs(reforgeOutlook) do
+            capInfo[stat] = capInfo[stat] or { kind = look.kind, label = look.label }
+            capInfo[stat].closedByReforge = look.closes
+        end
+    end
+
     local planCtx = {
         pool     = GemPool(profile, profileKey),
         headroom = headroom,
+        capInfo  = capInfo,
         allowJC  = false,
         jcLeft   = 0,
     }
@@ -2678,6 +2935,7 @@ local function ScanCharacter()
         specDisplay = specDisplay,
         caps        = capStates,
         breakpoints = breakpointStates,
+        reforge     = reforgeOutlook,
         enchants    = { rows = {} },
         gems        = { rows = {} },
         issues      = {},
@@ -2716,6 +2974,25 @@ local function ScanCharacter()
                     GetBestEnchantList(profile, enchSlot, offhandKind),
                     res and res.name,
                     res and (res.scanned or res.stats))
+                -- Begruendung an der Zeile (seit 2.7.0.0). "Nicht ideal"
+                -- ist ein Befund, kein Rat: was daran fehlt, weiss nur die
+                -- Rechnung, und der Spieler sieht sie nicht.
+                local recId, recReason =
+                    PreferredEnchantId(bestList, profile, headroomAtStart, capInfo)
+                local enchReason
+                if status == "optimal" then
+                    local note = equiv and SM.VerdictNote(equiv.verdict)
+                    enchReason = note
+                        and ("Nicht dieselbe ID, aber " .. note .. " — zählt als optimal.")
+                        or "Steht in der Empfehlungsliste deines Spec-Profils."
+                elseif status == "neutral" then
+                    enchReason = "Für diesen Platz führt dein Spec-Profil keine Empfehlung."
+                elseif status == "missing" then
+                    enchReason = recReason
+                elseif status == "wrong" then
+                    enchReason = "Steht nicht in der Empfehlungsliste für diesen Platz."
+                end
+
                 scan.enchants.rows[#scan.enchants.rows + 1] = {
                     slotId       = slotDef.id,
                     slotName     = slotDef.name,
@@ -2732,7 +3009,9 @@ local function ScanCharacter()
                     status       = status,
                     equiv        = equiv,
                     bestList     = bestList,
-                    recId        = PreferredEnchantId(bestList, profile, headroomAtStart),
+                    recId        = recId,
+                    recReason    = recReason,
+                    reason       = enchReason,
                 }
             end
 
@@ -2753,8 +3032,8 @@ local function ScanCharacter()
                 plan.active = bonusActive
 
                 for socketIndex, socket in ipairs(sockets) do
-                    local status, qualityPct, unknown, equiv =
-                        EvaluateGem(socket.gemId, socket, socketIndex, profile, plan)
+                    local status, qualityPct, unknown, equiv, reason =
+                        EvaluateGem(socket.gemId, socket, socketIndex, profile, plan, planCtx)
 
                     -- Ohne Basisdaten kennt ScanItemSockets die eingebauten
                     -- Sockel nicht: alle Steine stuenden als prismatische
@@ -2766,6 +3045,7 @@ local function ScanCharacter()
                     -- und fuellt sich nach der Nachlieferung von selbst.
                     if not socketsKnown then
                         status, qualityPct, unknown, equiv = "neutral", nil, true, nil
+                        reason = "Gegenstandsdaten noch nicht geladen — die Zeile füllt sich von selbst."
                     end
                     scan.gems.rows[#scan.gems.rows + 1] = {
                         slotId     = slotDef.id,
@@ -2778,6 +3058,8 @@ local function ScanCharacter()
                         qualityPct = qualityPct,
                         unknown    = unknown,
                         equiv      = equiv,
+                        reason     = reason,
+                        recReason  = plan.why and plan.why[socketIndex] or nil,
                         plan       = plan,
                         recId      = plan.gems and plan.gems[socketIndex] or nil,
                         socketsKnown = socketsKnown,
@@ -2803,21 +3085,58 @@ local function ScanCharacter()
     -- traegt die Zeile `capKind` mit.
     --------------------------------------------------
 
+    -- WAS DAS UMSCHMIEDEN WEGRAEUMT, IST NICHT VERSCHWENDET (seit 2.7.0.0).
+    -- Ein Trefferstein ueber dem Kap steht nicht falsch IM STEIN, wenn der
+    -- Umschmiede-Plan den Ueberschuss ohnehin in einen anderen Wert
+    -- verschiebt — dann ist er einfach der Ausgangspunkt jener Rechnung.
+    -- Ihn trotzdem als "verschwendet" zu melden, waere ein Handlungsbedarf,
+    -- den es nicht gibt: die Sorte Fehlmeldung, wegen der man einer Seite
+    -- nicht mehr glaubt.
+    -- WIEVIEL LIEGT WIRKLICH BRACH?
+    --
+    -- Bis 2.7.0.0 war das der Abstand zum Kap, so wie er GERADE dasteht.
+    -- Rechnet der Umschmiede-Planer mit, ist es der Rest NACH seinem Plan —
+    -- und das ist meistens deutlich weniger oder gar nichts. Ein
+    -- Trefferstein ueber dem Kap steht nicht falsch IM STEIN, wenn der Plan
+    -- den Ueberschuss ohnehin in einen anderen Wert verschiebt; ihn
+    -- trotzdem zu melden, waere ein Handlungsbedarf, den es nicht gibt.
+    local function WasteBudget(state)
+        local look = reforgeOutlook and reforgeOutlook[state.stat]
+        if look then
+            local rest = math.max(0, look.over or 0)
+            -- Nur, wenn der Plan wirklich etwas daran aendert.
+            state.reforgeReduced = rest < (state.overRating or 0) - 1
+            return rest
+        end
+        return state.overRating or 0
+    end
+
     local wasteStates = {}
+    local function ConsiderWaste(state)
+        local budget = WasteBudget(state)
+        if budget < 1 then
+            -- Nichts bleibt liegen. War vorher etwas da, hat der Plan es
+            -- weggeraeumt — und das gehoert gesagt, sonst verschwindet der
+            -- Befund kommentarlos.
+            state.reforgeFixes = state.reforgeReduced and true or nil
+            return
+        end
+        state.wasteBudget = budget
+        wasteStates[#wasteStates + 1] = state
+    end
+
     for _, cs in ipairs(capStates) do
-        if cs.overPct > 0.25 then wasteStates[#wasteStates + 1] = cs end
+        if cs.overPct > 0.25 then ConsiderWaste(cs) end
     end
     for _, bp in ipairs(breakpointStates) do
         -- Nur eine ERREICHTE Stufe ohne erreichbare naechste erzeugt
         -- Ueberschuss. Steht das Ziel noch vor uns, ist gar nichts zuviel.
-        if bp.capped and (bp.overRating or 0) >= 1 then
-            wasteStates[#wasteStates + 1] = bp
-        end
+        if bp.capped and (bp.overRating or 0) >= 1 then ConsiderWaste(bp) end
     end
 
     for _, cs in ipairs(wasteStates) do
         do
-            local budget = cs.overRating
+            local budget = cs.wasteBudget or cs.overRating
             local cands = {}
 
             for _, row in ipairs(scan.gems.rows) do
@@ -2855,6 +3174,13 @@ local function ScanCharacter()
                     cand.row.status  = "overcap"
                     cand.row.capStat = cs.stat
                     cand.row.capKind = cs.kind or "cap"
+                    cand.row.reason  = string.format(
+                        "Die %d %s liegen komplett %s — %s.",
+                        cand.value, StatShort(cs.stat),
+                        (cs.kind == "breakpoint") and "hinter der erreichten Tempo-Schwelle"
+                                                  or ("über " .. (cs.label or StatName(cs.stat))),
+                        reforgeOutlook and "auch nach dem Umschmiede-Plan bleibt das übrig"
+                                       or "Umschmieden verschiebt sie in einen Wert, der zählt")
                     budget = budget - cand.value
                     cs.wasted[#cs.wasted + 1] = cand
                 end
@@ -3119,6 +3445,7 @@ end
 
 -- Für andere Module (z.B. Companion-Export) verfügbar machen
 WeintCodex.Charakter.Scan = ScanCharacter
+WeintCodex.Charakter.CapContext = CapContext
 
 -- Dieselbe Slotliste, die der Scan durchläuft. Exportiert, damit
 -- modules/companion.lua für seinen Ausrüstungsbericht nicht eine
@@ -3328,6 +3655,32 @@ function WeintCodex.Charakter.DumpSockets()
             bp.headroom and string.format("%d Wertung", math.floor(bp.headroom + 0.5))
                          or "ungedeckelt",
             bp.targetSource or "auto"))
+    end
+
+    -- UND WAS DAS UMSCHMIEDEN DAVON SCHON ERLEDIGT.
+    --
+    -- Der Planer verschiebt Wertung, ohne einen Sockel zu kosten; die
+    -- Sockelplanung rechnet deshalb seit 2.7.0.0 mit dem Spielraum NACH
+    -- seinem Plan (siehe ScanCharacter). Fehlt diese Ausgabe hier, rechnet
+    -- die Diagnose mit anderen Zahlen als die Seite - genau die Sorte
+    -- Abweichung, wegen der es diesen Befehl ueberhaupt gibt.
+    local outlook = WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.CapOutlook
+                    and WeintCodex.ReforgeEngine.CapOutlook()
+    if not outlook then
+        print("  |cff4A4A52Umschmiede-Planer: kein fertiger Plan (aus, rechnet noch"
+            .. " oder Ausruestung hat sich geaendert) - gerechnet wird ohne ihn.|r")
+    else
+        for stat, look in pairs(outlook) do
+            local before = headroom[stat]
+            headroom[stat] = math.max(0, look.target - look.after)
+            print(string.format(
+                "  |cff22C55EUmschmieden %s: %d -> %d (Ziel %d), Spielraum %s statt %s|r",
+                look.label or stat,
+                math.floor(look.before + 0.5), math.floor(look.after + 0.5),
+                math.floor(look.target + 0.5),
+                math.floor(headroom[stat] + 0.5),
+                before and tostring(math.floor(before + 0.5)) or "-"))
+        end
     end
 
     local pool = GemPool(profile, profileKey)
@@ -3884,7 +4237,15 @@ function ShowEnchants()
 
     for _, row in ipairs(scan.enchants.rows) do
         local info = STATUS[row.status] or STATUS.neutral
-        local rowH = 40
+
+        -- Zweite Zeile mit der Begruendung, dieselbe Ueberlegung wie auf
+        -- der Sockelseite: "nicht ideal" ist ein Befund, kein Rat.
+        local why = row.reason
+        if row.status == "missing" and row.recReason then why = row.recReason end
+        local rowH = why and 54 or 40
+        -- Bei zwei Zeilen rutscht die erste nach oben; ohne Begruendung
+        -- bleibt alles, wo es war.
+        local lineY = why and 7 or 0
 
         local rf = CreateFrame("Frame", nil, inner)
         rf:SetSize(inner:GetWidth() - 4, rowH)
@@ -3896,18 +4257,18 @@ function ShowEnchants()
         stripe:SetPoint("LEFT", rf, "LEFT", 0, 0)
         stripe:SetColorTexture(info.color[1], info.color[2], info.color[3], 0.80)
 
-        AttachStatusIcon(rf, row.status, 10, 0)
+        AttachStatusIcon(rf, row.status, 10, lineY)
 
         local stLbl = rf:CreateFontString(nil, "OVERLAY")
         stLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
-        stLbl:SetPoint("LEFT", rf, "LEFT", 30, 0)
+        stLbl:SetPoint("LEFT", rf, "LEFT", 30, lineY)
         stLbl:SetWidth(60)
         stLbl:SetJustifyH("LEFT")
         stLbl:SetText(StatusColorStr(row.status) .. info.label .. "|r")
 
         local slotLbl = rf:CreateFontString(nil, "OVERLAY")
         slotLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-        slotLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -6)
+        slotLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -6 + lineY)
         slotLbl:SetWidth(140)
         slotLbl:SetWordWrap(false)
         slotLbl:SetJustifyH("LEFT")
@@ -3917,7 +4278,7 @@ function ShowEnchants()
         if row.itemName then
             local itemLbl = rf:CreateFontString(nil, "OVERLAY")
             itemLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
-            itemLbl:SetPoint("BOTTOMLEFT", rf, "BOTTOMLEFT", 92, 5)
+            itemLbl:SetPoint("TOPLEFT", rf, "TOPLEFT", 92, -20 + lineY)
             itemLbl:SetWordWrap(false)
             itemLbl:SetJustifyH("LEFT")
             -- Einzeilig kuerzen statt umbrechen zu lassen, sonst kollidiert
@@ -3928,7 +4289,7 @@ function ShowEnchants()
 
         local curLbl = rf:CreateFontString(nil, "OVERLAY")
         curLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-        curLbl:SetPoint("LEFT", rf, "LEFT", 238, 0)
+        curLbl:SetPoint("LEFT", rf, "LEFT", 238, lineY)
         curLbl:SetWidth(232)
         curLbl:SetJustifyH("LEFT")
         if row.status == "missing" then
@@ -3986,11 +4347,21 @@ function ShowEnchants()
             if recName then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
                 recLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
-                recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
+                recLbl:SetPoint("LEFT", rf, "LEFT", 476, lineY)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")
                 recLbl:SetText("|cffD4A24A> " .. recName .. "|r")
             end
+        end
+
+        if why then
+            local whyLbl = rf:CreateFontString(nil, "OVERLAY")
+            whyLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+            whyLbl:SetPoint("TOPLEFT",  rf, "TOPLEFT",  30, -36)
+            whyLbl:SetPoint("TOPRIGHT", rf, "TOPRIGHT", -8, -36)
+            whyLbl:SetJustifyH("LEFT")
+            whyLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+            whyLbl:SetText(why)
         end
 
         yOff = yOff - (rowH + 2)
@@ -4126,7 +4497,23 @@ function ShowGems()
         end
 
         local info = STATUS[row.status] or STATUS.neutral
-        local rowH = 30
+
+        -- ZWEITE ZEILE: DIE BEGRUENDUNG.
+        --
+        -- Sie steht in der Zeile und nicht im Tooltip. Ein Tooltip ist der
+        -- Ort fuer Einzelheiten, die man nachschlaegt; die Frage "warum
+        -- dieser Stein" hat man dagegen genau dann, wenn man die Zeile
+        -- liest — und wer erst darauf zeigen muss, um sie beantwortet zu
+        -- bekommen, kommt gar nicht auf die Idee, dass es eine Antwort
+        -- gibt. Zwei Begruendungen, weil es zwei Fragen sind: warum diese
+        -- Empfehlung, und was ist am angelegten Stein.
+        local why = row.recReason
+        if row.reason and row.status ~= "optimal" then
+            why = row.reason
+        elseif row.reason and row.status == "optimal" and not why then
+            why = row.reason
+        end
+        local rowH = why and 44 or 30
 
         local rf = CreateFrame("Frame", nil, inner)
         rf:SetSize(inner:GetWidth() - 4, rowH)
@@ -4138,18 +4525,22 @@ function ShowGems()
         stripe:SetPoint("LEFT", rf, "LEFT", 0, 0)
         stripe:SetColorTexture(info.color[1], info.color[2], info.color[3], 0.80)
 
+        -- Bei zwei Zeilen rutscht die erste nach oben; ohne Begruendung
+        -- bleibt alles, wo es war.
+        local lineY = why and 8 or 0
+
         -- Sockelfarbe als Punkt
         local dc = SOCKET_DOT_COLOR[row.socket.color] or { 0.55, 0.55, 0.55 }
         local dot = rf:CreateTexture(nil, "OVERLAY")
         dot:SetSize(10, 10)
-        dot:SetPoint("LEFT", rf, "LEFT", 8, 0)
+        dot:SetPoint("LEFT", rf, "LEFT", 8, lineY)
         dot:SetColorTexture(dc[1], dc[2], dc[3], 0.90)
 
-        AttachStatusIcon(rf, row.status, 22, 0)
+        AttachStatusIcon(rf, row.status, 22, lineY)
 
         local stLbl = rf:CreateFontString(nil, "OVERLAY")
         stLbl:SetFont(WeintCodex.Fonts.sans, 8, "")
-        stLbl:SetPoint("LEFT", rf, "LEFT", 42, 0)
+        stLbl:SetPoint("LEFT", rf, "LEFT", 42, lineY)
         stLbl:SetWidth(62)
         stLbl:SetJustifyH("LEFT")
         stLbl:SetText(StatusColorStr(row.status) .. info.label .. "|r")
@@ -4172,7 +4563,7 @@ function ShowGems()
         end
         local lbl = rf:CreateFontString(nil, "OVERLAY")
         lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
-        lbl:SetPoint("LEFT", rf, "LEFT", 106, 0)
+        lbl:SetPoint("LEFT", rf, "LEFT", 106, lineY)
         lbl:SetWidth(120)
         lbl:SetJustifyH("LEFT")
         lbl:SetText(sockName)
@@ -4180,7 +4571,7 @@ function ShowGems()
 
         local curLbl = rf:CreateFontString(nil, "OVERLAY")
         curLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
-        curLbl:SetPoint("LEFT", rf, "LEFT", 232, 0)
+        curLbl:SetPoint("LEFT", rf, "LEFT", 232, lineY)
         curLbl:SetWidth(232)
         curLbl:SetJustifyH("LEFT")
         if row.socketsKnown == false then
@@ -4220,11 +4611,21 @@ function ShowGems()
                and not (curName and recName:lower() == curName:lower()) then
                 local recLbl = rf:CreateFontString(nil, "OVERLAY")
                 recLbl:SetFont(WeintCodex.Fonts.sans, 10, "")
-                recLbl:SetPoint("LEFT", rf, "LEFT", 476, 0)
+                recLbl:SetPoint("LEFT", rf, "LEFT", 476, lineY)
                 recLbl:SetWidth(220)
                 recLbl:SetJustifyH("LEFT")
                 recLbl:SetText("|cffD4A24A> " .. recName .. "|r")
             end
+        end
+
+        if why then
+            local whyLbl = rf:CreateFontString(nil, "OVERLAY")
+            whyLbl:SetFont(WeintCodex.Fonts.sans, 9, "")
+            whyLbl:SetPoint("TOPLEFT",  rf, "TOPLEFT",  42, -24)
+            whyLbl:SetPoint("TOPRIGHT", rf, "TOPRIGHT", -8, -24)
+            whyLbl:SetJustifyH("LEFT")
+            whyLbl:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+            whyLbl:SetText(why)
         end
 
         yOff = yOff - (rowH + 2)
@@ -4238,13 +4639,46 @@ function ShowGems()
     end
 
     inner:SetHeight(math.max(20, -yOff + 10))
-    ShowScoreInspector(scan.gems.counts)
+
+    -- Der Weg zur anderen Haelfte derselben Frage. Er steht nur da, wenn
+    -- der Planer laeuft: ein Knopf zu einer Seite, die es nicht gibt, ist
+    -- schlimmer als keiner.
+    local gemExtras
+    if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Enabled()
+       and WeintCodex.Reforge and WeintCodex.Reforge.ShowPage then
+        gemExtras = {
+            { type = "header", text = "Umschmieden" },
+            { type = "rows", rows = { { label = scan.reforge
+                and "Plan wird mitgerechnet" or "Plan noch nicht fertig",
+                valueColor = scan.reforge and "green" or "textFaint" } } },
+            { type = "button", label = "Zum Umschmieden",
+              onClick = WeintCodex.Reforge.ShowPage },
+        }
+    end
+    ShowScoreInspector(scan.gems.counts, gemExtras)
 
     -- Klarstellung: Farbangaben beziehen sich auf den Sockelplatz
     local colorHint = gemFrame:CreateFontString(nil, "OVERLAY")
     colorHint:SetFont(WeintCodex.Fonts.sans, 9, "")
     colorHint:SetPoint("BOTTOMLEFT", gemFrame, "BOTTOMLEFT", 16, 20)
     colorHint:SetText("|cff4A4A52Farbpunkt & Name = Farbe des SOCKELPLATZES im Item, nicht des Steins. Andersfarbige Steine (z.B. Lila in Blau) können optimal sein.|r")
+
+    -- OHNE DIESEN SATZ SIEHT DIE EMPFEHLUNG NACH WILLKUER AUS.
+    --
+    -- Rechnet der Umschmiede-Planer mit, faellt jeder Stein weg, dessen
+    -- Wert das Umschmieden ohnehin liefert — und dann steht auf einem
+    -- Charakter weit unter dem Trefferkap trotzdem "Krit". Das ist richtig
+    -- und ohne die Reihenfolge nicht zu verstehen.
+    if scan.reforge then
+        local order = gemFrame:CreateFontString(nil, "OVERLAY")
+        order:SetFont(WeintCodex.Fonts.sans, 9, "")
+        order:SetPoint("BOTTOMLEFT", gemFrame, "BOTTOMLEFT", 16, 34)
+        order:SetText(WeintCodex.ColorText("gold", "Erst umschmieden, dann sockeln:")
+            .. WeintCodex.ColorText("textFaint",
+               " diese Empfehlungen rechnen damit, dass der Umschmiede-Plan"
+               .. " schon umgesetzt ist. Umschmieden kostet Gold, ein Sockel"
+               .. " ist einmalig — was das Umschmieden füllt, muss kein Stein füllen."))
+    end
 end
 
 --------------------------------------------------
@@ -5132,6 +5566,22 @@ function ShowWerteverteilung()
                 note:SetPoint("TOPLEFT", body, "TOPLEFT", 0, yOff)
                 note:SetText("|cff4A4A52" .. cs.note .. "|r")
                 yOff = yOff - 14
+            end
+            -- Ein Ueberschuss, den der Umschmiede-Plan ohnehin verschiebt,
+            -- ist kein Handlungsbedarf. Ihn trotzdem als "verschwendet" zu
+            -- melden, ist die Sorte Fehlmeldung, wegen der man einer Seite
+            -- nicht mehr glaubt — und der Grund gehoert dazu, sonst
+            -- verschwindet der Befund einfach kommentarlos.
+            if cs.reforgeFixes then
+                local fixed = body:CreateFontString(nil, "OVERLAY")
+                fixed:SetFont(WeintCodex.Fonts.sans, 8, "")
+                fixed:SetPoint("TOPLEFT", body, "TOPLEFT", 10, yOff)
+                fixed:SetWidth(BODY_W - 10)
+                fixed:SetJustifyH("LEFT")
+                fixed:SetText(WeintCodex.ColorText("green",
+                    "> Der Umschmiede-Plan verschiebt den Überschuss bereits —"
+                    .. " kein Stein und keine Verzauberung ist deswegen verschwendet."))
+                yOff = yOff - 13
             end
             if cs.overPct > 0.25 and #cs.wasted > 0 then
                 for _, w in ipairs(cs.wasted) do

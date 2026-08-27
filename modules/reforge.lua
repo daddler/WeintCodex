@@ -323,6 +323,15 @@ local function BuildInspector(plan)
             RE.Invalidate()
             RF.ShowPage()
         end }
+    -- Der Weg zurueck zur anderen Haelfte derselben Frage: die
+    -- Sockelempfehlungen rechnen mit genau diesem Plan (siehe
+    -- ScanCharacter in modules/charakter.lua).
+    blocks[#blocks + 1] = { type = "button",
+        label = "Zu den Sockeln", onClick = function()
+            if WeintCodex.Charakter and WeintCodex.Charakter.ShowGems then
+                WeintCodex.Charakter.ShowGems()
+            end
+        end }
     blocks[#blocks + 1] = { type = "button",
         label = "Diagnose ausgeben", onClick = function() RF.Dump() end }
 
