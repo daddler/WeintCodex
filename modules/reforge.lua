@@ -275,7 +275,9 @@ local function BuildInspector(plan)
 
     if not plan.ok then
         blocks[#blocks + 1] = { type = "rows", rows = {
-            { label = "Zustand", value = "kein Plan", valueColor = "textFaint" },
+            { label = "Zustand",
+              value = plan.computing and "wird gerechnet" or "kein Plan",
+              valueColor = plan.computing and "gold" or "textFaint" },
         }}
         WeintCodex.Navigation.SetInspector(blocks)
         return
@@ -388,8 +390,17 @@ function RF.ShowPage()
         local msg = Text(pageFrame, 12)
         msg:SetPoint("TOPLEFT",  pageFrame, "TOPLEFT",  PAD_X, y)
         msg:SetPoint("TOPRIGHT", pageFrame, "TOPRIGHT", -PAD_X, y)
-        msg:SetTextColor(unpack(C.textDim))
-        msg:SetText(plan.problem or "Kein Plan.")
+        if plan.computing then
+            -- Der Suchlauf geht ueber sechzehn Slots und rechnet in
+            -- Haeppchen; er meldet sich von selbst, sobald er fertig ist
+            -- (RE.OnPlanReady weiter unten). Ein Fortschrittsbalken waere
+            -- hier eine Beschaeftigung fuer eine gute halbe Sekunde.
+            msg:SetTextColor(unpack(C.gold))
+            msg:SetText("Wird gerechnet …")
+        else
+            msg:SetTextColor(unpack(C.textDim))
+            msg:SetText(plan.problem or "Kein Plan.")
+        end
         BuildInspector(plan)
         pageFrame:Show()
         return
@@ -610,6 +621,10 @@ function RF.StartRun()
     end
 
     local plan = RE.GetPlan()
+    if plan.computing then
+        Say("Der Plan wird noch gerechnet — gleich nochmal.")
+        return
+    end
     if not (plan.ok and plan.changes > 0) then
         Say("Es gibt nichts umzuschmieden.")
         return
@@ -809,6 +824,8 @@ function RF.RefreshForge()
         forge.sub:SetText(shown > 0
             and string.format("%d Teile · %s", shown, Coins(plan.cost))
             or "Nichts zu tun — es sitzt alles richtig.")
+    elseif plan.computing then
+        forge.sub:SetText("Wird gerechnet …")
     else
         forge.sub:SetText(plan.problem or "Kein Plan.")
     end
@@ -861,6 +878,34 @@ end
 --------------------------------------------------
 -- Ereignisse
 --------------------------------------------------
+
+local redrawPending = false
+
+local function Redraw()
+    if redrawPending then return end
+    if not (PageVisible() or (forge and forge:IsShown())) then return end
+    if not (C_Timer and C_Timer.After) then
+        if PageVisible() then RF.ShowPage() end
+        if forge and forge:IsShown() and not forgeCo then RF.RefreshForge() end
+        return
+    end
+    redrawPending = true
+    C_Timer.After(1.5, function()
+        redrawPending = false
+        if PageVisible() then RF.ShowPage() end
+        if forge and forge:IsShown() and not forgeCo then RF.RefreshForge() end
+    end)
+end
+
+-- Der Suchlauf rechnet in Haeppchen ueber mehrere Bilder (siehe
+-- modules/reforge_engine.lua). Wer ihn angestossen hat, bekommt danach
+-- kein Ergebnis zurueck, sondern ein "wird gerechnet" — deshalb meldet
+-- der Motor sich hier, wenn er fertig ist, und die offene Seite bzw. das
+-- Fenster zeichnen sich dann neu.
+RE.OnPlanReady(function()
+    if PageVisible() then RF.ShowPage() end
+    if forge and forge:IsShown() then RF.RefreshForge() end
+end)
 
 local watcher = CreateFrame("Frame")
 
@@ -917,13 +962,12 @@ watcher:SetScript("OnEvent", function(_, event)
         ContinueRun()
     else
         RE.Invalidate()
-        -- Die Seite zieht nur nach, wenn sie auch offen steht. Ein
-        -- Neuaufbau je Ausruestungswechsel waere sonst eine Sammlung von
-        -- Frames, die WoW nie wieder freigibt.
-        if PageVisible() then
-            RF.ShowPage()
-        end
-        if forge and forge:IsShown() then RF.RefreshForge() end
+        -- Entprellt, aus zwei Gruenden: PLAYER_EQUIPMENT_CHANGED feuert
+        -- beim Umsockeln mehrfach hintereinander (dieselbe Beobachtung wie
+        -- in modules/gearalert.lua), und jeder Aufbau der Seite legt neue
+        -- Frames an, die WoW nie wieder freigibt. Nachgezogen wird
+        -- ausserdem nur, was auch offen steht.
+        Redraw()
     end
 end)
 
@@ -961,12 +1005,36 @@ function RF.Dump()
     local gewichte = {}
     for _, key in ipairs(R.STATS) do
         local w = plan.ctx.weights[key]
-        if w and w > 0 then
-            gewichte[#gewichte + 1] = R.SHORT[key] .. " " .. w
+        if w and w > 0 then gewichte[#gewichte + 1] = R.SHORT[key] .. " " .. w end
+    end
+    print("  Gewichte: " .. (#gewichte > 0 and table.concat(gewichte, ", ")
+        or WeintCodex.ColorText("warning", "keine")))
+
+    -- Umwandlungen: der haeufigste Grund fuer eine Empfehlung, die von
+    -- aussen unsinnig aussieht ("wieso Waffenkunde auf einem Magier?").
+    local conv = {}
+    for from, map in pairs(plan.ctx.conv or {}) do
+        for to, factor in pairs(map) do
+            conv[#conv + 1] = string.format("%s → %s ×%.2f",
+                R.SHORT[from] or from, R.SHORT[to] or to, factor)
         end
     end
-    print("  Gewichte: " .. (table.concat(gewichte, ", ") ~= "" and table.concat(gewichte, ", ")
-        or WeintCodex.ColorText("warning", "keine")))
+    print("  Umwandlungen: " .. (#conv > 0 and table.concat(conv, ", ")
+        or WeintCodex.ColorText("textFaint", "keine")))
+
+    local mult = {}
+    for key, factor in pairs(plan.ctx.mult or {}) do
+        mult[#mult + 1] = string.format("%s ×%.3f", R.SHORT[key] or key, factor)
+    end
+    if #mult > 0 then print("  Verstärkung: " .. table.concat(mult, ", ")) end
+
+    if plan.dims and #plan.dims > 0 then
+        local names = {}
+        for _, key in ipairs(plan.dims) do names[#names + 1] = R.SHORT[key] end
+        print("  Suchachsen: " .. table.concat(names, ", ")
+            .. WeintCodex.ColorText("textFaint",
+               "  (darüber hinaus gehende Ziele zählen nur linear)"))
+    end
 
     for _, key in ipairs(R.STATS) do
         local goal = plan.ctx.target[key]
@@ -974,8 +1042,9 @@ function RF.Dump()
         local base = plan.ctx.baseline[key] or 0
         print(string.format("  %-14s ist %s  ohne Umschmiedungen %s  %s",
             R.SHORT[key], Rating(live), Rating(base),
-            goal and WeintCodex.ColorText("gold",
-                string.format("Ziel %s (%s)", Rating(goal.rating), goal.kind))
+            goal and WeintCodex.ColorText(goal.require and "gold" or "textMuted",
+                string.format("Ziel %s (%s%s)", Rating(goal.rating), goal.kind,
+                    goal.require and ", Pflicht" or ""))
             or WeintCodex.ColorText("textFaint", "kein Ziel")))
     end
 
@@ -988,6 +1057,11 @@ function RF.Dump()
         if row.warning then
             print("    " .. WeintCodex.ColorText("warning", row.warning))
         end
+        if row.statSetMismatch then
+            print("    " .. WeintCodex.ColorText("warning",
+                "Item-Link und Grundgegenstand melden verschiedene Werte —"
+                .. " gerechnet wird mit dem Link"))
+        end
 
         if row.problem then
             print("    " .. WeintCodex.ColorText("danger", row.problem))
@@ -998,16 +1072,31 @@ function RF.Dump()
                     parts[#parts + 1] = R.SHORT[key] .. " " .. row.stats[key]
                 end
             end
-            print("    Werte (Grundgegenstand × Aufwertung): "
-                .. (table.concat(parts, ", ") ~= "" and table.concat(parts, ", ")
-                    or WeintCodex.ColorText("textFaint", "keine umschmiedbaren")))
-            print(string.format("    Stufe %s (Grund %s), Faktor %.3f",
-                tostring(row.ilvl or "?"), tostring(row.baseIlvl or "?"), row.factor or 1))
+            print("    Werte: " .. (#parts > 0 and table.concat(parts, ", ")
+                or WeintCodex.ColorText("textFaint", "keine umschmiedbaren")))
+
+            if row.bare then
+                local bare = {}
+                for _, key in ipairs(R.STATS) do
+                    if row.bare[key] then bare[#bare + 1] = R.SHORT[key] .. " " .. row.bare[key] end
+                end
+                print("    " .. WeintCodex.ColorText("textFaint",
+                    "Grundgegenstand: " .. (#bare > 0 and table.concat(bare, ", ") or "—")))
+            end
+
+            print(string.format("    Stufe %s (Grund %s), Aufwertung %s, Quelle: %s",
+                tostring(row.ilvl or "?"), tostring(row.baseIlvl or "?"),
+                tostring(row.upgrade or 0),
+                row.statSource == "tabelle" and "Skalierungstabelle (exakt)"
+                or row.statSource == "kurve" and WeintCodex.ColorText("warning",
+                       "Budgetkurve (Näherung — Vorlage nicht in der Tabelle)")
+                or "Grundwerte"))
 
             if row.current then
                 print(string.format("    angelegt: %s → %s (+%d), Umschmiedewert %d",
                     R.SHORT[R.STATS[row.current.src]], R.SHORT[R.STATS[row.current.dst]],
-                    row.current.amount, R.PAIRS[R.PAIR_INDEX[row.current.src][row.current.dst]].id))
+                    row.current.amount or row.current.raw,
+                    R.PAIRS[R.PAIR_INDEX[row.current.src][row.current.dst]].id))
             else
                 print("    angelegt: " .. WeintCodex.ColorText("textFaint", "nichts"))
             end
@@ -1025,11 +1114,15 @@ function RF.Dump()
         end
     end
 
-    print(string.format("  Ergebnis: %d Änderungen, %s, Bewertung %.0f → %.0f",
-        plan.changes, Coins(plan.cost), plan.scoreBefore or 0, plan.scoreAfter or 0))
+    print(string.format("  Ergebnis: %d Änderungen, %s, Bewertung %.0f → %.0f%s",
+        plan.changes, Coins(plan.cost), plan.scoreBefore or 0, plan.scoreAfter or 0,
+        (plan.capMisses or 0) > 0
+            and WeintCodex.ColorText("warning",
+                string.format("  ·  %d Pflicht-Kap nicht erreichbar", plan.capMisses))
+            or ""))
     print("  " .. WeintCodex.ColorText("textFaint",
-        "Werte des Grundgegenstands, hochgerechnet auf die Aufwertungsstufe"
-        .. " — das ist eine Näherung, siehe modules/reforge_engine.lua."))
+        "Suchlauf: vollständige Programmierung über die Suchachsen, danach"
+        .. " nachpoliert mit den exakten Summen."))
 end
 
 --------------------------------------------------

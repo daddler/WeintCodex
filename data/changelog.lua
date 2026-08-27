@@ -11,9 +11,9 @@ WeintCodex_ChangelogData = {
         date    = "27.08.2026",
         notes   = {
             "Neu: |cffD4A24AUmschmieden|r. Das Addon rechnet aus, welcher Wert auf welchem Teil besser woanders staende - mit denselben Gewichten und Grenzen, mit denen es auch Steine und Verzauberungen bewertet.",
-            "Die Liste steht unter |cffD4A24ACharakter -> Umschmieden|r: je Teil von-nach, wieviel, und warum. Ein Klick auf eine Zeile nimmt das Teil aus der Planung.",
-            "Beim Umschmieder geht ein Fenster mit derselben Liste auf. |cffD4A24AAlles umschmieden|r erledigt sie in einem Zug.",
-            "|cffE56B6BDas ist eine Beta|r und deshalb |cffE56B6Bab Werk aus|r. Einschalten unter |cffD4A24AEinstellungen -> Umschmieden|r. Die Vorschlaege sind noch nicht geprueft - sieh sie dir an, bevor du Gold ausgibst.",
+            "Gerechnet wird so gruendlich wie in |cffD4A24AReforge Lite|r: nicht Teil fuer Teil das Naechstbeste, sondern die beste Verteilung als Ganzes. Treffer- und Waffenkunde-Cap stehen danach so genau, wie es die Ausruestung zulaesst.",
+            "Die Liste steht unter |cffD4A24ACharakter -> Umschmieden|r: je Teil von-nach, wieviel, und warum. Ein Klick auf eine Zeile nimmt das Teil aus der Planung. Beim Umschmieder geht dieselbe Liste als Fenster auf, |cffD4A24AAlles umschmieden|r erledigt sie in einem Zug.",
+            "|cffE56B6BDas ist eine Beta|r und deshalb |cffE56B6Bab Werk aus|r. Einschalten unter |cffD4A24AEinstellungen -> Umschmieden|r. Sieh dir die Vorschlaege an, bevor du Gold ausgibst.",
             "|cffD4A24A/wc umschmieden|r oeffnet die Seite, |cffD4A24A/wc umschmieden pruefen|r zeigt jede Zwischenzahl.",
         },
     },

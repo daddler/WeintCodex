@@ -26,6 +26,7 @@ data/enchants.lua
 data/spec_profiles.lua
 data/breakpoints.lua
 data/reforge.lua
+data/reforge_scaling.lua
 data/rotations.lua
 data/gems.lua
 data/gem_stats.lua

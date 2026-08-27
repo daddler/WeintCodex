@@ -166,6 +166,37 @@ function WeintCodex_ValidateReforgeData()
         end
     end
 
+    -- Die Skalierungsdaten liegen in einer eigenen Datei und werden NACH
+    -- dieser geladen; gefragt wird deshalb hier und nicht oben. Ohne sie
+    -- rechnet der Planer zwar weiter (mit der Budgetkurve als Naeherung),
+    -- aber dann liegt jeder Betrag auf einem aufgewerteten Teil daneben —
+    -- und das sieht man der Seite nicht an.
+    local scaling = WeintCodex_ReforgeScaling
+    if not scaling then
+        problems[#problems + 1] = "data/reforge_scaling.lua fehlt (.toc pruefen)"
+    else
+        if not (scaling.RandPropPoints and scaling.RandPropPoints[500]) then
+            problems[#problems + 1] = "Budgettabelle unvollstaendig"
+        end
+        if not (scaling.StatsRef and scaling.ItemUpgradeStats) then
+            problems[#problems + 1] = "Statverteilung oder Vorlagenzuordnung fehlt"
+        else
+            -- Die Statnummern der Skalierungsdaten muessen dieselben sein
+            -- wie oben. Waeren sie verschoben, bekaeme jeder aufgewertete
+            -- Gegenstand die Werte eines anderen Wertes zugeschrieben, und
+            -- zwar lautlos.
+            for _, ref in ipairs(scaling.StatsRef) do
+                for sid in pairs(ref) do
+                    if type(sid) ~= "number" or sid < 1 or sid > #R.STATS then
+                        problems[#problems + 1] =
+                            "Statnummer " .. tostring(sid) .. " passt nicht zu dieser Datei"
+                        break
+                    end
+                end
+            end
+        end
+    end
+
     if #problems > 0 then
         print("|cffD4A24A[WeintCodex]|r |cffE56B6BUmschmiede-Grunddaten fehlerhaft:|r")
         for _, text in ipairs(problems) do
