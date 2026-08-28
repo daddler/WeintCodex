@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.0.1",
+        date    = "28.08.2026",
+        notes   = {
+            "Behoben: |cffD4A24AAlles umschmieden|r blieb nach ein paar Teilen stehen. Der Knopf hiess weiter „Abbrechen\", ein zweiter Klick brachte nichts, und die Kosten zeigten noch die Summe vom Anfang.",
+            "Der Grund: der Lauf ging nach jeder Rueckmeldung des Spiels zum naechsten Teil weiter - auch wenn das vorige noch gar nicht fertig war. Damit lief er dem Umschmieder davon, und dessen Antworten liefen ins Leere.",
+            "Jetzt wartet er je Teil, bis die Umschmiedung wirklich am Gegenstand steht, und sieht dabei viermal je Sekunde selbst nach. Bleibt eine Antwort aus, sagt er welches Teil es war - statt still stehenzubleiben.",
+            "Die Kosten im Fenster zaehlen jetzt mit: dort steht, wieviele Teile noch offen sind und was die noch kosten.",
+            "Und ein Klick waehrend der Berechnung geht nicht mehr verloren - der Lauf startet von selbst, sobald der Plan steht.",
+        },
+    },
+    {
         version = "2.7.0.0",
         date    = "27.08.2026",
         notes   = {

@@ -509,11 +509,18 @@ end
 local forge          = nil
 local forgeRows      = {}
 local forgeCo        = nil
-local forgeWatchdog  = nil
+local forgeTicking   = false
+local forgeWish      = nil    -- Klick, der auf den fertigen Plan wartet
 
 local FORGE_W   = 340
 local FORGE_HDR = 42
 local FORGE_ROW = 30
+
+-- Wie oft der Lauf von selbst nachsieht, und wie lange er auf EINEN
+-- Gegenstand wartet, bevor er aufgibt.
+local TICK          = 0.25
+local ITEM_TIMEOUT  = 8      -- Sekunden
+local WISH_TIMEOUT  = 15     -- so lange gilt ein Klick, der auf den Plan wartet
 
 -- Vorwaertsdeklaration: der Lauf weiter unten baut das Fenster notfalls
 -- selbst auf, definiert wird es aber erst danach.
@@ -523,9 +530,13 @@ local function ReforgingFrameIsVisible()
     return _G.ReforgingFrame and _G.ReforgingFrame:IsShown()
 end
 
+local function Now()
+    return (_G.GetTime and GetTime()) or 0
+end
+
 local function StopRun(message)
-    forgeCo = nil
-    forgeWatchdog = nil
+    forgeCo   = nil
+    forgeWish = nil
     if forge then
         forge.action:SetText("Alles umschmieden")
     end
@@ -536,72 +547,151 @@ local function StopRun(message)
 end
 
 --------------------------------------------------
--- Der Lauf
+-- DER LAUF
 --
--- Der Umschmieder beantwortet immer nur einen Gegenstand, und die Antwort
--- kommt als Ereignis (FORGE_MASTER_ITEM_CHANGED). Der Lauf ist deshalb
--- eine Koroutine, die nach jedem Auftrag anhaelt und vom Ereignis wieder
--- angestossen wird — dieselbe Bauform wie in ReforgeLite, weil der Server
--- hier den Takt vorgibt und nicht wir.
+-- Der Umschmieder beantwortet immer nur einen Gegenstand. Der Lauf ist
+-- deshalb eine Koroutine, die nach jedem Auftrag anhaelt — dieselbe
+-- Bauform wie in ReforgeLite, weil der Server hier den Takt vorgibt und
+-- nicht wir.
 --
--- Und aus demselben Grund haengt eine Zeitschranke daran: bleibt die
--- Antwort aus (kein Gold, Fenster zu, Gegenstand seelengebunden an jemand
--- anderen), wuerde die Koroutine still stehenbleiben und der Knopf bis zum
--- naechsten /reload "Abbrechen" heissen. Ein Rueckfallweg, dessen Zweige
--- schweigend scheitern koennen, ist keiner (dieselbe Lehre wie beim
--- Signalton in modules/gearalert.lua).
+-- GEWARTET WIRD AUF DIE BESTAETIGUNG, NICHT AUF DAS NAECHSTE EREIGNIS.
+--
+-- Bis 2.7.0.1 ging der Lauf nach JEDEM Aufwachen zum naechsten Gegenstand
+-- weiter. Das setzt voraus, dass auf einen Auftrag genau ein Ereignis
+-- kommt — und diese Annahme haelt nicht: das Einlegen in den Umschmieder
+-- meldet sich ebenso wie das Umschmieden selbst, und je nach Verzoegerung
+-- kommen beide in einem Rutsch. Dann schickt der Lauf den naechsten
+-- Auftrag, bevor der vorige durch ist, laeuft dem Server davon, und
+-- irgendwann kommt gar nichts mehr: die Koroutine steht still, der Knopf
+-- heisst weiter "Abbrechen", und ein zweiter Klick bricht nur ab.
+--
+-- Jetzt wird nach dem Auftrag so lange gewartet, bis der ITEM-LINK des
+-- Slots die neue Umschmiedung wirklich traegt. Ein Ereignis ist dabei nur
+-- ein Anlass nachzusehen, kein Beweis; ein eigener Takt sieht ausserdem
+-- viermal je Sekunde von sich aus nach, damit ein ausgebliebenes Ereignis
+-- den Lauf nicht stehenlaesst. Das ist dieselbe Lehre wie beim
+-- Kalender-Invite: gewartet wird auf Fortschritt, nicht auf eine Frist.
+--
+-- Und der Rueckgabewert von coroutine.resume wird gelesen. Ein Fehler
+-- mitten im Lauf liess die Koroutine bis 2.7.0.1 tot zurueck, ohne dass
+-- irgendetwas davon zu sehen war — genau der stille Rueckfallweg, den es
+-- in diesem Addon nicht geben darf (siehe Signalton in gearalert.lua).
 --------------------------------------------------
 
-local function ArmWatchdog()
-    if not (C_Timer and C_Timer.After) then return end
-    local token = {}
-    forgeWatchdog = token
-    C_Timer.After(4, function()
-        if forgeWatchdog ~= token then return end
-        StopRun("Der Umschmieder hat nicht geantwortet — Lauf abgebrochen."
-            .. " Genug Gold dabei?")
-    end)
+local PokeRun   -- weckt den Lauf; unten definiert
+
+local function Tick()
+    if not forgeCo then forgeTicking = false return end
+    PokeRun()
+    if forgeCo and C_Timer and C_Timer.After then
+        C_Timer.After(TICK, Tick)
+    else
+        forgeTicking = false
+    end
+end
+
+local function StartTicking()
+    if forgeTicking or not (C_Timer and C_Timer.After) then return end
+    forgeTicking = true
+    C_Timer.After(TICK, Tick)
+end
+
+PokeRun = function()
+    if not forgeCo then return end
+
+    local status = coroutine.status(forgeCo)
+    if status == "running" or status == "normal" then
+        -- Wir stecken schon mittendrin (ein Ereignis waehrend eines
+        -- Neuzeichnens). Nichts tun, aber auch nichts stillschweigend
+        -- verwerfen: der Takt sieht gleich wieder nach.
+        return
+    end
+    if status == "dead" then
+        -- Zu Ende, ohne dass StopRun gelaufen waere. Dann bleibt der Knopf
+        -- sonst bis zum naechsten /reload auf "Abbrechen" stehen.
+        StopRun("Der Umschmiede-Lauf ist unerwartet zu Ende gegangen.")
+        return
+    end
+
+    if forge and forge:IsShown() then RF.RefreshForge() end
+
+    local ok, err = coroutine.resume(forgeCo)
+    if not ok then
+        forgeCo = nil
+        StopRun(WeintCodex.ColorText("danger",
+            "Fehler im Umschmiede-Lauf: " .. tostring(err))
+            .. " Bitte mit |cffD4A24A/wc umschmieden pruefen|r melden.")
+    end
 end
 
 local function RunReforge()
     for _, row in ipairs(RF.currentPlanRows or {}) do
         if not forgeCo then return end
-        if row.changed and not row.locked and not row.problem then
-            if not SlotMatches(row.slot, row.target) then
-                if not ReforgingFrameIsVisible() then
-                    StopRun("Das Fenster des Umschmieders ist zu.")
-                    return
-                end
 
-                -- Die laufende Nummer haengt an den Werten des
-                -- GRUNDgegenstands, und die aendert das Umschmieden nicht.
-                -- Sie stammt deshalb aus der Planzeile und nicht aus einem
-                -- frischen Scan mitten im Lauf.
-                local index
-                if row.target then
-                    index = RE.ForgeIndex(row, row.target.src, row.target.dst)
-                else
-                    index = RE.UNFORGE_INDEX
-                end
+        if row.changed and not row.locked and not row.problem
+           and not SlotMatches(row.slot, row.target) then
 
-                if index then
-                    ClearCursor()
-                    PickupInventoryItem(row.slot)
-                    C_Reforge.SetReforgeFromCursorItem()
-                    C_Reforge.ReforgeItem(index)
-                    ArmWatchdog()
+            if not ReforgingFrameIsVisible() then
+                StopRun("Das Fenster des Umschmieders ist zu.")
+                return
+            end
+
+            -- Die laufende Nummer haengt an den Werten des
+            -- GRUNDgegenstands, und die aendert das Umschmieden nicht.
+            -- Sie stammt deshalb aus der Planzeile und nicht aus einem
+            -- frischen Scan mitten im Lauf.
+            local index
+            if row.target then
+                index = RE.ForgeIndex(row, row.target.src, row.target.dst)
+            else
+                index = RE.UNFORGE_INDEX
+            end
+
+            if not index then
+                -- Kein gueltiger Auftrag fuer diesen Gegenstand: lieber
+                -- ueberspringen als irgendeine Nummer schicken. Welche das
+                -- waere, wuesste hinterher niemand.
+                Say(WeintCodex.ColorText("warning",
+                    row.slotName .. ": diese Umschmiedung ist für den Gegenstand"
+                    .. " nicht zulässig — übersprungen."))
+            else
+                ClearCursor()
+                PickupInventoryItem(row.slot)
+                C_Reforge.SetReforgeFromCursorItem()
+                C_Reforge.ReforgeItem(index)
+
+                -- Warten, bis der Item-Link es wirklich zeigt.
+                local deadline, ticks = Now() + ITEM_TIMEOUT, 0
+                while not SlotMatches(row.slot, row.target) do
+                    if not forgeCo then return end
+                    if not ReforgingFrameIsVisible() then
+                        StopRun("Das Fenster des Umschmieders ist zu.")
+                        return
+                    end
+
+                    ticks = ticks + 1
+                    -- Zeit zaehlt, nicht Aufwachen: Ereignisse koennen in
+                    -- Schueben kommen und wuerden eine Schrittzahl in
+                    -- Sekundenbruchteilen aufbrauchen. Der Zaehler ist nur
+                    -- der Rueckfall, falls der Client keine Uhr hergibt.
+                    if (Now() > deadline) or ticks > 200 then
+                        StopRun(WeintCodex.ColorText("warning",
+                            row.slotName .. ": der Umschmieder hat nicht geantwortet.")
+                            .. " Lauf angehalten — genug Gold dabei? Ein erneuter Klick"
+                            .. " macht dort weiter, wo er stehengeblieben ist.")
+                        return
+                    end
+
+                    -- NICHTS NACHSCHICKEN. Ein zweiter Auftrag fuer
+                    -- denselben Gegenstand koennte ein zweites Mal Gold
+                    -- kosten, wenn der erste doch noch ankommt. Warten und
+                    -- es sagen ist die ehrlichere Antwort.
                     coroutine.yield()
-                else
-                    -- Kein gueltiger Auftrag fuer diesen Gegenstand: lieber
-                    -- ueberspringen als irgendeine Nummer schicken. Welche
-                    -- das waere, wuesste hinterher niemand.
-                    Say(WeintCodex.ColorText("warning",
-                        row.slotName .. ": diese Umschmiedung ist für den Gegenstand"
-                        .. " nicht zulässig — übersprungen."))
                 end
             end
         end
     end
+
     ClearCursor()
     StopRun("Umschmieden abgeschlossen.")
 end
@@ -630,16 +720,26 @@ function RF.StartRun()
     end
 
     local plan = RE.GetPlan()
+
+    -- DER KLICK WARTET AUF DEN PLAN, DER NUTZER NICHT AUF EINEN ZWEITEN
+    -- KLICK. Nach einem Abbruch ist der Plan verworfen und wird neu
+    -- gerechnet (rund eine Sekunde); bis 2.7.0.1 hiess das "gleich
+    -- nochmal", und genau so fuehlte es sich auch an: der erste Klick tat
+    -- sichtbar nichts.
     if plan.computing then
-        Say("Der Plan wird noch gerechnet — gleich nochmal.")
+        forgeWish = Now() + WISH_TIMEOUT
+        Say("Der Plan wird noch gerechnet — der Lauf startet von selbst,"
+            .. " sobald er fertig ist.")
+        if forge and forge:IsShown() then RF.RefreshForge() end
         return
     end
     if not (plan.ok and plan.changes > 0) then
         Say("Es gibt nichts umzuschmieden.")
         return
     end
+
     RF.currentPlanRows = plan.rows
-    RF.currentCost    = plan.cost
+    forgeWish = nil
 
     ClearCursor()
     C_Reforge.SetReforgeFromCursorItem()
@@ -647,14 +747,13 @@ function RF.StartRun()
 
     forge.action:SetText("Abbrechen")
     forgeCo = coroutine.create(RunReforge)
-    coroutine.resume(forgeCo)
-end
+    StartTicking()
 
-local function ContinueRun()
-    forgeWatchdog = nil
-    if forgeCo and coroutine.status(forgeCo) == "suspended" then
-        RF.RefreshForge()
-        coroutine.resume(forgeCo)
+    local ok, err = coroutine.resume(forgeCo)
+    if not ok then
+        forgeCo = nil
+        StopRun(WeintCodex.ColorText("danger",
+            "Fehler im Umschmiede-Lauf: " .. tostring(err)))
     end
 end
 
@@ -792,12 +891,19 @@ function RF.RefreshForge()
     -- Item-Link und sind damit trotzdem der echte Stand.
     local plan
     if forgeCo and RF.currentPlanRows then
-        plan = { ok = true, rows = RF.currentPlanRows, cost = RF.currentCost or 0 }
+        plan = { ok = true, rows = RF.currentPlanRows }
     else
         plan = RE.GetPlan()
     end
 
-    local shown = 0
+    -- DIE ZAHLEN KOMMEN AUS DEM ISTSTAND, NICHT AUS DEM PLAN.
+    --
+    -- Bis 2.7.0.1 stand hier die Summe, mit der der Lauf begonnen hat — sie
+    -- blieb waehrend des ganzen Laufs stehen, auch wenn schon die Haelfte
+    -- erledigt war. Was hier interessiert, ist aber, was noch aussteht und
+    -- was das noch kostet. Gefragt wird das je Zeile am Item-Link, so wie
+    -- auch der Haken davor.
+    local shown, offen, kosten = 0, 0, 0
 
     if plan.ok then
         for _, planRow in ipairs(plan.rows) do
@@ -819,6 +925,12 @@ function RF.RefreshForge()
                 row.move:SetTextColor(unpack(C.textDim))
 
                 local done = SlotMatches(planRow.slot, planRow.target)
+                if done then
+                    row.name:SetTextColor(unpack(C.textFaint))
+                else
+                    offen  = offen + 1
+                    kosten = kosten + (planRow.cost or 0)
+                end
                 row.mark:SetText(done and "|cff7CC06E+|r" or "|cff4A4A52·|r")
                 row:Show()
             end
@@ -829,12 +941,20 @@ function RF.RefreshForge()
 
     forge.list:SetHeight(math.max(1, shown * FORGE_ROW))
 
-    if plan.ok then
-        forge.sub:SetText(shown > 0
-            and string.format("%d Teile · %s", shown, Coins(plan.cost))
-            or "Nichts zu tun — es sitzt alles richtig.")
+    if plan.ok and shown > 0 then
+        if offen == 0 then
+            forge.sub:SetText(WeintCodex.ColorText("green", "Alle " .. shown .. " Teile erledigt."))
+        elseif offen < shown then
+            forge.sub:SetText(string.format("%d von %d offen · %s",
+                offen, shown, Coins(kosten)))
+        else
+            forge.sub:SetText(string.format("%d Teile · %s", shown, Coins(kosten)))
+        end
+    elseif plan.ok then
+        forge.sub:SetText("Nichts zu tun — es sitzt alles richtig.")
     elseif plan.computing then
-        forge.sub:SetText("Wird gerechnet …")
+        forge.sub:SetText(forgeWish and "Wird gerechnet — der Lauf startet gleich von selbst …"
+                                    or "Wird gerechnet …")
     else
         forge.sub:SetText(plan.problem or "Kein Plan.")
     end
@@ -842,7 +962,7 @@ function RF.RefreshForge()
     forge.action:ClearAllPoints()
     forge.action:SetPoint("TOPLEFT", forge, "TOPLEFT", 10,
         -(FORGE_HDR + 6 + shown * FORGE_ROW + 8))
-    forge.action:SetShown(shown > 0)
+    forge.action:SetShown(shown > 0 and (offen > 0 or forgeCo ~= nil))
 
     forge.hint:ClearAllPoints()
     forge.hint:SetPoint("TOPLEFT",  forge, "TOPLEFT", 12,
@@ -875,7 +995,14 @@ function RF.ShowForge(manual)
     forge:Show()
 end
 
+-- Laeuft gerade ein Umschmiede-Lauf? Fuer die Seite und fuer die Frage,
+-- ob ein Klick abbricht oder startet.
+function RF.RunActive()
+    return forgeCo ~= nil
+end
+
 function RF.HideForge()
+    forgeWish = nil
     if forgeCo then StopRun("Abgebrochen.") end
     if forge then forge:Hide() end
 end
@@ -914,6 +1041,19 @@ end
 RE.OnPlanReady(function()
     if PageVisible() then RF.ShowPage() end
     if forge and forge:IsShown() then RF.RefreshForge() end
+
+    -- Ein Klick, der auf den Plan gewartet hat, wird jetzt eingeloest —
+    -- aber nur, solange er frisch ist und der Umschmieder noch offen
+    -- steht. Alles andere waere eine Goldausgabe, die aus einem Klick von
+    -- vor fuenf Minuten folgt.
+    if forgeWish then
+        local wish = forgeWish
+        forgeWish = nil
+        if Now() <= wish and ReforgingFrameIsVisible()
+           and forge and forge:IsShown() and not forgeCo then
+            RF.StartRun()
+        end
+    end
 end)
 
 local watcher = CreateFrame("Frame")
@@ -964,11 +1104,21 @@ watcher:SetScript("OnEvent", function(_, event)
             RF.ShowForge(false)
         end
     elseif event == "FORGE_MASTER_CLOSED" then
+        forgeWish = nil
         if forgeCo then StopRun("Das Fenster des Umschmieders ist zu.") end
         if forge then forge:Hide() end
     elseif event == "FORGE_MASTER_ITEM_CHANGED" then
-        RE.Invalidate()
-        ContinueRun()
+        -- WAEHREND EINES LAUFS BLEIBT DER PLAN STEHEN. Er wird gerade
+        -- abgearbeitet, und ihn nach jedem Gegenstand zu verwerfen hiess:
+        -- nach dem Lauf steht erst einmal keiner mehr da, und der naechste
+        -- Klick tut sichtbar nichts, weil er auf die Neuberechnung wartet.
+        if forgeCo then PokeRun() else RE.Invalidate() end
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" and forgeCo then
+        -- Der umgeschmiedete Gegenstand kommt als Ausruestungsaenderung
+        -- zurueck — haeufig frueher als das Umschmieder-Ereignis. Der Lauf
+        -- wartet auf den Item-Link, also ist das genau sein Anlass
+        -- nachzusehen.
+        PokeRun()
     else
         RE.Invalidate()
         -- Entprellt, aus zwei Gruenden: PLAYER_EQUIPMENT_CHANGED feuert

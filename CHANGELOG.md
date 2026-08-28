@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.0.1] – 2026-08-28
+
+**Behoben: *Alles umschmieden* blieb nach einigen Teilen stehen.** Der Knopf hieß weiter „Abbrechen", ein zweiter Klick brachte nichts, und die Kosten im Fenster zeigten noch die Summe vom Anfang.
+
+### Behoben
+- **Der Lauf wartet jetzt auf die Bestätigung, nicht auf das nächste Ereignis.** Er ging bis hierher nach *jeder* Rückmeldung des Spiels zum nächsten Teil weiter — das setzt voraus, dass auf einen Auftrag genau eine Rückmeldung kommt, und diese Annahme hält nicht: das Einlegen in den Umschmieder meldet sich ebenso wie das Umschmieden selbst. Damit lief der Lauf dem Umschmieder davon; der ist beschäftigt, solange ein Auftrag läuft, und alles, was in dieser Zeit hereinkommt, fällt auf den Boden. Irgendwann kam gar keine Rückmeldung mehr — und die Koroutine stand still. Jetzt wartet er je Teil, bis der Item-Link die neue Umschmiedung wirklich trägt, und sieht dabei viermal je Sekunde von sich aus nach: eine Rückmeldung ist nur noch ein Anlass nachzusehen, kein Beweis
+- **Bleibt eine Antwort aus, sagt der Lauf welches Teil es war** und hält an, statt still stehenzubleiben. Nachgeschickt wird nichts: ein zweiter Auftrag für denselben Gegenstand könnte ein zweites Mal Gold kosten, wenn der erste doch noch ankommt
+- **Die Kosten im Fenster zählen mit.** Dort stand die Summe, mit der der Lauf begonnen hat — sie blieb stehen, auch wenn schon die Hälfte erledigt war. Jetzt steht dort, wieviele Teile noch offen sind und was die noch kosten; erledigte Zeilen werden gedämpft
+- **Ein Klick während der Berechnung geht nicht mehr verloren.** Nach einem Abbruch wird der Plan neu gerechnet (rund eine Sekunde), und der Klick in dieser Zeit tat sichtbar nichts. Er wird jetzt eingelöst, sobald der Plan steht — solange er frisch ist und der Umschmieder noch offen steht
+
+### Technisch
+- **Der Rückgabewert von `coroutine.resume` wird gelesen.** Ein Fehler mitten im Lauf ließ die Koroutine tot zurück, ohne dass irgendetwas davon zu sehen war: `forgeCo` blieb gesetzt, der Knopf stand auf „Abbrechen", und die Zeitschranke war beim Aufwachen bereits entschärft worden — ein Hänger bis zum nächsten `/reload`. Genau der stille Rückfallweg, den es in diesem Addon nicht geben darf (dieselbe Lehre wie beim Signalton in `modules/gearalert.lua` und beim Einladungslauf in `modules/calendar.lua`)
+- Die Zeitschranke wird nur noch entschärft, wenn tatsächlich fortgesetzt wird. Sie hängt außerdem an der **Zeit** und nicht an einer Zahl von Aufwachern: Ereignisse kommen in Schüben und hätten eine Schrittzahl in Sekundenbruchteilen aufgebraucht (dieselbe Überlegung wie beim Kalender-Invite, wo auf Fortschritt statt auf eine feste Frist gewartet wird)
+- Ein eigener Takt (0,25 s) weckt den Lauf, solange er läuft — ein ausgebliebenes Ereignis lässt ihn damit nicht mehr stehen. `PLAYER_EQUIPMENT_CHANGED` weckt ihn ebenfalls: der umgeschmiedete Gegenstand kommt häufig früher als das Umschmieder-Ereignis zurück
+- **Während eines Laufs wird der Plan nicht mehr verworfen.** Er wird gerade abgearbeitet; ihn nach jedem Gegenstand wegzuwerfen hieß, dass nach dem Lauf erst einmal keiner mehr dastand
+- Gegen einen nachgebauten Umschmieder geprüft, der sich wie der echte verhält (beschäftigt während eines Auftrags, mehrfache Rückmeldungen): die veröffentlichte Fassung schickt dort von sechs Aufträgen vier ins Leere und lässt zwei Teile unumgeschmiedet stehen, die neue kommt mit sechs Aufträgen und ohne Verlust durch. Dazu ein stummer Umschmieder, ein Fehler mitten im Lauf und der wartende Klick — vier neue Prüfungen, 35 insgesamt
+
 ## [2.7.0.0] – 2026-08-27
 
 **Neu: Umschmieden.** Bis hierher konnte das Addon sagen, dass Wertung am falschen Platz sitzt — seit 2.6.2.0 sagt jeder Cap-Befund sogar, wohin damit. Nur tun konnte man es nirgends: die Frage „welcher Wert gehört auf welchem Teil verschoben" beantwortete kein Bildschirm, und die meisten haben sie deshalb in einem zweiten Addon beantwortet.
