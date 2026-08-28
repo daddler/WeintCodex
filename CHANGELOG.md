@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.0.2] – 2026-08-28
+
+**Behoben: *Alles umschmieden* blieb beim ersten Teil stehen** und meldete „der Umschmieder hat nicht geantwortet" — obwohl er geantwortet hatte. 2.7.0.1 hat den Lauf auf die Bestätigung warten lassen; wenn das Addon diese Bestätigung aus eigenem Unvermögen gar nicht sehen kann, wartet es dort für immer.
+
+### Behoben
+- **Wo der Umschmiedewert im Gegenstand steht, wird jetzt am Spiel abgelesen statt geraten.** Er liegt in einem Feld des Item-Links, dessen Position sich zwischen Clientständen verschoben hat; bis hierher stand dafür eine Liste vermuteter Positionen im Addon. Trifft keine davon zu, fällt das nirgends auf: das Addon hält dann **jeden** Gegenstand für nicht umgeschmiedet, der Plan sieht trotzdem vernünftig aus, der Umschmieder arbeitet — und nur die Bestätigung kommt nie an. Das Spiel sagt über seine eigene Beschriftung, ob ein Gegenstand umgeschmiedet ist; steht dann in genau einem Feld des Links ein gültiger Umschmiedewert, ist das die Position. Mehrdeutig wird nichts gelernt: lieber keine Antwort als eine falsche
+- **Der Lauf wartet nie mehr endlos.** Er wartet je Gegenstand auf die Bestätigung, aber höchstens drei Sekunden, und geht dann weiter. Eine Wartebedingung, deren Ausbleiben nicht von einem Fehler zu unterscheiden ist, darf den Lauf nicht anhalten
+- **Am Ende wird nachgesehen und beim Namen genannt, was nicht durchgekommen ist.** Statt beim ersten Gegenstand stehenzubleiben, arbeitet der Lauf die Liste ab und berichtet danach. **Jedes Teil bekommt dabei höchstens einen Auftrag** — ein zweiter könnte ein zweites Mal Gold kosten, wenn der erste doch noch ankommt; wer es erneut versuchen will, klickt erneut
+- **`/wc umschmieden prüfen`** druckt jetzt jedes Feld jedes Item-Links aus, aus welchem davon die Umschmiedung gelesen wurde, was das Spiel selbst dazu sagt — und das Protokoll des letzten Laufs: welcher Auftrag mit welcher Nummer rausging, und wie der Gegenstand davor und danach aussah
+
+### Technisch
+- `learnedField` in `modules/reforge_engine.lua` merkt sich die abgelesene Position für die Sitzung; sie wird in jeder neu und ohne Kosten ermittelt, gehört also in keine SavedVariable. Die bekannten Positionen (10…16) werden weiterhin zuerst gefragt, die breite Suche läuft nur, wenn dort nichts steht **und** der Client den Gegenstand als umgeschmiedet ausweist
+- Gegen einen nachgebauten Umschmieder geprüft, der den Umschmiedewert an einer Stelle ablegt, die das Addon nicht kennt: die veröffentlichte Fassung schickt dort **einen** von sechs Aufträgen und bleibt mit genau der gemeldeten Chat-Zeile stehen, die neue kommt mit sechs Aufträgen durch und liest die Position ab. 36 Prüfungen insgesamt
+
 ## [2.7.0.1] – 2026-08-28
 
 **Behoben: *Alles umschmieden* blieb nach einigen Teilen stehen.** Der Knopf hieß weiter „Abbrechen", ein zweiter Klick brachte nichts, und die Kosten im Fenster zeigten noch die Summe vom Anfang.

@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.0.2",
+        date    = "28.08.2026",
+        notes   = {
+            "Behoben: |cffD4A24AAlles umschmieden|r blieb beim ersten Teil stehen und meldete „der Umschmieder hat nicht geantwortet\" - obwohl er geantwortet hatte.",
+            "Der Grund lag beim Addon: es hat die Umschmiedung am Gegenstand nicht wiedergefunden und deshalb ewig auf eine Bestaetigung gewartet, die es gar nicht sehen konnte.",
+            "Jetzt liest es beim Spiel selbst nach, wo die Umschmiedung am Gegenstand steht. Und es wartet nie mehr endlos: nach kurzer Zeit geht es zum naechsten Teil weiter.",
+            "Am Ende sagt der Lauf, was wirklich angekommen ist und was nicht - beim Namen. Jedes Teil bekommt dabei hoechstens einen Auftrag, es kostet also nichts doppelt.",
+            "|cffD4A24A/wc umschmieden pruefen|r zeigt jetzt auch, was der Lauf geschickt und was er danach gesehen hat.",
+        },
+    },
+    {
         version = "2.7.0.1",
         date    = "28.08.2026",
         notes   = {

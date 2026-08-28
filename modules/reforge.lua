@@ -511,6 +511,7 @@ local forgeRows      = {}
 local forgeCo        = nil
 local forgeTicking   = false
 local forgeWish      = nil    -- Klick, der auf den fertigen Plan wartet
+RF.runLog            = {}     -- was der letzte Lauf geschickt und gesehen hat
 
 local FORGE_W   = 340
 local FORGE_HDR = 42
@@ -519,7 +520,6 @@ local FORGE_ROW = 30
 -- Wie oft der Lauf von selbst nachsieht, und wie lange er auf EINEN
 -- Gegenstand wartet, bevor er aufgibt.
 local TICK          = 0.25
-local ITEM_TIMEOUT  = 8      -- Sekunden
 local WISH_TIMEOUT  = 15     -- so lange gilt ein Klick, der auf den Plan wartet
 
 -- Vorwaertsdeklaration: der Lauf weiter unten baut das Fenster notfalls
@@ -624,7 +624,47 @@ PokeRun = function()
     end
 end
 
+--------------------------------------------------
+-- EIN AUFTRAG JE GEGENSTAND, UND KEIN WARTEN OHNE AUSWEG.
+--
+-- 2.7.0.1 wartete je Gegenstand, bis der Item-Link die neue Umschmiedung
+-- traegt, und brach sonst ab. Das ist richtig gedacht und im Ernstfall
+-- toedlich: kann das Addon die Bestaetigung aus irgendeinem Grund gar
+-- nicht sehen — weil der Umschmiedewert an einer Stelle des Links steht,
+-- die es nicht liest —, dann kommt der Lauf ueber den ERSTEN Gegenstand
+-- nie hinaus. Genau das ist passiert.
+--
+-- Eine Wartebedingung, deren Ausbleiben nicht von einem Fehler zu
+-- unterscheiden ist, darf den Lauf deshalb nicht anhalten. Er wartet auf
+-- die Bestaetigung, aber hoechstens STEP_TIMEOUT lang, und geht danach
+-- weiter. Was am Ende offen geblieben ist, wird nachgesehen und beim Namen
+-- genannt — statt beim ersten Gegenstand stehenzubleiben.
+--
+-- NACHGESCHICKT WIRD INNERHALB EINES LAUFS NICHTS. Jeder Gegenstand
+-- bekommt genau einen Auftrag; ein zweiter koennte ein zweites Mal Gold
+-- kosten, wenn der erste doch noch ankommt. Wer es noch einmal versuchen
+-- will, klickt noch einmal — dann ist es seine Entscheidung.
+--------------------------------------------------
+
+local STEP_TIMEOUT  = 3      -- so lange wird je Gegenstand auf die Antwort gewartet
+local SETTLE_TIME   = 4      -- danach: so lange nachsehen, was noch eintrudelt
+
+local function LogLine(row, index, before)
+    local entry = {
+        slot   = row.slot,
+        name   = row.slotName,
+        index  = index,
+        before = before,
+        move   = row.target and (R.SHORT[R.STATS[row.target.src]] .. " → "
+                 .. R.SHORT[R.STATS[row.target.dst]]) or "zurücksetzen",
+    }
+    RF.runLog[#RF.runLog + 1] = entry
+    return entry
+end
+
 local function RunReforge()
+    RF.runLog = {}
+
     for _, row in ipairs(RF.currentPlanRows or {}) do
         if not forgeCo then return end
 
@@ -655,45 +695,73 @@ local function RunReforge()
                     row.slotName .. ": diese Umschmiedung ist für den Gegenstand"
                     .. " nicht zulässig — übersprungen."))
             else
+                local entry = LogLine(row, index,
+                    GetInventoryItemLink("player", row.slot))
+
                 ClearCursor()
                 PickupInventoryItem(row.slot)
                 C_Reforge.SetReforgeFromCursorItem()
                 C_Reforge.ReforgeItem(index)
 
-                -- Warten, bis der Item-Link es wirklich zeigt.
-                local deadline, ticks = Now() + ITEM_TIMEOUT, 0
-                while not SlotMatches(row.slot, row.target) do
+                -- Auf die Bestaetigung warten — aber nicht endlos.
+                local deadline = Now() + STEP_TIMEOUT
+                repeat
+                    coroutine.yield()
                     if not forgeCo then return end
                     if not ReforgingFrameIsVisible() then
                         StopRun("Das Fenster des Umschmieders ist zu.")
                         return
                     end
-
-                    ticks = ticks + 1
-                    -- Zeit zaehlt, nicht Aufwachen: Ereignisse koennen in
-                    -- Schueben kommen und wuerden eine Schrittzahl in
-                    -- Sekundenbruchteilen aufbrauchen. Der Zaehler ist nur
-                    -- der Rueckfall, falls der Client keine Uhr hergibt.
-                    if (Now() > deadline) or ticks > 200 then
-                        StopRun(WeintCodex.ColorText("warning",
-                            row.slotName .. ": der Umschmieder hat nicht geantwortet.")
-                            .. " Lauf angehalten — genug Gold dabei? Ein erneuter Klick"
-                            .. " macht dort weiter, wo er stehengeblieben ist.")
-                        return
-                    end
-
-                    -- NICHTS NACHSCHICKEN. Ein zweiter Auftrag fuer
-                    -- denselben Gegenstand koennte ein zweites Mal Gold
-                    -- kosten, wenn der erste doch noch ankommt. Warten und
-                    -- es sagen ist die ehrlichere Antwort.
-                    coroutine.yield()
-                end
+                until SlotMatches(row.slot, row.target) or Now() >= deadline
+                entry.waited = true
             end
         end
     end
 
     ClearCursor()
-    StopRun("Umschmieden abgeschlossen.")
+
+    -- Nachsehen, was wirklich angekommen ist. Der Server braucht dafuer
+    -- einen Moment, und ein Lauf, der sofort "fertig" sagt, waere eine
+    -- Behauptung.
+    local settle = Now() + SETTLE_TIME
+    while forgeCo and Now() < settle do
+        local offen = 0
+        for _, row in ipairs(RF.currentPlanRows or {}) do
+            if row.changed and not row.locked and not row.problem
+               and not SlotMatches(row.slot, row.target) then
+                offen = offen + 1
+            end
+        end
+        if offen == 0 then break end
+        coroutine.yield()
+    end
+    if not forgeCo then return end
+
+    local offen = {}
+    for _, row in ipairs(RF.currentPlanRows or {}) do
+        if row.changed and not row.locked and not row.problem
+           and not SlotMatches(row.slot, row.target) then
+            offen[#offen + 1] = row.slotName
+        end
+    end
+
+    for _, entry in ipairs(RF.runLog) do
+        entry.after = GetInventoryItemLink("player", entry.slot)
+        entry.done  = true
+        for _, name in ipairs(offen) do
+            if name == entry.name then entry.done = false end
+        end
+    end
+
+    if #offen == 0 then
+        StopRun("Umschmieden abgeschlossen.")
+    else
+        StopRun(WeintCodex.ColorText("warning",
+            #offen .. " von " .. #RF.runLog .. " Teilen sind nicht durchgekommen: ")
+            .. table.concat(offen, ", ") .. ". Ein erneuter Klick versucht sie noch"
+            .. " einmal; |cffD4A24A/wc umschmieden pruefen|r sagt, was dabei"
+            .. " gelesen wurde.")
+    end
 end
 
 function RF.StartRun()
@@ -1269,6 +1337,47 @@ function RF.Dump()
             else
                 print("    geplant:  " .. WeintCodex.ColorText("textFaint", "nichts")
                     .. "  ·  " .. (row.reason or ""))
+            end
+        end
+    end
+
+    -- WO STEHT DER UMSCHMIEDEWERT IM LINK?
+    -- Die eine Frage, an der ein Lauf scheitern kann, ohne dass es
+    -- irgendwo anders auffaellt: liest das Addon die Umschmiedung des
+    -- Clients nicht, haelt es jeden Gegenstand fuer unumgeschmiedet, und
+    -- die Bestaetigung nach einem Auftrag kommt nie an.
+    local learned = RE.LearnedField and RE.LearnedField()
+    print("  " .. WeintCodex.ColorText("textFaint", "— Item-Links —")
+        .. (learned and WeintCodex.ColorText("green",
+            "  Umschmiedefeld am Client abgelesen: Position " .. learned) or ""))
+    for _, row in ipairs(plan.rows) do
+        local parts = RE.LinkParts and RE.LinkParts(row.link)
+        if parts then
+            local out = {}
+            for i = 1, #parts do out[i] = tostring(parts[i] or "-") end
+            print(string.format("  %-12s %s", row.slotName, table.concat(out, ":")))
+            print("    " .. WeintCodex.ColorText("textFaint",
+                (row.current
+                    and ("gelesen aus Feld " .. tostring(row.linkField or "?"))
+                    or "keine Umschmiedung gelesen")
+                .. "  ·  Client sagt: " .. (row.tooltipReforged == true and "umgeschmiedet"
+                    or row.tooltipReforged == false and "nicht umgeschmiedet"
+                    or "keine Auskunft")))
+        end
+    end
+
+    if RF.runLog and #RF.runLog > 0 then
+        print("  " .. WeintCodex.ColorText("textFaint", "— letzter Umschmiede-Lauf —"))
+        for _, e in ipairs(RF.runLog) do
+            print(string.format("  %-12s Auftrag %s (%s) %s", e.name,
+                tostring(e.index), e.move,
+                e.done and WeintCodex.ColorText("green", "angekommen")
+                        or WeintCodex.ColorText("warning", "nicht bestätigt")))
+            if not e.done then
+                print("    " .. WeintCodex.ColorText("textFaint",
+                    "vorher:  " .. tostring(e.before)))
+                print("    " .. WeintCodex.ColorText("textFaint",
+                    "nachher: " .. tostring(e.after)))
             end
         end
     end

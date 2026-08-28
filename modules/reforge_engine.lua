@@ -155,7 +155,14 @@ end
 -- uniqueID ist eine grosse Zufallszahl und koennte zufaellig treffen.
 --------------------------------------------------
 
-local LINK_REFORGE_FIELDS = { 10, 11, 12, 13 }
+-- Die Felder, in denen der Umschmiedewert bei den bekannten Clientstaenden
+-- liegt. Was NICHT hier steht, wird trotzdem gefunden — siehe unten.
+local LINK_REFORGE_FIELDS = { 10, 11, 12, 13, 14, 15, 16 }
+
+-- Beim Client abgelesene Position. Sobald sie einmal feststeht, wird sie
+-- zuerst gefragt; sie ueberlebt keine Sitzung, weil sie in jeder neu und
+-- ohne Kosten zu ermitteln ist.
+local learnedField = nil
 
 local function LinkParts(link)
     local data = link and link:match("|Hitem:([^|]+)")
@@ -168,17 +175,73 @@ local function LinkParts(link)
     return parts
 end
 
-local function ReforgeFromLink(link)
-    local parts = LinkParts(link)
-    if not parts then return nil, nil end
-    for _, pos in ipairs(LINK_REFORGE_FIELDS) do
+RE.LinkParts = LinkParts
+
+--------------------------------------------------
+-- DIE FELDPOSITION WIRD AM CLIENT GELERNT, NICHT GERATEN.
+--
+-- Der Umschmiedewert steht in einem Feld des Item-Links, dessen Position
+-- sich zwischen Clientstaenden verschoben hat. Bis 2.7.0.1 stand hier eine
+-- Liste vermuteter Positionen — und wenn der Client eine andere benutzt,
+-- faellt das nirgends auf: das Addon haelt dann JEDEN Gegenstand fuer
+-- nicht umgeschmiedet. Der Plan sieht trotzdem vernuenftig aus, der
+-- Umschmieder arbeitet, und nur die Bestaetigung kommt nie an. Genau so
+-- ist der Lauf beim ersten Gegenstand haengengeblieben.
+--
+-- Also wird die Position ABGELESEN: der Client sagt ueber seine eigene
+-- Zeichenkette (REFORGED), ob ein Gegenstand umgeschmiedet ist. Trifft das
+-- zu und steht in genau EINEM Feld des Links ein gueltiger Umschmiedewert
+-- (113..168), dann ist das die Position — fuer diesen Client, fuer alle
+-- Gegenstaende. Mehrdeutig wird nichts gelernt: lieber keine Antwort als
+-- eine falsche.
+--------------------------------------------------
+
+local function ScanFields(parts, positions)
+    local hits = {}
+    for _, pos in ipairs(positions) do
         local value = parts[pos]
         if value and R.BY_ID[value] then
-            return R.PAIRS[R.BY_ID[value]], pos
+            hits[#hits + 1] = pos
         end
     end
+    return hits
+end
+
+local ALL_FIELDS = {}
+for pos = 8, 20 do ALL_FIELDS[#ALL_FIELDS + 1] = pos end
+
+local function ReforgeFromLink(link, tooltipSaysReforged)
+    local parts = LinkParts(link)
+    if not parts then return nil, nil end
+
+    if learnedField then
+        local value = parts[learnedField]
+        if value and R.BY_ID[value] then
+            return R.PAIRS[R.BY_ID[value]], learnedField
+        end
+    end
+
+    local hits = ScanFields(parts, LINK_REFORGE_FIELDS)
+    if #hits > 0 then
+        local pos = hits[1]
+        return R.PAIRS[R.BY_ID[parts[pos]]], pos
+    end
+
+    -- Nichts an den bekannten Stellen, der Client sagt aber, es sei
+    -- umgeschmiedet: dann liegt es woanders, und genau dann lohnt die
+    -- breite Suche.
+    if tooltipSaysReforged then
+        local wide = ScanFields(parts, ALL_FIELDS)
+        if #wide == 1 then
+            learnedField = wide[1]
+            return R.PAIRS[R.BY_ID[parts[learnedField]]], learnedField
+        end
+    end
+
     return nil, nil
 end
+
+RE.LearnedField = function() return learnedField end
 
 --------------------------------------------------
 -- Gegenprobe am Tooltip
@@ -357,8 +420,8 @@ local function ScanSlot(slotDef)
     -- Gegenstand.
     entry.noSecondary = not any
 
-    local pair, field = ReforgeFromLink(link)
     local says = TooltipSaysReforged(link)
+    local pair, field = ReforgeFromLink(link, says)
     entry.linkField       = field
     entry.tooltipReforged = says
 
@@ -409,7 +472,14 @@ RE.ScanItems = ScanItems
 function RE.CurrentPair(slotId)
     local link = GetInventoryItemLink("player", slotId)
     if not link then return nil end
-    return (ReforgeFromLink(link))
+
+    local pair = ReforgeFromLink(link)
+    if pair or learnedField then return pair end
+
+    -- Nichts gefunden und die Position steht noch nicht fest: einmal am
+    -- Tooltip nachfragen, damit die breite Suche greifen kann. Danach ist
+    -- die Position gelernt und diese Zeile kostet nichts mehr.
+    return (ReforgeFromLink(link, TooltipSaysReforged(link)))
 end
 
 --------------------------------------------------
