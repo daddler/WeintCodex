@@ -5009,36 +5009,58 @@ end
 -- Werteverteilung)
 --------------------------------------------------
 
+--------------------------------------------------
+-- DIE DRITTE ABSCHRIFT DERSELBEN ZUORDNUNG — UND DIE LETZTE.
+--
+-- Hier stand bis 2.7.1.2 zum dritten Mal eine Liste der
+-- ITEM_MOD_*-Schluessel, und zum dritten Mal mit `_SHORT` an allen acht
+-- Werten. Der Client haengt die Endung aber nur an die Grundwerte, an
+-- Willenskraft und an die Meisterschaft — Treffer, Waffenkunde, Krit,
+-- Tempo, Ausweichen und Parieren meldet er ohne. Genau diese sechs fehlten
+-- deshalb in den Werte-Summen, waehrend Primaerwert, Ausdauer,
+-- Meisterschaft und Ruestung dastanden.
+--
+-- Gezaehlt wird jetzt ueber SM.NormalizeItemStats, also ueber dieselbe
+-- Zuordnung wie ueberall sonst. Eine eigene Liste an dieser Stelle war der
+-- Grund, warum die Korrektur in 2.7.1.1 diese Seite nicht erreicht hat —
+-- und das ist das Argument gegen jede weitere: eine Zuordnung, die an drei
+-- Stellen steht, wird an zwei davon vergessen.
+--
+-- Die Ruestung bleibt der eine Sonderfall. Sie ist kein Wert, den der
+-- Werteabgleich kennt (nicht umschmiedbar, in keinem Spec-Profil
+-- gewichtet), gehoert aber in eine Summe der Ausruestung. Sie wird deshalb
+-- daneben aus derselben Antwort des Clients gelesen.
+--------------------------------------------------
+
 local STAT_LABELS = {
-    ["ITEM_MOD_STRENGTH_SHORT"]         = "Stärke",
-    ["ITEM_MOD_AGILITY_SHORT"]          = "Beweglichkeit",
-    ["ITEM_MOD_INTELLECT_SHORT"]        = "Intelligenz",
-    ["ITEM_MOD_STAMINA_SHORT"]          = "Ausdauer",
-    ["ITEM_MOD_SPIRIT_SHORT"]           = "Willenskraft",
-    ["ITEM_MOD_CRIT_RATING_SHORT"]      = "Kritische Trefferwertung",
-    ["ITEM_MOD_HASTE_RATING_SHORT"]     = "Tempowertung",
-    ["ITEM_MOD_MASTERY_RATING_SHORT"]   = "Meisterschaft",
-    ["ITEM_MOD_HIT_RATING_SHORT"]       = "Trefferwertung",
-    ["ITEM_MOD_EXPERTISE_RATING_SHORT"] = "Waffenkundewertung",
-    ["ITEM_MOD_DODGE_RATING_SHORT"]     = "Ausweichen",
-    ["ITEM_MOD_PARRY_RATING_SHORT"]     = "Parierchance",
-    ["RESISTANCE0_NAME"]                = "Rüstung",
+    strength  = "Stärke",
+    agility   = "Beweglichkeit",
+    intellect = "Intelligenz",
+    stamina   = "Ausdauer",
+    spirit    = "Willenskraft",
+    hit       = "Trefferwertung",
+    expertise = "Waffenkundewertung",
+    crit      = "Kritische Trefferwertung",
+    haste     = "Tempowertung",
+    mastery   = "Meisterschaft",
+    dodge     = "Ausweichen",
+    parry     = "Parierchance",
+    armor     = "Rüstung",
 }
 
 local STAT_ORDER = {
-    "ITEM_MOD_STRENGTH_SHORT",
-    "ITEM_MOD_AGILITY_SHORT",
-    "ITEM_MOD_INTELLECT_SHORT",
-    "ITEM_MOD_STAMINA_SHORT",
-    "ITEM_MOD_SPIRIT_SHORT",
-    "ITEM_MOD_HIT_RATING_SHORT",
-    "ITEM_MOD_EXPERTISE_RATING_SHORT",
-    "ITEM_MOD_CRIT_RATING_SHORT",
-    "ITEM_MOD_HASTE_RATING_SHORT",
-    "ITEM_MOD_MASTERY_RATING_SHORT",
-    "ITEM_MOD_DODGE_RATING_SHORT",
-    "ITEM_MOD_PARRY_RATING_SHORT",
-    "RESISTANCE0_NAME",
+    "strength", "agility", "intellect", "stamina", "spirit",
+    "hit", "expertise", "crit", "haste", "mastery",
+    "dodge", "parry", "armor",
+}
+
+-- Beide Schreibweisen, aus demselben Grund wie in modules/stat_match.lua:
+-- der Client schickt immer nur eine davon, und welche das ist, ist nicht
+-- unsere Entscheidung.
+local ARMOR_KEYS = {
+    RESISTANCE0_NAME = true,
+    ITEM_MOD_ARMOR   = true,
+    ITEM_MOD_ARMOR_SHORT = true,
 }
 
 local function CollectEquippedStats()
@@ -5046,11 +5068,21 @@ local function CollectEquippedStats()
     for _, slotDef in ipairs(EQUIP_SLOTS) do
         local link = GetInventoryItemLink("player", slotDef.id)
         if link and GetItemStatsCompat then
-            local stats = GetItemStatsCompat(link)
-            if stats then
-                for key, value in pairs(stats) do
-                    if type(value) == "number" and value > 0 and STAT_LABELS[key] then
-                        totals[key] = (totals[key] or 0) + value
+            -- Einmal fragen, zweimal lesen: die zugeordneten Werte ueber
+            -- den Werteabgleich, die Ruestung daneben.
+            local ok, raw = pcall(GetItemStatsCompat, link)
+            if ok and type(raw) == "table" then
+                local stats = SM.NormalizeItemStats and SM.NormalizeItemStats(raw)
+                if stats then
+                    for key, value in pairs(stats) do
+                        if STAT_LABELS[key] and value > 0 then
+                            totals[key] = (totals[key] or 0) + value
+                        end
+                    end
+                end
+                for key, value in pairs(raw) do
+                    if ARMOR_KEYS[key] and type(value) == "number" and value > 0 then
+                        totals.armor = (totals.armor or 0) + value
                     end
                 end
             end

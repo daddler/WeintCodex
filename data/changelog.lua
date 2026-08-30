@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.1.2",
+        date    = "30.08.2026",
+        notes   = {
+            "Behoben: Unter |cffD4A24AWerteverteilung & Caps|r zeigten die |cffD4A24AWerte-Summen der Ausruestung|r nur Primaerwert, Ausdauer, Meisterschaft und Ruestung.",
+            "Treffer, Waffenkunde, Krit, Tempo, Ausweichen und Parieren fehlten dort ganz - dieselbe Ursache wie beim Umschmieden in 2.7.1.1, nur an einer zweiten Stelle.",
+            "Jetzt stehen alle Werte da.",
+        },
+    },
+    {
         version = "2.7.1.1",
         date    = "30.08.2026",
         notes   = {

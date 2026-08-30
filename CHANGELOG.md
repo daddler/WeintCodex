@@ -2,6 +2,17 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.1.2] – 2026-08-30
+
+**Behoben: die *Werte-Summen der Ausrüstung* zeigten nur vier Werte.** Unter *Werteverteilung & Caps* standen Primärwert, Ausdauer, Meisterschaft und Rüstung — Treffer, Waffenkunde, Krit, Tempo, Ausweichen und Parieren fehlten ganz. Dieselben sechs wie beim Umschmieden in 2.7.1.1, aus derselben Ursache, nur an einer zweiten Stelle.
+
+### Behoben
+- **Die Werte-Summen zählen jetzt alle Werte.** Betroffen waren die Übersicht und *Werteverteilung & Caps*
+
+### Technisch
+- Die Zuordnung der Client-Schlüssel stand **zum dritten Mal** in `modules/charakter.lua` (`STAT_LABELS`/`STAT_ORDER`), und zum dritten Mal mit `_SHORT` an allen acht Werten — deshalb hat die Korrektur aus 2.7.1.1 diese Seite nicht erreicht. `CollectEquippedStats` liest jetzt über `SM.NormalizeItemStats`; die Rüstung bleibt der eine Sonderfall und wird aus derselben Antwort des Clients daneben gelesen (sie ist nicht umschmiedbar und in keinem Spec-Profil gewichtet, gehört aber in eine Summe der Ausrüstung)
+- **Der Testlauf prüft das jetzt strukturell**, nicht nur am Verhalten: ausser `modules/stat_match.lua` darf keine Datei die Wertungsschlüssel des Clients selbst aufzählen. Eine Zuordnung, die an drei Stellen steht, wird an zweien vergessen — genau das ist hier zweimal passiert
+
 ## [2.7.1.1] – 2026-08-30
 
 **Behoben: *Alles umschmieden* hat an den meisten Teilen etwas anderes angelegt, als auf der Seite stand** — und hinterher gemeldet, sie seien „nicht durchgekommen". Von acht Aufträgen kamen drei richtig an. Es lag nicht am Umschmieder und nicht am Tempo des Laufs: das Addon hat an einem Gegenstand nur **zwei der acht umschmiedbaren Werte** gesehen.

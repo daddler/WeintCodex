@@ -371,5 +371,37 @@ do
     if not ok then fails = fails + 1 end
 end
 
+--== Nur EINE Zuordnung im ganzen Addon ====================================
+-- Der Schluesselfehler stand an DREI Stellen und wurde an zweien vergessen.
+-- Diese Pruefung ist deshalb keine ueber Verhalten, sondern eine ueber
+-- Struktur: ausser modules/stat_match.lua darf keine Datei die
+-- Wertungsschluessel des Clients selbst aufzaehlen.
+do
+    local FILES = {
+        "modules/charakter.lua", "modules/reforge_engine.lua",
+        "modules/reforge.lua", "modules/groupcheck.lua",
+        "modules/gearalert.lua", "modules/companion.lua",
+    }
+    local offenders = {}
+    for _, rel in ipairs(FILES) do
+        local f = io.open(ROOT .. "/" .. rel, "r")
+        if f then
+            local text = f:read("*a")
+            f:close()
+            -- Zeilen mit Kommentarzeichen zaehlen nicht: dort steht die Lehre.
+            for line in text:gmatch("[^\r\n]+") do
+                if not line:match("^%s*%-%-")
+                   and line:match("ITEM_MOD_[%u_]*RATING") then
+                    offenders[#offenders + 1] = rel
+                    break
+                end
+            end
+        end
+    end
+    print(string.format("%-34s %s", "Zuordnung nur in stat_match.lua",
+        #offenders == 0 and "ok" or ("auch in: " .. table.concat(offenders, ", "))))
+    if #offenders > 0 then fails = fails + 1 end
+end
+
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))
 os.exit(fails == 0 and 0 or 1)
