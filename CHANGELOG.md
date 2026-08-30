@@ -2,6 +2,24 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.3.0] – 2026-08-30
+
+**Neu: Wertegewichte aus einem Sim übernehmen.** Ein Sim im Spiel wäre eine eigene Spielsimulation — und einer, der nur so aussieht, wäre schlimmer als keiner: seine Zahlen sähen aus wie echte. Was ein Sim aber liefert und was hier fehlte, sind die **Wertegewichte**, und genau die sind die Schnittstelle: WeintCodex rechnet ohnehin mit Gewichten, an drei Stellen. Wer simuliert hat, setzt sein Ergebnis jetzt ein, statt es abzutippen.
+
+### Neu
+- **Einfügen auf der Seite *Priorisierung*, rechts unter *Aus einem Sim übernehmen*.** WoWSims, Raidbots und AskMrRobot geben ihre Wertegewichte alle als Pawn-Zeichenkette heraus — sie ist einzeilig, sie ist Text, und sie ist seit Jahren stabil. Ein eigenes Format hätte nur nachgebaut, was es schon gibt
+- **Der Import füllt die Felder, er speichert nicht.** Was von aussen kommt, wird angesehen, bevor es gilt: jede übernommene Zahl steht an ihrem Platz, und gespeichert wird auf deinen Klick. Ein Import, der still aktiviert, ist genau die Sorte Empfehlung, die man nicht nachvollziehen kann
+- **Wer Pawn benutzt, muss gar nichts exportieren.** Die eigenen Pawn-Skalen stehen dort als Knöpfe — nur die der eigenen Klasse, denn eine Heilerskala auf einem Schurken ist keine Auswahl, sondern eine Falle. Gelesen wird nur; in Pawn wird nie geschrieben
+- **Was nicht übernommen werden konnte, steht danach im Chat.** Eine Pawn-Skala trägt Dinge wie *Dps* oder *MetaSocketEffect*, und negative Gewichte gibt es hier nicht (unsere Skala kennt „egal", nicht „meiden"). Beides wird beim Namen genannt — wer es nicht sieht, hält das Ergebnis für vollständig
+- **Ab dem Speichern rechnen Sockel, Verzauberungen und Umschmieden damit.** Seit 2.7.2.0 wirkt die eigene Gewichtung auch im Umschmiede-Plan
+
+### Technisch
+- **`modules/statweights.lua`** zerlegt und rechnet, es zeichnet nicht — dieselbe Trennung wie zwischen `modules/rotation_engine.lua` und `modules/rotationtrainer.lua`, und aus demselben Grund: das Zerlegen einer fremden Zeichenkette ist genau die Sorte Rechnung, die man ausserhalb des Spiels prüfen können muss. `.github/tests/statweights_test.lua` tut das (13 Prüfungen: vollständige und rahmenlose Eingabe, große und kleine Zahlen, doppelte Schreibweisen, fremde Schlüssel, negative Werte, Ablehnungen, Pawn-Skalen)
+- **Umgerechnet wird auf „größtes Gewicht = 100"**, passend zur Skala der Spec-Profile. Das ist ein Maßstabswechsel und keine Wertung: welche Werte wie zueinander stehen, ändert sich nicht — und genau darauf kommt es an, denn alle drei Seiten vergleichen Gewichte nur untereinander. **Fremde Schlüssel dürfen die Skalierung nicht verzerren**: ein `Dps=980` in einer Pawn-Skala hätte sonst alles andere plattgedrückt
+- **Mehrere Schreibweisen desselben Werts werden nicht addiert** (`SpellHitRating` neben `HitRating`) — es ist ein Wert, nicht zwei; die größere gewinnt. Dieselbe Lehre wie bei den `ITEM_MOD`-Schlüsseln in `modules/stat_match.lua`: die Schreibweise ist nicht unsere Entscheidung, also werden alle aufgeschrieben, die vorkommen
+- **Neuer Detailbereich-Blocktyp `input`** in `core/navigation.lua`, einzeilig und waagerecht rollend (ein mehrzeiliges Feld wäre hier eine Fläche, die nie voll wird). Enter und Knopf lösen beide aus; das Feld leert sich, *bevor* der Aufrufer läuft, und löst seinen Fokus in `OnHide` selbst — ein verstecktes Feld mit Tastaturfokus schluckt die Bewegungstasten
+- **Nach einem Import wird die Seite ausdrücklich NICHT neu gezeichnet.** Die Eingabefelder entstünden dabei neu aus den *gespeicherten* Werten — und der Import wäre wieder weg
+
 ## [2.7.2.0] – 2026-08-30
 
 **Neu: WeintCodex fragt, bevor es mitredet.** Das Addon meldet sich von selbst — der Ausrüstungs-Alarm springt ins Bild, der Rotationshelfer geht an der Puppe auf, das Umschmieder-Fenster öffnet sich beim Umschmieder. Auf dem Charakter, den man spielt, ist das der Sinn. Auf einem Zweitcharakter ist es Lärm.

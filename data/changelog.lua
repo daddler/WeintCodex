@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.3.0",
+        date    = "30.08.2026",
+        notes   = {
+            "Neu: Du kannst deine Wertegewichte aus einem Sim uebernehmen - WoWSims, Raidbots und AskMrRobot geben sie als Pawn-Zeichenkette heraus.",
+            "Einfuegen auf der Seite |cffD4A24APriorisierung|r, rechts unter |cffD4A24AAus einem Sim uebernehmen|r. Die Felder werden gefuellt, gespeichert wird erst auf deinen Klick.",
+            "Wer Pawn benutzt, muss gar nichts exportieren: seine Skalen stehen dort als Knoepfe.",
+            "Was dabei nicht uebernommen werden konnte, steht danach im Chat - statt still zu fehlen.",
+            "Damit rechnen Sockel, Verzauberungen und Umschmieden ab dem Speichern mit deinen Sim-Werten.",
+        },
+    },
+    {
         version = "2.7.2.0",
         date    = "30.08.2026",
         notes   = {

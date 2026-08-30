@@ -511,6 +511,22 @@ Bis 1.3.2.3 schlug **die gelieferte Identität den eingeloggten Charakter**: `ac
 - **Der Katalog trägt keine Identität.** Er wird als `store.pendingCatalog` zwischengelegt und von der unmittelbar folgenden `academy_state`-Nachricht übernommen. Das trägt nur, weil `core/addon_analysis_sync.py` Katalog **vor** Zustand in einer geordneten Liste veröffentlicht — eine unsichtbare Kopplung, die in beiden Dateien kommentiert ist.
 - **`/wc access reset`** löscht über `Companion.ResetDeliveredAnalysis()` gezielt `states`/`catalogs`/`lastCharacter`. `academy` steht bewusst **nicht** in `GUILD_KEYS`: `completed`/`excluded` ist eigener Lernfortschritt, weder gildenintern noch aus fremden Raids abgeleitet — ihn zu löschen wäre Datenverlust im Gewand der Hygiene.
 
+### Sim-Gewichte übernehmen (`modules/statweights.lua`, seit 2.7.3.0)
+
+**Ein Sim im Spiel wird es nicht geben, und das ist eine Entscheidung.** Ein brauchbarer wäre eine eigene Spielsimulation; einer, der nur so aussieht, wäre schlimmer als keiner, weil seine Zahlen aussehen wie echte — dieselbe Linie, aus der der Rotationshelfer den Tankspecs keine Liste andichtet. Was ein Sim aber liefert und was hier fehlte, sind die **Wertegewichte**, und genau die sind die Schnittstelle: das Addon rechnet ohnehin mit Gewichten, an drei Stellen.
+
+**Das Format ist Pawn, und zwar aus einem Grund.** WoWSims, Raidbots, AskMrRobot und Pawn selbst geben Wertegewichte allesamt als Pawn-Zeichenkette heraus (`( Pawn: v1: "Name": Stat=Wert, … )`). Sie ist einzeilig, sie ist Text, sie ist seit Jahren stabil, und ReforgeLite liest dieselbe. Ein eigenes Format hätte nachgebaut, was es schon gibt.
+
+Fünf Dinge daran sind nicht Geschmack:
+
+- **Die Datei zerlegt und rechnet, sie zeichnet nicht.** Das Zerlegen einer fremden Zeichenkette ist genau die Sorte Rechnung, die man ausserhalb des Spiels prüfen können muss — `.github/tests/statweights_test.lua` tut das.
+- **Der Import füllt die Felder, er speichert nicht.** Was von aussen kommt, wird angesehen, bevor es gilt. Und die Seite wird danach ausdrücklich **nicht** neu gezeichnet: die Eingabefelder entstünden dabei neu aus den *gespeicherten* Werten, und der Import wäre wieder weg.
+- **Skaliert wird auf „größtes Gewicht = 100"** (die Skala der Spec-Profile). Ein Maßstabswechsel, keine Wertung — die Verhältnisse bleiben, und alle drei Seiten vergleichen Gewichte ohnehin nur untereinander. **Fremde Schlüssel dürfen dabei nicht mitzählen**: ein `Dps=980` aus einer Pawn-Skala hätte alles andere plattgedrückt.
+- **Mehrere Schreibweisen desselben Werts werden nicht addiert** (`SpellHitRating` neben `HitRating`) — es ist ein Wert, nicht zwei. Aufgeschrieben werden trotzdem alle Schreibweisen, die vorkommen: dieselbe Lehre wie bei den `ITEM_MOD`-Schlüsseln in `modules/stat_match.lua`.
+- **Was nicht übernommen wurde, wird gesagt** — unbekannte Schlüssel und negative Gewichte (unsere Skala kennt „egal", nicht „meiden"). Wer es nicht sieht, hält das Ergebnis für vollständig.
+
+Pawn-Skalen werden gelesen, wenn Pawn installiert ist — nur die der eigenen Klasse (eine Heilerskala auf einem Schurken ist keine Auswahl, sondern eine Falle), und **in Pawn wird nie geschrieben**.
+
 ### Mitreden — ja oder nein? (`core/optin.lua`, seit 2.7.2.0)
 
 WeintCodex meldet sich von selbst: der Ausrüstungs-Alarm springt ins Bild, der Rotationshelfer geht an der Puppe auf, das Umschmieder-Fenster öffnet sich beim Umschmieder, am Auktionshaus steht die Einkaufsliste. Auf dem Charakter, den man spielt, ist das der Sinn. Auf einem Zweitcharakter ist es Lärm.

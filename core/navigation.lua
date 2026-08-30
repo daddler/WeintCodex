@@ -758,6 +758,82 @@ local function InspectorText(parent, y, opts)
     return y - math.ceil(h) - (opts.gap or 8)
 end
 
+--------------------------------------------------
+-- Eingabefeld im Detailbereich
+--
+-- Fuer die eine Sorte Eingabe, die von aussen kommt: eine lange
+-- Zeichenkette, die jemand einfuegt (siehe modules/statweights.lua). Sie
+-- ist einzeilig und rollt waagerecht — ein mehrzeiliges Feld waere hier
+-- eine Flaeche, die nie voll wird.
+--
+-- Enter loest aus, der Knopf daneben auch. Beides, weil das eine die
+-- Gewohnheit ist und das andere die sichtbare Bedienung: wer den Knopf
+-- nicht sieht, tippt Enter, und wer Enter nicht probiert, sucht einen
+-- Knopf.
+--------------------------------------------------
+
+local function InspectorInput(parent, y, opts)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetHeight(28)
+    holder:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    holder:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    table.insert(inspectorWidgets, holder)
+
+    local btnW = 92
+
+    local box = CreateFrame("EditBox", nil, holder)
+    box:SetPoint("TOPLEFT",  holder, "TOPLEFT",  0, 0)
+    box:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -(btnW + 6), 0)
+    box:SetAutoFocus(false)
+    box:SetFontObject("GameFontHighlightSmall")
+    box:SetTextInsets(6, 6, 0, 0)
+    box:SetMaxLetters(0)
+    WeintCodex.SetSolidBg(box, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
+    WeintCodex.DrawSlimBorder(box, "hairline")
+
+    local ghost = box:CreateFontString(nil, "OVERLAY")
+    ghost:SetFont(WeintCodex.Fonts.sans, 10, "")
+    ghost:SetPoint("LEFT", box, "LEFT", 6, 0)
+    ghost:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+    ghost:SetText(opts.placeholder or "")
+
+    local function SyncGhost()
+        ghost:SetShown((box:GetText() or "") == "")
+    end
+
+    local function Accept()
+        local text = box:GetText()
+        -- Das Feld leeren, BEVOR der Aufrufer laeuft: der zeichnet in aller
+        -- Regel die Seite neu, und dann gibt es dieses Widget nicht mehr.
+        box:SetText("")
+        box:ClearFocus()
+        SyncGhost()
+        if opts.onAccept then opts.onAccept(text) end
+    end
+
+    box:SetScript("OnTextChanged", SyncGhost)
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEnterPressed", Accept)
+    -- Ein verstecktes Feld mit Tastaturfokus schluckt die Bewegungstasten
+    -- (dieselbe Regel wie beim Notizfeld weiter unten).
+    box:SetScript("OnHide", function(self) self:ClearFocus() end)
+    SyncGhost()
+
+    -- Eckig (radius = 0): die Eckmasken aus core/ui.lua brauchen die Farbe
+    -- des Untergrunds, und der Detailbereich hat keinen eigenen — dahinter
+    -- liegt der Inhaltsbereich. Ausserdem steht daneben ein eckiges
+    -- Eingabefeld, und zwei Formen nebeneinander sind eine zuviel.
+    local btn = WeintCodex.CreateButton(holder, {
+        text = opts.buttonLabel or "Übernehmen",
+        width = btnW, height = 26, size = 10, radius = 0,
+        onClick = Accept,
+    })
+    WeintCodex.DrawSlimBorder(btn, "hairline")
+    btn:SetPoint("TOPRIGHT", holder, "TOPRIGHT", 0, -1)
+
+    return y - 34
+end
+
 local function InspectorListCard(parent, y, item)
     local card = CreateFrame("Frame", nil, parent)
     card:SetHeight(item.progress and 40 or 30)
@@ -1623,7 +1699,7 @@ local function InspectorItemList(parent, y, opts)
     return y - h - 6
 end
 
--- blocks: Liste von { type = "header"|"rows"|"text"|"list"|"checklist"|"card"|"notes"|"button"|"itemlist"|"divider"|"spacer", ... }
+-- blocks: Liste von { type = "header"|"rows"|"text"|"input"|"list"|"checklist"|"card"|"notes"|"button"|"itemlist"|"divider"|"spacer", ... }
 function WeintCodex.Navigation.SetInspector(blocks)
     WeintCodex.Navigation.ClearInspector()
     if not blocks or #blocks == 0 then return end
@@ -1654,6 +1730,8 @@ function WeintCodex.Navigation.SetInspector(blocks)
             end
         elseif block.type == "text" then
             y = InspectorText(parent, y, block)
+        elseif block.type == "input" then
+            y = InspectorInput(parent, y, block)
         elseif block.type == "card" then
             y = InspectorCard(parent, y, block)
         elseif block.type == "notes" then

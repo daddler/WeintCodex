@@ -6202,7 +6202,63 @@ function ShowPriorisierung()
     hint:SetPoint("BOTTOMLEFT", prioFrame, "BOTTOMLEFT", 16, 6)
     hint:SetText("|cff3A3A42Gilt pro Spec (Tanks: getrennt für Offensiv/Defensiv). Wird pro Account gespeichert.|r")
 
-    ShowScoreInspector(nil, {
+    --------------------------------------------------
+    -- AUS EINEM SIM UEBERNEHMEN
+    --
+    -- Ein Sim im Spiel waere eine eigene Spielsimulation; einer, der nur so
+    -- aussieht, waere schlimmer als keiner. Was ein Sim aber liefert und
+    -- was hier gebraucht wird, sind genau diese zwoelf Zahlen — also ist
+    -- das die Schnittstelle.
+    --
+    -- DER IMPORT FUELLT DIE FELDER, ER SPEICHERT NICHT.
+    -- Was von aussen kommt, wird angesehen, bevor es gilt: der Nutzer sieht
+    -- jede uebernommene Zahl an ihrem Platz und drueckt dann selbst auf
+    -- Speichern. Ein Import, der still aktiviert, ist genau die Sorte
+    -- Empfehlung, die man nicht nachvollziehen kann.
+    --------------------------------------------------
+    local SW = WeintCodex.StatWeights
+
+    local function ApplyWeights(raw, source, ignored)
+        local weights, negatives = SW.Normalize(raw)
+        if not weights then
+            print(WeintCodex.ColorText("danger", "[WeintCodex]")
+                .. " Darin steht keine brauchbare Gewichtung (alle Werte 0 oder negativ).")
+            return
+        end
+
+        for key, box in pairs(boxes) do
+            box:SetText(tostring(weights[key] or 0))
+        end
+        cb:SetChecked(true)
+
+        local named = {}
+        for _, key in ipairs(SW.ORDER) do
+            if weights[key] then
+                named[#named + 1] = key .. " " .. weights[key]
+            end
+        end
+        print(WeintCodex.ColorText("gold", "[WeintCodex]") .. " Gewichtung aus "
+            .. (source or "der Eingabe") .. " übernommen: "
+            .. table.concat(named, ", ")
+            .. ". |cffD4A24ANoch nicht gespeichert|r — sieh sie dir an und"
+            .. " drück dann auf Speichern.")
+
+        -- Was dabei unter den Tisch fiel, wird gesagt und nicht
+        -- verschwiegen: wer es nicht sieht, haelt das Ergebnis fuer
+        -- vollstaendig.
+        if negatives and #negatives > 0 then
+            print("  " .. WeintCodex.ColorText("textFaint",
+                "Negative Gewichte gibt es hier nicht — auf 0 gesetzt: "
+                .. table.concat(negatives, ", ")))
+        end
+        if ignored and #ignored > 0 then
+            print("  " .. WeintCodex.ColorText("textFaint",
+                "Nicht übernommen (kennt WeintCodex nicht): "
+                .. table.concat(ignored, ", ")))
+        end
+    end
+
+    local blocks = {
         { type = "header", text = "Eigene Gewichtung" },
         { type = "rows", rows = {
             { label = "Status", value = (entry and entry.enabled) and "aktiv" or "inaktiv",
@@ -6210,8 +6266,53 @@ function ShowPriorisierung()
             { label = "Spec", value = specDisplay or profileKey or "—" },
         }},
         { type = "divider" },
-        { type = "button", label = "Zur Werteverteilung", onClick = ShowWerteverteilung },
-    })
+        { type = "header", text = "Aus einem Sim übernehmen" },
+        { type = "text", size = 10, text =
+            "WoWSims, Raidbots und AskMrRobot geben ihre Wertegewichte als"
+            .. " Pawn-Zeichenkette heraus. Füg sie hier ein — die Felder"
+            .. " links werden damit gefüllt, gespeichert wird erst auf"
+            .. " deinen Klick." },
+        { type = "input", placeholder = "( Pawn: v1: \"…\": … )",
+          buttonLabel = "Einlesen",
+          onAccept = function(text)
+              local raw, name, ignored = SW.Parse(text)
+              if not raw then
+                  print(WeintCodex.ColorText("danger", "[WeintCodex]") .. " "
+                      .. (name or "Das konnte ich nicht lesen."))
+                  return
+              end
+              -- NICHT die Seite neu zeichnen: die Felder, die eben
+              -- gefuellt wurden, gaebe es danach nicht mehr — sie
+              -- entstuenden neu aus den GESPEICHERTEN Werten, und der
+              -- Import waere wieder weg. Sie sind bereits aktualisiert.
+              ApplyWeights(raw, name and ("„" .. name .. "\"") or "der Eingabe", ignored)
+          end },
+    }
+
+    -- Wer Pawn benutzt, hat seine Skala schon — dann muss er sie nicht
+    -- erst exportieren. Gelesen wird nur; in Pawn wird nie geschrieben.
+    local scales = SW.PawnScales()
+    if #scales > 0 then
+        blocks[#blocks + 1] = { type = "header", text = "Skalen aus Pawn" }
+        for _, scale in ipairs(scales) do
+            blocks[#blocks + 1] = { type = "button", label = scale.name,
+                onClick = function()
+                    local raw, _, ignored = SW.FromValues(scale.values)
+                    if not raw then
+                        print(WeintCodex.ColorText("danger", "[WeintCodex]")
+                            .. " In dieser Pawn-Skala steht kein Wert, den ich kenne.")
+                        return
+                    end
+                    ApplyWeights(raw, "Pawn („" .. scale.name .. "\")", ignored)
+                end }
+        end
+    end
+
+    blocks[#blocks + 1] = { type = "divider" }
+    blocks[#blocks + 1] = { type = "button", label = "Zur Werteverteilung",
+                            onClick = ShowWerteverteilung }
+
+    ShowScoreInspector(nil, blocks)
 end
 
 --------------------------------------------------

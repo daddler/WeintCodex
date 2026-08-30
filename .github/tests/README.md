@@ -23,3 +23,17 @@ lua5.1 .github/tests/reforge_engine_test.lua .
 Rückgabewert 0 heisst bestanden. Der Ordner liegt unter `.github/`, weil die
 Release-Workflows genau den aus dem Addon-ZIP heraushalten — ein Testlauf
 gehört nicht in den Addon-Ordner eines Spielers.
+
+## Sim-Gewichte
+
+`statweights_test.lua` prüft `modules/statweights.lua`: das Zerlegen einer
+Pawn-Zeichenkette, die Skalierung auf die Hausskala, doppelte Schreibweisen
+desselben Werts, fremde Schlüssel (die die Skalierung **nicht** verzerren
+dürfen), negative Gewichte und die Ablehnungen. Eine fremde Zeichenkette zu
+zerlegen ist genau die Sorte Rechnung, die man ausserhalb des Spiels prüfen
+können muss — ein Muster, das ein Feld verschluckt, fällt im Spiel erst auf,
+wenn jemand mit einer halben Gewichtung rechnet.
+
+```bash
+lua5.1 .github/tests/statweights_test.lua .
+```
