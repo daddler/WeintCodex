@@ -140,19 +140,42 @@ local function Round(v)
 end
 
 --------------------------------------------------
--- Der Umschmiedewert im Item-Link
+-- DER UMSCHMIEDEWERT IM ITEM-LINK
 --
--- Der Client legt ihn in ein Feld des Links, dessen Position sich zwischen
--- Erweiterungen und Clientstaenden verschoben hat. Statt eine davon zu
--- glauben, wird der Bereich abgesucht, in dem sie ueberhaupt liegen kann,
--- und dort das eine Feld genommen, dessen Wert ein gueltiger
--- Umschmiedewert IST (113..168). Kein anderes Feld dieses Bereichs kann in
--- diesem Zahlenraum liegen: die Aufwertungsnummern beginnen bei 373, die
--- Spezialisierungsnummern von MoP liegen darunter oder darueber, und die
--- Stufe steht davor.
+-- DER CLIENT WIRD GEFRAGT, BEVOR GERATEN WIRD.
 --
--- Die Felder 8 (uniqueID) und 9 (Stufe) bleiben ausdruecklich aussen vor:
--- uniqueID ist eine grosse Zufallszahl und koennte zufaellig treffen.
+-- Bis 2.7.0.2 wurde die Feldposition im Item-Link abgesucht und notfalls
+-- am Tooltip gelernt. Das war die Antwort auf einen Lauf, der beim ersten
+-- Gegenstand haengenblieb — aber es war die zweitbeste. Der Client selbst
+-- zerlegt Item-Links: `GetItemInfoFromHyperlink` liefert die Optionsliste,
+-- `LinkUtil.SplitLinkOptions` teilt sie auf, und der Umschmiedewert ist
+-- dort das zehnte Feld. Genau diesen Weg geht ReforgeLite seit Jahren, und
+-- er ist der Grund, warum es diese Fehlerklasse dort nicht gibt: eine
+-- Position, die der Client selbst herausgibt, kann nicht danebenliegen.
+--
+-- Drei Wege, in dieser Reihenfolge, und jeder folgende ist nur da, weil
+-- der vorige schweigen kann:
+--   1. Die Client-Zerlegung (oben). Belegt und ohne Kosten.
+--   2. Die am Tooltip gelernte Position dieser Sitzung.
+--   3. Der Feldbereich, in dem der Wert bei den bekannten Clientstaenden
+--      liegt (10..16) — und, wenn der Client den Gegenstand ueber seine
+--      eigene Zeichenkette REFORGED als umgeschmiedet ausweist, der ganze
+--      Link. Findet sich dann GENAU EIN gueltiger Wert (113..168), ist das
+--      die Position; mehrdeutig wird nichts gelernt.
+--
+-- Gueltig ist ein Wert nur, wenn er in der Paartabelle steht. Das ist die
+-- Pruefung, die alle drei Wege teilen — ein Feld mit einer beliebigen Zahl
+-- wird nie zu einer Umschmiedung.
+--
+-- UND JEDE ANTWORT WIRD AM LINK GEMERKT.
+--
+-- Der Item-Link traegt den Umschmiedewert selbst; aendert sich die
+-- Umschmiedung, aendert sich der Link. Ein Zwischenspeicher an der
+-- Zeichenkette ist damit von selbst richtig — und er ist noetig, nicht
+-- bequem: waehrend eines Laufs fragt das Fenster viermal je Sekunde je
+-- Zeile nach, und ohne ihn haengt an dieser Frage im schlechtesten Fall
+-- ein Tooltip-Scan. Dieselbe Bauform wie ReforgeLites eigener
+-- Link-Zwischenspeicher.
 --------------------------------------------------
 
 -- Die Felder, in denen der Umschmiedewert bei den bekannten Clientstaenden
@@ -178,22 +201,31 @@ end
 RE.LinkParts = LinkParts
 
 --------------------------------------------------
--- DIE FELDPOSITION WIRD AM CLIENT GELERNT, NICHT GERATEN.
---
--- Der Umschmiedewert steht in einem Feld des Item-Links, dessen Position
--- sich zwischen Clientstaenden verschoben hat. Bis 2.7.0.1 stand hier eine
--- Liste vermuteter Positionen — und wenn der Client eine andere benutzt,
--- faellt das nirgends auf: das Addon haelt dann JEDEN Gegenstand fuer
--- nicht umgeschmiedet. Der Plan sieht trotzdem vernuenftig aus, der
--- Umschmieder arbeitet, und nur die Bestaetigung kommt nie an. Genau so
--- ist der Lauf beim ersten Gegenstand haengengeblieben.
---
--- Also wird die Position ABGELESEN: der Client sagt ueber seine eigene
--- Zeichenkette (REFORGED), ob ein Gegenstand umgeschmiedet ist. Trifft das
--- zu und steht in genau EINEM Feld des Links ein gueltiger Umschmiedewert
--- (113..168), dann ist das die Position — fuer diesen Client, fuer alle
--- Gegenstaende. Mehrdeutig wird nichts gelernt: lieber keine Antwort als
--- eine falsche.
+-- Weg 1: die Zerlegung des Clients
+--------------------------------------------------
+
+local REFORGE_OPTION_FIELD = 10   -- so zaehlt der Client selbst
+
+local function FromClientSplit(link)
+    local fromHyperlink = _G.GetItemInfoFromHyperlink
+    local split = _G.LinkUtil and _G.LinkUtil.SplitLinkOptions
+    if not (fromHyperlink and split and link) then return nil end
+
+    local ok, _, options = pcall(fromHyperlink, link)
+    if not (ok and options) then return nil end
+
+    local ok2, value = pcall(function()
+        return select(REFORGE_OPTION_FIELD, split(options))
+    end)
+    if not ok2 then return nil end
+
+    value = tonumber(value)
+    if value and R.BY_ID[value] then return R.BY_ID[value] end
+    return nil
+end
+
+--------------------------------------------------
+-- Weg 2 und 3: gelernte bzw. abgesuchte Feldposition
 --------------------------------------------------
 
 local function ScanFields(parts, positions)
@@ -209,39 +241,6 @@ end
 
 local ALL_FIELDS = {}
 for pos = 8, 20 do ALL_FIELDS[#ALL_FIELDS + 1] = pos end
-
-local function ReforgeFromLink(link, tooltipSaysReforged)
-    local parts = LinkParts(link)
-    if not parts then return nil, nil end
-
-    if learnedField then
-        local value = parts[learnedField]
-        if value and R.BY_ID[value] then
-            return R.PAIRS[R.BY_ID[value]], learnedField
-        end
-    end
-
-    local hits = ScanFields(parts, LINK_REFORGE_FIELDS)
-    if #hits > 0 then
-        local pos = hits[1]
-        return R.PAIRS[R.BY_ID[parts[pos]]], pos
-    end
-
-    -- Nichts an den bekannten Stellen, der Client sagt aber, es sei
-    -- umgeschmiedet: dann liegt es woanders, und genau dann lohnt die
-    -- breite Suche.
-    if tooltipSaysReforged then
-        local wide = ScanFields(parts, ALL_FIELDS)
-        if #wide == 1 then
-            learnedField = wide[1]
-            return R.PAIRS[R.BY_ID[parts[learnedField]]], learnedField
-        end
-    end
-
-    return nil, nil
-end
-
-RE.LearnedField = function() return learnedField end
 
 --------------------------------------------------
 -- Gegenprobe am Tooltip
@@ -284,6 +283,97 @@ local function TooltipSaysReforged(link)
     end
     return false
 end
+
+--------------------------------------------------
+-- Die eine Antwort, samt Zwischenspeicher
+--
+-- Rueckgabe: Paar (oder nil), Herkunft, Feldposition. Die Herkunft steht
+-- in der Diagnose: "client" ist belegt, "feld 12" ist geraten, und der
+-- Unterschied ist genau das, was man wissen will, wenn ein Auftrag nicht
+-- ankommt.
+--------------------------------------------------
+
+local linkCache = {}   -- [link] = { pair = <Paar|false>, source = <Text> }
+local linkCacheCount = 0
+local LINK_CACHE_MAX = 400   -- Ausruestung wechselt; unbegrenzt waechst nichts
+
+local function ReforgeFromLink(link, tooltipSaysReforged)
+    if not link then return nil, nil, nil end
+
+    local hit = linkCache[link]
+    if hit and not (hit.pair == false and hit.unsure and tooltipSaysReforged) then
+        return hit.pair or nil, hit.source, hit.field
+    end
+
+    local function Remember(pair, source, field, unsure)
+        if linkCacheCount >= LINK_CACHE_MAX then
+            linkCache, linkCacheCount = {}, 0
+        end
+        if linkCache[link] == nil then linkCacheCount = linkCacheCount + 1 end
+        linkCache[link] = { pair = pair or false, source = source,
+                            field = field, unsure = unsure }
+        return pair, source, field
+    end
+
+    -- Weg 1: der Client selbst.
+    local n = FromClientSplit(link)
+    if n then return Remember(R.PAIRS[n], "client", REFORGE_OPTION_FIELD) end
+
+    local parts = LinkParts(link)
+    if not parts then return nil, nil, nil end
+
+    -- Weg 2: die gelernte Position.
+    if learnedField then
+        local value = parts[learnedField]
+        if value and R.BY_ID[value] then
+            return Remember(R.PAIRS[R.BY_ID[value]], "gelernt", learnedField)
+        end
+    end
+
+    -- Weg 3: der bekannte Feldbereich.
+    local hits = ScanFields(parts, LINK_REFORGE_FIELDS)
+    if #hits > 0 then
+        local pos = hits[1]
+        return Remember(R.PAIRS[R.BY_ID[parts[pos]]], "feld " .. pos, pos)
+    end
+
+    -- Nichts an den bekannten Stellen, der Client sagt aber, es sei
+    -- umgeschmiedet: dann liegt es woanders, und genau dann lohnt die
+    -- breite Suche.
+    if tooltipSaysReforged then
+        local wide = ScanFields(parts, ALL_FIELDS)
+        if #wide == 1 then
+            learnedField = wide[1]
+            return Remember(R.PAIRS[R.BY_ID[parts[learnedField]]],
+                            "gelernt", learnedField)
+        end
+        -- Mehrdeutig oder gar nichts: gemerkt wird das NICHT als "sicher
+        -- nicht umgeschmiedet", sonst bliebe es fuer diesen Link dabei.
+        return Remember(nil, nil, nil, true)
+    end
+
+    -- Sagt der Client ausdruecklich "nicht umgeschmiedet", ist "nichts
+    -- gefunden" die richtige und endgueltige Antwort. Nur wenn er GAR
+    -- NICHTS gesagt hat (Tooltip noch nicht lesbar, gar nicht gefragt),
+    -- bleibt der Eintrag als unsicher vermerkt — dann hat die breite Suche
+    -- naemlich nie stattgefunden, und ein spaeterer Aufruf mit Auskunft
+    -- soll sie noch nachholen duerfen.
+    return Remember(nil, nil, nil, tooltipSaysReforged == nil)
+end
+
+RE.LearnedField = function() return learnedField end
+
+-- Der Zwischenspeicher haengt am Link und ist damit von selbst richtig.
+-- Weggeworfen wird er trotzdem, wenn jemand den Planer neu anstoesst:
+-- eine Fehlersuche, die den alten Stand weiterliest, ist keine.
+local forgetHooks = {}
+
+function RE.ForgetLinks()
+    linkCache, linkCacheCount = {}, 0
+    for _, fn in ipairs(forgetHooks) do fn() end
+end
+
+local function OnForget(fn) forgetHooks[#forgetHooks + 1] = fn end
 
 --------------------------------------------------
 -- ITEMWERTE JE AUFWERTUNGSSTUFE
@@ -421,8 +511,9 @@ local function ScanSlot(slotDef)
     entry.noSecondary = not any
 
     local says = TooltipSaysReforged(link)
-    local pair, field = ReforgeFromLink(link, says)
+    local pair, source, field = ReforgeFromLink(link, says)
     entry.linkField       = field
+    entry.linkSource      = source
     entry.tooltipReforged = says
 
     if says ~= nil and (says ~= (pair ~= nil)) then
@@ -461,24 +552,37 @@ end
 RE.ScanItems = ScanItems
 
 --------------------------------------------------
--- Die billige Auskunft: was ist an DIESEM Slot gerade umgeschmiedet?
+-- DIE BILLIGE AUSKUNFT: WAS IST AN DIESEM SLOT GERADE UMGESCHMIEDET?
 --
--- Liest nur den Item-Link, keinen Tooltip und keine Itemdaten. Waehrend
--- eines Umschmiede-Laufs wird sie nach jedem Gegenstand gebraucht, und ein
--- vollstaendiger Durchgang ueber alle sechzehn Slots je Antwort waere
--- sechzehnmal derselbe Tooltip-Scan fuer eine Ja/Nein-Frage.
+-- Diese Frage ist der heisse Pfad des ganzen Werkzeugs. Waehrend eines
+-- Laufs stellt das Fenster sie viermal je Sekunde je Zeile — sechzehn
+-- Slots, also gut sechzig Mal je Sekunde. Sie darf deshalb nichts kosten,
+-- und dank des Zwischenspeichers am Item-Link tut sie das auch nicht: die
+-- Antwort steht nach dem ersten Mal fest, bis sich der Link aendert, und
+-- wenn er sich aendert, IST die Antwort eine andere.
+--
+-- Der Tooltip wird hoechstens EINMAL je Link gefragt, und nur, wenn die
+-- billigen Wege alle geschwiegen haben. Bis 2.7.0.2 stand hier ein
+-- Tooltip-Scan je Aufruf, solange die Feldposition noch nicht feststand —
+-- auf einem Charakter ohne eine einzige Umschmiedung also dauerhaft, und
+-- genau das hat den Lauf zaeh gemacht.
 --------------------------------------------------
+
+local tooltipAsked = {}   -- [link] = true
+OnForget(function() tooltipAsked = {} end)
 
 function RE.CurrentPair(slotId)
     local link = GetInventoryItemLink("player", slotId)
     if not link then return nil end
 
     local pair = ReforgeFromLink(link)
-    if pair or learnedField then return pair end
+    if pair or learnedField or tooltipAsked[link] then return pair end
 
     -- Nichts gefunden und die Position steht noch nicht fest: einmal am
     -- Tooltip nachfragen, damit die breite Suche greifen kann. Danach ist
-    -- die Position gelernt und diese Zeile kostet nichts mehr.
+    -- die Position entweder gelernt oder diese Frage endgueltig
+    -- beantwortet — in beiden Faellen kostet die Zeile nichts mehr.
+    tooltipAsked[link] = true
     return (ReforgeFromLink(link, TooltipSaysReforged(link)))
 end
 
@@ -743,6 +847,35 @@ local function BuildContext(scan, items)
 
     local mult = StatMultipliers(items)
     local conv = BuildConversions()
+
+    --------------------------------------------------
+    -- WAFFENKUNDE ZAEHLT ALS ZAUBERTREFFER — AUCH IM ISTWERT.
+    --
+    -- Der Client fuehrt beides getrennt: GetCombatRating(Zaubertreffer)
+    -- weiss nichts von der Waffenkunde, die bei Zauberspecs in dasselbe
+    -- Kap laeuft. Der Suchlauf dagegen rechnet die Umwandlung an jeder
+    -- Umschmiedung mit — und damit standen zwei Groessen nebeneinander,
+    -- die dasselbe messen sollten: eine Ausgangslage OHNE die vorhandene
+    -- Waffenkunde und Aenderungen MIT ihr. Wer Waffenkunde wegschmiedet,
+    -- verlor dann Treffer, den die Ausgangslage nie gutgeschrieben hatte.
+    --
+    -- Aufgeloest wird das wie in ReforgeLite, naemlich auf der Seite des
+    -- Istwerts: was der Client nicht selbst hineinrechnet, wird hier
+    -- hineingerechnet. Das Ziel weiter unten ist "Istwert plus Abstand"
+    -- und verschiebt sich um denselben Betrag mit — der ABSTAND bleibt
+    -- also genau der, den modules/charakter.lua ausgerechnet hat. Es
+    -- aendert sich nur, dass beide Seiten der Rechnung jetzt dasselbe
+    -- meinen.
+    --
+    -- Willenskraft steht bewusst NICHT hier: wo sie als Zaubertreffer
+    -- zaehlt, ist das eine Umrechnung des Spiels, und der Charakterbogen
+    -- weist sie bereits aus. Sie ein zweites Mal draufzurechnen waere
+    -- doppelt gezaehlt.
+    --------------------------------------------------
+    local expToHit = conv.expertise and conv.expertise.hit
+    if expToHit and expToHit ~= 0 then
+        live.hit = (live.hit or 0) + Round((live.expertise or 0) * expToHit)
+    end
 
     -- Angelegte Umschmiedungen herausrechnen: das ist der Stand, auf dem
     -- der Planer arbeitet, und "alles so lassen" ergibt daraus wieder
@@ -1227,12 +1360,19 @@ local function ReasonFor(ctx, option, before)
     local goalDst = ctx.target[dstKey]
     local goalSrc = ctx.target[srcKey]
 
+    -- DIE ZAHL GEHOERT DAZU. "Fuellt Trefferwertung" beantwortet die
+    -- Frage halb; wer die Zeile liest, will wissen, wie weit es noch hin
+    -- ist — und ob dieses eine Teil den Weg ueberhaupt schafft.
     if goalDst and (before[dstKey] or 0) < goalDst.rating - 1 then
-        return (goalDst.kind == "cap" and "füllt " or "erreicht ")
-               .. (goalDst.label or R.LABEL[dstKey]), "green"
+        local gap = floor(goalDst.rating - (before[dstKey] or 0) + 0.5)
+        return string.format("%s %s (es fehlen %d)",
+            goalDst.kind == "cap" and "füllt" or "geht auf",
+            goalDst.label or R.LABEL[dstKey], gap), "green"
     end
     if goalSrc and (before[srcKey] or 0) > goalSrc.rating + 1 then
-        return "über " .. (goalSrc.label or R.LABEL[srcKey]), "gold"
+        local over = floor((before[srcKey] or 0) - goalSrc.rating + 0.5)
+        return string.format("%s liegt %d über der Grenze — dort zählt sie nicht mehr",
+            goalSrc.label or R.LABEL[srcKey], over), "gold"
     end
 
     -- Umgewandelte Werte: Waffenkunde, die als Zaubertreffer zaehlt, wird
@@ -1387,6 +1527,7 @@ local function BuildPlan(signature)
             slotName    = item.slotName,
             name        = item.name,
             link        = item.link,
+            itemId      = item.itemId,
             icon        = item.icon,
             quality     = item.quality,
             stats       = item.stats,
@@ -1395,6 +1536,9 @@ local function BuildPlan(signature)
             baseIlvl    = item.baseIlvl,
             upgrade     = item.upgrade,
             statSource  = item.statSource,
+            linkSource  = item.linkSource,
+            linkField   = item.linkField,
+            tooltipReforged = item.tooltipReforged,
             statSetMismatch = item.statSetMismatch,
             locked      = item.locked,
             problem     = item.problem,
@@ -1413,7 +1557,20 @@ local function BuildPlan(signature)
             }
             row.reason, row.reasonTone = ReasonFor(ctx, option, beforeTotals)
         else
-            row.reason, row.reasonTone = "keine Umschmiedung", "textDim"
+            -- AUCH "NICHTS TUN" HAT EINEN GRUND, und es sind drei
+            -- verschiedene: gesperrt, nichts zu verschieben, oder nichts
+            -- zu gewinnen. Ein Text fuer alle drei waere fuer zwei davon
+            -- falsch — dieselbe Regel wie bei BlockedReason drueben.
+            if item.locked then
+                row.reason, row.reasonTone =
+                    "Von dir gesperrt — bleibt, wie es ist.", "gold"
+            elseif item.noSecondary then
+                row.reason, row.reasonTone =
+                    "Kein umschmiedbarer Sekundärwert auf diesem Teil.", "textDim"
+            else
+                row.reason, row.reasonTone =
+                    "Verschieben brächte hier keine Wertung.", "textDim"
+            end
         end
 
         local cur = item.current
@@ -1506,6 +1663,11 @@ function RE.GetPlan(force)
     local signature = Signature()
 
     if force then
+        -- Ein erzwungener Lauf ist immer eine Fehlersuche. Der
+        -- Link-Zwischenspeicher ist zwar von selbst richtig (er haengt am
+        -- Link), aber eine Diagnose, die den alten Stand weiterliest, ist
+        -- keine — also wird auch er weggeworfen.
+        RE.ForgetLinks()
         worker, workerSig, cache = nil, nil, nil
     elseif cache and signature and cache.signature == signature then
         return cache.plan

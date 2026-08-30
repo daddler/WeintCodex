@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.1.0",
+        date    = "30.08.2026",
+        notes   = {
+            "Neu: Bei Verzauberungen, Sockeln und beim Umschmieden steht rechts jetzt, |cffD4A24Awarum|r das Addon genau das vorschlaegt.",
+            "Dort liest du, welche Werte deine Spezialisierung wie hoch gewichtet, welche Grenzen gerade gelten und wieviel bis dahin noch fehlt.",
+            "Dazu die Reihenfolge dahinter: erst umschmieden, dann sockeln, dann verzaubern - und was das Umschmieden dir schon abnimmt.",
+            "Jede Zeile beim Umschmieden traegt ihren Grund jetzt ausgeschrieben, samt der Zahl, um die es geht. Die Spalte rechts rollt dafuer.",
+            "|cffD4A24AAlles umschmieden|r laeuft fluessiger und liest die angelegte Umschmiedung jetzt beim Spiel selbst nach.",
+        },
+    },
+    {
         version = "2.7.0.2",
         date    = "28.08.2026",
         notes   = {

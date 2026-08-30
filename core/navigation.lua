@@ -615,7 +615,56 @@ end
 
 local inspectorWidgets   = {}
 local INSPECTOR_PAD      = 20
-local INSPECTOR_CONTENT_W = WeintCodex.Inspector:GetWidth() - INSPECTOR_PAD * 2
+
+--------------------------------------------------
+-- DER DETAILBEREICH ROLLT (seit 2.7.1.0)
+--
+-- Er war eine feste Flaeche, und was nicht hineinpasste, lief unten aus
+-- dem Fenster heraus — unsichtbar, unerreichbar und ausgerechnet dann,
+-- wenn am meisten dasteht. Genau derselbe Fehler wie beim Changelog-Popup
+-- (siehe core/onboarding.lua), und dieselbe Abhilfe: die Bloecke werden in
+-- ein Bildlauffeld gezeichnet, dessen Inhaltshoehe am Ende aus dem
+-- gelaufenen y steht.
+--
+-- Die Leiste ist die schlanke Hausform und blendet sich aus, wenn es
+-- nichts zu rollen gibt (`scrollBarHideable`) — auf den meisten Seiten
+-- sieht man von alledem also nichts.
+--
+-- Die 10 px, die die Leiste beansprucht, gehen von der Inhaltsbreite ab.
+-- Sie stehen hier als Zahl und nicht als Messung, weil die Bloecke gebaut
+-- werden, bevor der Rahmen seine endgueltige Groesse meldet — dieselbe
+-- Reihenfolgenfalle wie beim Detailbereich selbst.
+--------------------------------------------------
+
+local INSPECTOR_BAR_W = 10
+local INSPECTOR_CONTENT_W = WeintCodex.Inspector:GetWidth()
+                            - INSPECTOR_BAR_W - INSPECTOR_PAD * 2
+
+local inspectorScroll, inspectorBody
+
+local function InspectorBody()
+    if inspectorBody then return inspectorBody end
+
+    local host = WeintCodex.Inspector
+    if not WeintCodex.CreateScrollArea then return host end
+
+    local ok, sf, inner = pcall(WeintCodex.CreateScrollArea, host, 0, 0,
+        host:GetWidth(), 100, true)
+    if not (ok and sf and inner) then return host end
+
+    -- Groesse aus Ankern, nicht aus einer Messung: der Detailbereich haengt
+    -- selbst an contentHost und kennt seine Hoehe erst, wenn das Fenster
+    -- steht (siehe UpdateContentInsets in core/ui.lua).
+    sf:ClearAllPoints()
+    sf:SetPoint("TOPLEFT",     host, "TOPLEFT",     0, 0)
+    sf:SetPoint("BOTTOMRIGHT", host, "BOTTOMRIGHT", 0, 0)
+    inner:SetWidth(host:GetWidth() - INSPECTOR_BAR_W)
+    sf.scrollBarHideable = true
+    if sf.WCScrollBar then sf.WCScrollBar:Hide() end
+
+    inspectorScroll, inspectorBody = sf, inner
+    return inner
+end
 
 function WeintCodex.Navigation.ClearInspector()
     for _, w in ipairs(inspectorWidgets) do w:Hide() end
@@ -676,6 +725,37 @@ local function InspectorRows(parent, y, rows)
         y = y - 20
     end
     return y - 4
+end
+
+--------------------------------------------------
+-- Fliesstext im Detailbereich
+--
+-- Der Kartenblock (InspectorCard) rechnet mit festen 15 px je Zeile und
+-- kann deshalb nur Zeilen tragen, die in eine Zeile passen. Eine
+-- Begruendung ist aber genau das nicht: sie ist ein Satz, sie bricht um,
+-- und wie oft sie umbricht haengt an der Schrift und an der Sprache.
+-- ALSO WIRD GEMESSEN STATT GESCHAETZT — dieselbe Regel wie bei den
+-- Begruendungszeilen der Sockel- und Verzauberungsseite. Eine geschaetzte
+-- Hoehe faellt genau dann auf, wenn der Text am laengsten ist, und dann
+-- liegt der naechste Block darueber.
+--------------------------------------------------
+
+local function InspectorText(parent, y, opts)
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    fs:SetFont(WeintCodex.Fonts.sans, opts.size or 10, "")
+    fs:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+    fs:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+    fs:SetJustifyH("LEFT")
+    fs:SetSpacing(2)
+    local col = C[opts.color or "textDim"] or C.textDim
+    fs:SetTextColor(col[1], col[2], col[3])
+    fs:SetText(opts.text or "")
+
+    local ok, h = pcall(fs.GetStringHeight, fs)
+    h = (ok and type(h) == "number" and h > 0) and h or ((opts.size or 10) + 3)
+
+    table.insert(inspectorWidgets, fs)
+    return y - math.ceil(h) - (opts.gap or 8)
 end
 
 local function InspectorListCard(parent, y, item)
@@ -1543,7 +1623,7 @@ local function InspectorItemList(parent, y, opts)
     return y - h - 6
 end
 
--- blocks: Liste von { type = "header"|"rows"|"list"|"checklist"|"card"|"notes"|"button"|"itemlist"|"divider"|"spacer", ... }
+-- blocks: Liste von { type = "header"|"rows"|"text"|"list"|"checklist"|"card"|"notes"|"button"|"itemlist"|"divider"|"spacer", ... }
 function WeintCodex.Navigation.SetInspector(blocks)
     WeintCodex.Navigation.ClearInspector()
     if not blocks or #blocks == 0 then return end
@@ -1554,7 +1634,7 @@ function WeintCodex.Navigation.SetInspector(blocks)
     -- schrumpft dann automatisch, die Module merken davon nichts.
     WeintCodex.SetDetailShown(true)
 
-    local parent = WeintCodex.Inspector
+    local parent = InspectorBody()
     local y = 0
 
     for _, block in ipairs(blocks or {}) do
@@ -1572,6 +1652,8 @@ function WeintCodex.Navigation.SetInspector(blocks)
             for _, item in ipairs(block.items or {}) do
                 y = InspectorChecklistItem(parent, y, item)
             end
+        elseif block.type == "text" then
+            y = InspectorText(parent, y, block)
         elseif block.type == "card" then
             y = InspectorCard(parent, y, block)
         elseif block.type == "notes" then
@@ -1584,6 +1666,25 @@ function WeintCodex.Navigation.SetInspector(blocks)
             y = InspectorDivider(parent, y)
         elseif block.type == "spacer" then
             y = y - (block.height or 12)
+        end
+    end
+
+    -- Erst jetzt steht die Hoehe des Inhalts fest. Ohne sie bleibt das
+    -- Bildlauffeld bei seiner Anfangshoehe und rollt nicht — der Fehler,
+    -- der sich als "der untere Teil fehlt" zeigt.
+    if inspectorBody and inspectorScroll then
+        local needed  = math.max(1, -y + 8)
+        local visible = inspectorScroll:GetHeight() or 0
+        inspectorBody:SetHeight(math.max(needed, visible))
+        inspectorScroll:SetVerticalScroll(0)
+        if inspectorScroll.UpdateScrollChildRect then
+            inspectorScroll:UpdateScrollChildRect()
+        end
+        -- Eine Leiste ohne Bildlauf ist ein Bedienelement, das nichts tut
+        -- (dieselbe Regel wie in core/onboarding.lua).
+        local bar = inspectorScroll.WCScrollBar
+        if bar then
+            if needed > visible then bar:Show() else bar:Hide() end
         end
     end
 end

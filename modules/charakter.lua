@@ -2807,6 +2807,241 @@ local function CapContext()
     }
 end
 
+--------------------------------------------------
+-- WARUM SAGT DAS ADDON, WAS ES SAGT? (seit 2.7.1.0)
+--
+-- Eine Empfehlung ohne Begruendung laesst genau zwei Moeglichkeiten: sie
+-- glauben oder sie lassen. Beides ist schlecht — geglaubte Empfehlungen
+-- fallen beim ersten Zweifel um, und eine, die man nicht nachvollziehen
+-- kann, ist von einer falschen nicht zu unterscheiden. Seit 2.7.0.0 traegt
+-- jede EINZELNE Zeile ihren Grund; was fehlte, ist die Ebene darueber:
+-- woher kommen die Gewichte, welche Grenzen gelten gerade, in welcher
+-- Reihenfolge greifen die drei Seiten ineinander.
+--
+-- DIESE FUNKTION RECHNET NICHTS.
+--
+-- Sie liest CapContext() und den Ausblick des Umschmiede-Planers und
+-- formuliert, was dort schon steht. Das ist keine Bequemlichkeit, sondern
+-- dieselbe Regel wie ueberall in dieser Datei: eine zweite Rechnung fuer
+-- den Erklaertext liefe irgendwann anders aus als die erste, und dann
+-- widerspraeche die Begruendung der Empfehlung, die sie begruendet.
+--
+-- Sie steht deshalb hier und nicht in den drei Seiten: Verzauberungen,
+-- Sockel und Umschmieden erklaeren sich aus DENSELBEN Zahlen, und drei
+-- Fassungen davon waeren drei Gelegenheiten auseinanderzulaufen.
+--------------------------------------------------
+
+-- Was auf dieser Seite ueberhaupt entschieden wird — ein Absatz je Seite.
+local METHOD_TEXT = {
+    enchants = "Für jeden Platz führt das Profil deiner Spezialisierung eine"
+        .. " Reihenfolge. Vorgeschlagen wird die erste daraus – außer ihr Wert"
+        .. " steht an einer Grenze und bringt dir nichts mehr, dann rückt die"
+        .. " nächste nach. Was du trägst, wird an seinen Werten gemessen und"
+        .. " nicht an seinem Namen: dieselben Werte in gleicher Höhe zählen"
+        .. " als optimal.",
+    gems = "Für jeden Gegenstand werden zwei Wege gegeneinander gerechnet:"
+        .. " die Sockelfarben treffen und den Sockelbonus behalten, oder den"
+        .. " Bonus liegen lassen und überall den stärksten Stein setzen. Der"
+        .. " Weg mit der höheren Wertung gewinnt – und Empfehlung wie Urteil"
+        .. " kommen beide aus dieser einen Rechnung.",
+    reforge = "Gesucht wird die Verteilung über alle Teile, die zuerst deine"
+        .. " Pflichtgrenzen erreicht und danach die höchste gewichtete Summe"
+        .. " hat. Gerechnet wird über alle Möglichkeiten zusammen, nicht Teil"
+        .. " für Teil: an einer Grenze lohnt sich oft erst die zweite"
+        .. " Änderung.",
+}
+
+-- Reihenfolge der acht Werte fuer die Gewichtsliste. Primaerwerte stehen
+-- nicht drin: die kann man nicht umschmieden und nur selten wählen.
+local RATIONALE_STATS = { "hit", "expertise", "crit", "haste", "mastery",
+                          "spirit", "dodge", "parry" }
+
+local function RationaleWeightRows(profile)
+    local weights = profile and profile.statWeights
+    if not weights then return nil end
+
+    local list = {}
+    for _, stat in ipairs(RATIONALE_STATS) do
+        local w = weights[stat]
+        if w and w > 0 then
+            list[#list + 1] = { stat = stat, weight = w }
+        end
+    end
+    if #list == 0 then return nil end
+
+    table.sort(list, function(a, b)
+        if a.weight ~= b.weight then return a.weight > b.weight end
+        return a.stat < b.stat
+    end)
+
+    local rows = {}
+    for index, entry in ipairs(list) do
+        -- Nur die vier staerksten: darunter entscheidet das Gewicht ohnehin
+        -- nichts mehr, und eine Liste, die man nicht zu Ende liest, ist
+        -- keine Auskunft.
+        if index > 4 then break end
+        rows[#rows + 1] = {
+            label      = StatShort(entry.stat),
+            value      = tostring(math.floor(entry.weight + 0.5)),
+            valueColor = (index == 1) and "gold" or "textDim",
+        }
+    end
+    return rows
+end
+
+-- Je Grenze eine Zeile: was gilt, und wie weit ist es noch hin. Die Zahlen
+-- stehen alle schon in den Zustaenden — hier wird nur beschriftet.
+local function RationaleLimitRows(capStates, breakpointStates)
+    local rows = {}
+
+    for _, cs in ipairs(capStates or {}) do
+        local value, color
+        if (cs.underRating or 0) >= 1 then
+            value = string.format("es fehlen %s", WeintCodex.FormatGrouped(
+                math.floor(cs.underRating + 0.5)))
+            color = "gold"
+        elseif (cs.overRating or 0) >= 1 then
+            value = string.format("%s darüber", WeintCodex.FormatGrouped(
+                math.floor(cs.overRating + 0.5)))
+            color = "violet"
+        else
+            value = "erreicht"
+            color = "success"
+        end
+        rows[#rows + 1] = { label = cs.label or "Grenze", value = value,
+                            valueColor = color }
+    end
+
+    for _, bp in ipairs(breakpointStates or {}) do
+        local value, color
+        if bp.targetSource == "aus" then
+            value, color = "abgeschaltet", "textFaint"
+        elseif bp.capPct == nil then
+            -- Weder eine Stufe erreicht noch eine in Reichweite: dann wird
+            -- nichts behauptet, und genau das steht hier auch.
+            value, color = "keine Aussage", "textFaint"
+        elseif (bp.underRating or 0) >= 1 then
+            value = string.format("es fehlen %s", WeintCodex.FormatGrouped(
+                math.floor(bp.underRating + 0.5)))
+            color = "gold"
+        elseif (bp.overRating or 0) >= 1 then
+            value = string.format("%s darüber", WeintCodex.FormatGrouped(
+                math.floor(bp.overRating + 0.5)))
+            color = "violet"
+        else
+            value, color = "erreicht", "success"
+        end
+        rows[#rows + 1] = { label = bp.label or "Schwelle", value = value,
+                            valueColor = color }
+    end
+
+    return rows
+end
+
+--------------------------------------------------
+-- Rationale(page) -> Liste von Inspektor-Bloecken
+--------------------------------------------------
+
+-- `have` ist der bereits gerechnete Zustand des Aufrufers. Ohne ihn wird
+-- CapContext() geholt — das laeuft aber ueber alle sechzehn Slots, und die
+-- beiden Seiten, die diese Bloecke brauchen, haben ihn im Scan schon
+-- dastehen. Zweimal dasselbe zu rechnen waere hier nicht nur teuer,
+-- sondern die Sorte Doppelung, aus der Erklaertext und Empfehlung
+-- auseinanderlaufen: der Scan koennte inzwischen einen anderen Stand
+-- gesehen haben als dieser zweite Durchgang.
+local function Rationale(page, have)
+    local ctx    = have or CapContext()
+    local blocks = {}
+
+    blocks[#blocks + 1] = { type = "header", text = "Warum das hier steht" }
+    blocks[#blocks + 1] = { type = "text", size = 10,
+        text = METHOD_TEXT[page] or METHOD_TEXT.gems }
+
+    blocks[#blocks + 1] = { type = "divider" }
+    blocks[#blocks + 1] = { type = "header", text = "Grundlage" }
+
+    if not ctx.profile then
+        blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 10,
+            text = "Für diese Spezialisierung ist kein Profil hinterlegt."
+                .. " Ohne Gewichte und Grenzen wird nichts abgewogen – und"
+                .. " deshalb steht hier auch keine Empfehlung." }
+        return blocks, ctx
+    end
+
+    blocks[#blocks + 1] = { type = "rows", rows = {
+        { label = "Spezialisierung", value = ctx.specDisplay or "—" },
+    }}
+
+    local weightRows = RationaleWeightRows(ctx.profile)
+    if weightRows then
+        blocks[#blocks + 1] = { type = "header", text = "Gewichte (stärkste zuerst)" }
+        blocks[#blocks + 1] = { type = "rows", rows = weightRows }
+    end
+
+    local limitRows = RationaleLimitRows(ctx.caps, ctx.breakpoints)
+    if #limitRows > 0 then
+        blocks[#blocks + 1] = { type = "header", text = "Grenzen und Schwellen" }
+        blocks[#blocks + 1] = { type = "rows", rows = limitRows }
+        blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+            text = "Wertung zählt nur bis zur Grenze. Was darüber liegt,"
+                .. " bringt nichts mehr und gehört umgeschmiedet." }
+    else
+        blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+            text = "Für diese Spezialisierung ist keine Grenze hinterlegt –"
+                .. " es entscheiden allein die Gewichte." }
+    end
+
+    --------------------------------------------------
+    -- Die Reihenfolge, und was das Umschmieden davon schon erledigt
+    --
+    -- Ohne diesen Absatz sieht "Krit" auf einem Charakter weit unter dem
+    -- Trefferkap nach Willkuer aus. Gelesen wird dabei NUR der fertige
+    -- Ausblick des Planers (RE.CapOutlook rechnet nie selbst) — steht
+    -- keiner bereit, wird auch nichts behauptet.
+    --------------------------------------------------
+    local RE = WeintCodex.ReforgeEngine
+    local outlook = ctx.reforge
+        or (RE and RE.CapOutlook and RE.CapOutlook()) or nil
+
+    blocks[#blocks + 1] = { type = "divider" }
+    blocks[#blocks + 1] = { type = "header", text = "Reihenfolge" }
+    blocks[#blocks + 1] = { type = "text", size = 10,
+        text = "Erst umschmieden, dann sockeln, dann verzaubern. Umschmieden"
+            .. " kostet nur Gold und lässt sich zurücknehmen – ein Sockel ist"
+            .. " einmal vergeben." }
+
+    if not (RE and RE.Enabled and RE.Enabled()) then
+        blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+            text = "Der Umschmiede-Planer ist ausgeschaltet. Die Grenzen oben"
+                .. " rechnen deshalb ohne ihn (Einstellungen → Umschmieden)." }
+    elseif outlook then
+        local closed = {}
+        for _, look in pairs(outlook) do
+            if look.closes and look.before < look.target - 1 then
+                closed[#closed + 1] = look.label
+            end
+        end
+        if #closed > 0 then
+            blocks[#blocks + 1] = { type = "text", color = "green", size = 9,
+                text = "Das Umschmieden schließt bereits: "
+                    .. table.concat(closed, ", ")
+                    .. ". Dafür braucht es hier keinen Stein mehr." }
+        else
+            blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+                text = "Der Umschmiede-Plan schließt keine der Grenzen von"
+                    .. " selbst – sie bleiben hier zu füllen." }
+        end
+    else
+        blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+            text = "Vom Umschmiede-Planer liegt gerade keine Auskunft vor –"
+                .. " gerechnet wird oben ohne ihn." }
+    end
+
+    return blocks, ctx
+end
+
+WeintCodex.Charakter.Rationale = Rationale
+
 local function ScanCharacter()
     local capCtx = CapContext()
     local profile, profileKey, tankStyle, specDisplay =
@@ -2984,6 +3219,12 @@ local function ScanCharacter()
                 -- Rechnung, und der Spieler sieht sie nicht.
                 local recId, recReason =
                     PreferredEnchantId(bestList, profile, headroomAtStart, capInfo)
+                -- JEDE ZEILE SAGT, WARUM SIE SO DASTEHT — auch die, die
+                -- "ok" heisst. Bis 2.7.0.2 hatten nur vier der sechs
+                -- Zustaende einen Text, und ausgerechnet "ok" war keiner
+                -- davon: der haeufigste Befund war damit der einzige ohne
+                -- Auskunft, und "nicht ideal" ohne Grund ist ein Vorwurf,
+                -- kein Rat.
                 local enchReason
                 if status == "optimal" then
                     local note = equiv and SM.VerdictNote(equiv.verdict)
@@ -2996,6 +3237,17 @@ local function ScanCharacter()
                     enchReason = recReason
                 elseif status == "wrong" then
                     enchReason = "Steht nicht in der Empfehlungsliste für diesen Platz."
+                elseif status == "ok" then
+                    local note = equiv and SM.VerdictNote(equiv.verdict)
+                    if note then
+                        enchReason = "Dieselbe Verzauberung, aber " .. note .. "."
+                    else
+                        enchReason = "Liegt drauf, steht aber nicht in der"
+                            .. " Empfehlungsliste für diesen Platz."
+                    end
+                    if recReason then
+                        enchReason = enchReason .. " " .. recReason
+                    end
                 end
 
                 scan.enchants.rows[#scan.enchants.rows + 1] = {
@@ -4388,7 +4640,10 @@ function ShowEnchants()
     end
 
     inner:SetHeight(math.max(20, -yOff + 10))
-    ShowScoreInspector(scan.enchants.counts)
+    -- Die Begruendungsebene ueber den Zeilen: woher die Empfehlung kommt,
+    -- welche Grenzen gerade gelten und in welcher Reihenfolge die drei
+    -- Seiten ineinandergreifen (siehe Rationale weiter oben).
+    ShowScoreInspector(scan.enchants.counts, Rationale("enchants", scan))
 end
 
 --------------------------------------------------
@@ -4665,17 +4920,12 @@ function ShowGems()
     -- Der Weg zur anderen Haelfte derselben Frage. Er steht nur da, wenn
     -- der Planer laeuft: ein Knopf zu einer Seite, die es nicht gibt, ist
     -- schlimmer als keiner.
-    local gemExtras
+    local gemExtras = Rationale("gems", scan)
     if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Enabled()
        and WeintCodex.Reforge and WeintCodex.Reforge.ShowPage then
-        gemExtras = {
-            { type = "header", text = "Umschmieden" },
-            { type = "rows", rows = { { label = scan.reforge
-                and "Plan wird mitgerechnet" or "Plan noch nicht fertig",
-                valueColor = scan.reforge and "green" or "textFaint" } } },
-            { type = "button", label = "Zum Umschmieden",
-              onClick = WeintCodex.Reforge.ShowPage },
-        }
+        gemExtras[#gemExtras + 1] = { type = "divider" }
+        gemExtras[#gemExtras + 1] = { type = "button", label = "Zum Umschmieden",
+                                      onClick = WeintCodex.Reforge.ShowPage }
     end
     ShowScoreInspector(scan.gems.counts, gemExtras)
 

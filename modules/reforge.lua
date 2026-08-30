@@ -171,6 +171,20 @@ end
 
 local ROW_H = 42
 
+--------------------------------------------------
+-- DIE ZEILE TRAEGT IHRE BEGRUENDUNG, UND ZWAR AUSGESCHRIEBEN.
+--
+-- Bis 2.7.0.2 stand der Grund rechtsbuendig in einer 250 px breiten Spalte
+-- neben der Umschmiedung und in eine Zeile gequetscht. Damit war er auf
+-- ein Schlagwort beschraenkt ("ueber Trefferwertung"), und ein Schlagwort
+-- beantwortet die Frage nicht, wegen der man hinsieht. Er steht jetzt
+-- unter der Zeile ueber die ganze Breite — und seine HOEHE WIRD GEMESSEN,
+-- nicht geschaetzt: dieselbe Regel wie auf der Sockel- und der
+-- Verzauberungsseite, aus demselben Grund. Eine geschaetzte Hoehe faellt
+-- genau dann auf, wenn der Text am laengsten ist, und dann liegt die
+-- naechste Zeile darueber.
+--------------------------------------------------
+
 local function DrawPlanRow(parent, x, y, width, row, index)
     local frame = CreateFrame("Button", nil, parent)
     frame:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
@@ -181,59 +195,67 @@ local function DrawPlanRow(parent, x, y, width, row, index)
     if row.icon then
         local icon = frame:CreateTexture(nil, "ARTWORK")
         icon:SetSize(26, 26)
-        icon:SetPoint("LEFT", frame, "LEFT", 6, 0)
+        icon:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, -6)
         icon:SetTexture(row.icon)
         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
 
     local name = Text(frame, 12, true)
     name:SetPoint("TOPLEFT", frame, "TOPLEFT", 38, -5)
-    name:SetWidth(width - 300)
+    name:SetWidth(math.max(120, width - 300))
+    name:SetWordWrap(false)
     name:SetTextColor(unpack(C.textNormal))
     name:SetText(row.name)
 
     local slot = Text(frame, 9)
     slot:SetPoint("TOPLEFT", frame, "TOPLEFT", 38, -21)
-    slot:SetWidth(width - 300)
+    slot:SetWidth(math.max(120, width - 300))
+    slot:SetWordWrap(false)
     slot:SetTextColor(unpack(C.textFaint))
     slot:SetText(row.slotName .. (row.locked and "  ·  gesperrt" or ""))
 
     -- Die Umschmiedung selbst. Der Pfeil traegt die ganze Auskunft: was
     -- geht weg, was kommt dazu, wieviel.
     local move = Mono(frame, 12)
-    move:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -6)
+    move:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -12)
     move:SetWidth(250)
-
-    local reason = Text(frame, 9)
-    reason:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -22)
-    reason:SetWidth(250)
-    reason:SetJustifyH("RIGHT")
-    reason:SetTextColor(unpack(C[row.reasonTone or "textDim"] or C.textDim))
-    reason:SetText(row.reason or "")
 
     if row.problem then
         move:SetTextColor(unpack(C.red))
         move:SetText("nicht planbar")
-        reason:SetTextColor(unpack(C.textDim))
-        reason:SetText(row.problem)
-    elseif row.warning then
+    elseif row.target then
+        move:SetTextColor(unpack(C.textBright))
+        move:SetText(string.format("%s  →  %s   |cff7CC06E+%d|r",
+            R.SHORT[R.STATS[row.target.src]],
+            R.SHORT[R.STATS[row.target.dst]],
+            row.target.amount))
+    else
+        move:SetTextColor(unpack(C.textDim))
+        move:SetText("—")
+    end
+
+    if row.warning and not row.problem then
         -- Der Widerspruch verbietet nichts (siehe modules/reforge_engine.lua),
         -- aber er steht an der Zeile: die Betraege daran sind unsicher.
         slot:SetTextColor(unpack(C.gold))
         slot:SetText(row.slotName .. "  ·  " .. row.warning)
     end
 
-    if not row.problem then
-        if row.target then
-            move:SetTextColor(unpack(C.textBright))
-            move:SetText(string.format("%s  →  %s   |cff7CC06E+%d|r",
-                R.SHORT[R.STATS[row.target.src]],
-                R.SHORT[R.STATS[row.target.dst]],
-                row.target.amount))
-        else
-            move:SetTextColor(unpack(C.textDim))
-            move:SetText("—")
-        end
+    local text = row.problem or row.reason
+    local height = ROW_H
+    if text and text ~= "" then
+        local why = Text(frame, 10)
+        why:SetPoint("TOPLEFT",  frame, "TOPLEFT",  38, -(ROW_H - 6))
+        why:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -(ROW_H - 6))
+        why:SetJustifyH("LEFT")
+        local tone = row.problem and "textDim" or (row.reasonTone or "textDim")
+        why:SetTextColor(unpack(C[tone] or C.textDim))
+        why:SetText(text)
+
+        local ok, h = pcall(why.GetStringHeight, why)
+        h = (ok and type(h) == "number" and h > 0) and h or 12
+        height = ROW_H - 4 + math.ceil(h) + 8
+        frame:SetHeight(height)
     end
 
     frame:SetScript("OnEnter", function(self)
@@ -261,7 +283,7 @@ local function DrawPlanRow(parent, x, y, width, row, index)
         RF.ShowPage()
     end)
 
-    return ROW_H + 4
+    return height + 4
 end
 
 --------------------------------------------------
@@ -311,6 +333,18 @@ local function BuildInspector(plan)
         blocks[#blocks + 1] = { type = "divider" }
         blocks[#blocks + 1] = { type = "header", text = "Nach dem Plan" }
         blocks[#blocks + 1] = { type = "rows", rows = rows }
+    end
+
+    -- WARUM DIESER PLAN? Dieselben Bloecke wie auf der Sockel- und der
+    -- Verzauberungsseite, aus derselben Quelle (WeintCodex.Charakter.
+    -- Rationale). Drei Seiten, ein Text: eine eigene Fassung hier waere
+    -- die dritte Gelegenheit auseinanderzulaufen — und die Gewichte und
+    -- Grenzen, um die es geht, sind ohnehin dieselben.
+    if WeintCodex.Charakter and WeintCodex.Charakter.Rationale then
+        blocks[#blocks + 1] = { type = "divider" }
+        for _, block in ipairs(WeintCodex.Charakter.Rationale("reforge")) do
+            blocks[#blocks + 1] = block
+        end
     end
 
     blocks[#blocks + 1] = { type = "divider" }
@@ -580,6 +614,22 @@ end
 
 local PokeRun   -- weckt den Lauf; unten definiert
 
+-- Der Stand, an dem sich das Fenster misst: je geplanter Zeile ein Zeichen
+-- fuer "sitzt schon" / "steht noch aus". Mehr braucht es nicht, denn
+-- waehrend eines Laufs steht der Plan fest — was sich aendert, sind genau
+-- diese Haken.
+local lastDrawnState = nil
+
+local function RunState()
+    local out = {}
+    for _, row in ipairs(RF.currentPlanRows or {}) do
+        if row.changed and not row.locked and not row.problem then
+            out[#out + 1] = SlotMatches(row.slot, row.target) and "+" or "."
+        end
+    end
+    return table.concat(out)
+end
+
 local function Tick()
     if not forgeCo then forgeTicking = false return end
     PokeRun()
@@ -613,7 +663,16 @@ PokeRun = function()
         return
     end
 
-    if forge and forge:IsShown() then RF.RefreshForge() end
+    -- NEU GEZEICHNET WIRD NUR, WENN SICH ETWAS GEAENDERT HAT.
+    -- Dieser Weckruf kommt viermal je Sekunde plus einmal je Ereignis; ein
+    -- Seitenaufbau je Weckruf waere ein Neuaufbau aller Zeilen fuer eine
+    -- Liste, an der sich meistens nichts getan hat — und WoW gibt Frames
+    -- nie wieder frei. Gefragt wird deshalb erst der billige Stand (die
+    -- Haken kommen aus dem Item-Link und liegen im Zwischenspeicher).
+    if forge and forge:IsShown() then
+        local state = RunState()
+        if state ~= lastDrawnState then RF.RefreshForge() end
+    end
 
     local ok, err = coroutine.resume(forgeCo)
     if not ok then
@@ -664,6 +723,7 @@ end
 
 local function RunReforge()
     RF.runLog = {}
+    for _, row in ipairs(RF.currentPlanRows or {}) do row.skipped = nil end
 
     for _, row in ipairs(RF.currentPlanRows or {}) do
         if not forgeCo then return end
@@ -676,27 +736,45 @@ local function RunReforge()
                 return
             end
 
+            -- LIEGT DA UEBERHAUPT NOCH DASSELBE TEIL?
+            --
             -- Die laufende Nummer haengt an den Werten des
-            -- GRUNDgegenstands, und die aendert das Umschmieden nicht.
-            -- Sie stammt deshalb aus der Planzeile und nicht aus einem
-            -- frischen Scan mitten im Lauf.
+            -- GRUNDgegenstands, und die aendert das Umschmieden nicht —
+            -- sie stammt deshalb aus der Planzeile und nicht aus einem
+            -- frischen Scan mitten im Lauf. Diese Ableitung haelt aber nur
+            -- so lange, wie in dem Slot noch der Gegenstand steckt, fuer
+            -- den geplant wurde. Wer waehrend des Laufs etwas anlegt,
+            -- bekaeme sonst die Nummer eines fremden Gegenstands
+            -- geschickt, und die zeigt auf irgendeine andere Umschmiedung.
+            -- Das ist der eine Fehler dieser Datei, der Gold kostet, also
+            -- wird er nicht abgewogen, sondern uebersprungen.
+            local liveLink = GetInventoryItemLink("player", row.slot)
+            local liveId   = liveLink and tonumber(liveLink:match("|Hitem:(%d+)"))
             local index
-            if row.target then
-                index = RE.ForgeIndex(row, row.target.src, row.target.dst)
+
+            if row.itemId and liveId and liveId ~= row.itemId then
+                row.skipped = true
+                Say(WeintCodex.ColorText("warning", row.slotName
+                    .. ": dort liegt inzwischen ein anderer Gegenstand — übersprungen."))
             else
-                index = RE.UNFORGE_INDEX
+                if row.target then
+                    index = RE.ForgeIndex(row, row.target.src, row.target.dst)
+                else
+                    index = RE.UNFORGE_INDEX
+                end
+                if not index then
+                    -- Kein gueltiger Auftrag fuer diesen Gegenstand: lieber
+                    -- ueberspringen als irgendeine Nummer schicken. Welche
+                    -- das waere, wuesste hinterher niemand.
+                    row.skipped = true
+                    Say(WeintCodex.ColorText("warning", row.slotName
+                        .. ": diese Umschmiedung ist für den Gegenstand nicht"
+                        .. " zulässig — übersprungen."))
+                end
             end
 
-            if not index then
-                -- Kein gueltiger Auftrag fuer diesen Gegenstand: lieber
-                -- ueberspringen als irgendeine Nummer schicken. Welche das
-                -- waere, wuesste hinterher niemand.
-                Say(WeintCodex.ColorText("warning",
-                    row.slotName .. ": diese Umschmiedung ist für den Gegenstand"
-                    .. " nicht zulässig — übersprungen."))
-            else
-                local entry = LogLine(row, index,
-                    GetInventoryItemLink("player", row.slot))
+            if index then
+                local entry = LogLine(row, index, liveLink)
 
                 ClearCursor()
                 PickupInventoryItem(row.slot)
@@ -728,7 +806,7 @@ local function RunReforge()
         local offen = 0
         for _, row in ipairs(RF.currentPlanRows or {}) do
             if row.changed and not row.locked and not row.problem
-               and not SlotMatches(row.slot, row.target) then
+               and not row.skipped and not SlotMatches(row.slot, row.target) then
                 offen = offen + 1
             end
         end
@@ -740,7 +818,7 @@ local function RunReforge()
     local offen = {}
     for _, row in ipairs(RF.currentPlanRows or {}) do
         if row.changed and not row.locked and not row.problem
-           and not SlotMatches(row.slot, row.target) then
+           and not row.skipped and not SlotMatches(row.slot, row.target) then
             offen[#offen + 1] = row.slotName
         end
     end
@@ -1042,6 +1120,8 @@ function RF.RefreshForge()
 
     forge:SetHeight(FORGE_HDR + 6 + shown * FORGE_ROW
         + (shown > 0 and 48 or 10) + (shown > 0 and 22 or 8))
+
+    lastDrawnState = forgeCo and RunState() or nil
 end
 
 function RF.ShowForge(manual)
@@ -1180,7 +1260,16 @@ watcher:SetScript("OnEvent", function(_, event)
         -- abgearbeitet, und ihn nach jedem Gegenstand zu verwerfen hiess:
         -- nach dem Lauf steht erst einmal keiner mehr da, und der naechste
         -- Klick tut sichtbar nichts, weil er auf die Neuberechnung wartet.
-        if forgeCo then PokeRun() else RE.Invalidate() end
+        if forgeCo then
+            PokeRun()
+        else
+            -- Von Hand umgeschmiedet: der Plan ist damit ueberholt, und
+            -- die offene Liste soll das auch zeigen. Entprellt wie ueberall
+            -- hier, weil beim Einlegen und beim Umschmieden je ein
+            -- Ereignis kommt.
+            RE.Invalidate()
+            Redraw()
+        end
     elseif event == "PLAYER_EQUIPMENT_CHANGED" and forgeCo then
         -- Der umgeschmiedete Gegenstand kommt als Ausruestungsaenderung
         -- zurueck — haeufig frueher als das Umschmieder-Ereignis. Der Lauf
@@ -1348,18 +1437,29 @@ function RF.Dump()
     -- die Bestaetigung nach einem Auftrag kommt nie an.
     local learned = RE.LearnedField and RE.LearnedField()
     print("  " .. WeintCodex.ColorText("textFaint", "— Item-Links —")
-        .. (learned and WeintCodex.ColorText("green",
-            "  Umschmiedefeld am Client abgelesen: Position " .. learned) or ""))
+        .. (learned and WeintCodex.ColorText("gold",
+            "  Rueckfallweg: Feldposition am Tooltip gelernt (" .. learned .. ")") or ""))
     for _, row in ipairs(plan.rows) do
         local parts = RE.LinkParts and RE.LinkParts(row.link)
         if parts then
             local out = {}
             for i = 1, #parts do out[i] = tostring(parts[i] or "-") end
             print(string.format("  %-12s %s", row.slotName, table.concat(out, ":")))
-            print("    " .. WeintCodex.ColorText("textFaint",
-                (row.current
-                    and ("gelesen aus Feld " .. tostring(row.linkField or "?"))
-                    or "keine Umschmiedung gelesen")
+            -- "client" heisst belegt (der Client hat den Link selbst
+            -- zerlegt), alles andere heisst geraten. Genau dieser
+            -- Unterschied ist die Auskunft, die man braucht, wenn ein
+            -- Auftrag nicht ankommt.
+            local how = "keine Umschmiedung gelesen"
+            if row.current then
+                if row.linkSource == "client" then
+                    how = WeintCodex.ColorText("green", "vom Client zerlegt")
+                        .. " (Feld " .. tostring(row.linkField or "?") .. ")"
+                else
+                    how = "geraten: " .. tostring(row.linkSource or "?")
+                        .. " (Feld " .. tostring(row.linkField or "?") .. ")"
+                end
+            end
+            print("    " .. WeintCodex.ColorText("textFaint", how
                 .. "  ·  Client sagt: " .. (row.tooltipReforged == true and "umgeschmiedet"
                     or row.tooltipReforged == false and "nicht umgeschmiedet"
                     or "keine Auskunft")))
