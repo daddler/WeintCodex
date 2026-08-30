@@ -217,6 +217,43 @@ end
 --------------------------------------------------
 
 local function ViewWindow(y)
+    --------------------------------------------------
+    -- Zuerst die Frage, die ueber alles andere entscheidet: soll das
+    -- Addon auf DIESEM Charakter von selbst mitreden? (core/optin.lua)
+    -- Sie steht oben, weil alle Schalter darunter wirkungslos sind,
+    -- solange sie mit Nein beantwortet ist.
+    --------------------------------------------------
+    if WeintCodex.OptIn then
+        local who = WeintCodex.OptIn.CharacterName() or "diesem Charakter"
+        y = Group(y, "Auf diesem Charakter",
+            "WeintCodex meldet sich von selbst: Ausrüstungs-Alarm,"
+            .. " Rotationshelfer an der Puppe, Fenster beim Umschmieder,"
+            .. " Einkaufsliste am Auktionshaus. Hier steht, ob es das auf"
+            .. " " .. who .. " tun soll.")
+
+        y = Toggle(y, {
+            label = "Hier von selbst mitreden",
+            description = "Aus: WeintCodex fängt auf " .. who .. " kein Gespräch"
+                .. " mehr an. Das Addon selbst bleibt vollständig da – /wc"
+                .. " öffnet es wie immer. (/wc hier stellt die Frage erneut)",
+            get = function() return WeintCodex.OptIn.Active() end,
+            set = function(on) WeintCodex.OptIn.SetActive(on) end,
+        })
+
+        y = Slider(y, {
+            label  = "Erst ab Gegenstandsstufe fragen",
+            -- Unter dieser Stufe wird die Frage gar nicht erst gestellt:
+            -- wer sich hochspielt, tauscht jede Stunde etwas und braucht
+            -- keine Auskunft ueber Sockelboni.
+            min    = 400, max = 600, step = 10,
+            get    = function() return WeintCodex.OptIn.MinIlvl() end,
+            set    = function(v) WeintCodex.OptIn.SetMinIlvl(v) end,
+            format = function(v) return tostring(math.floor(v + 0.5)) end,
+        })
+
+        y = Spacer(y, 8)
+    end
+
     y = Group(y, "Hauptfenster",
         "Wie sich das WeintCodex-Fenster gegenüber der Oberfläche des Spiels"
         .. " verhält.")
@@ -281,6 +318,25 @@ local function ViewWindow(y)
         set = function(on)
             if WeintCodex.Minimap and WeintCodex.Minimap.SetShown then
                 WeintCodex.Minimap.SetShown(on)
+            end
+        end,
+    })
+
+    y = Spacer(y, 8)
+    y = Group(y, "Auktionshaus")
+
+    y = Toggle(y, {
+        label = "Einkaufsliste beim Auktionshaus zeigen",
+        description = "Was an Steinen und Verzauberungen fehlt, sobald du das"
+            .. " Auktionshaus öffnest. Ein Klick auf eine Zeile sucht danach."
+            .. " (/wc einkauf)",
+        get = function()
+            return WeintCodex.ShoppingList and WeintCodex.ShoppingList.GetOption
+                and WeintCodex.ShoppingList.GetOption("enabled")
+        end,
+        set = function(on)
+            if WeintCodex.ShoppingList and WeintCodex.ShoppingList.SetOption then
+                WeintCodex.ShoppingList.SetOption("enabled", on)
             end
         end,
     })

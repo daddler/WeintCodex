@@ -318,6 +318,41 @@ do
     if wrong > 0 then fails = fails + 1 end
 end
 
+--== Eigene Priorisierung wirkt ohne erzwungenen Lauf =====================
+-- Der Plan haelt sein Ergebnis fest, bis sich seine Kennung aendert. Stehen
+-- die Gewichte nicht darin, aendert eine neue Priorisierung gar nichts —
+-- genau das war bis 2.7.2.0 der Fall, und es sah aus wie "die eigene Prio
+-- klappt nicht beim Umschmieden".
+do
+    local ITEMS = { { crit = 480, haste = 320 }, { crit = 420, mastery = 300 },
+                    { haste = 510, mastery = 260 } }
+    local RATINGS = { [6] = 1500, [9] = 1000, [18] = 900, [26] = 950, [24] = 200 }
+
+    setup(ITEMS, { crit = 100, haste = 20, mastery = 20, hit = 10,
+                   expertise = 10, spirit = 0, dodge = 0, parry = 0 }, {}, RATINGS)
+    local a = RE.GetPlan()
+    local function Shape(plan)
+        local out = {}
+        for _, row in ipairs(plan.rows or {}) do
+            out[#out + 1] = row.target
+                and (R.STATS[row.target.src] .. ">" .. R.STATS[row.target.dst]) or "-"
+        end
+        return table.concat(out, ",")
+    end
+    local shapeA = Shape(a)
+
+    -- NUR die Gewichte aendern - keine Ausruestung, keine Kampfwertung.
+    CAPCTX.profile.statWeights = { mastery = 100, crit = 20, haste = 20,
+                                   hit = 10, expertise = 10,
+                                   spirit = 0, dodge = 0, parry = 0 }
+    local b = RE.GetPlan()          -- ausdruecklich OHNE force
+    local shapeB = Shape(b)
+
+    print(string.format("%-34s %s", "Eigene Gewichtung wirkt sofort",
+        (shapeA ~= shapeB) and "ok" or ("ABWEICHUNG - Plan blieb: " .. shapeA)))
+    if shapeA == shapeB then fails = fails + 1 end
+end
+
 --== Die Schreibweisen des Clients =========================================
 -- DIE STELLE, AN DER 2.7.1.0 GESCHEITERT IST.
 --

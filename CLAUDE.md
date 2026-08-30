@@ -94,6 +94,8 @@ Every colour name of the v1 palette still resolves, now pointing at the new valu
 
 `statWeights` in `spec_profiles.lua` looks like decoration and is not: it decides whether the Sockel page tells a player to keep or break a socket bonus. A socket gives either 160 primary or 320 secondary, a hybrid 80 + 160, so the decision reduces to one ratio — for plate melee, the pure crit gem only beats hybrid + bonus once crit is worth **0.8 strength or more per point**. The warrior DPS profiles carried 0.80/0.82 through 2.0.1.0 and therefore recommended re-gemming away from a bonus the maths says to keep (in MoP 320 crit ≈ 160 strength, i.e. ~0.5). A weight is a statement about the game, not a knob to tune until the list looks right; change one and re-check the socket-bonus verdicts, not just the ordering.
 
+Denselben Fehler in die andere Richtung trug `MONK_WINDWALKER` bis 2.7.2.0: Meisterschaft stand auf 55 und damit deutlich unter Krit (68), während die eigene gelbe Steinliste den Meisterschafts-Stein an erster Stelle führt. Gemeldet wurde es als „falsche Werte beim Windläufer" — und es war beides, ein zu niedriges Gewicht und der Widerspruch, den `WeintCodex_ValidateGemWeights()` genau dafür meldet.
+
 **A weight never overrides a curated list, though.** Several profiles' weights contradict their own `bestGems`: `HUNTER_MARKSMANSHIP` weighs crit 80 against agility 100, so 320 crit (25,600) outscores 160 agility (16,000) while its own `prismatic` list says the agility gem. Ranking a candidate pool purely by weight would therefore tell every hunter to gem crit. Where the two disagree the **list decides**, and `WeintCodex_ValidateGemWeights()` reports the contradiction at login rather than letting it quietly decide anything.
 
 ### Sockel: der Client liefert die Fakten, eine Rechnung entscheidet
@@ -176,7 +178,7 @@ Vier Regeln, die nicht Geschmack sind:
 
 **Das Werkzeug ist ab Werk AUS** (`SavedData.reforge.options.enabled`, Schalter unter *Einstellungen → Umschmieden*), und der Hinweis auf den Entwicklungsstand steht an allen drei Stellen — Einstellung, Seite, Fenster —, nicht nur an einer. Es gibt Gold aus, und die *Datenlage* (Spec-Gewichte, Cap-Prozentsätze) ist am laufenden Client nicht geprüft; ein Beta-Werkzeug, das von selbst mitredet, ist der Grund, warum man Addons abschaltet. Der Navigationseintrag hängt deshalb in der Charakter-Seitenleiste und erscheint dort nur, wenn der Schalter an ist: ein ausgegrauter Reiter verspricht etwas, das nicht da ist. (Er hängt ausserdem dort und nicht in der Navigationsspalte, weil die bei 676 von 684 px steht — siehe der Kommentar über der `tabs`-Tabelle.)
 
-Dazu drei Umsetzungsdetails: **während eines Laufs wird nicht neu geplant** (nach jedem Teil ändert sich der Item-Link, und ein Planer, der mitten im Lauf seine Meinung ändert, schmiedet das nächste Teil anders als in der Liste, auf die geklickt wurde — die Haken kommen trotzdem aus dem Link und sind damit der echte Stand); die **Kennung für „neu rechnen" wird billig gebildet**, nur aus Links, Sperren, Spec und den acht Kampfwertungen, weil das Fenster während eines Laufs nach jedem Gegenstand nachfragt; und das **Neuzeichnen ist entprellt** (1,5 s), weil `PLAYER_EQUIPMENT_CHANGED` beim Umsockeln mehrfach feuert und jeder Seitenaufbau Frames anlegt, die WoW nie wieder freigibt.
+Dazu drei Umsetzungsdetails: **während eines Laufs wird nicht neu geplant** (nach jedem Teil ändert sich der Item-Link, und ein Planer, der mitten im Lauf seine Meinung ändert, schmiedet das nächste Teil anders als in der Liste, auf die geklickt wurde — die Haken kommen trotzdem aus dem Link und sind damit der echte Stand); die **Kennung für „neu rechnen" wird billig gebildet**, aus Links, Sperren, Spec, den acht Kampfwertungen und den *wirksamen Gewichten samt selbst gesetzten Schwellenzielen*, weil das Fenster während eines Laufs nach jedem Gegenstand nachfragt — die Gewichte fehlten bis 2.7.2.0 darin, und deshalb tat die eigene Priorisierung beim Umschmieden sichtbar nichts: was den Suchlauf steuert, muss in seiner Kennung stehen, sonst ist der Zwischenspeicher eine Antwort auf eine andere Frage; und das **Neuzeichnen ist entprellt** (1,5 s), weil `PLAYER_EQUIPMENT_CHANGED` beim Umsockeln mehrfach feuert und jeder Seitenaufbau Frames anlegt, die WoW nie wieder freigibt.
 
 Der Lauf selbst ist eine Koroutine, die nach jedem Auftrag anhält — der Server gibt den Takt vor, dieselbe Bauform wie in ReforgeLite.
 
@@ -508,6 +510,28 @@ Bis 1.3.2.3 schlug **die gelieferte Identität den eingeloggten Charakter**: `ac
 - **Die Academy liegt je Charakter.** `SavedData.academy.states[<Charakter>]` / `.catalogs[…]` / `.lastCharacter`; die Migration des alten Einzelplatzes passiert in `AcademyStore()`, damit jeder Einstiegspunkt sie mitbekommt. Liegt für den eingeloggten Charakter nichts vor, nennt die Hinweiskarte den zuletzt gelieferten Charakter — **nie wird eine fremde Auswertung als eigene gezeichnet**. `character == "-"` (so meldete eine ältere Companion „Spieler im Pull nicht gefunden") gilt als unbeschriftet und landet beim eingeloggten Charakter.
 - **Der Katalog trägt keine Identität.** Er wird als `store.pendingCatalog` zwischengelegt und von der unmittelbar folgenden `academy_state`-Nachricht übernommen. Das trägt nur, weil `core/addon_analysis_sync.py` Katalog **vor** Zustand in einer geordneten Liste veröffentlicht — eine unsichtbare Kopplung, die in beiden Dateien kommentiert ist.
 - **`/wc access reset`** löscht über `Companion.ResetDeliveredAnalysis()` gezielt `states`/`catalogs`/`lastCharacter`. `academy` steht bewusst **nicht** in `GUILD_KEYS`: `completed`/`excluded` ist eigener Lernfortschritt, weder gildenintern noch aus fremden Raids abgeleitet — ihn zu löschen wäre Datenverlust im Gewand der Hygiene.
+
+### Mitreden — ja oder nein? (`core/optin.lua`, seit 2.7.2.0)
+
+WeintCodex meldet sich von selbst: der Ausrüstungs-Alarm springt ins Bild, der Rotationshelfer geht an der Puppe auf, das Umschmieder-Fenster öffnet sich beim Umschmieder, am Auktionshaus steht die Einkaufsliste. Auf dem Charakter, den man spielt, ist das der Sinn. Auf einem Zweitcharakter ist es Lärm.
+
+**Die Frage wird gestellt, nicht geraten.** Ob ein Charakter ein Twink ist, kann das Addon nicht wissen, und jede Regel, die es zu erraten versucht (der mit der niedrigsten Stufe? der zuletzt erstellte? der ohne Berufe?), liegt irgendwann daneben und schaltet ausgerechnet dort ab, wo man mitreden lassen wollte. Also wird einmal gefragt und die Antwort behalten (`SavedData.optIn.chars[<Charakter>]`, Schlüssel aus `core/names.lua`).
+
+**Gefragt wird erst ab einer Gegenstandsstufe** (`SavedData.optIn.minIlvl`, ab Werk 520). Vorher hat die Frage keinen Anlass: wer sich hochspielt, tauscht jede Stunde etwas. Und nicht bei `PLAYER_LOGIN` — dort meldet der Client die Gegenstandsstufe oft noch als 0, und eine 0 ist eine Aussage über den Ladezustand, keine über den Charakter (dieselbe Begründung wie beim Ausrüstungsbericht und beim Ausrüstungs-Alarm).
+
+**Was „Nein" heisst, steht in der Frage.** Nicht „das Addon ist aus": `/wc` öffnet es weiterhin vollständig, und alles, was man selbst aufruft, funktioniert unverändert — `/wc alarm jetzt` eingeschlossen. Nein heisst: hier wird kein Gespräch angefangen. Eine Frage, deren Antwort man nur durch Ausprobieren erfährt, ist keine.
+
+`OI.Active()` ist die eine Stelle, an der das beantwortet wird; vier Flächen lesen sie. **Im Zweifel ja** — ohne Antwort, ohne Namen, ohne alles verhält sich das Addon wie vor 2.7.2.0, dieselbe Zurückhaltung wie bei `Can()` in `core/access.lua`.
+
+### Einkaufsliste (`modules/shoppinglist.lua`, seit 2.7.2.0)
+
+Was fehlt, wusste das Addon längst — nur stand es auf einer Seite, die man vor dem Auktionshaus aufmacht, sich merkt und dann zur Hälfte vergisst. Der Ort, an dem die Auskunft gebraucht wird, ist das Auktionshaus.
+
+**Sie rechnet nichts.** Gelesen wird `WeintCodex.Charakter.Scan()`; gezählt und zusammengefasst wird hier. Eine zweite Bewertung nebenher wäre genau die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist.
+
+**Was drauf kommt, ist ein Einkauf und kein Befund:** leerer Sockel, ein Stein mit dem Urteil *falsch* oder *über Cap*, eine fehlende Verzauberung. Ein Stein mit dem Urteil *ok* ist eine Abwägung und steht auf der Sockelseite — eine Einkaufsliste, auf der Dinge stehen, die man nicht braucht, wird nicht benutzt. Zeilen ohne Basisdaten des Clients (`socketsKnown == false`) kommen nicht drauf: das wäre eine Aussage über den Item-Cache.
+
+**Und sie sucht selbst** (`BrowseName` + `AuctionFrameBrowse_Search`). Der Klick ist das Hardware-Ereignis, also ist das erlaubt; gefragt wird trotzdem erst, ob es die Felder gibt, denn die Oberfläche des Auktionshauses wird nachgeladen. **Findet der Client sie nicht, sagt die Zeile das** und nennt den Namen — statt stillschweigend nichts zu tun. Für Verzauberungen wird der Name aus `data/enchants.lua` gesucht: in MoP handeln Verzauberer über Pergamente, und die heissen im Auktionshaus wie die Verzauberung. Ohne Namen wird nicht geraten.
 
 ### Einstellungen (`modules/settings.lua`)
 

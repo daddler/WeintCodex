@@ -1232,6 +1232,12 @@ local shownContext = nil
 --          Frage, ob die Meldung noch einmal kommt.
 local function RunCheck(reason, slotFilter, force, yields)
     if not Store().enabled and reason ~= "manual" then return end
+    -- "Hier nicht mitreden" (siehe core/optin.lua) betrifft genau diese
+    -- Sorte Meldung: eine, die man nicht angefordert hat. `/wc alarm jetzt`
+    -- bleibt davon unberuehrt — was man selbst aufruft, kommt auch.
+    if reason ~= "manual" and WeintCodex.OptIn and not WeintCodex.OptIn.Active() then
+        return
+    end
 
     if reason ~= "manual" and UnitAffectingCombat("player") then
         queued = { reason = reason, filter = slotFilter, force = force,

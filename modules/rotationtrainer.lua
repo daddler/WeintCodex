@@ -1667,7 +1667,10 @@ watcher:SetScript("OnEvent", function(self, event, unit, ...)
         local npcId = TargetNpcId("target")
         dummyDetected = npcId ~= nil and DUMMY_NPC_IDS[npcId] == true
 
-        if dummyDetected and Settings().auto then
+        -- Von selbst aufgehen tut es nur, wo das gewuenscht ist
+        -- (core/optin.lua). `/wc training` oeffnet es unveraendert.
+        if dummyDetected and Settings().auto
+           and not (WeintCodex.OptIn and not WeintCodex.OptIn.Active()) then
             WeintCodex.RotationTrainer.Show()
         end
 

@@ -1204,9 +1204,16 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5 },
         },
+        -- Meisterschaft lag hier bei 55 und damit deutlich unter Krit (68)
+        -- — waehrend die eigene gelbe Steinliste den MEISTERSCHAFTS-Stein
+        -- an erster Stelle fuehrt. Das ist genau der Widerspruch, den
+        -- WeintCodex_ValidateGemWeights() meldet: die kuratierte Liste
+        -- entscheidet, das Gewicht sagte etwas anderes. Am Spiel gemessen
+        -- liegen Krit und Meisterschaft beim Windlaeufer dicht beieinander;
+        -- das Gewicht sagt das jetzt auch.
         statWeights = {
             agility = 100, hit = 88, expertise = 85,
-            haste = 75, crit = 68, mastery = 55, stamina = 10,
+            haste = 75, crit = 68, mastery = 66, stamina = 10,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },

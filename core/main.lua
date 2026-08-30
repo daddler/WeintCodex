@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.7.1.2"
+WeintCodex.Version = "2.7.2.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -144,6 +144,26 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if cmd == "sockel" or cmd == "sockets" then
         if WeintCodex.Charakter and WeintCodex.Charakter.DumpSockets then
             WeintCodex.Charakter.DumpSockets()
+        end
+        return
+    end
+
+    -- Einkaufsliste: was an Steinen und Verzauberungen fehlt. Geht am
+    -- Auktionshaus von selbst auf; der Befehl ist der Weg dahin, wenn man
+    -- vorher wissen will, was man braucht.
+    if cmd == "einkauf" or cmd == "einkaufsliste" or cmd == "shopping" then
+        if WeintCodex.ShoppingList and WeintCodex.ShoppingList.Toggle then
+            WeintCodex.ShoppingList.Toggle()
+        end
+        return
+    end
+
+    -- Die Frage "soll WeintCodex auf diesem Charakter von selbst mitreden?"
+    -- noch einmal stellen (siehe core/optin.lua). Sie kommt sonst genau
+    -- einmal je Charakter.
+    if cmd == "hier" or cmd == "mitreden" then
+        if WeintCodex.OptIn and WeintCodex.OptIn.Ask then
+            WeintCodex.OptIn.Ask(true)
         end
         return
     end

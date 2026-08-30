@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.2.0",
+        date    = "30.08.2026",
+        notes   = {
+            "Neu: Ab Gegenstandsstufe 520 fragt WeintCodex einmal je Charakter, ob es dort von selbst mitreden soll. Nein heisst: keine Einblendungen mehr - |cffD4A24A/wc|r oeffnet es trotzdem.",
+            "Neu: |cffD4A24AEinkaufsliste|r am Auktionshaus. Sie zeigt, welche Steine und Verzauberungen dir fehlen; ein Klick sucht danach. Auch ueber |cffD4A24A/wc einkauf|r.",
+            "Behoben: Die eigene Priorisierung wirkte beim Umschmieden nicht - der Plan hat die neuen Gewichte nie zu Gesicht bekommen. Jetzt wirkt sie sofort.",
+            "Windlaeufer-Moench: Meisterschaft ist jetzt ungefaehr so viel wert wie kritische Trefferwertung.",
+            "Beim Umschmieden steht an jeder Grenze, wieviel noch fehlt oder darueber liegt - und was den Rest schliesst.",
+        },
+    },
+    {
         version = "2.7.1.2",
         date    = "30.08.2026",
         notes   = {

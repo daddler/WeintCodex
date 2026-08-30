@@ -318,21 +318,53 @@ local function BuildInspector(plan)
           valueColor = gain > 0.05 and "green" or "textFaint" },
     }}
 
+    --------------------------------------------------
+    -- WAS AM KAP UEBRIG BLEIBT, WIRD BEZIFFERT.
+    --
+    -- Umschmieden bewegt je Gegenstand 40 % EINES Sekundaerwerts — einen
+    -- festen Brocken, keinen frei waehlbaren Betrag. Eine Grenze exakt zu
+    -- treffen ist deshalb Glueckssache, und der Suchlauf findet
+    -- nachweislich das Beste, was mit diesen Brocken zu erreichen ist
+    -- (siehe der Testlauf unter .github/tests/). Was er NICHT kann, ist
+    -- den Rest wegzaubern.
+    --
+    -- Also wird er benannt, und zwar mit der Zahl und mit dem, was ihn
+    -- schliesst: unter der Grenze ein Stein oder eine Verzauberung, ueber
+    -- der Grenze liegt Wertung brach. "Erreicht" allein verschweigt einen
+    -- Ueberschuss von 300, und genau der ist die Wertung, die verschenkt
+    -- wird.
+    --------------------------------------------------
     local targets = RE.TargetSummary(plan)
     if #targets > 0 then
-        local rows = {}
+        local rows, notes = {}, {}
         for _, entry in ipairs(targets) do
-            local reached = entry.after >= entry.target - 1
-            rows[#rows + 1] = {
-                label = entry.label,
-                value = reached and "erreicht"
-                    or string.format("−%s", Rating(entry.target - entry.after)),
-                valueColor = reached and "green" or "gold",
-            }
+            local diff  = entry.after - entry.target
+            local value, color
+            if diff >= -1 and diff <= 1 then
+                value, color = "genau am Ziel", "green"
+            elseif diff < -1 then
+                value, color = "−" .. Rating(-diff), "gold"
+                notes[#notes + 1] = string.format(
+                    "%s: es fehlen noch %s. Umschmieden gibt nicht mehr her –"
+                    .. " das schließt ein Stein oder eine Verzauberung.",
+                    entry.label, Rating(-diff))
+            else
+                value, color = "+" .. Rating(diff), "violet"
+                notes[#notes + 1] = string.format(
+                    "%s: %s liegen darüber und bringen nichts mehr."
+                    .. " Feiner geht es mit Umschmieden nicht – es bewegt je"
+                    .. " Teil einen festen Brocken.",
+                    entry.label, Rating(diff))
+            end
+            rows[#rows + 1] = { label = entry.label, value = value, valueColor = color }
         end
         blocks[#blocks + 1] = { type = "divider" }
         blocks[#blocks + 1] = { type = "header", text = "Nach dem Plan" }
         blocks[#blocks + 1] = { type = "rows", rows = rows }
+        for _, text in ipairs(notes) do
+            blocks[#blocks + 1] = { type = "text", size = 9, color = "textFaint",
+                                    text = text }
+        end
     end
 
     -- WARUM DIESER PLAN? Dieselben Bloecke wie auf der Sockel- und der
@@ -1292,7 +1324,8 @@ watcher:SetScript("OnEvent", function(_, event)
         NoteRefill()
     elseif event == "FORGE_MASTER_OPENED" then
         RE.Invalidate()
-        if RE.Enabled() and RE.GetOption("autoOpen") then
+        if RE.Enabled() and RE.GetOption("autoOpen")
+           and not (WeintCodex.OptIn and not WeintCodex.OptIn.Active()) then
             RF.ShowForge(false)
         end
     elseif event == "FORGE_MASTER_CLOSED" then

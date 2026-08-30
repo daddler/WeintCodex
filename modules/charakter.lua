@@ -1684,8 +1684,14 @@ function WeintCodex.Charakter.SetStatTarget(stat, entry)
     if not store then return end
     store[key] = store[key] or {}
     store[key][stat] = entry
-    -- Kein Cache zu leeren: ScanCharacter rechnet bei jedem Aufbau neu,
-    -- und die Aufrufer zeichnen die Seite direkt danach.
+    -- Der Ausruestungs-Scan rechnet bei jedem Aufbau neu, die Aufrufer
+    -- zeichnen die Seite direkt danach — dort ist nichts zu leeren. Der
+    -- UMSCHMIEDE-PLAN dagegen haelt sein Ergebnis fest, bis sich seine
+    -- Kennung aendert, und ein Ziel ist eine Eingabe seines Suchlaufs.
+    -- Ohne diesen Wurf bliebe der Plan von vorher stehen.
+    if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Invalidate then
+        WeintCodex.ReforgeEngine.Invalidate()
+    end
 end
 
 --------------------------------------------------
@@ -6096,8 +6102,9 @@ function ShowPriorisierung()
     desc:SetPoint("TOPRIGHT", prioFrame, "TOPRIGHT", -16, -HEAD_H)
     desc:SetJustifyH("LEFT")
     desc:SetText("|cff4A4A52Gewichte 0-999: je höher, desto wichtiger ist der Wert für DICH (0 = egal). "
-        .. "Wirkt auf die Stein-Bewertung (Qualitäts-%, OK/Falsch) und die Empfehlungsauswahl bei Cap-Überschuss. "
-        .. "Empfehlungslisten der Spec und Treffer-/Waffenkunde-Caps bleiben unverändert.|r")
+        .. "Wirkt auf die Stein-Bewertung, die Empfehlungsauswahl und den Umschmiede-Plan. "
+        .. "Empfehlungslisten der Spec und Treffer-/Waffenkunde-Caps bleiben unverändert - "
+        .. "ein Pflicht-Cap wird also auch dann gefüllt, wenn du den Wert niedrig gewichtest.|r")
 
     -- Aktiv-Schalter
     local cb = CreateFrame("CheckButton", nil, prioFrame, "UICheckButtonTemplate")
@@ -6163,14 +6170,28 @@ function ShowPriorisierung()
             enabled = cb:GetChecked() and true or false,
             weights = w,
         }
+        -- DER UMSCHMIEDE-PLAN MUSS DAVON ERFAHREN.
+        -- Er haelt sein Ergebnis fest, bis sich seine Kennung aendert —
+        -- und eine geaenderte Gewichtung aendert weder Ausruestung noch
+        -- Kampfwertungen. Ohne diesen Wurf blieb der Plan von vorher
+        -- stehen, und die eigene Priorisierung tat beim Umschmieden
+        -- sichtbar nichts.
+        if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Invalidate then
+            WeintCodex.ReforgeEngine.Invalidate()
+        end
         print("|cffD4A24A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " gespeichert"
-            .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert)."))
+            .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert).")
+            .. " |cff4A4A52Sockel-, Verzauberungs- und Umschmiede-Vorschläge"
+            .. " rechnen ab sofort damit.|r")
         ShowPriorisierung()
     end)
     saveBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff - 8)
 
     local resetBtn = MakeBtn(prioFrame, "Auf Standard zurücksetzen", 180, 24, function()
         sd.customWeights[effKey] = nil
+        if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Invalidate then
+            WeintCodex.ReforgeEngine.Invalidate()
+        end
         print("|cffD4A24A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " auf Standard zurückgesetzt.")
         ShowPriorisierung()
     end)

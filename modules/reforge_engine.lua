@@ -1439,6 +1439,44 @@ local function Signature()
     local profileKey = WeintCodex.Charakter.GetProfileKey
                        and WeintCodex.Charakter.GetProfileKey() or "?"
     local parts = { tostring(profileKey) }
+
+    --------------------------------------------------
+    -- DIE EIGENE PRIORISIERUNG GEHOERT IN DIE KENNUNG.
+    --
+    -- Sie stand nicht darin, und genau deshalb hat sie beim Umschmieden
+    -- nichts bewirkt: wer seine Gewichte aendert, aendert weder die
+    -- Ausruestung noch die Kampfwertungen, die Kennung blieb also gleich —
+    -- und `GetPlan` gab den zwischengespeicherten Plan von vorher zurueck.
+    -- Der Planer hat die neuen Gewichte nie zu Gesicht bekommen.
+    --
+    -- Aufgenommen werden die WIRKSAMEN Gewichte (das Spec-Profil traegt
+    -- die eigenen bereits eingerechnet) und die selbst gesetzten
+    -- Tempo-Ziele. Beides sind Eingaben des Suchlaufs; was den Suchlauf
+    -- steuert, muss in seiner Kennung stehen.
+    --------------------------------------------------
+    local ctx = WeintCodex.Charakter.CapContext and WeintCodex.Charakter.CapContext()
+    local weights = ctx and ctx.profile and ctx.profile.statWeights
+    if weights then
+        for _, key in ipairs(R.STATS) do
+            parts[#parts + 1] = "w" .. tostring(weights[key] or 0)
+        end
+    end
+    -- Die selbst gesetzten Schwellenziele liegen unter dem WIRKSAMEN
+    -- Profilschluessel (Tanks: getrennt je Spielstil) — denselben, unter
+    -- dem sie gespeichert werden.
+    local targets = WeintCodex.SavedData and WeintCodex.SavedData.statTargets
+    local own = targets and ctx and ctx.profileKey and targets[
+        (ctx.tankStyle == "OFF") and (ctx.profileKey .. "_OFFENSIVE") or ctx.profileKey]
+    if type(own) == "table" then
+        for _, key in ipairs(R.STATS) do
+            local entry = own[key]
+            if type(entry) == "table" then
+                parts[#parts + 1] = "t" .. key .. (entry.mode or "?")
+                                    .. tostring(entry.pct or "")
+            end
+        end
+    end
+
     for _, slotDef in ipairs(slots) do
         parts[#parts + 1] = (GetInventoryItemLink("player", slotDef.id) or "-")
                             .. (RE.IsLocked(slotDef.id) and "!" or "")
