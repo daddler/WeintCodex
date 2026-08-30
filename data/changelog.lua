@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.1.1",
+        date    = "30.08.2026",
+        notes   = {
+            "Behoben: |cffD4A24AAlles umschmieden|r hat an den meisten Teilen etwas anderes angelegt, als auf der Seite stand - und hinterher gemeldet, sie seien \"nicht durchgekommen\".",
+            "Der Grund lag beim Addon: es hat an einem Gegenstand nur Willenskraft und Meisterschaft gesehen. Treffer, Krit, Tempo, Waffenkunde, Ausweichen und Parieren waren fuer es gar nicht da.",
+            "Damit hat es dem Umschmieder die falsche Zeile seiner Auswahl genannt. Jetzt liest es alle acht Werte.",
+            "Auch die Tempo-Schwellen rechnen dadurch wieder richtig - sie haben bisher unterschaetzt, wieviel sich durch Umschmieden noch bewegen laesst.",
+            "Und kommt kuenftig etwas anderes an als geplant, sagt der Lauf das ausdruecklich, statt es als \"nicht durchgekommen\" auszugeben.",
+        },
+    },
+    {
         version = "2.7.1.0",
         date    = "30.08.2026",
         notes   = {

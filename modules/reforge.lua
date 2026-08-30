@@ -815,11 +815,35 @@ local function RunReforge()
     end
     if not forgeCo then return end
 
-    local offen = {}
+    --------------------------------------------------
+    -- "NICHT DURCHGEKOMMEN" UND "ETWAS ANDERES ANGEKOMMEN" SIND ZWEI
+    -- ANTWORTEN, UND SIE RATEN ZU VOELLIG VERSCHIEDENEM.
+    --
+    -- Kam gar nichts an, hat der Umschmieder den Auftrag verschluckt — ein
+    -- erneuter Klick ist der richtige Rat. Kam etwas ANDERES an, war unsere
+    -- laufende Nummer falsch, und dann hilft kein zweiter Klick, sondern
+    -- nur eine Meldung: die Nummer haengt daran, welche Werte der
+    -- Gegenstand traegt, und wenn wir die falsch lesen, schmiedet der
+    -- Umschmieder verlaesslich das Falsche. Genau dieser Fall stand bis
+    -- 2.7.1.0 unter "nicht durchgekommen" und sah damit nach einem
+    -- Zeitproblem aus.
+    --------------------------------------------------
+    local offen, falsch = {}, {}
     for _, row in ipairs(RF.currentPlanRows or {}) do
         if row.changed and not row.locked and not row.problem
            and not row.skipped and not SlotMatches(row.slot, row.target) then
-            offen[#offen + 1] = row.slotName
+            local now = RE.CurrentPair(row.slot)
+            local was = row.current
+            local moved = (now ~= nil) ~= (was ~= nil)
+                or (now and was and (now.src ~= was.src or now.dst ~= was.dst))
+            if moved then
+                falsch[#falsch + 1] = row.slotName .. " ("
+                    .. (now and (R.SHORT[R.STATS[now.src]] .. " → "
+                                 .. R.SHORT[R.STATS[now.dst]]) or "zurückgesetzt")
+                    .. ")"
+            else
+                offen[#offen + 1] = row.slotName
+            end
         end
     end
 
@@ -829,16 +853,36 @@ local function RunReforge()
         for _, name in ipairs(offen) do
             if name == entry.name then entry.done = false end
         end
+        for _, text in ipairs(falsch) do
+            if text:sub(1, #entry.name) == entry.name then
+                entry.done, entry.wrong = false, true
+            end
+        end
     end
 
-    if #offen == 0 then
+    if #offen == 0 and #falsch == 0 then
         StopRun("Umschmieden abgeschlossen.")
-    else
+        return
+    end
+
+    if #falsch > 0 then
+        -- Der lautere der beiden Faelle, und mit Absicht: hier hat das
+        -- Addon Gold fuer etwas ausgegeben, das so nicht auf der Seite
+        -- stand.
+        Say(WeintCodex.ColorText("danger",
+            "Bei " .. #falsch .. " Teilen ist etwas anderes angekommen als geplant: ")
+            .. table.concat(falsch, ", ") .. ". Das liegt nicht am Umschmieder —"
+            .. " bitte |cffD4A24A/wc umschmieden pruefen|r ausführen und die"
+            .. " Ausgabe melden.")
+    end
+
+    if #offen > 0 then
         StopRun(WeintCodex.ColorText("warning",
             #offen .. " von " .. #RF.runLog .. " Teilen sind nicht durchgekommen: ")
             .. table.concat(offen, ", ") .. ". Ein erneuter Klick versucht sie noch"
-            .. " einmal; |cffD4A24A/wc umschmieden pruefen|r sagt, was dabei"
-            .. " gelesen wurde.")
+            .. " einmal.")
+    else
+        StopRun(nil)
     end
 end
 
@@ -1466,12 +1510,32 @@ function RF.Dump()
         end
     end
 
+    -- WIE HEISSEN DIE WERTE BEI DIESEM CLIENT?
+    -- Die laufende Nummer haengt daran, welche Werte ein Gegenstand
+    -- traegt. Liest das Addon einen davon gar nicht, zaehlt es eine andere
+    -- Zahl zulaessiger Umschmiedungen als der Client — und der Umschmieder
+    -- legt verlaesslich etwas anderes an. Genau daran lag 2.7.1.0.
+    local SM = WeintCodex.StatMatch
+    if SM and SM.ValidateStatKeys then
+        local ok = SM.ValidateStatKeys()
+        print("  " .. WeintCodex.ColorText("textFaint", "— Statnamen des Clients —")
+            .. "  " .. (ok and WeintCodex.ColorText("green", "alle acht lesbar")
+                           or WeintCodex.ColorText("danger", "unvollständig!")))
+        local unknown = SM.UnknownStatKeys and SM.UnknownStatKeys() or {}
+        if #unknown > 0 then
+            print("    " .. WeintCodex.ColorText("warning",
+                "nicht zugeordnet: ") .. table.concat(unknown, ", "))
+        end
+    end
+
     if RF.runLog and #RF.runLog > 0 then
         print("  " .. WeintCodex.ColorText("textFaint", "— letzter Umschmiede-Lauf —"))
         for _, e in ipairs(RF.runLog) do
             print(string.format("  %-12s Auftrag %s (%s) %s", e.name,
                 tostring(e.index), e.move,
                 e.done and WeintCodex.ColorText("green", "angekommen")
+                        or e.wrong and WeintCodex.ColorText("danger",
+                            "etwas ANDERES angekommen — laufende Nummer falsch")
                         or WeintCodex.ColorText("warning", "nicht bestätigt")))
             if not e.done then
                 print("    " .. WeintCodex.ColorText("textFaint",

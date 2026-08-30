@@ -254,27 +254,139 @@ end
 -- sie aber noch, deshalb landen sie auf denselben Schlüsseln.
 --------------------------------------------------
 
-local ITEM_MOD_MAP = {
-    ITEM_MOD_STRENGTH_SHORT            = "strength",
-    ITEM_MOD_AGILITY_SHORT             = "agility",
-    ITEM_MOD_INTELLECT_SHORT           = "intellect",
-    ITEM_MOD_STAMINA_SHORT             = "stamina",
-    ITEM_MOD_SPIRIT_SHORT              = "spirit",
-    ITEM_MOD_CRIT_RATING_SHORT         = "crit",
-    ITEM_MOD_CRIT_SPELL_RATING_SHORT   = "crit",
-    ITEM_MOD_CRIT_MELEE_RATING_SHORT   = "crit",
-    ITEM_MOD_CRIT_RANGED_RATING_SHORT  = "crit",
-    ITEM_MOD_HASTE_RATING_SHORT        = "haste",
-    ITEM_MOD_HASTE_SPELL_RATING_SHORT  = "haste",
-    ITEM_MOD_MASTERY_RATING_SHORT      = "mastery",
-    ITEM_MOD_HIT_RATING_SHORT          = "hit",
-    ITEM_MOD_HIT_SPELL_RATING_SHORT    = "hit",
-    ITEM_MOD_HIT_MELEE_RATING_SHORT    = "hit",
-    ITEM_MOD_HIT_RANGED_RATING_SHORT   = "hit",
-    ITEM_MOD_EXPERTISE_RATING_SHORT    = "expertise",
-    ITEM_MOD_DODGE_RATING_SHORT        = "dodge",
-    ITEM_MOD_PARRY_RATING_SHORT        = "parry",
+--------------------------------------------------
+-- DIE SCHREIBWEISE DER SCHLUESSEL IST NICHT UNSERE ENTSCHEIDUNG.
+--
+-- Bis 2.7.1.0 stand hier fuer JEDEN Wert die Endung `_SHORT`. Der Client
+-- benutzt sie aber nur bei den Grundwerten, bei Willenskraft und bei der
+-- Meisterschaft; Ausweichen, Parieren, Treffer, Krit, Tempo und
+-- Waffenkunde meldet er OHNE. Sechs der acht umschmiedbaren Werte fielen
+-- damit lautlos aus jeder Antwort von GetItemStats heraus.
+--
+-- Lautlos ist hier das Wort: eine unbekannte Endung liefert keinen Fehler,
+-- sondern eine kuerzere Tabelle. Die Sockelseite kam trotzdem durch, weil
+-- sie fuer Steine auf den Tooltip zurueckfaellt — der Umschmiede-Planer
+-- nicht: er zaehlt an genau diesen Werten ab, welche Umschmiedungen fuer
+-- einen Gegenstand zulaessig sind, und diese Zahl geht als LAUFENDE NUMMER
+-- an den Umschmieder. Ist die Statmenge falsch, ist die Nummer falsch, und
+-- der Umschmieder legt etwas anderes an, als auf der Seite stand. Genau so
+-- kamen von acht Auftraegen drei an.
+--
+-- Aufgeschrieben wird deshalb BEIDES, und die Reihenfolge ist die von
+-- ReforgeLite (dessen Liste am laufenden Client belegt ist). Beide
+-- Schreibweisen zu kennen kann nicht schaden: der Client schickt immer nur
+-- eine davon.
+--
+-- Und damit dasselbe nicht noch einmal still passieren kann, merkt sich
+-- SM.NormalizeItemStats jeden Schluessel, den es NICHT kennt — `/wc vz` und
+-- `/wc umschmieden pruefen` drucken ihn aus. Eine Zuordnung, deren Luecken
+-- man nur am Ergebnis bemerkt, ist keine.
+--------------------------------------------------
+
+local ITEM_MOD_MAP = {}
+
+do
+    -- [unser Schluessel] = { Schreibweisen des Clients }
+    local NAMES = {
+        strength  = { "ITEM_MOD_STRENGTH_SHORT",  "ITEM_MOD_STRENGTH"  },
+        agility   = { "ITEM_MOD_AGILITY_SHORT",   "ITEM_MOD_AGILITY"   },
+        intellect = { "ITEM_MOD_INTELLECT_SHORT", "ITEM_MOD_INTELLECT" },
+        stamina   = { "ITEM_MOD_STAMINA_SHORT",   "ITEM_MOD_STAMINA"   },
+        spirit    = { "ITEM_MOD_SPIRIT_SHORT",    "ITEM_MOD_SPIRIT"    },
+
+        -- Die sechs, die bis 2.7.1.0 gefehlt haben. Die Spell-/Melee-/
+        -- Ranged-Varianten stammen aus der Zeit getrennter Wertungen; MoP
+        -- fuehrt sie zusammen, aeltere Steine tragen sie aber noch.
+        crit      = { "ITEM_MOD_CRIT_RATING", "ITEM_MOD_CRIT_RATING_SHORT",
+                      "ITEM_MOD_CRIT_SPELL_RATING",  "ITEM_MOD_CRIT_SPELL_RATING_SHORT",
+                      "ITEM_MOD_CRIT_MELEE_RATING",  "ITEM_MOD_CRIT_MELEE_RATING_SHORT",
+                      "ITEM_MOD_CRIT_RANGED_RATING", "ITEM_MOD_CRIT_RANGED_RATING_SHORT" },
+        haste     = { "ITEM_MOD_HASTE_RATING", "ITEM_MOD_HASTE_RATING_SHORT",
+                      "ITEM_MOD_HASTE_SPELL_RATING",  "ITEM_MOD_HASTE_SPELL_RATING_SHORT",
+                      "ITEM_MOD_HASTE_MELEE_RATING",  "ITEM_MOD_HASTE_MELEE_RATING_SHORT",
+                      "ITEM_MOD_HASTE_RANGED_RATING", "ITEM_MOD_HASTE_RANGED_RATING_SHORT" },
+        hit       = { "ITEM_MOD_HIT_RATING", "ITEM_MOD_HIT_RATING_SHORT",
+                      "ITEM_MOD_HIT_SPELL_RATING",  "ITEM_MOD_HIT_SPELL_RATING_SHORT",
+                      "ITEM_MOD_HIT_MELEE_RATING",  "ITEM_MOD_HIT_MELEE_RATING_SHORT",
+                      "ITEM_MOD_HIT_RANGED_RATING", "ITEM_MOD_HIT_RANGED_RATING_SHORT" },
+        expertise = { "ITEM_MOD_EXPERTISE_RATING", "ITEM_MOD_EXPERTISE_RATING_SHORT" },
+        dodge     = { "ITEM_MOD_DODGE_RATING",     "ITEM_MOD_DODGE_RATING_SHORT"     },
+        parry     = { "ITEM_MOD_PARRY_RATING",     "ITEM_MOD_PARRY_RATING_SHORT"     },
+        mastery   = { "ITEM_MOD_MASTERY_RATING_SHORT", "ITEM_MOD_MASTERY_RATING"     },
+    }
+
+    for key, names in pairs(NAMES) do
+        for _, name in ipairs(names) do ITEM_MOD_MAP[name] = key end
+    end
+end
+
+-- Was der Client sonst noch melden kann und uns nichts angeht. Ohne diese
+-- Liste stuende bei jedem Gegenstand eine "unbekannter Schluessel"-Meldung,
+-- und eine Meldung, die immer kommt, liest niemand.
+local ITEM_MOD_IGNORED = {
+    ITEM_MOD_RESILIENCE_RATING = true, ITEM_MOD_RESILIENCE_RATING_SHORT = true,
+    ITEM_MOD_PVP_POWER = true,         ITEM_MOD_PVP_POWER_SHORT = true,
+    ITEM_MOD_EXTRA_ARMOR = true,       ITEM_MOD_EXTRA_ARMOR_SHORT = true,
+    ITEM_MOD_SPELL_POWER = true,       ITEM_MOD_SPELL_POWER_SHORT = true,
+    ITEM_MOD_ATTACK_POWER = true,      ITEM_MOD_ATTACK_POWER_SHORT = true,
+    ITEM_MOD_MANA_REGENERATION = true, ITEM_MOD_HEALTH_REGENERATION = true,
+    ITEM_MOD_CR_STURDINESS = true,     ITEM_MOD_CR_LIFESTEAL = true,
+    EMPTY_SOCKET_RED = true, EMPTY_SOCKET_YELLOW = true, EMPTY_SOCKET_BLUE = true,
+    EMPTY_SOCKET_META = true, EMPTY_SOCKET_PRISMATIC = true,
+    EMPTY_SOCKET_COGWHEEL = true, EMPTY_SOCKET_HYDRAULIC = true,
+    ITEM_MOD_SOCKET_BONUS = true,
+    RESISTANCE0_NAME = true,
 }
+
+--------------------------------------------------
+-- SELBSTPRUEFUNG DER SCHREIBWEISEN
+--
+-- Der Client fuehrt zu jedem Schluessel, den GetItemStats liefern kann,
+-- eine gleichnamige globale Zeichenkette (ITEM_MOD_CRIT_RATING ist die
+-- UEBERSETZUNG, der Schluessel ist der NAME der Konstante). Damit laesst
+-- sich beim Login pruefen, ob wir fuer jeden umschmiedbaren Wert
+-- mindestens eine Schreibweise kennen, die dieser Client auch fuehrt —
+-- ohne einen einzigen Gegenstand anzufassen.
+--
+-- Das ist die Pruefung, die 2.7.1.0 gebraucht haette: sechs Werte fielen
+-- ueber Monate aus jeder Antwort heraus, und zu sehen war davon nichts
+-- ausser falschen Umschmiede-Auftraegen.
+--------------------------------------------------
+
+local REFORGE_STAT_KEYS = { "spirit", "dodge", "parry", "hit",
+                            "crit", "haste", "expertise", "mastery" }
+
+function SM.ValidateStatKeys()
+    local missing = {}
+    for _, want in ipairs(REFORGE_STAT_KEYS) do
+        local found = false
+        for name, key in pairs(ITEM_MOD_MAP) do
+            if key == want and _G[name] ~= nil then found = true break end
+        end
+        if not found then missing[#missing + 1] = want end
+    end
+
+    if #missing > 0 then
+        print("|cffD4A24A[WeintCodex]|r |cffE56B6BDieser Client benennt"
+            .. " Itemwerte anders als erwartet:|r " .. table.concat(missing, ", ")
+            .. " |cff4A4A52- bitte mit /wc vz melden. Solange stimmen die"
+            .. " Umschmiede-Vorschlaege nicht.|r")
+        return false, missing
+    end
+    return true
+end
+
+-- Schluessel, die weder zugeordnet noch ausdruecklich ignoriert sind.
+-- Gesammelt statt gemeldet: die Diagnose druckt sie aus, im Spielbetrieb
+-- sagt niemand etwas.
+local unknownStatKeys = {}
+
+function SM.UnknownStatKeys()
+    local out = {}
+    for key in pairs(unknownStatKeys) do out[#out + 1] = key end
+    table.sort(out)
+    return out
+end
 
 local GetItemStatsCompat = GetItemStats or (C_Item and C_Item.GetItemStats)
 
@@ -296,6 +408,11 @@ function SM.NormalizeItemStats(raw)
         if mapped and type(value) == "number" and value ~= 0 then
             out[mapped] = (out[mapped] or 0) + value
             n = n + 1
+        elseif not (mapped or ITEM_MOD_IGNORED[key]) then
+            -- Nicht melden, nur merken (siehe oben): eine Endung, die der
+            -- Client anders schreibt als wir, soll nachweisbar sein und
+            -- nicht erst am falschen Umschmiede-Auftrag auffallen.
+            unknownStatKeys[key] = true
         end
     end
     if n == 0 then return nil end
@@ -354,20 +471,14 @@ end
 
 -- Stats eines Gegenstands (Stein, Verzauberungsrolle) vom Client.
 -- Rückgabe: stats | nil
+-- EINE Zuordnung, nicht zwei. Bis 2.7.1.0 stand die Schleife hier noch
+-- einmal — und genau so entsteht der Fall, dass eine Korrektur an der
+-- Tabelle nur die Haelfte der Aufrufer erreicht.
 local function StatsFromItemAPI(itemId)
     if not (GetItemStatsCompat and itemId) then return nil end
     local ok, raw = pcall(GetItemStatsCompat, "item:" .. itemId)
-    if not ok or type(raw) ~= "table" then return nil end
-    local out, n = {}, 0
-    for key, value in pairs(raw) do
-        local mapped = ITEM_MOD_MAP[key]
-        if mapped and type(value) == "number" and value ~= 0 then
-            out[mapped] = (out[mapped] or 0) + value
-            n = n + 1
-        end
-    end
-    if n == 0 then return nil end
-    return out
+    if not ok then return nil end
+    return SM.NormalizeItemStats(raw)
 end
 
 -- Zweiter Weg: den Tooltip des Gegenstands/der Verzauberung lesen und die

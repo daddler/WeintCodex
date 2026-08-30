@@ -2,6 +2,22 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.1.1] – 2026-08-30
+
+**Behoben: *Alles umschmieden* hat an den meisten Teilen etwas anderes angelegt, als auf der Seite stand** — und hinterher gemeldet, sie seien „nicht durchgekommen". Von acht Aufträgen kamen drei richtig an. Es lag nicht am Umschmieder und nicht am Tempo des Laufs: das Addon hat an einem Gegenstand nur **zwei der acht umschmiedbaren Werte** gesehen.
+
+### Behoben
+- **Treffer, Krit, Tempo, Waffenkunde, Ausweichen und Parieren waren für das Addon an einem Gegenstand gar nicht da.** Nur Willenskraft und Meisterschaft kamen an. Der Umschmieder kennt keine Wertnamen — er bekommt die Nummer einer Zeile aus seiner eigenen Auswahl, und welche Zeile das ist, hängt daran, welche Werte der Gegenstand trägt. Sieht das Addon sechs davon nicht, nennt es verlässlich die falsche Zeile: der Auftrag geht durch, kostet Gold, und legt etwas anderes an
+- **Die Tempo-Schwellen rechnen dadurch wieder richtig.** Sie schätzen ab, wieviel sich durch Umschmieden überhaupt noch bewegen lässt — mit sechs unsichtbaren Werten war diese Reichweite viel zu klein, und eine erreichbare Stufe konnte deshalb als unerreichbar gelten
+- **„Nicht durchgekommen" und „etwas anderes angekommen" sind jetzt zwei Meldungen.** Sie raten zu Verschiedenem: das eine ist ein zweiter Klick wert, das andere ist ein Fehler im Addon und gehört gemeldet. Bisher stand beides unter derselben Zeile — und genau deshalb sah dieser Fehler nach einem Zeitproblem aus
+
+### Technisch
+- **`ITEM_MOD_MAP` in `modules/stat_match.lua` kannte für jeden Wert nur die Endung `_SHORT`.** Der Client benutzt sie aber nur bei den Grundwerten, bei Willenskraft und bei der Meisterschaft; `dodge`, `parry`, `hit`, `crit`, `haste` und `expertise` meldet er **ohne**. Ein unbekannter Schlüssel liefert keinen Fehler, sondern eine kürzere Tabelle — deshalb war davon nichts zu sehen. Maßgeblich ist die Liste aus ReforgeLite, die am laufenden Client belegt ist; aufgeschrieben sind jetzt **beide** Schreibweisen, denn der Client schickt immer nur eine davon
+- **Warum es die Sockelseite nicht umgeworfen hat:** `SM.GemStats` fällt für Steine auf einen Tooltip-Scan zurück, wenn `GetItemStats` nichts liefert. Der Umschmiede-Planer hat diesen Rückfallweg nicht — er *zählt* an genau diesen Werten ab
+- **Die Zuordnung stand an zwei Stellen** (`NormalizeItemStats` und `StatsFromItemAPI`). Jetzt an einer: so entsteht der Fall, dass eine Korrektur nur die Hälfte der Aufrufer erreicht
+- **`SM.ValidateStatKeys()` läuft beim Login** und meldet, wenn dieser Client für einen der acht Werte keine Schreibweise führt, die wir kennen — ohne einen einzigen Gegenstand anzufassen. Dazu sammelt `NormalizeItemStats` jeden Schlüssel, den es nicht zuordnen kann; `/wc umschmieden prüfen` druckt ihn aus. Das ist die Prüfung, die hier gefehlt hat: sechs Werte fielen über Monate heraus, und zu sehen war davon nichts ausser falschen Aufträgen
+- Der Testlauf unter `.github/tests/` prüft die Zuordnung gegen ReforgeLites Schlüsselliste. Mit der alten Tabelle meldet er genau die sechs fehlenden Werte
+
 ## [2.7.1.0] – 2026-08-30
 
 **Neu: Jede Seite sagt, warum sie das vorschlägt.** Bis hierher stand an einer Zeile bestenfalls, *was* das Addon empfiehlt. Warum ausgerechnet das — welche Werte deine Spezialisierung wie hoch gewichtet, welche Grenzen gerade gelten, was das Umschmieden dir davon schon abnimmt — stand nirgends. Damit blieben genau zwei Möglichkeiten: es glauben oder es lassen. Beides ist schlecht. Eine Empfehlung, die man nicht nachvollziehen kann, ist von einer falschen nicht zu unterscheiden.

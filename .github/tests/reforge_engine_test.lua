@@ -318,5 +318,58 @@ do
     if wrong > 0 then fails = fails + 1 end
 end
 
+--== Die Schreibweisen des Clients =========================================
+-- DIE STELLE, AN DER 2.7.1.0 GESCHEITERT IST.
+--
+-- GetItemStats liefert seine Schluessel als Namen der ITEM_MOD_*-Konstanten.
+-- Kennt das Addon eine Schreibweise nicht, faellt der Wert lautlos heraus —
+-- und dann zaehlt ForgeIndex eine andere Zahl zulaessiger Umschmiedungen als
+-- der Client. Der Umschmieder legt daraufhin verlaesslich etwas anderes an,
+-- als auf der Seite steht.
+--
+-- Geprueft wird gegen die Liste aus ReforgeLite, weil sie am laufenden
+-- Client belegt ist: Willenskraft und Meisterschaft mit `_SHORT`, die
+-- uebrigen sechs ohne.
+do
+    -- stat_match.lua braucht nur diese beiden Attrappen zusaetzlich.
+    strlenutf8 = function(t) return #t end
+    dofile(ROOT .. "/modules/stat_match.lua")
+    local SM = WeintCodex.StatMatch
+
+    local CLIENT_KEYS = {
+        ITEM_MOD_SPIRIT_SHORT          = "spirit",
+        ITEM_MOD_DODGE_RATING          = "dodge",
+        ITEM_MOD_PARRY_RATING          = "parry",
+        ITEM_MOD_HIT_RATING            = "hit",
+        ITEM_MOD_CRIT_RATING           = "crit",
+        ITEM_MOD_HASTE_RATING          = "haste",
+        ITEM_MOD_EXPERTISE_RATING      = "expertise",
+        ITEM_MOD_MASTERY_RATING_SHORT  = "mastery",
+    }
+
+    local raw, want = {}, {}
+    for key, stat in pairs(CLIENT_KEYS) do
+        raw[key]  = 100
+        want[stat] = 100
+    end
+    local got = SM.NormalizeItemStats(raw) or {}
+
+    local bad = {}
+    for stat, value in pairs(want) do
+        if got[stat] ~= value then bad[#bad + 1] = stat end
+    end
+    print(string.format("%-34s %s", "Statnamen des Clients (ReforgeLite)",
+        #bad == 0 and "ok (alle acht)" or ("FEHLT: " .. table.concat(bad, ", "))))
+    if #bad > 0 then fails = fails + 1 end
+
+    -- Und die Selbstpruefung meldet, wenn eine Schreibweise fehlt. Hier
+    -- traegt die Attrappe alle acht, sie muss also durchgehen.
+    for key in pairs(CLIENT_KEYS) do _G[key] = key end
+    local ok = SM.ValidateStatKeys()
+    print(string.format("%-34s %s", "Selbstpruefung der Schreibweisen",
+        ok and "ok" or "ABWEICHUNG"))
+    if not ok then fails = fails + 1 end
+end
+
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))
 os.exit(fails == 0 and 0 or 1)

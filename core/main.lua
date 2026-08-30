@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.7.1.0"
+WeintCodex.Version = "2.7.1.1"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -277,6 +277,13 @@ local function OnEvent(self, event, addonName)
         -- die laufende Nummer haengt, die der Umschmieder bekommt: liegt
         -- sie daneben, wird etwas anderes geschmiedet als angezeigt, und
         -- das faellt erst auf, wenn das Gold weg ist.
+        -- Heisst dieser Client die Itemwerte so, wie wir sie lesen? Sechs
+        -- der acht umschmiedbaren Werte fielen bis 2.7.1.0 lautlos aus
+        -- jeder Antwort des Clients heraus, und zu sehen war davon nichts
+        -- ausser falschen Umschmiede-Auftraegen.
+        if WeintCodex.StatMatch and WeintCodex.StatMatch.ValidateStatKeys then
+            WeintCodex.StatMatch.ValidateStatKeys()
+        end
         if WeintCodex_ValidateReforgeData then
             WeintCodex_ValidateReforgeData()
         end
