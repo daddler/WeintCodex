@@ -577,6 +577,7 @@ local forgeRows      = {}
 local forgeCo        = nil
 local forgeTicking   = false
 local forgeWish      = nil    -- Klick, der auf den fertigen Plan wartet
+local expectSettled  = false  -- nach einem sauberen Lauf: darf nichts mehr offen sein
 RF.runLog            = {}     -- was der letzte Lauf geschickt und gesehen hat
 
 local FORGE_W   = 340
@@ -893,6 +894,13 @@ local function RunReforge()
     end
 
     if #offen == 0 and #falsch == 0 then
+        -- EIN PLAN, DER SICH SELBST NICHT AUSHAELT, IST EIN FEHLER.
+        -- Nach einem vollstaendig angekommenen Lauf muss der naechste Plan
+        -- leer sein — sonst zahlt man dieselbe Gebuehr ein zweites Mal.
+        -- Geprueft wird das unten in RE.OnPlanReady, wenn der frische Plan
+        -- steht; hier wird nur vermerkt, dass jetzt der richtige Zeitpunkt
+        -- dafuer ist.
+        expectSettled = true
         StopRun("Umschmieden abgeschlossen.")
         return
     end
@@ -1266,6 +1274,23 @@ RE.OnPlanReady(function()
     if PageVisible() then RF.ShowPage() end
     if forge and forge:IsShown() then RF.RefreshForge() end
 
+    -- Der erste fertige Plan nach einem sauberen Lauf ist die Probe aufs
+    -- Exempel: er muss leer sein. Ist er es nicht, liegt unsere Rechnung
+    -- neben dem, was der Umschmieder wirklich angelegt hat — und das
+    -- kostet bei jedem weiteren Klick erneut Gold. Also wird es gesagt und
+    -- nicht als naechster Vorschlag ausgegeben, den man arglos anklickt.
+    if expectSettled then
+        expectSettled = false
+        local plan = RE.GetPlan()
+        if plan.ok and (plan.changes or 0) > 0 then
+            Say(WeintCodex.ColorText("warning", "Der Plan verlangt nach diesem Lauf"
+                .. " noch " .. plan.changes .. " weitere Änderung(en). ")
+                .. "Das sollte nicht sein — jede davon kostet erneut Gebühr."
+                .. " Bitte |cffD4A24A/wc umschmieden pruefen|r ausführen und die"
+                .. " Ausgabe melden.")
+        end
+    end
+
     -- Ein Klick, der auf den Plan gewartet hat, wird jetzt eingeloest —
     -- aber nur, solange er frisch ist und der Umschmieder noch offen
     -- steht. Alles andere waere eine Goldausgabe, die aus einem Klick von
@@ -1420,6 +1445,14 @@ function RF.Dump()
         mult[#mult + 1] = string.format("%s ×%.3f", R.SHORT[key] or key, factor)
     end
     if #mult > 0 then print("  Verstärkung: " .. table.concat(mult, ", ")) end
+
+    -- Die beiden Zahlen, an denen entschieden wird, ob eine Aenderung
+    -- ueberhaupt vorgeschlagen wird. Ohne sie sieht "der Planer will nichts
+    -- aendern, obwohl da noch was ginge" von aussen wie ein Fehler aus.
+    print(string.format("  Mindestgewinn je Umschmiedung: %s Punkte"
+        .. WeintCodex.ColorText("textFaint",
+           "  ·  Grenze gilt ab %s Wertung Rückstand als verfehlt"),
+        Rating(plan.ctx.worth or 0), Rating(RE.CAP_SLACK)))
 
     if plan.dims and #plan.dims > 0 then
         local names = {}

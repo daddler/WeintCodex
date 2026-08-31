@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.5.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Umschmieden kostet jetzt einen Durchgang statt sechs bis zehn - und damit ein Bruchteil des Goldes.",
+            "Der Plan bleibt nach |cffD4A24AAlles umschmieden|r stehen: die Liste ist danach leer und bleibt leer.",
+            "Was weniger bringt, als die Gebuehr kostet, wird nicht mehr vorgeschlagen - die Zeile sagt es dann auch.",
+            "Eine Grenze, die auf ein paar Punkte erreicht ist, gilt jetzt als erreicht. Ein Punkt Rueckstand hat vorher vier Teile bewegt.",
+            "Derselbe Charakter bekommt jetzt denselben Plan - zweimal hinsehen ergab vorher zwei Vorschlaege.",
+        },
+    },
+    {
         version = "2.7.4.0",
         date    = "31.08.2026",
         notes   = {

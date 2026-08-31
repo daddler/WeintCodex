@@ -2,6 +2,31 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.5.0] – 2026-08-31
+
+**Umschmieden kostet jetzt einen Durchgang statt sechs bis zehn.** Wer *Alles umschmieden* drückte, war danach nicht fertig: der Plan wollte gleich wieder etwas korrigieren, nach dem nächsten Durchgang erneut, und sechs bis zehn Runden waren normal. Der Umschmieder verlangt seine Gebühr für jede einzelne Änderung — aus drei-, vierhundert Gold wurden so mehrere tausend.
+
+Der Grund war nicht eine falsche Empfehlung, sondern eine unruhige. Der Planer hat jeden Plan von Grund auf neu gerechnet und dabei nie berücksichtigt, was schon dranliegt. Wertungen kennt er auf ein paar Punkte genau; eine Abweichung von einem einzigen Punkt hat gereicht, damit derselbe Charakter beim nächsten Aufruf eine andere, gleich gute Verteilung bekommt. Jede davon kostete den vollen Satz.
+
+### Behoben
+- **Der Plan bleibt jetzt stehen.** Ist ein Durchgang durch, ist die Liste leer — und bleibt leer. Ein zweiter Klick kostet nichts mehr, weil es nichts mehr zu tun gibt
+- **Was weniger bringt, als es kostet, wird nicht mehr vorgeschlagen.** Jede einzelne Zeile muss sich lohnen; wo sie das nicht tut, steht das auch dran: *Der Gewinn wäre kleiner als die Gebühr — bleibt, wie es ist*
+- **Eine Grenze, die auf ein paar Punkte erreicht ist, gilt als erreicht.** Vorher zählte schon **ein** Punkt Rückstand als verfehltes Trefferkap, und weil ein verfehltes Kap alles andere schlägt, hat das vier Teile bewegt — und die Verteilung dabei nachweislich verschlechtert. Ein Zehntel Prozentpunkt Trefferchance ist kein Teil wert
+- **Derselbe Charakter bekommt jetzt denselben Plan.** Zweimal hinsehen führte zu zwei verschiedenen Vorschlägen, ohne dass sich irgendetwas geändert hätte
+- **Meldet der Plan nach einem sauberen Durchgang trotzdem noch Änderungen, steht das im Chat** — samt der Bitte, `/wc umschmieden pruefen` zu melden. Ein zweiter Vorschlag, den man arglos anklickt, ist die teuerste Art, einen Fehler zu verschweigen
+
+### Geändert
+- `/wc umschmieden pruefen` nennt zusätzlich, wieviel eine Umschmiedung mindestens bringen muss und ab wann eine Grenze als verfehlt gilt
+
+### Technisch
+- **Der Suchlauf maximiert ab jetzt EINE Größe, und die schließt die Gebühr ein** (`Value` in `modules/reforge_engine.lua`): Bewertung plus ein Bonus für jedes Teil, das bleiben darf. Alle drei Stufen messen daran — die dynamische Programmierung, das Nachpolieren und die neue Kostenprobe. Zwei Zielgrößen nebeneinander wären genau die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist
+- **`CAP_SLACK` (40 Wertung) und `WORTH_RATING` (10 Wertung im höchstgewichteten Wert)** sind Aussagen über das Spiel, nicht Stellschrauben: 40 Wertung sind bei 340 je Prozent gut ein Zehntel Prozentpunkt, und eine Umschmiedung bewegt hundert bis vierhundert Wertung. Beide liegen damit über dem Rauschen der Rundungen und unter jeder echten Verbesserung. `RE.CAP_SLACK` wird herausgegeben, damit der Testlauf gegen dieselbe Zahl rechnet statt gegen eine Kopie davon
+- **Stufe 3 (`DropNotWorthIt`) ist kein zweites Regelwerk**, sondern ein letzter Schritt bergauf auf derselben Größe: zurückgenommen wird, wenn `s >= score - worth`, und das ist dieselbe Ungleichung wie „Bonus dazu, Punktzahl weg". Zurückgenommen wird dabei immer die billigste Änderung zuerst und danach neu gefragt — am Kap hängen Änderungen voneinander ab, und ein einzelner Durchgang findet die Reihenfolge nicht
+- **Der Suchlauf hängt nicht mehr an der Reihenfolge von `pairs`.** Der Schlussvergleich der dynamischen Programmierung entschied bei Gleichstand nach Tabellenreihenfolge, die Optionsliste je Gegenstand ebenfalls. Zwei gleich gute Verteilungen sind nicht gleich teuer, also darf die Wahl zwischen ihnen nicht davon abhängen, wie Lua seine Tabelle gerade sortiert hat
+- **`RE.CapOutlook()` benutzt dieselbe Toleranz.** Sonst hielte die Sockelseite eine Grenze für offen, die der Planer als erreicht abgehakt hat — und empfähle einen Stein für eine Lücke, die es nicht gibt
+- **Der Testlauf prüft jetzt Verhalten, nicht nur Punktzahlen** (`.github/tests/reforge_engine_test.lua`): planen, den Plan wie das Spiel anwenden, neu planen — und das auch mit einer Wertung Abweichung je Teil, weil genau die unvermeidbar ist. Mit den alten Zahlen schlägt diese Prüfung fehl (5 Runden, 25 Umschmiedungen, eine davon verschlechternd), mit den neuen steht sie bei einer Runde. Dazu die Gegenprobe, dass derselbe Charakter sechsmal hintereinander denselben Plan bekommt
+- Die rohe Gewalt im Testlauf misst gegen `RE.Value` und `RE.CAP_SLACK` statt gegen eine eigene Zielgröße — ein Test mit eigener Regel bestätigt nur sich selbst. Der Planer trifft ihr Ergebnis in allen sechs Fällen exakt
+
 ## [2.7.4.0] – 2026-08-31
 
 **Neu: die Ausgabe von wowsims lesen.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt und auf *Suggest Reforges* drückt, bekommt eine lange Zeichenkette heraus — dieselbe, die man in ReforgeLite einfügt und damit fertig ist. WeintCodex hat sie bisher nicht angenommen: der Import kannte nur Wertepaare aus Name und Zahl, und in dieser Ausgabe stehen keine Namen.
