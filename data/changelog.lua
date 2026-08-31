@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.4.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Neu: Was |cffD4A24Awowsims.com/mop|r nach |cffD4A24ASuggest Reforges|r ausgibt, kannst du jetzt hier einfuegen - genau dieselbe Zeichenkette wie bei ReforgeLite.",
+            "Sie steht auf der Seite |cffD4A24APriorisierung|r unter |cffD4A24AAus einem Sim uebernehmen|r. Die Felder werden gefuellt, gespeichert wird erst auf deinen Klick.",
+            "Danach steht im Chat, mit welchen Grenzen dein Sim gerechnet hat - und ob WeintCodex dieselben benutzt.",
+            "Ist die Ausgabe fuer eine andere Klasse gerechnet, sagt es das, bevor du speicherst.",
+            "Die Frage beim ersten Anmelden ist neu formuliert: sie fragt jetzt, ob WeintCodex dir bei Verzauberungen, Sockelsteinen und dem Umschmieden helfen soll - und was Ja und Nein jeweils bedeuten.",
+        },
+    },
+    {
         version = "2.7.3.2",
         date    = "31.08.2026",
         notes   = {

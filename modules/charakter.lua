@@ -6218,7 +6218,100 @@ function ShowPriorisierung()
     --------------------------------------------------
     local SW = WeintCodex.StatWeights
 
-    local function ApplyWeights(raw, source, ignored)
+    -- Deutsche Schreibweise: 7,5 % statt 7.5 %.
+    local function Pct(v)
+        return (string.format("%.1f", v or 0):gsub("%.", ","))
+    end
+
+    --------------------------------------------------
+    -- WAS DIE SIM-AUSGABE AUSSER DEN GEWICHTEN NOCH WEISS
+    --
+    -- Sie traegt zwei Dinge mehr: fuer welche KLASSE sie gerechnet wurde,
+    -- und mit welchen GRENZEN. Beides wird gesagt — und keines davon
+    -- angewendet.
+    --
+    -- Die Klasse nicht, weil eine fremde Gewichtung eine Frage an den
+    -- Spieler ist und keine an den Code; dass der Import ohnehin nur die
+    -- Felder fuellt und nichts speichert, ist dabei die Sicherung.
+    --
+    -- Die Grenzen nicht, weil eine Grenze eine Aussage ueber das SPIEL ist
+    -- und keine Einstellung: 7,5 % Treffer und 15 % Waffenkunde gelten fuer
+    -- jeden gleich und stehen deshalb im Spec-Profil. Weichen die beiden
+    -- voneinander ab, ist das eine Datenfrage fuer einen Menschen — dieselbe
+    -- Haltung wie bei WeintCodex_ValidateGemWeights(), das seine Funde
+    -- meldet, statt sie wegzurechnen.
+    --------------------------------------------------
+
+    local function ReportSimClass(class)
+        if not class then return end
+        local _, mine = UnitClass("player")
+        if not mine or mine == class then return end
+        print("  " .. WeintCodex.ColorText("warning",
+            "Diese Sim-Ausgabe ist für eine andere Klasse gerechnet als den"
+            .. " Charakter, auf dem du stehst."))
+        print("  " .. WeintCodex.ColorText("textFaint",
+            "Gespeichert ist noch nichts — sieh dir die Zahlen an, bevor du"
+            .. " auf Speichern drückst."))
+    end
+
+    local function ReportSimCaps(caps, capsIgnored)
+        if not caps or #caps == 0 then return end
+
+        -- Die eigenen Grenzen kommen aus derselben Quelle wie ueberall
+        -- sonst; hier wird nichts nachgerechnet (CapContext() liefert Profil
+        -- und Cap-Zustaende ohne den Ausruestungs-Scan).
+        local ctx  = CapContext()
+        local mine = {}
+        for _, cs in ipairs((ctx and ctx.caps) or {}) do
+            -- Zugeordnet wird ueber den WERT, nicht ueber die Art: eine Spec
+            -- fuehrt hoechstens eine Treffergrenze, und ob der Sim sie
+            -- physisch oder als Zauber fuehrt, ist kein Widerspruch.
+            mine[cs.stat] = cs
+        end
+
+        local parts, notes = {}, {}
+        for _, cap in ipairs(caps) do
+            local cs    = mine[cap.stat]
+            -- Umgerechnet wird mit der Zahl, die der CLIENT meldet
+            -- (Wertung je Prozent) — die Sim-Ausgabe fuehrt Waffenkunde als
+            -- Wertung und die Trefferchance als Prozent.
+            local pct   = SW.CapPercent(cap, cs and cs.perPct)
+            local label = (cs and cs.label)
+                          or (cap.stat == "expertise" and "Waffenkunde")
+                          or "Trefferwertung"
+            parts[#parts + 1] = label .. " " .. Pct(pct) .. " %"
+
+            if not cs then
+                notes[#notes + 1] = "Für diese Spec führt WeintCodex keine "
+                    .. label .. "-Grenze."
+            elseif pct and math.abs(pct - (cs.capPct or 0)) > 0.05 then
+                notes[#notes + 1] = "WeintCodex rechnet hier mit "
+                    .. label .. " " .. Pct(cs.capPct) .. " %."
+            end
+        end
+
+        print("  " .. WeintCodex.ColorText("textFaint",
+            "Grenzen aus dem Sim: " .. table.concat(parts, " · ")))
+
+        if #notes == 0 then
+            print("    " .. WeintCodex.ColorText("textFaint",
+                "Genau damit rechnet WeintCodex hier auch."))
+        else
+            for _, note in ipairs(notes) do
+                print("    " .. WeintCodex.ColorText("warning", note))
+            end
+            print("    " .. WeintCodex.ColorText("textFaint",
+                "Grenzen kommen aus dem Spec-Profil und werden vom Import"
+                .. " nicht überschrieben — sie gelten für jeden gleich."))
+        end
+
+        if capsIgnored and #capsIgnored > 0 then
+            print("    " .. WeintCodex.ColorText("textFaint",
+                "Nicht übernommene Grenzen: " .. table.concat(capsIgnored, ", ")))
+        end
+    end
+
+    local function ApplyWeights(raw, source, ignored, info)
         local weights, negatives = SW.Normalize(raw)
         if not weights then
             print(WeintCodex.ColorText("danger", "[WeintCodex]")
@@ -6256,6 +6349,11 @@ function ShowPriorisierung()
                 "Nicht übernommen (kennt WeintCodex nicht): "
                 .. table.concat(ignored, ", ")))
         end
+
+        if info and info.source == "sim" then
+            ReportSimClass(info.class)
+            ReportSimCaps(info.caps, info.capsIgnored)
+        end
     end
 
     local blocks = {
@@ -6268,19 +6366,19 @@ function ShowPriorisierung()
         { type = "divider" },
         { type = "header", text = "Aus einem Sim übernehmen" },
         { type = "text", size = 10, text =
-            "Sim deinen Charakter auf |cffD4A24Awowsims.com/mop|r und lass"
-            .. " dir dort die Wertegewichte ausrechnen. Was du davon"
-            .. " kopierst, kommt hier hinein – die Ausgabezeichenkette"
-            .. " genauso wie die abgeschriebene Tabelle." },
+            "Sim deinen Charakter auf |cffD4A24Awowsims.com/mop|r und drück"
+            .. " dort auf |cffD4A24ASuggest Reforges|r. Die Zeichenkette, die"
+            .. " dabei herauskommt, kommt hier ganz hinein – dieselbe, die"
+            .. " auch ReforgeLite liest." },
         { type = "text", size = 9, color = "textFaint", text =
-            "Gelesen wird jedes Paar aus Wertname und Zahl —"
+            "Genauso gelesen wird jedes Paar aus Wertname und Zahl —"
             .. " Beweglichkeit 1,00 · CritRating=0.55 · eine Zeile je Wert."
             .. " Die Felder links werden gefüllt, gespeichert wird erst auf"
             .. " deinen Klick." },
-        { type = "input", placeholder = "Wertname und Zahl, je Zeile oder mit Komma",
+        { type = "input", placeholder = "Sim-Ausgabe einfügen, oder Wertname und Zahl",
           buttonLabel = "Einlesen",
           onAccept = function(text)
-              local raw, problem, ignored = SW.Parse(text)
+              local raw, problem, ignored, info = SW.Parse(text)
               if not raw then
                   print(WeintCodex.ColorText("danger", "[WeintCodex]") .. " "
                       .. (problem or "Das konnte ich nicht lesen."))
@@ -6290,7 +6388,10 @@ function ShowPriorisierung()
               -- gefuellt wurden, gaebe es danach nicht mehr — sie
               -- entstuenden neu aus den GESPEICHERTEN Werten, und der
               -- Import waere wieder weg. Sie sind bereits aktualisiert.
-              ApplyWeights(raw, "der Eingabe", ignored)
+              ApplyWeights(raw,
+                  (info and info.source == "sim") and "der Sim-Ausgabe"
+                                                   or "der Eingabe",
+                  ignored, info)
           end },
     }
 

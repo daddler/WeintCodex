@@ -1,11 +1,24 @@
 --------------------------------------------------
--- WeintCodex :: Mitreden — ja oder nein? (seit 2.7.2.0)
+-- WeintCodex :: Soll ich dir hier helfen? (seit 2.7.2.0)
 --------------------------------------------------
 -- WeintCodex meldet sich von selbst: der Ausruestungs-Alarm springt ins
 -- Bild, der Rotationshelfer geht an der Puppe auf, das Umschmieder-Fenster
 -- oeffnet sich beim Umschmieder, und am Auktionshaus steht die
 -- Einkaufsliste. Auf dem Charakter, den man spielt, ist das genau der
 -- Sinn. Auf einem Zweitcharakter ist es Laerm.
+--
+-- GEFRAGT WIRD NACH DER HILFE, NICHT NACH DEM ADDON.
+--
+-- Bis 2.7.3.2 lautete die Frage, ob WeintCodex hier "mitreden" darf. Das
+-- ist die Innensicht dieser Datei — sie beschreibt, was das Addon TUT, und
+-- nicht, was der Spieler DAVON HAT. Wer sie liest, weiss danach nicht, was
+-- er sich damit ausschaltet, und im Zweifel drueckt man auf Nein.
+--
+-- Gefragt wird deshalb nach der Sache: Verzauberungen, Sockelsteine,
+-- Umschmieden. Das sind die drei Entscheidungen, bei denen dieses Addon
+-- ueberhaupt von selbst etwas sagt, und jeder weiss sofort, ob er dabei
+-- Hilfe will. Und beide Antworten stehen mit ihren Folgen in der Frage —
+-- eine Frage, deren Antwort man nur durch Ausprobieren erfaehrt, ist keine.
 --
 -- DIE FRAGE WIRD GESTELLT, NICHT GERATEN.
 --
@@ -27,8 +40,7 @@
 --
 -- Nicht "das Addon ist aus" — `/wc` oeffnet es weiterhin vollstaendig, und
 -- alles, was man selbst aufruft, funktioniert unveraendert. Nein heisst:
--- WeintCodex faengt auf diesem Charakter kein Gespraech an. Eine Frage,
--- deren Antwort man nur durch Ausprobieren erfaehrt, ist keine.
+-- WeintCodex sagt auf diesem Charakter nichts mehr von sich aus.
 --
 -- Und die Antwort ist umkehrbar: Einstellungen -> Fenster & Ansicht.
 --------------------------------------------------
@@ -129,6 +141,16 @@ end
 
 local frame = nil
 
+-- Wo der Text beginnt und was unter ihm stehen bleiben muss. Die Hoehe des
+-- Fensters wird daraus GEMESSEN und nicht geschaetzt: der Text bricht um,
+-- und eine geschaetzte Hoehe faellt genau dann auf, wenn am meisten
+-- dasteht — dieselbe Falle wie beim Changelog-Popup in core/onboarding.lua.
+local WINDOW_W = 460
+local BODY_TOP = 60
+local BUTTON_H = 30
+local BOTTOM   = 16
+local GAP      = 14
+
 local function Build()
     if frame then return frame end
 
@@ -136,7 +158,7 @@ local function Build()
     local F = WeintCodex.Fonts
 
     frame = CreateFrame("Frame", "WeintCodexOptInFrame", UIParent)
-    frame:SetSize(400, 186)
+    frame:SetSize(WINDOW_W, 240)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
     frame:SetFrameStrata("DIALOG")
     frame:EnableMouse(true)
@@ -163,37 +185,42 @@ local function Build()
 
     frame.body = frame:CreateFontString(nil, "OVERLAY")
     frame.body:SetFont(F.sans, 11, "")
-    frame.body:SetPoint("TOPLEFT",  frame, "TOPLEFT",  18, -58)
-    frame.body:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -18, -58)
+    frame.body:SetPoint("TOPLEFT",  frame, "TOPLEFT",  18, -BODY_TOP)
+    frame.body:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -18, -BODY_TOP)
     frame.body:SetJustifyH("LEFT")
     frame.body:SetSpacing(3)
     frame.body:SetTextColor(unpack(C.textDim))
 
+    -- Die Beschriftungen sagen dasselbe wie der Text darueber, nur kurz.
+    -- "Ja" und "Nein" allein waeren die Antwort auf eine Frage, die man
+    -- beim Klicken schon nicht mehr im Blick hat.
     frame.yes = WeintCodex.CreateButton(frame, {
-        text = "Ja, hier mitreden", kind = "primary", width = 176, height = 30,
-        backdrop = "bgDark",
+        text = "Ja, hilf mir dabei", kind = "primary",
+        width = 200, height = BUTTON_H, backdrop = "bgDark",
         onClick = function()
             OI.SetActive(true)
             frame:Hide()
             print(WeintCodex.ColorText("gold", "[WeintCodex]")
-                .. " Alles klar — hier bleibt alles an."
+                .. " Alles klar — WeintCodex hilft dir hier bei Verzauberungen,"
+                .. " Sockelsteinen und dem Umschmieden."
                 .. " |cff4A4A52Änderbar unter Einstellungen → Fenster & Ansicht.|r")
         end,
     })
-    frame.yes:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, 16)
+    frame.yes:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, BOTTOM)
 
     frame.no = WeintCodex.CreateButton(frame, {
-        text = "Nein, still bleiben", width = 176, height = 30,
-        backdrop = "bgDark",
+        text = "Nein, das mach ich selbst",
+        width = 200, height = BUTTON_H, backdrop = "bgDark",
         onClick = function()
             OI.SetActive(false)
             frame:Hide()
             print(WeintCodex.ColorText("gold", "[WeintCodex]")
-                .. " Auf diesem Charakter meldet sich WeintCodex nicht mehr von selbst."
-                .. " |cffD4A24A/wc|r öffnet es weiterhin ganz normal.")
+                .. " Gut — auf diesem Charakter sagt WeintCodex nichts mehr von"
+                .. " sich aus. |cffD4A24A/wc|r öffnet es weiterhin ganz normal,"
+                .. " |cffD4A24A/wc hier|r stellt die Frage erneut.")
         end,
     })
-    frame.no:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 16)
+    frame.no:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, BOTTOM)
 
     frame:Hide()
     return frame
@@ -210,14 +237,33 @@ function OI.Ask(manual)
         if ok and equipped then ilvl = math.floor(equipped) end
     end
 
-    frame.title:SetText(me .. " — hier mitreden?")
+    frame.title:SetText(me .. " — soll WeintCodex dir hier helfen?")
+
+    --------------------------------------------------
+    -- Gefragt wird nach der Sache, und beide Antworten stehen mit ihren
+    -- Folgen dabei. Genannt wird dabei nur, was man auch anfassen kann:
+    -- Verzauberungen, Steine, Umschmieden, die Einkaufsliste, der
+    -- Rotationshelfer — keine Dateinamen, keine Schalternamen.
+    --------------------------------------------------
     frame.body:SetText(
         "Dieser Charakter trägt Gegenstandsstufe " .. ilvl .. "."
-        .. "\n\nSagst du nein, fängt WeintCodex hier kein Gespräch mehr an:"
-        .. " kein Ausrüstungs-Alarm, kein Rotationshelfer an der Puppe, kein"
-        .. " Fenster beim Umschmieder, keine Einkaufsliste am Auktionshaus."
-        .. "\n\n|cff6B6B74Das Addon selbst bleibt vollständig da — /wc öffnet"
-        .. " es wie immer.|r")
+        .. "\n\n|cff7CC06EJa|r — WeintCodex hilft dir hier bei"
+        .. " |cffDDDDFFVerzauberungen, Sockelsteinen und dem Umschmieden|r."
+        .. " Es meldet sich, wenn an einem frisch angelegten Teil eine"
+        .. " Verzauberung oder ein Stein fehlt, zeigt am Auktionshaus die"
+        .. " Einkaufsliste dazu, öffnet beim Umschmieder den Umschmiede-Plan"
+        .. " und an der Trainingspuppe den Rotationshelfer."
+        .. "\n\n|cffE56B6BNein|r — WeintCodex sagt auf diesem Charakter"
+        .. " nichts mehr von sich aus. Es verschwindet dabei nicht:"
+        .. " |cffD4A24A/wc|r öffnet es wie immer, mit allen Seiten, und alles,"
+        .. " was du selbst aufrufst, funktioniert unverändert."
+        .. "\n\n|cff6B6B74Du kannst das jederzeit ändern —"
+        .. " Einstellungen → Fenster & Ansicht.|r")
+
+    -- Erst Text, dann Hoehe: gemessen wird der umbrochene Satz, nicht
+    -- geraten.
+    frame:SetHeight(BODY_TOP + frame.body:GetStringHeight() + GAP
+                    + BUTTON_H + BOTTOM)
 
     frame:Show()
     if manual then frame:Raise() end

@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.7.3.2"
+WeintCodex.Version = "2.7.4.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -160,10 +160,13 @@ SlashCmdList["WEINTCODEX"] = function(msg)
         return
     end
 
-    -- Die Frage "soll WeintCodex auf diesem Charakter von selbst mitreden?"
-    -- noch einmal stellen (siehe core/optin.lua). Sie kommt sonst genau
-    -- einmal je Charakter.
-    if cmd == "hier" or cmd == "mitreden" then
+    -- Die Frage "soll WeintCodex dir auf diesem Charakter bei
+    -- Verzauberungen, Sockelsteinen und dem Umschmieden helfen?" noch einmal
+    -- stellen (siehe core/optin.lua). Sie kommt sonst genau einmal je
+    -- Charakter. `mitreden` bleibt als Befehl stehen: es war bis 2.7.3.2 die
+    -- Bezeichnung, und ein Befehl, der einmal funktioniert hat, wird nicht
+    -- weggenommen, nur weil die Frage jetzt anders heisst.
+    if cmd == "hier" or cmd == "hilfe" or cmd == "mitreden" then
         if WeintCodex.OptIn and WeintCodex.OptIn.Ask then
             WeintCodex.OptIn.Ask(true)
         end

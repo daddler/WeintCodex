@@ -218,24 +218,29 @@ end
 
 local function ViewWindow(y)
     --------------------------------------------------
-    -- Zuerst die Frage, die ueber alles andere entscheidet: soll das
-    -- Addon auf DIESEM Charakter von selbst mitreden? (core/optin.lua)
-    -- Sie steht oben, weil alle Schalter darunter wirkungslos sind,
-    -- solange sie mit Nein beantwortet ist.
+    -- Zuerst die Frage, die ueber alles andere entscheidet: soll das Addon
+    -- auf DIESEM Charakter von sich aus bei Verzauberungen, Sockelsteinen
+    -- und dem Umschmieden helfen? (core/optin.lua)
+    --
+    -- Sie steht oben, weil alle Schalter darunter wirkungslos sind, solange
+    -- sie mit Nein beantwortet ist — und sie ist HIER genauso formuliert wie
+    -- in der Einblendung: wer sie dort gelesen hat, muss sie hier
+    -- wiedererkennen.
     --------------------------------------------------
     if WeintCodex.OptIn then
         local who = WeintCodex.OptIn.CharacterName() or "diesem Charakter"
-        y = Group(y, "Auf diesem Charakter",
-            "WeintCodex meldet sich von selbst: Ausrüstungs-Alarm,"
-            .. " Rotationshelfer an der Puppe, Fenster beim Umschmieder,"
-            .. " Einkaufsliste am Auktionshaus. Hier steht, ob es das auf"
-            .. " " .. who .. " tun soll.")
+        y = Group(y, "Hilfe auf diesem Charakter",
+            "Ob WeintCodex dir auf " .. who .. " bei Verzauberungen,"
+            .. " Sockelsteinen und dem Umschmieden von sich aus hilft —"
+            .. " Ausrüstungs-Alarm, Einkaufsliste am Auktionshaus, Plan beim"
+            .. " Umschmieder, Rotationshelfer an der Puppe.")
 
         y = Toggle(y, {
-            label = "Hier von selbst mitreden",
-            description = "Aus: WeintCodex fängt auf " .. who .. " kein Gespräch"
-                .. " mehr an. Das Addon selbst bleibt vollständig da – /wc"
-                .. " öffnet es wie immer. (/wc hier stellt die Frage erneut)",
+            label = "Von sich aus helfen",
+            description = "Aus: WeintCodex sagt auf " .. who .. " nichts mehr"
+                .. " von sich aus. Es verschwindet dabei nicht – /wc öffnet es"
+                .. " wie immer, und alles, was du selbst aufrufst, funktioniert"
+                .. " unverändert. (/wc hier stellt die Frage erneut)",
             get = function() return WeintCodex.OptIn.Active() end,
             set = function(on) WeintCodex.OptIn.SetActive(on) end,
         })

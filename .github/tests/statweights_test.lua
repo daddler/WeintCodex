@@ -5,10 +5,16 @@
 -- verschluckt, faellt im Spiel erst auf, wenn jemand mit einer Gewichtung
 -- rechnet, die zur Haelfte fehlt.
 --
--- Geprueft wird ausdruecklich gegen MEHRERE Gestalten desselben Inhalts -
--- Ausgabezeichenkette, kopierte Tabelle, JSON-Zeile, getippte Liste. Ein
--- Import, der nur eine davon versteht, geht kaputt, sobald die Quelle ihre
--- Ausgabe umstellt.
+-- Geprueft werden BEIDE Lesewege:
+--
+--   1. der Paarleser, gegen mehrere Gestalten desselben Inhalts - kopierte
+--      Tabelle, JSON-Zeile, getippte Liste. Ein Import, der nur eine davon
+--      versteht, geht kaputt, sobald die Quelle ihre Ausgabe umstellt.
+--   2. die Ausgabe von wowsims.com/mop, gegen eine ECHTE Ausgabe und nicht
+--      gegen ein nachgebautes Beispiel - dort stehen keine Wertnamen,
+--      sondern nur Zahlen, und welcher Wert gemeint ist, sagt allein die
+--      Position. Ein nachgebautes Beispiel bestaetigte nur die eigene
+--      Annahme ueber diese Reihenfolge.
 --
 --   lua5.1 .github/tests/statweights_test.lua .
 
@@ -160,6 +166,124 @@ do
 
     -- Und eine Zahl ohne Namen davor erfindet keinen Wert.
     Check("Blosse Zahlen erfinden nichts", SW.Parse("1 2 3 4") == nil)
+end
+
+--== Die Ausgabe von wowsims.com/mop ========================================
+-- Der zweite Leseweg. Er ist als einziger an EIN fremdes Format gebunden,
+-- weil in dieser Ausgabe keine Wertnamen stehen: die Gewichte liegen als
+-- blosse Zahlenreihe da, und welcher Wert gemeint ist, sagt allein die
+-- Position. Genau deshalb wird er hier gegen eine ECHTE Ausgabe geprueft
+-- und nicht gegen ein nachgebautes Beispiel - ein nachgebautes bestaetigt
+-- nur die eigene Annahme.
+--
+-- Die folgende Zeichenkette ist unveraendert die, die der Sim nach
+-- "Suggest Reforges" fuer einen Blut-Todesritter ausgibt.
+local SIM = [==[
+{"apiVersion":3,"settings":{"iterations":25000,"phase":5,"showDamageMetrics":true,"showThreatMetrics":true,"showHealingMetrics":true,"showQuickSwap":true,"language":"en","faction":"Alliance","filters":{"armorTypes":["ArmorTypePlate"],"oneHandedWeapons":true,"twoHandedWeapons":true}},"raidBuffs":{"trueshotAura":true,"serpentsSwiftness":true,"elementalOath":true,"leaderOfThePack":true,"blessingOfMight":true,"blessingOfKings":true,"powerWordFortitude":true,"bloodlust":true,"stormlashTotemCount":4,"skullBannerCount":2},"debuffs":{"weakenedBlows":true,"physicalVulnerability":true,"weakenedArmor":true,"curseOfElements":true},"tanks":[{"type":"Player"}],"partyBuffs":{},"player":{"name":"Player","race":"RaceBloodElf","class":"ClassDeathKnight","equipment":{"items":[{"id":86920,"gems":[76895,76639],"reforging":161,"upgradeStep":"UpgradeStepTwo"},{"id":90509,"reforging":125,"upgradeStep":"UpgradeStepTwo"},{"id":89921,"enchant":4805,"gems":[76653],"upgradeStep":"UpgradeStepTwo"},{"id":87159,"enchant":4422,"reforging":125,"upgradeStep":"UpgradeStepTwo"},{"id":86918,"enchant":4420,"gems":[76653,76653],"reforging":140,"upgradeStep":"UpgradeStepTwo"},{"id":90506,"enchant":4411,"gems":[76639],"reforging":164,"upgradeStep":"UpgradeStepTwo"},{"id":89946,"enchant":4431,"gems":[76639,76639],"reforging":161,"upgradeStep":"UpgradeStepTwo","tinker":4898},{"id":89919,"gems":[76653,76639,76639],"reforging":143,"upgradeStep":"UpgradeStepTwo","tinker":4223},{"id":89928,"enchant":4824,"gems":[76690,76639],"reforging":122,"upgradeStep":"UpgradeStepTwo"},{"id":90507,"enchant":4429,"gems":[76653],"reforging":140,"upgradeStep":"UpgradeStepTwo"},{"id":86946,"upgradeStep":"UpgradeStepTwo"},{"id":87158,"reforging":143,"upgradeStep":"UpgradeStepTwo"},{"id":87172,"upgradeStep":"UpgradeStepTwo"},{"id":86046,"upgradeStep":"UpgradeStepTwo"},{"id":87176,"enchant":3368,"gems":[89881,76639],"reforging":143,"upgradeStep":"UpgradeStepTwo"},{}]},"consumables":{"potId":76090,"flaskId":76087,"foodId":74656,"conjuredId":5512},"bonusStats":{"apiVersion":3,"stats":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"pseudoStats":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"buffs":{"devotionAuraCount":2,"painSuppressionCount":1,"vigilanceCount":2,"rallyingCryCount":2},"bloodDeathKnight":{"options":{"classOptions":{}}},"talentsString":"231111","glyphs":{"major1":104047,"major2":104048,"major3":43536,"minor1":104101,"minor2":43550,"minor3":43672},"profession1":"Engineering","profession2":"Blacksmithing","cooldowns":{"hpPercentForDefensives":0.3},"reactionTimeMs":750,"inFrontOfTarget":true,"distanceFromTarget":5,"healingModel":{"hps":100000,"cadenceSeconds":0.4,"cadenceVariation":2.1,"absorbFrac":0.107,"burstWindow":6}},"encounter":{"apiVersion":3,"duration":620,"durationVariation":16,"executeProportion20":0.2,"executeProportion25":0.25,"executeProportion35":0.35,"executeProportion45":0.45,"executeProportion90":0.9,"targets":[{"id":60999,"name":"Sha of Fear 25 H","level":93,"mobType":"MobTypeElemental","stats":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,24835,0,1632111860,0,0],"minBaseDamage":620921,"damageSpread":0.6195,"swingSpeed":2.5}]},"epWeightsStats":{"apiVersion":3,"stats":[1,0,1.02,0,0,1.77,0.85,0.89,1.5,0.97,0.99,0.98,0.23,0,0,0,0,0.57,0.57,0,0,0],"pseudoStats":[1.94,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"epRatios":[0,1,1,1,0,0],"reforgeSettings":{"useSoftCapBreakpoints":true,"includeTimeout":true,"statCaps":{"apiVersion":3,"stats":[0,0,0,0,0,0,0,0,5100,0,0,0,0,0,0,0,0,0,0,0,0,0],"pseudoStats":[0,0,0,0,0,0,0,0,0,0,0,0,7.5,0,0,0]},"breakpointLimits":{"apiVersion":3,"stats":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"pseudoStats":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}}
+]==]
+
+do
+    local raw, problem, ignored, info = SW.Parse(SIM)
+    Check("Sim-Ausgabe wird ueberhaupt gelesen", raw ~= nil, problem)
+    Check("… und als Sim-Ausgabe erkannt", info and info.source == "sim")
+
+    -- Die Positionen, an denen ein Irrtum unbemerkt bliebe. Belegt ist die
+    -- Zuordnung an der Klasse (Todesritter: Staerke ja, Beweglichkeit und
+    -- Intelligenz nein) und an der Grenze weiter unten.
+    Check("Staerke steht auf Platz 0",   raw and raw.strength == 1, tostring(raw and raw.strength))
+    Check("Beweglichkeit bleibt 0",      raw and raw.agility == nil)
+    Check("Ausdauer steht auf Platz 2",  raw and raw.stamina == 1.02, tostring(raw and raw.stamina))
+    Check("Treffer steht auf Platz 5",   raw and raw.hit == 1.77, tostring(raw and raw.hit))
+    Check("Krit steht auf Platz 6",      raw and raw.crit == 0.85, tostring(raw and raw.crit))
+    Check("Tempo steht auf Platz 7",     raw and raw.haste == 0.89, tostring(raw and raw.haste))
+    Check("Waffenkunde steht auf Platz 8", raw and raw.expertise == 1.5, tostring(raw and raw.expertise))
+    Check("Ausweichen steht auf Platz 9", raw and raw.dodge == 0.97, tostring(raw and raw.dodge))
+    Check("Parieren steht auf Platz 10", raw and raw.parry == 0.99, tostring(raw and raw.parry))
+    Check("Meisterschaft steht auf Platz 11", raw and raw.mastery == 0.98, tostring(raw and raw.mastery))
+
+    local w = SW.Normalize(raw)
+    Check("Skaliert auf groesstes Gewicht = 100",
+        w and w.hit == 100 and w.strength == 56 and w.expertise == 85, Show(w))
+
+    -- Angriffskraft, Ruestung und Waffenschaden gewichtet der Sim mit,
+    -- WeintCodex kennt sie nicht. Sie duerfen weder mitgerechnet noch
+    -- verschwiegen werden.
+    local named = table.concat(ignored or {}, ", ")
+    Check("Nicht uebernommene Werte werden gemeldet",
+        named:find("Angriffskraft", 1, true)
+        and named:find("Rüstung", 1, true)
+        and named:find("Waffenschaden", 1, true), named)
+
+    -- Die Klasse ist die einzige Auskunft, an der auffaellt, dass jemand
+    -- die Ausgabe eines fremden Charakters eingefuegt hat.
+    Check("Die Klasse wird gelesen", info and info.class == "DEATHKNIGHT",
+        tostring(info and info.class))
+end
+
+--== Die Grenzen aus der Sim-Ausgabe ========================================
+do
+    local _, _, _, info = SW.Parse(SIM)
+    local byStat = {}
+    for _, cap in ipairs((info and info.caps) or {}) do byStat[cap.stat] = cap end
+
+    -- Waffenkunde steht dort als WERTUNG, die Trefferchance als PROZENT.
+    -- Beides bleibt so stehen; umgerechnet wird erst beim Vergleich.
+    Check("Waffenkunde-Grenze als Wertung",
+        byStat.expertise and byStat.expertise.rating == 5100
+            and byStat.expertise.pct == nil,
+        tostring(byStat.expertise and byStat.expertise.rating))
+    Check("Treffer-Grenze als Prozent",
+        byStat.hit and byStat.hit.pct == 7.5 and byStat.hit.rating == nil,
+        tostring(byStat.hit and byStat.hit.pct))
+
+    -- 5100 Wertung sind auf Stufe 90 genau 15 % - und 15 % steht im
+    -- Spec-Profil des Blut-Todesritters. Das ist die Gegenprobe auf die
+    -- ganze Positionstabelle: laege Platz 8 woanders, kaeme hier Unsinn
+    -- heraus.
+    Check("5100 Wertung sind 15 Prozent",
+        math.abs(SW.CapPercent(byStat.expertise) - 15) < 0.001,
+        tostring(SW.CapPercent(byStat.expertise)))
+    -- Und mit der Umrechnung, die der Client meldet, wird gerechnet statt
+    -- mit der Zahl fuer Stufe 90.
+    Check("Die Umrechnung des Clients gewinnt",
+        math.abs(SW.CapPercent(byStat.expertise, 300) - 17) < 0.001,
+        tostring(SW.CapPercent(byStat.expertise, 300)))
+    Check("Eine Prozentgrenze wird nicht umgerechnet",
+        SW.CapPercent(byStat.hit, 300) == 7.5)
+end
+
+--== Verschiebt der Sim seine Reihenfolge, wird nichts geraten ==============
+do
+    -- Der Fehler, der sonst niemandem auffiele: jeder Wert bekaeme lautlos
+    -- das Gewicht eines anderen, und die Gewichtung saehe vollstaendig aus.
+    -- Dieselbe Fehlerklasse wie die laufende Nummer des Umschmieders.
+    local short = SIM:gsub('"epWeightsStats":{"apiVersion":3,"stats":%[[^%]]*%]',
+        '"epWeightsStats":{"apiVersion":3,"stats":[1,0,1.02,0,0,1.77,0.85]')
+    local raw, problem = SW.Parse(short)
+    Check("Andere Laenge wird abgelehnt", raw == nil, Show(raw))
+    Check("… und sagt, dass die Reihenfolge nicht mehr passt",
+        problem and problem:find("Reihenfolge", 1, true) ~= nil, problem)
+end
+
+--== Eine Sim-Ausgabe ohne Gewichte =========================================
+do
+    -- Wer exportiert, ohne rechnen zu lassen, bekommt eine Ausgabe ohne
+    -- epWeightsStats. Darauf hilfsweise den Paarleser loszulassen waere die
+    -- stille Falschauskunft: der faende in den Schluesselnamen und Zahlen
+    -- dieser Zeichenkette durchaus etwas.
+    local without = SIM:gsub('"epWeightsStats"', '"epWeightsStatsX"')
+    local raw, problem = SW.Parse(without)
+    Check("Sim-Ausgabe ohne Gewichte wird abgelehnt", raw == nil, Show(raw))
+    Check("… und sagt, was zu tun ist",
+        problem and problem:find("Suggest Reforges", 1, true) ~= nil, problem)
+end
+
+--== Der Paarleser bleibt der Normalfall ====================================
+do
+    -- Eine gewoehnliche Paarliste darf nicht in den Sim-Weg geraten.
+    local _, _, _, info = SW.Parse("Agility=1, CritRating=0.5")
+    Check("Paarliste bleibt beim Paarleser", info and info.source == "pairs",
+        tostring(info and info.source))
 end
 
 --== Kein fremdes Addon =====================================================

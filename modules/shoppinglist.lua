@@ -491,7 +491,8 @@ function SL.Dump()
     Say("Einkaufsliste — was der Client hergibt:")
 
     print("  Schalter: " .. (Store().enabled and "an" or "aus")
-        .. " · Mitreden: " .. ((not WeintCodex.OptIn or WeintCodex.OptIn.Active())
+        .. " · Hilfe auf diesem Charakter: "
+        .. ((not WeintCodex.OptIn or WeintCodex.OptIn.Active())
             and "ja" or "nein (/wc hier)"))
 
     for _, name in ipairs(WINDOW_NAMES) do
@@ -542,7 +543,7 @@ end
 watcher:SetScript("OnEvent", function(_, event)
     if event == "AUCTION_HOUSE_SHOW" then
         if not Store().enabled then return end
-        -- "Hier nicht mitreden" (core/optin.lua): ein Fenster, das von
+        -- "Hier nicht von sich aus helfen" (core/optin.lua): ein Fenster, das von
         -- selbst aufgeht, ist genau das, was dort abgewaehlt wurde.
         if WeintCodex.OptIn and not WeintCodex.OptIn.Active() then return end
         -- Der Ausruestungs-Scan liest je Gegenstand den Tooltip; beim

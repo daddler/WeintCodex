@@ -2,6 +2,34 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.4.0] – 2026-08-31
+
+**Neu: die Ausgabe von wowsims lesen.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt und auf *Suggest Reforges* drückt, bekommt eine lange Zeichenkette heraus — dieselbe, die man in ReforgeLite einfügt und damit fertig ist. WeintCodex hat sie bisher nicht angenommen: der Import kannte nur Wertepaare aus Name und Zahl, und in dieser Ausgabe stehen keine Namen.
+
+**Und die Frage beim ersten Anmelden fragt jetzt nach der Sache.** Sie lautete, ob WeintCodex auf diesem Charakter „mitreden" darf. Das beschreibt, was das Addon *tut*, und nicht, was man *davon hat* — wer sie las, wusste nicht, was er sich damit ausschaltet.
+
+### Neu
+- **Die Sim-Ausgabe kommt ganz hinein**, auf der Seite *Priorisierung* unter *Aus einem Sim übernehmen*. Genau die Zeichenkette, die man auch ReforgeLite gibt; nichts davon muss abgetippt oder herausgesucht werden
+- **Die Felder werden gefüllt, gespeichert wird erst auf deinen Klick** — wie bisher. Was von außen kommt, sieht man sich an, bevor es gilt
+- **Danach steht im Chat, mit welchen Grenzen dein Sim gerechnet hat** — und ob WeintCodex hier mit denselben rechnet. Stimmen sie überein, steht das da; weichen sie ab, steht dort, womit WeintCodex rechnet
+- **Ist die Ausgabe für eine andere Klasse gerechnet, wird das gesagt**, bevor du speicherst. Die Zeichenkette trägt die Klasse mit sich, und eine fremde Gewichtung sieht sonst genauso aus wie die eigene
+- Was der Sim gewichtet und WeintCodex nicht kennt (Angriffskraft, Rüstung, Waffenschaden), steht wie gehabt danach im Chat — statt still zu fehlen
+- Wertepaare gehen unverändert weiter: *Beweglichkeit 1,00*, *CritRating=0.55*, eine kopierte Tabelle, eine Zeile je Wert
+
+### Geändert
+- **Die Frage beim ersten Anmelden heißt jetzt: „Soll WeintCodex dir hier helfen?"** — und nennt, wobei: Verzauberungen, Sockelsteine, Umschmieden. Beide Antworten stehen mit ihren Folgen dabei. *Ja* heißt: es meldet sich, wenn an einem frisch angelegten Teil eine Verzauberung oder ein Stein fehlt, zeigt am Auktionshaus die Einkaufsliste, öffnet beim Umschmieder den Plan und an der Trainingspuppe den Rotationshelfer. *Nein* heißt: es sagt hier nichts mehr von sich aus — `/wc` öffnet es trotzdem wie immer, mit allen Seiten
+- Derselbe Wortlaut steht unter *Einstellungen → Fenster & Ansicht*, wo die Antwort umkehrbar ist. `/wc hier` stellt die Frage erneut
+
+### Technisch
+- **`modules/statweights.lua` hat einen zweiten Leseweg** (`SW.ParseSim`), und er ist als einziger im Addon an *ein* fremdes Format gebunden. Das ist keine Kehrtwende gegenüber 2.7.3.1, sondern die Ausnahme, die dessen Regel bestätigt: in dieser Ausgabe stehen die Gewichte als bloße Zahlenreihe, und welcher Wert gemeint ist, sagt allein die **Position** — es gibt keine Namen, an denen ein formatfreier Leser sich festhalten könnte
+- **Woraus folgt, dass er laut scheitern muss.** Verschiebt der Sim seine Reihenfolge, bekäme jeder Wert lautlos das Gewicht eines anderen, und die Gewichtung sähe vollständig aus — dieselbe Fehlerklasse wie die laufende Nummer des Umschmieders. Geprüft wird deshalb die **Länge** der Reihe (22 Werte, 16 abgeleitete), bevor ein einziger Wert übernommen wird; passt sie nicht, wird nichts geraten und gesagt, dass sich das Format geändert hat. Und trägt der Text überhaupt eine Sim-Ausgabe, wird **nicht** hilfsweise der Paarleser probiert: der fände in ihren Schlüsselnamen und Zahlen durchaus etwas
+- **Die Positionstabelle ist an einer echten Ausgabe belegt** und nicht abgeschrieben: Stärke 1 / Beweglichkeit 0 / Intelligenz 0 passt zur Klasse, und die Grenze auf Platz 8 lautet 5100 Wertung — 15 % Waffenkunde bei 340 Wertung je Prozent, also genau der Wert, den `data/spec_profiles.lua` für den Blut-Todesritter führt. Diese Gegenprobe steht im Testlauf: läge Platz 8 woanders, käme dort Unsinn heraus
+- **Grenzen werden gemeldet, nicht angewendet.** Eine Grenze ist eine Aussage über das Spiel und keine Einstellung: 7,5 % Treffer und 15 % Waffenkunde gelten für jeden gleich und stehen deshalb im Spec-Profil. Weichen Sim und Profil voneinander ab, ist das eine Datenfrage für einen Menschen — dieselbe Haltung wie bei `WeintCodex_ValidateGemWeights()`. Der Vergleich rechnet dabei **nichts nach**: er liest `CapContext()`, also dieselbe Quelle wie die Sockel-, Verzauberungs- und Umschmiede-Seite
+- **Waffenkunde steht in der Ausgabe als Wertung, die Trefferchance als Prozent.** Beides bleibt so stehen, wie es dasteht; umgerechnet wird erst beim Vergleich, und zwar mit der Zahl, die der **Client** meldet (Wertung je Prozent) — die 340 für Stufe 90 sind nur der Rückfall
+- **Die angelegten Umschmiedungen der Ausgabe werden bewusst nicht gelesen.** WeintCodex plant selbst (`modules/reforge_engine.lua`), und ein zweiter, eingelesener Plan daneben wären zwei Planer — genau die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist. Übernommen wird, woraus ein Plan entsteht: die Gewichte
+- **`core/optin.lua`**: das Fenster misst seine Höhe jetzt am umbrochenen Text, statt sie mit 186 px festzuschreiben — die neue Erklärung ist länger, und eine geschätzte Höhe fällt genau dann auf, wenn am meisten dasteht (dieselbe Falle wie beim Changelog-Popup in `core/onboarding.lua`). `OI.Active()` und der Speicher unter `SavedData.optIn` bleiben unverändert; `/wc mitreden` funktioniert weiter, weil ein Befehl, der einmal gegangen ist, nicht weggenommen wird
+- Der Testlauf prüft jetzt **beide** Lesewege — der Paarleser gegen fünf Gestalten desselben Inhalts, der Sim-Leser gegen eine echte Ausgabe samt Längenwächter, Grenzen, Klasse und der Abgrenzung zum Paarleser (44 Prüfungen, `lua5.1 .github/tests/statweights_test.lua .`)
+
 ## [2.7.3.2] – 2026-08-31
 
 **Die Einkaufsliste am Auktionshaus ging nie auf.** Sie ist mit 2.7.2.0 dazugekommen und hat seitdem kein einziges Mal funktioniert: kein Fenster beim Auktionär, kein Fenster über `/wc einkauf`, keine Meldung, warum. Der Grund war das Auktionshaus selbst — Mists Classic hat das überarbeitete, und WeintCodex hat auf das alte gewartet.
