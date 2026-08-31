@@ -562,6 +562,22 @@ Beide landen in derselben Ablage (`SavedData.statWeights`) und werden von `ShowP
 
 **Die angelegten Umschmiedungen der Ausgabe werden bewusst nicht gelesen.** Sie stehen darin (`items[].reforging`), und ein zweiter, eingelesener Plan neben `modules/reforge_engine.lua` wären zwei Planer — genau die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist. Übernommen wird, woraus ein Plan entsteht: die Gewichte.
 
+### Die Ausrüstung an den Sim (`modules/simexport.lua`, seit 2.9.0.0)
+
+Seit 2.8.0.0 kommt eine Sim-Gewichtung ohne Abtippen ins Spiel. Der Weg **davor** blieb Handarbeit: die eigene Ausrüstung musste auf wowsims Stück für Stück nachgestellt werden. Wer das einmal gemacht hat, simmt nicht jede Woche erneut — und eine Gewichtung, die zur Ausrüstung von vor vier Wochen gehört, ist schlechter als ihr Ruf.
+
+Geschrieben wird der Export vom **WowSimsExporter**, dem Addon, das wowsims selbst dafür nennt; gelesen wird er von der Companion, aus derselben Datei. Dazwischen steht genau eine Tatsache: **WoW schreibt seine SavedVariables nur beim Neuladen und beim Ausloggen.** Was gerade angelegt ist, steht also noch nirgends, wo ein zweites Programm es sehen könnte — und ein Neuladen kann nur der Spieler auslösen. Das ist die ganze Seite: sie sagt, was der Desktop gerade sieht, ob das noch stimmt, und macht das Neuladen zu einem Knopf statt zu einem Wissen, das man haben muss.
+
+Fünf Dinge daran sind nicht Geschmack:
+
+- **Sie liest ein fremdes Addon — und zwar nur das Datum.** Aus `WSEDB` kommen Name und Zeitstempel des letzten Exports, nie sein Inhalt. Die Regel „kein fremdes Addon" aus `modules/statweights.lua` gilt unverändert weiter: sie betrifft das **Zerlegen** einer fremden Ausgabe, und das findet hier nicht statt. Eine Kopie des Exports durch WeintCodex hindurch wäre ausserdem eine zweite Fassung derselben Daten, die genau dann veraltet, wenn sie gebraucht wird — beide Dateien schreibt WoW ohnehin im selben Moment. Geschrieben wird in fremde Daten nie.
+- **Der Zeitstempel beim Anmelden ist die eigentliche Auskunft.** In diesem Moment ist der Speicher nachweislich dasselbe wie die Festplatte (er kommt von dort); jeder spätere Export ist neuer, und dann weiss die Festplatte noch nichts davon. Ohne diesen Vergleich wäre „bereitgestellt" eine Behauptung über etwas, das man nicht sieht — dieselbe Linie wie `stars == 0` und `readiness() is None` drüben.
+- **Der Stups darf scheitern, das Neuladen nicht.** Angestossen wird über den eigenen Weg des Exporters (`OnCharacterChanged`) statt über einen nachgebauten — was ein Export ist, entscheidet er. Ändert sich jene Funktion, ist das kein Grund, den Knopf tot zu stellen: der eigentliche Zweck ist das Neuladen, und der automatische Export deckt den Normalfall ohnehin ab. Deshalb `pcall`, und deshalb wird **hinterher** nachgesehen, ob sich der Zeitstempel bewegt hat — eine Rückmeldung über das Ergebnis, nicht über den Versuch (dieselbe Lehre wie beim Signalton in `modules/gearalert.lua`).
+- **Vier Gründe, vier Sätze.** Kein Addon, Addon abgeschaltet, nie exportiert, exportiert aber noch nicht auf der Festplatte. Drei davon verlangen etwas völlig anderes vom Spieler, und ein gemeinsamer Satz wäre für drei von ihnen falsch. Der Knopf bleibt dabei stehen, auch wenn der Stand schon aktuell ist — *lock, don't hide*, wie in `core/access.lua`.
+- **Der neueste Eintrag wird über alle AceDB-Profile gesucht.** Die Vorgabe liegt unter `Default`, aber wer sich je ein eigenes Profil angelegt hat, hat mehrere — und dann wäre ausgerechnet die Vorgabe die veraltete.
+
+Der Eintrag hängt in der Charakter-Seitenleiste neben *Priorisierung*, weil dort ankommt, was hier losgeschickt wird (und weil die Navigationsspalte bei 676 von 684 px steht — die Rechnung steht über der `tabs`-Tabelle). `/wc simmen prüfen` druckt jede Zwischenzahl aus, aus demselben Grund wie `/wc sockel` und `/wc tempo`: von aussen sieht „die Companion findet nichts" bei fehlendem Addon, abgeschaltetem Addon, leerer Liste und veralteter Festplatte völlig gleich aus. Voller Vertrag der Gegenseite in `docs/wowsims-exporter-bridge.md` drüben.
+
 ### Soll ich dir hier helfen? (`core/optin.lua`, seit 2.7.2.0)
 
 WeintCodex meldet sich von selbst: der Ausrüstungs-Alarm springt ins Bild, der Rotationshelfer geht an der Puppe auf, das Umschmieder-Fenster öffnet sich beim Umschmieder, am Auktionshaus steht die Einkaufsliste. Auf dem Charakter, den man spielt, ist das der Sinn. Auf einem Zweitcharakter ist es Lärm.

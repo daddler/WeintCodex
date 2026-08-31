@@ -2,6 +2,31 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.0.0] – 2026-08-31
+
+**Neu: Simmen, ohne im Sim etwas nachzubauen.** Seit 2.8.0.0 kommt eine Sim-Gewichtung ohne Abtippen ins Spiel. Der Weg *davor* war weiter Handarbeit: auf [wowsims.com/mop](https://www.wowsims.com/mop/) musste man seine Ausrüstung Stück für Stück selbst zusammenklicken. Wer das einmal gemacht hat, simmt nicht jede Woche erneut — und eine Gewichtung, die zur Ausrüstung von vor vier Wochen gehört, ist schlechter als ihr Ruf.
+
+Die neue Unterseite *Charakter → Simmen* stellt deine Ausrüstung für WeintCompanion bereit. Dort öffnet der Sim danach mit allem, was du anhast; drücken musst du nur noch *Suggest Reforges*. Das Ergebnis geht denselben Weg zurück wie bisher und landet auf *Priorisierung*.
+
+**Warum es dafür einen Knopf braucht.** World of Warcraft schreibt seine Daten erst beim Neuladen oder beim Ausloggen auf die Festplatte. Was du gerade anhast, steht also noch nirgends, wo ein zweites Programm es sehen könnte. Genau das macht der Knopf — und die Seite sagt dir vorher, ob der Rechner deinen jetzigen Stand überhaupt schon sieht.
+
+### Neu
+- **Neue Unterseite *Charakter → Simmen*** (auch `/wc simmen`). Sie sagt in einem Satz, was der Rechner gerade sieht, und stellt auf Knopfdruck deinen jetzigen Stand bereit
+- **Die Seite nennt den Unterschied zwischen „aktuell" und „veraltet".** Nach dem Anmelden sieht der Rechner genau das, was du anhast; sobald du etwas umziehst, nicht mehr — und dann steht das da, statt dass man es raten muss
+- **Fehlt das Addon *WowSimsExporter*, steht das auf der Seite samt Adresse.** Es ist das Addon, das wowsims selbst dafür nennt, und es schreibt den Export, den die Companion liest. Abgeschaltet ist ein eigener Fall und bekommt seinen eigenen Satz
+- `/wc simmen jetzt` stellt direkt bereit, `/wc simmen prüfen` sagt, was gemeldet wurde
+
+### Geändert
+- Der Hinweis zum Neuladen ist derselbe wie bei der Companion-Synchronisation — es ist derselbe Vorgang, und zwei Erklärungen dafür wären eine zu viel
+- Im Kampf wird nicht neu geladen
+
+### Technisch
+- **`modules/simexport.lua`** liest aus den SavedVariables des WowSimsExporter (`WSEDB`) **nur Name und Zeitstempel** des letzten Exports, nie seinen Inhalt. Den liest die Companion aus derselben Datei; eine Kopie durch WeintCodex hindurch wäre eine zweite Fassung derselben Daten, die genau dann veraltet, wenn sie gebraucht wird. Geschrieben wird in fremde Daten nie — die Regel „kein fremdes Addon" aus `modules/statweights.lua` gilt dort unverändert weiter, sie betrifft das *Zerlegen* einer fremden Ausgabe
+- **Der Zeitstempel beim Anmelden ist der Vergleichspunkt.** In diesem Moment ist der Speicher nachweislich dasselbe wie die Festplatte (er kommt von dort); alles Spätere ist neuer. Ohne diesen Vergleich wäre „bereitgestellt" eine Behauptung über etwas, das man nicht sieht — dieselbe Linie wie `stars == 0`
+- **Der Stups an den Exporter geht über dessen eigenen Weg** (`OnCharacterChanged`) und darf scheitern: er hängt an einer Funktion eines fremden Addons, der eigentliche Zweck ist das Neuladen, und der automatische Export deckt den Normalfall ohnehin ab. Gemeldet wird das *Ergebnis* (hat sich der Zeitstempel bewegt?), nicht der Versuch — dieselbe Lehre wie beim Signalton in `modules/gearalert.lua`
+- **Der neueste Eintrag wird über alle AceDB-Profile hinweg gesucht.** Die Vorgabe liegt unter `Default`, aber wer sich je ein eigenes Profil angelegt hat, hat mehrere — und dann wäre ausgerechnet die Vorgabe die veraltete
+- `.github/tests/simexport_test.lua` prüft die vier Zustände, die Suche über alle Profile, den Stups (auch wenn das fremde Addon einen Fehler wirft) und die Altersangabe — ohne Spiel: `lua5.1 .github/tests/simexport_test.lua .`
+
 ## [2.8.0.0] – 2026-08-31
 
 **Neu: Simmen am Schreibtisch, Ergebnis im Spiel.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt, musste das Ergebnis bisher selbst ins Spiel tragen: Zeichenkette kopieren, ingame die richtige Unterseite suchen, in ein sehr kleines Feld einfügen. WeintCompanion nimmt die Sim-Ausgabe jetzt entgegen und schickt sie herüber — nach dem nächsten `/reload` liegt sie hier bereit. Wer nicht neu laden will, bekommt in der Companion einen Import-String zum Einfügen; der wirkt sofort.

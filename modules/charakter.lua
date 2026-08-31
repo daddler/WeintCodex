@@ -6801,6 +6801,23 @@ function WeintCodex.Charakter.Show()
     end
 
     items[#items + 1] = { label = "Priorisierung", onClick = ShowPriorisierung }
+
+    -- SIMMEN STEHT NEBEN PRIORISIERUNG, WEIL DORT ANKOMMT, WAS DORT
+    -- LOSGESCHICKT WIRD.
+    --
+    -- Die Seite selbst simmt nicht (das tut wowsims) und rechnet nichts
+    -- (das tut niemand hier) — sie stellt die Ausruestung fuer die
+    -- Companion bereit, und zurueck kommt eine Gewichtung, die genau eine
+    -- Unterseite weiter oben landet. Gezeichnet wird sie von
+    -- modules/simexport.lua; darum ruft jene Seite Charakter.LeaveView()
+    -- auf. Sie haengt hier und nicht in der Navigationsspalte: dort ist
+    -- kein Platz mehr (die Rechnung steht ueber der tabs-Tabelle in
+    -- core/navigation.lua).
+    if WeintCodex.SimExport and WeintCodex.SimExport.ShowPage then
+        items[#items + 1] = { label = "Simmen",
+                              onClick = WeintCodex.SimExport.ShowPage }
+    end
+
     items[#items + 1] = { label = "Twinks",        onClick = ShowTwinkverwaltung }
 
     WeintCodex.Navigation.BuildSidebar("Charakter", items)

@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.8.0.0"
+WeintCodex.Version = "2.9.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -132,6 +132,19 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if verb == "umschmieden" or verb == "reforge" or verb == "schmieden" then
         if WeintCodex.Reforge and WeintCodex.Reforge.Command then
             WeintCodex.Reforge.Command(rest)
+        end
+        return
+    end
+
+    -- Simmen: die eigene Ausruestung fuer die Companion bereitstellen
+    -- (modules/simexport.lua). Der Knopf sitzt unter Charakter -> Simmen;
+    -- der Befehl ist der Weg dahin, wenn man schon weiss, was man will.
+    --   /wc simmen          Seite oeffnen
+    --   /wc simmen jetzt    bereitstellen und neu laden
+    --   /wc simmen pruefen  was der Exporter gemeldet hat
+    if verb == "simmen" or verb == "sim" or verb == "wowsims" then
+        if WeintCodex.SimExport and WeintCodex.SimExport.Command then
+            WeintCodex.SimExport.Command(rest)
         end
         return
     end

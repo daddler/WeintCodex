@@ -42,3 +42,21 @@ fremde Schlüssel, die die Skalierung nicht verzerren dürfen, negative Gewichte
 ```bash
 lua5.1 .github/tests/statweights_test.lua .
 ```
+
+## Simmen bereitstellen
+
+`simexport_test.lua` prüft `modules/simexport.lua`. Die Seite tut fast nichts —
+und genau deshalb muss ihre Auskunft stimmen: sie behauptet, ob ein zweites
+Programm den aktuellen Stand sieht, und **das kann man im Spiel nicht
+nachsehen**. Steht dort „aktuell", wo „veraltet" richtig wäre, öffnet die
+Companion den Sim mit der Ausrüstung von gestern, und niemand merkt es.
+
+Geprüft werden die vier Zustände, die zu vier verschiedenen Handlungen führen
+(kein Addon, abgeschaltet, nichts gemeldet, veraltet), die Suche nach dem
+neuesten Export über **alle** AceDB-Profile hinweg, und der Stups an den
+fremden Exporter: er darf scheitern, ohne etwas mitzureissen, und gemeldet
+wird das *Ergebnis* — hat sich der Zeitstempel bewegt? — und nicht der Versuch.
+
+```bash
+lua5.1 .github/tests/simexport_test.lua .
+```

@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.0.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Neu: |cffD4A24ACharakter -> Simmen|r. Ein Knopf stellt deine Ausruestung fuer WeintCompanion bereit — dort oeffnet der Sim danach mit allem, was du anhast.",
+            "Du musst im Sim also nichts mehr nachbauen. Nur noch |cffD4A24ASuggest Reforges|r druecken.",
+            "Die Seite sagt dir, ob der Rechner deinen jetzigen Stand sieht. Aendert sich deine Ausruestung, sieht er sie erst nach einem |cffD4A24A/reload|r.",
+            "Dafuer wird das Addon |cffD4A24AWowSimsExporter|r gebraucht. Fehlt es, steht das auf der Seite samt Adresse.",
+            "Zurueck geht es wie bisher: die Gewichtung landet auf |cffD4A24APriorisierung|r.",
+        },
+    },
+    {
         version = "2.8.0.0",
         date    = "31.08.2026",
         notes   = {
