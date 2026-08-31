@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.7.3.1"
+WeintCodex.Version = "2.7.3.2"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -151,9 +151,11 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     -- Einkaufsliste: was an Steinen und Verzauberungen fehlt. Geht am
     -- Auktionshaus von selbst auf; der Befehl ist der Weg dahin, wenn man
     -- vorher wissen will, was man braucht.
-    if cmd == "einkauf" or cmd == "einkaufsliste" or cmd == "shopping" then
-        if WeintCodex.ShoppingList and WeintCodex.ShoppingList.Toggle then
-            WeintCodex.ShoppingList.Toggle()
+    --   /wc einkauf          Liste zeigen/schliessen
+    --   /wc einkauf pruefen  welche Auktionshaus-Namen der Client fuehrt
+    if verb == "einkauf" or verb == "einkaufsliste" or verb == "shopping" then
+        if WeintCodex.ShoppingList and WeintCodex.ShoppingList.Command then
+            WeintCodex.ShoppingList.Command(rest)
         end
         return
     end

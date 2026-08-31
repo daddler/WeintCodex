@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.3.2] – 2026-08-31
+
+**Die Einkaufsliste am Auktionshaus ging nie auf.** Sie ist mit 2.7.2.0 dazugekommen und hat seitdem kein einziges Mal funktioniert: kein Fenster beim Auktionär, kein Fenster über `/wc einkauf`, keine Meldung, warum. Der Grund war das Auktionshaus selbst — Mists Classic hat das überarbeitete, und WeintCodex hat auf das alte gewartet.
+
+### Behoben
+- **Am Auktionshaus geht die Liste wieder von selbst auf.** Sie zeigt weiterhin nur, was man wirklich kaufen muss: leere Sockel, nachweislich falsch sitzende Steine und fehlende Verzauberungen
+- **Ein Klick auf eine Zeile trägt den Namen wieder in die Suche ein und stößt sie an.** Das ging aus demselben Grund nicht mehr
+- **`/wc einkauf` zeigt die Liste jetzt überall.** Außerhalb des Auktionshauses war das Fenster unsichtbar — es ging auf, nur zu sehen war es nicht, und verschieben ließ es sich damit auch nicht
+- Neu: **`/wc einkauf prüfen`** sagt, woran es liegt, wenn trotzdem nichts kommt — Schalter, Mitreden-Antwort, welches Auktionshaus dieser Client führt und was auf der Liste stünde
+
+### Technisch
+- **Das Auktionshaus wird beim Client erfragt, nicht angenommen.** Bis 2.7.3.1 stand in `modules/shoppinglist.lua` fest `AuctionFrame` und `BrowseName` — das Auktionshaus, wie 5.4.8 es hatte. Mit Phase 4 von Cataclysm Classic ist das überarbeitete dazugekommen (`AuctionHouseFrame`), und dieser Client führt es. `_G.AuctionFrame` war damit schlicht `nil`. Gesucht wird jetzt unter mehreren Namen, und die Suche wird über das Skript ausgelöst, das am Suchfeld selbst hängt — der einzige Auslöser, den es in jedem Clientstand gibt. Der alte Weg bleibt als Rückfall stehen
+- **Das Ereignis ist die Auskunft, nicht das Fenster.** Der Aufruf hing daran, dass `AuctionFrame` da *und* sichtbar ist; kennt der Client den Namen nicht, passierte nichts, und nichts sagte warum — genau der stille Rückfallweg, den es hier nicht geben darf (dieselbe Lehre wie beim Signalton in `modules/gearalert.lua` und beim Einladungslauf in `modules/calendar.lua`). `AUCTION_HOUSE_SHOW` ist die Meldung des Clients, dass das Auktionshaus offen ist; wo das Fenster steht, ist danach eine Frage der Position und keine Bedingung mehr
+- **Ein Fenster ohne Ankerpunkt zeichnet der Client nicht.** `Build()` setzte keinen: die Stelle kam entweder aus der gemerkten Position oder vom Auktionshaus, und ohne beides stand das Fenster ohne jeden Punkt da. `Show()` gelingt dabei, zu sehen ist nichts — und weil man es nicht greifen kann, auch nicht zu verschieben. Es hat jetzt einen Ankerpunkt ab Werk, wie das Umschmieder-Fenster
+- **Die Zeilenhervorhebung wird einmal angelegt** statt bei jedem Überfahren neu. WoW gibt Texturen nie wieder frei; eine je Mausbewegung war eine Sammlung, die nur wächst
+- **`/wc einkauf prüfen`** aus demselben Grund wie `/wc sockel`, `/wc tempo` und `/wc vz zeilen`: von außen sieht „es kommt kein Fenster" bei einem abgewählten Charakter, einem ausgeschalteten Schalter, einem leeren Befund und einem Namen, den dieser Client gar nicht führt, völlig gleich aus — und genau daran lag es, dass das eine ganze Fassung lang unbemerkt blieb
+
 ## [2.7.3.1] – 2026-08-30
 
 **Die Übernahme der Sim-Gewichte kommt ohne ein zweites Addon aus.** 2.7.3.0 hat dafür die gespeicherten Daten eines anderen Addons gelesen und sein Ausgabeformat vorausgesetzt. Beides ist raus: WeintCodex fasst keine fremden Daten mehr an, und der Import hängt an keinem festen Format mehr.

@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.3.2",
+        date    = "31.08.2026",
+        notes   = {
+            "Die Einkaufsliste geht am Auktionshaus wieder von selbst auf - sie kam bisher gar nicht.",
+            "Ein Klick auf eine Zeile traegt den Namen wieder in die Suche ein und stoesst sie an.",
+            "|cffD4A24A/wc einkauf|r zeigt sie ueberall; das Fenster war ausserhalb des Auktionshauses unsichtbar.",
+            "Neu: |cffD4A24A/wc einkauf pruefen|r sagt, woran es liegt, wenn trotzdem nichts kommt.",
+        },
+    },
+    {
         version = "2.7.3.1",
         date    = "30.08.2026",
         notes   = {

@@ -31,6 +31,16 @@
 -- diese Liste hier besser aufgehoben ist als auf einem Zettel: sie nimmt
 -- einem das Abtippen ab. Findet der Client die Suchfelder nicht, sagt die
 -- Zeile das — statt stillschweigend nichts zu tun.
+--
+-- WELCHES AUKTIONSHAUS DAS IST, WEISS NUR DER CLIENT (seit 2.7.3.2).
+--
+-- Diese Datei ist mit 2.7.2.0 gekommen und hat bis 2.7.3.1 kein einziges
+-- Mal funktioniert: sie hing an `AuctionFrame` und `BrowseName`, dem
+-- Auktionshaus von 5.4.8. Mists Classic hat das ueberarbeitete
+-- (`AuctionHouseFrame`, seit Phase 4 von Cataclysm Classic), und damit war
+-- die Bedingung einfach nie erfuellt — lautlos. Beide Namen werden jetzt
+-- gesucht, `/wc einkauf pruefen` sagt welcher gefunden wurde, und das
+-- Ereignis allein reicht zum Aufgehen (siehe unten bei AuctionWindow).
 --------------------------------------------------
 
 WeintCodex = WeintCodex or {}
@@ -139,31 +149,100 @@ function SL.Build()
 end
 
 --------------------------------------------------
+-- Das Fenster des Auktionshauses
+--------------------------------------------------
+-- WELCHES FENSTER DAS IST, WIRD DEN CLIENT GEFRAGT.
+--
+-- Bis 2.7.3.1 stand hier fest `AuctionFrame` — das Auktionshaus, wie es
+-- 5.4.8 hatte. Der Client von Mists Classic hat es nicht mehr: mit der
+-- vierten Phase von Cataclysm Classic ist das ueberarbeitete Auktionshaus
+-- dazugekommen (`AuctionHouseFrame`), und es ist mitgewandert. Damit war
+-- `_G.AuctionFrame` schlicht `nil` — die Einkaufsliste ging am
+-- Auktionshaus nie auf, und zwar lautlos: die Bedingung war einfach nie
+-- erfuellt.
+--
+-- Genau die Sorte stiller Rueckfallweg, die es hier nicht geben darf
+-- (dieselbe Lehre wie beim Signalton in modules/gearalert.lua und beim
+-- Einladungslauf in modules/calendar.lua). Gesucht wird deshalb unter
+-- mehreren Namen, und das Ergebnis steht in `/wc einkauf pruefen`.
+--------------------------------------------------
+
+local WINDOW_NAMES = { "AuctionHouseFrame", "AuctionFrame" }
+
+local function AuctionWindow()
+    for _, name in ipairs(WINDOW_NAMES) do
+        local f = _G[name]
+        if f and f.IsShown and f:IsShown() then return f, name end
+    end
+    return nil
+end
+
+--------------------------------------------------
 -- Suche im Auktionshaus
 --
 -- Der Klick IST das Hardware-Ereignis, also darf von hier aus gesucht
 -- werden. Gefragt wird trotzdem erst, ob es die Felder gibt: die
 -- Oberflaeche des Auktionshauses wird nachgeladen, und ihre Innereien sind
 -- nichts, worauf man sich blind verlaesst.
+--
+-- ANGESTOSSEN WIRD SIE UEBER DEN WEG, DEN DER SPIELER AUCH NIMMT.
+-- Der Text kommt ins Suchfeld, dann laeuft dessen eigenes
+-- "Eingabetaste"-Skript. Das ist der einzige Ausloeser, den es in jedem
+-- Clientstand gibt — die Namen der Suchfunktionen dahinter haben sich
+-- zwischen den Auktionshaeusern geaendert, das Feld und seine Taste nicht.
 --------------------------------------------------
+
+-- Rueckgabe: Suchfeld, Liste moeglicher Ausloeser (Name + Funktion).
+local function SearchTargets()
+    local ah = _G.AuctionHouseFrame
+    local bar = ah and ah.SearchBar
+    local box = bar and bar.SearchBox
+    if box and box.SetText then
+        local runs = {}
+        local enter = box.GetScript and box:GetScript("OnEnterPressed")
+        if enter then
+            runs[#runs + 1] = { "SearchBox:OnEnterPressed", function() enter(box) end }
+        end
+        if bar.StartSearch then
+            runs[#runs + 1] = { "SearchBar:StartSearch", function() bar:StartSearch() end }
+        end
+        local btn = bar.SearchButton
+        if btn and btn.Click then
+            runs[#runs + 1] = { "SearchBar.SearchButton:Click", function() btn:Click() end }
+        end
+        return box, runs, "AuctionHouseFrame.SearchBar.SearchBox"
+    end
+
+    -- Das Auktionshaus vor Cataclysm Phase 4. Bleibt stehen: ein Client,
+    -- der es noch fuehrt, soll die Suche behalten.
+    local old = _G.BrowseName
+    local run = _G.AuctionFrameBrowse_Search
+    if old and old.SetText and run then
+        return old, { { "AuctionFrameBrowse_Search", run } }, "BrowseName"
+    end
+
+    return nil, {}, nil
+end
 
 function SL.Search(text)
     if not text or text == "" then return false end
 
-    local box = _G.BrowseName
-    local run = _G.AuctionFrameBrowse_Search
-    if not (box and run and box.SetText) then return false end
+    local box, runs = SearchTargets()
+    if not box then return false end
 
     -- Auf den Reiter "Durchsuchen" wechseln, sonst sucht man in einem
-    -- Fenster, das man nicht sieht.
+    -- Fenster, das man nicht sieht. Nur das alte Auktionshaus hat ihn.
     local tab = _G.AuctionFrameTab1
     if tab and tab.Click and _G.AuctionFrameBrowse and not _G.AuctionFrameBrowse:IsShown() then
         pcall(tab.Click, tab)
     end
 
-    box:SetText(text)
-    local ok = pcall(run)
-    return ok and true or false
+    if not pcall(box.SetText, box, text) then return false end
+
+    for _, entry in ipairs(runs) do
+        if pcall(entry[2]) then return true, entry[1] end
+    end
+    return false
 end
 
 --------------------------------------------------
@@ -185,6 +264,13 @@ local function Build()
 
     frame = CreateFrame("Frame", "WeintCodexShoppingList", UIParent)
     frame:SetSize(WIDTH, 120)
+    -- EIN FENSTER OHNE ANKERPUNKT ZEICHNET DER CLIENT NICHT. Die Stelle
+    -- unten wird gleich ueberschrieben — von der gemerkten Position oder
+    -- vom Auktionshaus. Aber wenn beides fehlt (`/wc einkauf` fernab vom
+    -- Auktionshaus), stand das Fenster bis 2.7.3.1 ohne jeden Punkt da und
+    -- war unsichtbar: `Show()` gelingt, zu sehen ist nichts, und
+    -- verschieben kann man es auch nicht.
+    frame:SetPoint("CENTER", UIParent, "CENTER", 300, 0)
     frame:SetFrameStrata("HIGH")
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
@@ -279,8 +365,15 @@ local function Row(index)
     row.note:SetWordWrap(false)
     row.note:SetTextColor(unpack(C.textFaint))
 
+    -- Einmal angelegt und danach nur noch ein- und ausgeblendet: WoW gibt
+    -- Texturen nie wieder frei, und eine je Ueberfahren waere eine
+    -- Sammlung, die nur waechst (dieselbe Regel wie beim Seitengeruest der
+    -- Einstellungen).
+    row.hl = SetSolidBg(row, C.surface2[1], C.surface2[2], C.surface2[3], 0.7)
+    row.hl:Hide()
+
     row:SetScript("OnEnter", function(self)
-        SetSolidBg(self, C.surface2[1], C.surface2[2], C.surface2[3], 0.7)
+        self.hl:Show()
         if self._entry and self._entry.itemId then
             GameTooltip:SetOwner(self, "ANCHOR_LEFT")
             GameTooltip:SetItemByID(self._entry.itemId)
@@ -288,7 +381,7 @@ local function Row(index)
         end
     end)
     row:SetScript("OnLeave", function(self)
-        SetSolidBg(self, 0, 0, 0, 0)
+        self.hl:Hide()
         GameTooltip:Hide()
     end)
     row:SetScript("OnClick", function(self)
@@ -365,10 +458,12 @@ function SL.Show(manual)
     SL.Refresh()
 
     -- Neben das Auktionshaus, solange es offen ist. Sonst bleibt die
-    -- zuletzt gezogene Stelle.
-    if _G.AuctionFrame and _G.AuctionFrame:IsShown() and not Store().pos then
+    -- zuletzt gezogene Stelle — und wenn es die auch nicht gibt, der
+    -- Ankerpunkt aus Build().
+    local ah = AuctionWindow()
+    if ah and not Store().pos then
         frame:ClearAllPoints()
-        frame:SetPoint("TOPLEFT", _G.AuctionFrame, "TOPRIGHT", 4, 0)
+        frame:SetPoint("TOPLEFT", ah, "TOPRIGHT", 4, 0)
     end
 
     frame:Show()
@@ -380,6 +475,59 @@ end
 
 function SL.Toggle()
     if frame and frame:IsShown() then SL.Hide() else SL.Show(true) end
+end
+
+--------------------------------------------------
+-- Diagnose
+--------------------------------------------------
+-- Aus demselben Grund wie /wc sockel, /wc tempo und /wc vz zeilen: von
+-- aussen sieht "es kommt kein Fenster" bei einem abgewaehlten Charakter,
+-- einem ausgeschalteten Schalter, einem leeren Befund und einem Namen, den
+-- dieser Client gar nicht fuehrt, voellig gleich aus. Genau daran hat die
+-- Einkaufsliste eine ganze Fassung lang stumm danebengelegen.
+--------------------------------------------------
+
+function SL.Dump()
+    Say("Einkaufsliste — was der Client hergibt:")
+
+    print("  Schalter: " .. (Store().enabled and "an" or "aus")
+        .. " · Mitreden: " .. ((not WeintCodex.OptIn or WeintCodex.OptIn.Active())
+            and "ja" or "nein (/wc hier)"))
+
+    for _, name in ipairs(WINDOW_NAMES) do
+        local f = _G[name]
+        print("  " .. name .. ": " .. (f
+            and ("vorhanden, " .. ((f.IsShown and f:IsShown()) and "offen" or "zu"))
+            or "kennt der Client nicht"))
+    end
+
+    local box, runs, where = SearchTargets()
+    print("  Suchfeld: " .. (where or "nicht gefunden"))
+    if box then
+        local names = {}
+        for _, entry in ipairs(runs) do names[#names + 1] = entry[1] end
+        print("  Ausloeser: " .. (#names > 0 and table.concat(names, ", ")
+            or "keiner — der Text landet im Feld, gesucht wird von Hand"))
+    end
+
+    local items, problem = SL.Build()
+    if problem then
+        print("  Liste: " .. problem)
+    else
+        print("  Liste: " .. #(items or {}) .. " Posten")
+        for _, entry in ipairs(items or {}) do
+            print("    " .. entry.count .. "x " .. entry.name
+                .. " · " .. (entry.search and "suchbar" or "kein Name zum Suchen"))
+        end
+    end
+end
+
+function SL.Command(rest)
+    if rest == "pruefen" or rest == "prüfen" or rest == "check" then
+        SL.Dump()
+        return
+    end
+    SL.Toggle()
 end
 
 --------------------------------------------------
@@ -399,10 +547,17 @@ watcher:SetScript("OnEvent", function(_, event)
         if WeintCodex.OptIn and not WeintCodex.OptIn.Active() then return end
         -- Der Ausruestungs-Scan liest je Gegenstand den Tooltip; beim
         -- Oeffnen des Auktionshauses ist der Client ohnehin beschaeftigt.
+        -- DAS EREIGNIS IST DIE AUSKUNFT, NICHT DAS FENSTER. Bis 2.7.3.1
+        -- hing der Aufruf daran, dass `AuctionFrame` da und sichtbar ist;
+        -- kennt der Client diesen Namen nicht, passierte nichts — und
+        -- nichts sagte, warum. Der Client hat gerade gemeldet, dass das
+        -- Auktionshaus offen ist; das genuegt. Wo das Fenster steht, ist
+        -- eine Frage der Position und keine Bedingung mehr.
+        --
+        -- Der Ausruestungs-Scan liest je Gegenstand den Tooltip; beim
+        -- Oeffnen des Auktionshauses ist der Client ohnehin beschaeftigt.
         if C_Timer and C_Timer.After then
-            C_Timer.After(0.5, function()
-                if _G.AuctionFrame and _G.AuctionFrame:IsShown() then SL.Show(false) end
-            end)
+            C_Timer.After(0.5, function() SL.Show(false) end)
         else
             SL.Show(false)
         end
