@@ -33,6 +33,16 @@
 -- WEAKAURAS (eine Kategorie):
 --   WCIMPORT:WA:Klassenauren:AuraName|MAGE|Autor|1.0|Beschreibung,...
 --
+-- SIM-GEWICHTE (von WeintCompanion, nicht vom Bot):
+--   WCIMPORT:SW:PALADIN_RETRIBUTION:<Kennung>:<Zeitstempel>:<Charakter>:sim:strength|100,crit|58,...
+--
+-- Der einzige Import, der nicht aus Discord kommt: die Companion baut
+-- ihn aus einem Sim-Ergebnis. Er ist der Weg OHNE /reload — dieselbe
+-- Gewichtung geht auch über die Addon-Brücke, die aber erst beim
+-- nächsten Laden gelesen wird, und wer im Raid steht, lädt nicht neu.
+-- Zerlegt wird er in modules/statweights.lua; er landet als Vorschlag
+-- auf *Charakter → Priorisierung* und wird dort erst auf Klick wirksam.
+--
 -- OPTIONALER COMMUNITY-TAG (rückwärtskompatibel):
 --   WCIMPORT:<TYP>@<COMMUNITY-ID>:<Nutzlast>
 --   z. B. WCIMPORT:RAIDWED@123456789012345678:2026-06-14:2000:...
@@ -394,6 +404,54 @@ local function ProcessImport(rawStr)
         end
         return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " " .. count .. " Material(ien) importiert (Stand: " .. data.date .. ")."
 
+    -- SIM-GEWICHTE
+    --
+    -- Kein Eintrag in IMPORT_FEATURE, aus demselben Grund wie bei WA:
+    -- eine Gewichtung ist nichts Gildeninternes, sondern das Ergebnis
+    -- eines Sims fuer den eigenen Charakter.
+    elseif typeTag == "SW" then
+        local SW = WeintCodex.StatWeights
+        if not (SW and SW.ParseTransfer) then
+            return false, "Sim-Gewichte kann diese Addon-Fassung nicht lesen."
+        end
+
+        local entry, problem = SW.ParseTransfer(payload)
+        if not entry then
+            return false, problem or "Der String liess sich nicht lesen."
+        end
+
+        -- `force`: von Hand eingefuegt wird immer angeboten. Wer den
+        -- String selbst einsetzt, hat ihn gerade angefasst — "kenne ich
+        -- schon, passiert nichts" waere hier ein toter Knopf.
+        local ok, why = SW.Offer(entry, true)
+        if not ok then
+            return false, "Die Gewichtung wurde nicht uebernommen: "
+                .. (why or "unbekannter Grund") .. "."
+        end
+
+        local label = entry.spec
+        if WeintCodex_SpecProfiles and WeintCodex_SpecProfiles[entry.spec]
+           and WeintCodex_SpecProfiles[entry.spec].name then
+            label = WeintCodex_SpecProfiles[entry.spec].name
+        end
+
+        -- Direkt hinbringen: der Vorschlag fuellt dort die Felder, und
+        -- ein Import, nach dem man erst die richtige Unterseite suchen
+        -- muss, ist der halbe Weg.
+        -- Ueber GoToTab statt SwitchTo, damit die Navigationsspalte den
+        -- Eintrag auch markiert (dieselbe Reihenfolge wie in
+        -- core/search.lua und modules/gearalert.lua).
+        local nav = WeintCodex.Navigation
+        if nav and WeintCodex.Charakter and WeintCodex.Charakter.ShowPriorisierung then
+            if nav.GoToTab then nav.GoToTab("charakter")
+            elseif nav.SwitchTo then nav.SwitchTo("charakter") end
+            WeintCodex.Charakter.ShowPriorisierung()
+        end
+
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14)
+            .. " Sim-Gewichtung fuer " .. label .. " eingelesen."
+            .. " Sie steht in den Feldern - gespeichert wird erst auf deinen Klick."
+
     -- WEAKAURAS
     elseif typeTag == "WA" then
         local data  = ParseWAImport(payload)
@@ -407,7 +465,7 @@ local function ProcessImport(rawStr)
         return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " " .. count .. " WeakAura(s) für Kategorie \"" .. data.category .. "\" importiert."
 
     else
-        return false, "Unbekannter Typ: " .. typeTag .. ". Erlaubt: BOSS, RAIDWED, RAIDTHU, MAT, WA"
+        return false, "Unbekannter Typ: " .. typeTag .. ". Erlaubt: BOSS, RAIDWED, RAIDTHU, MAT, WA, SW"
     end
 end
 

@@ -762,38 +762,162 @@ end
 -- Eingabefeld im Detailbereich
 --
 -- Fuer die eine Sorte Eingabe, die von aussen kommt: eine lange
--- Zeichenkette, die jemand einfuegt (siehe modules/statweights.lua). Sie
--- ist einzeilig und rollt waagerecht — ein mehrzeiliges Feld waere hier
--- eine Flaeche, die nie voll wird.
+-- Zeichenkette, die jemand einfuegt (siehe modules/statweights.lua).
 --
--- Enter loest aus, der Knopf daneben auch. Beides, weil das eine die
--- Gewohnheit ist und das andere die sichtbare Bedienung: wer den Knopf
--- nicht sieht, tippt Enter, und wer Enter nicht probiert, sucht einen
--- Knopf.
+-- ZWEI FORMEN, UND DIE GROSSE IST DIE VORGABE FUER EINGEFUEGTES.
+--
+-- Bis 2.7.4.0 gab es nur die kleine: ein einzeiliges Feld von rund 270 px
+-- mit einem Knopf daneben, in der rechten Spalte, ohne Beschriftung. Das
+-- war die Stelle, an der eine mehrere Kilobyte lange Sim-Ausgabe hinein
+-- soll — und sie sah aus wie ein Suchfeld. Gemeldet wurde genau das:
+-- "sehr unscheinbar und schwer zu sehen". Ein Feld, das man suchen muss,
+-- ist von einem fehlenden nicht zu unterscheiden.
+--
+-- `opts.lines` (oder `opts.multiline`) macht daraus eine Flaeche ueber die
+-- ganze Breite mit dem Knopf darunter. Drei Dinge daran sind nicht
+-- Geschmack:
+--
+--   * Eine Beschriftung darueber (`opts.label`) und ein Hinweis darunter
+--     (`opts.note`) gehoeren zur Form: eine Flaeche ohne Aufschrift sagt
+--     nicht, was hinein soll.
+--   * Enter fuegt im mehrzeiligen Feld eine ZEILE ein, statt auszuloesen —
+--     wer einen Text mit Umbruechen einfuegt, will ihn nicht bei der
+--     ersten Zeile abgeschickt bekommen. Ausgeloest wird dort nur ueber
+--     den Knopf, und Escape gibt den Fokus frei.
+--   * Der Text wird nach dem Ausloesen NICHT geleert, wenn der Aufrufer
+--     die Seite stehen laesst (`opts.keepText`): beim Sim-Import fuellt
+--     das Einlesen nur die Felder daneben, und ein Feld, das sich dabei
+--     selbst leert, sieht aus, als waere nichts angekommen.
+--
+-- Enter loest im einzeiligen Feld aus, der Knopf in beiden. Beides, weil
+-- das eine die Gewohnheit ist und das andere die sichtbare Bedienung: wer
+-- den Knopf nicht sieht, tippt Enter, und wer Enter nicht probiert, sucht
+-- einen Knopf.
 --------------------------------------------------
 
 local function InspectorInput(parent, y, opts)
-    local holder = CreateFrame("Frame", nil, parent)
-    holder:SetHeight(28)
-    holder:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
-    holder:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
-    table.insert(inspectorWidgets, holder)
+    local lines = tonumber(opts.lines)
+        or (opts.multiline and 5)
+        or nil
 
-    local btnW = 92
+    if not lines then
+        -- Die kleine Form, unveraendert: einzeilig, Knopf daneben.
+        local holder = CreateFrame("Frame", nil, parent)
+        holder:SetHeight(28)
+        holder:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, y)
+        holder:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, y)
+        table.insert(inspectorWidgets, holder)
 
-    local box = CreateFrame("EditBox", nil, holder)
-    box:SetPoint("TOPLEFT",  holder, "TOPLEFT",  0, 0)
-    box:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -(btnW + 6), 0)
+        local btnW = 92
+
+        local box = CreateFrame("EditBox", nil, holder)
+        box:SetPoint("TOPLEFT",  holder, "TOPLEFT",  0, 0)
+        box:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -(btnW + 6), 0)
+        box:SetAutoFocus(false)
+        box:SetFontObject("GameFontHighlightSmall")
+        box:SetTextInsets(6, 6, 0, 0)
+        box:SetMaxLetters(0)
+        WeintCodex.SetSolidBg(box, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
+        WeintCodex.DrawSlimBorder(box, "hairline")
+
+        local ghost = box:CreateFontString(nil, "OVERLAY")
+        ghost:SetFont(WeintCodex.Fonts.sans, 10, "")
+        ghost:SetPoint("LEFT", box, "LEFT", 6, 0)
+        ghost:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        ghost:SetText(opts.placeholder or "")
+
+        local function SyncGhost()
+            ghost:SetShown((box:GetText() or "") == "")
+        end
+
+        local function Accept()
+            local text = box:GetText()
+            -- Das Feld leeren, BEVOR der Aufrufer laeuft: der zeichnet in
+            -- aller Regel die Seite neu, und dann gibt es dieses Widget
+            -- nicht mehr.
+            box:SetText("")
+            box:ClearFocus()
+            SyncGhost()
+            if opts.onAccept then opts.onAccept(text) end
+        end
+
+        box:SetScript("OnTextChanged", SyncGhost)
+        box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        box:SetScript("OnEnterPressed", Accept)
+        -- Ein verstecktes Feld mit Tastaturfokus schluckt die
+        -- Bewegungstasten (dieselbe Regel wie beim Notizfeld weiter unten).
+        box:SetScript("OnHide", function(self) self:ClearFocus() end)
+        SyncGhost()
+
+        -- Eckig (radius = 0): die Eckmasken aus core/ui.lua brauchen die
+        -- Farbe des Untergrunds, und der Detailbereich hat keinen eigenen —
+        -- dahinter liegt der Inhaltsbereich. Ausserdem steht daneben ein
+        -- eckiges Eingabefeld, und zwei Formen nebeneinander sind eine
+        -- zuviel.
+        local btn = WeintCodex.CreateButton(holder, {
+            text = opts.buttonLabel or "Übernehmen",
+            width = btnW, height = 26, size = 10, radius = 0,
+            onClick = Accept,
+        })
+        WeintCodex.DrawSlimBorder(btn, "hairline")
+        btn:SetPoint("TOPRIGHT", holder, "TOPRIGHT", 0, -1)
+
+        return y - 34
+    end
+
+    --------------------------------------------------
+    -- Die grosse Form: Beschriftung, Flaeche, Knopf darunter
+    --------------------------------------------------
+
+    local top = y
+
+    if opts.label then
+        local lbl = parent:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont(WeintCodex.Fonts.sans, 10, "")
+        lbl:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, top)
+        lbl:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, top)
+        lbl:SetJustifyH("LEFT")
+        lbl:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+        lbl:SetText(opts.label)
+        table.insert(inspectorWidgets, lbl)
+        top = top - 16
+    end
+
+    local rowH   = 14
+    local boxH   = math.max(48, lines * rowH + 10)
+
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetHeight(boxH)
+    frame:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, top)
+    frame:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, top)
+    WeintCodex.SetSolidBg(frame, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
+    WeintCodex.DrawSlimBorder(frame, "hairline")
+    table.insert(inspectorWidgets, frame)
+
+    -- Die Breite kommt als ZAHL und nicht aus einer Messung: der Block
+    -- entsteht, bevor der Rahmen seine endgueltige Groesse meldet
+    -- (dieselbe Regel wie bei INSPECTOR_CONTENT_W weiter oben).
+    local innerW = INSPECTOR_CONTENT_W - 12
+
+    local scroll = CreateFrame("ScrollFrame", nil, frame)
+    scroll:SetPoint("TOPLEFT",     frame, "TOPLEFT",      4, -4)
+    scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4,  4)
+
+    local box = CreateFrame("EditBox", nil, scroll)
+    box:SetSize(innerW, boxH - 8)
+    box:SetMultiLine(true)
     box:SetAutoFocus(false)
-    box:SetFontObject("GameFontHighlightSmall")
-    box:SetTextInsets(6, 6, 0, 0)
     box:SetMaxLetters(0)
-    WeintCodex.SetSolidBg(box, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
-    WeintCodex.DrawSlimBorder(box, "hairline")
+    box:SetFont(WeintCodex.Fonts.sans, 10, "")
+    box:SetTextColor(C.textNormal[1], C.textNormal[2], C.textNormal[3])
+    box:SetTextInsets(4, 4, 2, 2)
+    scroll:SetScrollChild(box)
 
-    local ghost = box:CreateFontString(nil, "OVERLAY")
+    local ghost = frame:CreateFontString(nil, "OVERLAY")
     ghost:SetFont(WeintCodex.Fonts.sans, 10, "")
-    ghost:SetPoint("LEFT", box, "LEFT", 6, 0)
+    ghost:SetPoint("TOPLEFT",  frame, "TOPLEFT",   9, -7)
+    ghost:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -9, -7)
+    ghost:SetJustifyH("LEFT")
     ghost:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
     ghost:SetText(opts.placeholder or "")
 
@@ -801,37 +925,54 @@ local function InspectorInput(parent, y, opts)
         ghost:SetShown((box:GetText() or "") == "")
     end
 
+    -- Ein Klick irgendwo auf die Flaeche setzt den Cursor hinein. Ohne das
+    -- muesste man die Textzeile selbst treffen, und ein leeres Feld hat
+    -- keine.
+    frame:EnableMouse(true)
+    frame:SetScript("OnMouseDown", function() box:SetFocus() end)
+
     local function Accept()
         local text = box:GetText()
-        -- Das Feld leeren, BEVOR der Aufrufer laeuft: der zeichnet in aller
-        -- Regel die Seite neu, und dann gibt es dieses Widget nicht mehr.
-        box:SetText("")
+        if not opts.keepText then
+            box:SetText("")
+            SyncGhost()
+        end
         box:ClearFocus()
-        SyncGhost()
         if opts.onAccept then opts.onAccept(text) end
     end
 
     box:SetScript("OnTextChanged", SyncGhost)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEnterPressed", Accept)
-    -- Ein verstecktes Feld mit Tastaturfokus schluckt die Bewegungstasten
-    -- (dieselbe Regel wie beim Notizfeld weiter unten).
     box:SetScript("OnHide", function(self) self:ClearFocus() end)
     SyncGhost()
 
-    -- Eckig (radius = 0): die Eckmasken aus core/ui.lua brauchen die Farbe
-    -- des Untergrunds, und der Detailbereich hat keinen eigenen — dahinter
-    -- liegt der Inhaltsbereich. Ausserdem steht daneben ein eckiges
-    -- Eingabefeld, und zwei Formen nebeneinander sind eine zuviel.
-    local btn = WeintCodex.CreateButton(holder, {
+    top = top - boxH - 6
+
+    local btn = WeintCodex.CreateButton(parent, {
         text = opts.buttonLabel or "Übernehmen",
-        width = btnW, height = 26, size = 10, radius = 0,
+        width = opts.buttonWidth or 120, height = 26, size = 10, radius = 0,
         onClick = Accept,
     })
     WeintCodex.DrawSlimBorder(btn, "hairline")
-    btn:SetPoint("TOPRIGHT", holder, "TOPRIGHT", 0, -1)
+    btn:SetPoint("TOPLEFT", parent, "TOPLEFT", INSPECTOR_PAD, top)
+    table.insert(inspectorWidgets, btn)
 
-    return y - 34
+    top = top - 30
+
+    if opts.note then
+        local note = parent:CreateFontString(nil, "OVERLAY")
+        note:SetFont(WeintCodex.Fonts.sans, 9, "")
+        note:SetPoint("TOPLEFT",  parent, "TOPLEFT",  INSPECTOR_PAD, top)
+        note:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -INSPECTOR_PAD, top)
+        note:SetJustifyH("LEFT")
+        note:SetSpacing(2)
+        note:SetTextColor(C.textFaint[1], C.textFaint[2], C.textFaint[3])
+        note:SetText(opts.note)
+        table.insert(inspectorWidgets, note)
+        top = top - math.max(12, note:GetStringHeight() + 4)
+    end
+
+    return top - 4
 end
 
 local function InspectorListCard(parent, y, item)

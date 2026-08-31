@@ -2,6 +2,29 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.8.0.0] – 2026-08-31
+
+**Neu: Simmen am Schreibtisch, Ergebnis im Spiel.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt, musste das Ergebnis bisher selbst ins Spiel tragen: Zeichenkette kopieren, ingame die richtige Unterseite suchen, in ein sehr kleines Feld einfügen. WeintCompanion nimmt die Sim-Ausgabe jetzt entgegen und schickt sie herüber — nach dem nächsten `/reload` liegt sie hier bereit. Wer nicht neu laden will, bekommt in der Companion einen Import-String zum Einfügen; der wirkt sofort.
+
+**Und das Feld für die Sim-Ausgabe ist endlich zu sehen.** Es war eine einzeilige Zeile mit einem Knopf daneben — an genau der Stelle, an der eine seitenlange Zeichenkette hinein soll. Jetzt ist es eine große Fläche mit Aufschrift.
+
+### Neu
+- **Eine Gewichtung aus der Companion liegt nach dem Anmelden bereit.** Der Chat sagt es, und auf *Charakter → Priorisierung* steht sie in den Feldern, mit Datum und Charakter darüber
+- **Wirksam wird sie erst auf deinen Klick.** Sie füllt nur die Felder — genau wie ein selbst eingefügter Text. Ein Knopf *Speichern & Anwenden*, einer *Vorschlag verwerfen*: was du verwirfst, kommt nach dem nächsten Anmelden nicht wieder
+- **Ohne Neuladen geht es auch**: den String aus der Companion kopieren und unter *Import* einfügen. Danach steht die Seite offen und die Felder sind gefüllt
+- Die Grenzen aus dem Sim (Treffer, Waffenkunde) werden weiterhin nur genannt und nicht übernommen — sie gelten für jeden gleich
+
+### Geändert
+- **Das Eingabefeld unter *Aus einem Sim übernehmen* ist jetzt eine große Fläche** über die ganze Breite, mit Aufschrift, Platz für mehrere Zeilen und dem Knopf darunter. Der eingefügte Text bleibt nach dem Einlesen stehen
+- Ein Klick irgendwo in die Fläche setzt den Cursor hinein
+
+### Technisch
+- **Neuer Inbox-Typ `stat_weights`** (WeintCompanion 2.5.0) und **neuer Importtyp `WCIMPORT:SW:`**. Beide landen in derselben Ablage (`SavedData.statWeights.pending`) und werden von `ShowPriorisierung` gelesen; voller Vertrag in `docs/stat-weights-bridge.md` drüben
+- **Zugestellt wird immer die ganze Liste**, wie bei der WeakAura-Bibliothek: eine gelöschte Gewichtung verschwindet dadurch, dass sie in der nächsten Zustellung fehlt. Was nicht mehr geliefert wird, räumt der Handler weg
+- **`seen` je Spec hält fest, was erledigt ist** (übernommen *oder* verworfen). Ohne dieses Gedächtnis stünde derselbe Vorschlag nach jedem Login wieder da — die Companion schickt bei jedem Takt dieselbe Liste. Die Kennung hängt drüben am **Inhalt**, also ist dieselbe Gewichtung derselbe Vorschlag und eine geänderte ein neuer. Ein von Hand eingefügter String übergeht das Gedächtnis (`force`): wer ihn selbst einsetzt, hat ihn gerade angefasst
+- **`SW.ParseTransfer` liegt in `modules/statweights.lua`, nicht in `modules/sync.lua`** — das Zerlegen einer fremden Zeichenkette ist die Sorte Rechnung, die der Testlauf ohne Spiel prüfen können muss. `.github/tests/statweights_test.lua` hält den String, den die Companion tatsächlich erzeugt, dazu das Hinlegen, das Erledigen und die Regel, dass ein Vorschlag **nichts** speichert
+- **`InspectorInput` kennt zwei Formen** (`core/navigation.lua`): die alte einzeilige und eine große mit `lines`, `label`, `note` und `keepText`. Im mehrzeiligen Feld löst Enter nicht mehr aus, sondern fügt eine Zeile ein — wer einen Text mit Umbrüchen einfügt, will ihn nicht bei der ersten Zeile abgeschickt bekommen
+
 ## [2.7.4.0] – 2026-08-31
 
 **Neu: die Ausgabe von wowsims lesen.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt und auf *Suggest Reforges* drückt, bekommt eine lange Zeichenkette heraus — dieselbe, die man in ReforgeLite einfügt und damit fertig ist. WeintCodex hat sie bisher nicht angenommen: der Import kannte nur Wertepaare aus Name und Zahl, und in dieser Ausgabe stehen keine Namen.

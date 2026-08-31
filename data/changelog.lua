@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.8.0.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Neu: Du kannst am Rechner simmen und das Ergebnis herueberschicken. In WeintCompanion unter |cffD4A24ASimmen|r - nach dem naechsten |cffD4A24A/reload|r liegt es hier bereit.",
+            "Es steht dann auf |cffD4A24ACharakter -> Priorisierung|r in den Feldern und gilt erst, wenn du auf |cffD4A24ASpeichern & Anwenden|r drueckst. |cffD4A24AVorschlag verwerfen|r raeumt ihn weg, und er kommt nicht wieder.",
+            "Ohne Neuladen geht es auch: In der Companion den String kopieren und hier unter |cffD4A24AImport|r einfuegen - der wirkt sofort.",
+            "Das Feld fuer die Sim-Ausgabe ist jetzt eine grosse Flaeche statt einer schmalen Zeile. Es war kaum zu finden.",
+        },
+    },
+    {
         version = "2.7.4.0",
         date    = "31.08.2026",
         notes   = {

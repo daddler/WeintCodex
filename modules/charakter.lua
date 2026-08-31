@@ -6092,6 +6092,25 @@ function ShowPriorisierung()
     local defaults = baseProfile.statWeights or {}
     local current  = (entry and entry.weights) or {}
 
+    --------------------------------------------------
+    -- LIEGT EIN VORSCHLAG AUS DER COMPANION BEREIT?
+    --
+    -- Er kommt entweder ueber die Addon-Bruecke (beim Login gelesen) oder
+    -- als eingefuegter String (sofort). Beide Wege legen ihn nur HIN;
+    -- wirksam wird er erst, wenn hier auf Speichern gedrueckt wird —
+    -- dieselbe Regel, die fuer einen von Hand eingefuegten Text schon
+    -- immer galt ("der Import fuellt die Felder, er speichert nicht").
+    --
+    -- Ein Vorschlag fuellt deshalb die Felder und faerbt den Kasten
+    -- darueber, aber er aendert nichts an `sd.customWeights`.
+    --------------------------------------------------
+    local SW      = WeintCodex.StatWeights
+    local pending = SW and SW.Pending and SW.Pending(effKey) or nil
+
+    if pending then
+        current = pending.weights
+    end
+
     local desc = prioFrame:CreateFontString(nil, "OVERLAY")
     desc:SetFont(WeintCodex.Fonts.sans, 9, "")
     desc:SetPoint("TOPLEFT",  prioFrame, "TOPLEFT",  16, -HEAD_H)
@@ -6110,16 +6129,58 @@ function ShowPriorisierung()
     local cb = CreateFrame("CheckButton", nil, prioFrame, "UICheckButtonTemplate")
     cb:SetSize(24, 24)
     cb:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 12, -84)
-    cb:SetChecked(entry and entry.enabled and true or false)
+    cb:SetChecked((pending ~= nil) or (entry and entry.enabled and true or false))
 
     local cbLbl = prioFrame:CreateFontString(nil, "OVERLAY")
     cbLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     cbLbl:SetPoint("LEFT", cb, "RIGHT", 4, 0)
     cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff4A4A52(für " .. (specDisplay or profileKey) .. ")|r")
 
+    --------------------------------------------------
+    -- DER HINWEIS STEHT UEBER DEN FELDERN, NICHT DANEBEN
+    --
+    -- Ohne ihn saehen die gefuellten Felder aus wie der gespeicherte
+    -- Stand — und wer dann weggeht, ohne zu speichern, haelt eine
+    -- Gewichtung fuer aktiv, die es nie war. Genannt wird beides: woher
+    -- sie kommt und dass sie noch nicht gilt.
+    --------------------------------------------------
+    local yOff = -116
+
+    if pending then
+        local banner = CreateFrame("Frame", nil, prioFrame)
+        banner:SetSize(430, 34)
+        banner:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff)
+        SetSolidBg(banner, C.accentCardTop[1], C.accentCardTop[2],
+            C.accentCardTop[3], 1.0)
+        DrawBorder(banner, C.accent[1], C.accent[2], C.accent[3], 0.55, 1)
+
+        local when = ""
+        if pending.created and pending.created > 0 then
+            when = " vom " .. date("%d.%m.%Y", pending.created)
+        end
+
+        local who = ""
+        if pending.character and pending.character ~= "" then
+            who = " (" .. pending.character .. ")"
+        end
+
+        local text = banner:CreateFontString(nil, "OVERLAY")
+        text:SetFont(WeintCodex.Fonts.sans, 10, "")
+        text:SetPoint("TOPLEFT",  banner, "TOPLEFT",  10, -6)
+        text:SetPoint("TOPRIGHT", banner, "TOPRIGHT", -10, -6)
+        text:SetJustifyH("LEFT")
+        text:SetSpacing(2)
+        text:SetText(WeintCodex.ColorText("gold",
+                "Sim-Gewichtung aus der Companion" .. when .. who .. ".")
+            .. " " .. WeintCodex.ColorText("textFaint",
+                "Sie steht in den Feldern und gilt noch nicht — "
+                .. "Speichern & Anwenden macht sie wirksam."))
+
+        yOff = yOff - 42
+    end
+
     -- Eingabefelder
     local boxes = {}
-    local yOff = -116
 
     for _, st in ipairs(WEIGHT_STATS) do
         local row = CreateFrame("Frame", nil, prioFrame)
@@ -6179,6 +6240,10 @@ function ShowPriorisierung()
         if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Invalidate then
             WeintCodex.ReforgeEngine.Invalidate()
         end
+        -- Erledigt: die Companion stellt dieselbe Liste bei jedem Login
+        -- erneut zu, und ohne diesen Vermerk stuende der Vorschlag morgen
+        -- wieder da (siehe SW.Resolve).
+        if pending and SW and SW.Resolve then SW.Resolve(effKey) end
         print("|cffD4A24A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " gespeichert"
             .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert).")
             .. " |cff4A4A52Sockel-, Verzauberungs- und Umschmiede-Vorschläge"
@@ -6196,6 +6261,22 @@ function ShowPriorisierung()
         ShowPriorisierung()
     end)
     resetBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 186, yOff - 8)
+
+    -- VERWERFEN IST EINE EIGENE HANDLUNG, UND SIE ZAEHLT ALS ERLEDIGT.
+    -- Ohne sie bliebe nur "wegklicken und hoffen" — und der Vorschlag
+    -- stuende nach dem naechsten Login wieder da, obwohl man ihn bewusst
+    -- nicht wollte. Gespeichert wird dabei nichts: was vorher galt, gilt
+    -- weiter.
+    if pending then
+        local dropBtn = MakeBtn(prioFrame, "Vorschlag verwerfen", 150, 24, function()
+            if SW and SW.Resolve then SW.Resolve(effKey) end
+            print("|cffD4A24A[WeintCodex]|r Sim-Vorschlag für "
+                .. (specDisplay or profileKey) .. " verworfen."
+                .. " |cff4A4A52An deiner Gewichtung ändert sich nichts.|r")
+            ShowPriorisierung()
+        end)
+        dropBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 376, yOff - 8)
+    end
 
     local hint = prioFrame:CreateFontString(nil, "OVERLAY")
     hint:SetFont(WeintCodex.Fonts.sans, 9, "")
@@ -6216,8 +6297,6 @@ function ShowPriorisierung()
     -- Speichern. Ein Import, der still aktiviert, ist genau die Sorte
     -- Empfehlung, die man nicht nachvollziehen kann.
     --------------------------------------------------
-    local SW = WeintCodex.StatWeights
-
     -- Deutsche Schreibweise: 7,5 % statt 7.5 %.
     local function Pct(v)
         return (string.format("%.1f", v or 0):gsub("%.", ","))
@@ -6356,7 +6435,20 @@ function ShowPriorisierung()
         end
     end
 
-    local blocks = {
+    local blocks = {}
+
+    -- Der Vorschlag steht als Erstes, weil er die eine Frage ist, die
+    -- beim Oeffnen der Seite offen ist.
+    if pending then
+        blocks[#blocks + 1] = { type = "header", text = "Vorschlag aus der Companion" }
+        blocks[#blocks + 1] = { type = "text", size = 10, text =
+            "Die Felder links sind damit gefüllt. |cffD4A24AGespeichert ist"
+            .. " noch nichts|r — sieh sie dir an und drück dann auf"
+            .. " Speichern & Anwenden." }
+        blocks[#blocks + 1] = { type = "divider" }
+    end
+
+    local base = {
         { type = "header", text = "Eigene Gewichtung" },
         { type = "rows", rows = {
             { label = "Status", value = (entry and entry.enabled) and "aktiv" or "inaktiv",
@@ -6375,8 +6467,27 @@ function ShowPriorisierung()
             .. " Beweglichkeit 1,00 · CritRating=0.55 · eine Zeile je Wert."
             .. " Die Felder links werden gefüllt, gespeichert wird erst auf"
             .. " deinen Klick." },
-        { type = "input", placeholder = "Sim-Ausgabe einfügen, oder Wertname und Zahl",
-          buttonLabel = "Einlesen",
+        --------------------------------------------------
+        -- DAS FELD IST DIE GROSSE FORM, UND ZWAR AUS EINEM GRUND.
+        --
+        -- Bis 2.7.4.0 war es eine einzeilige Zeile mit einem Knopf
+        -- daneben — an genau der Stelle, an der eine mehrere Kilobyte
+        -- lange Sim-Ausgabe hinein soll. Gemeldet wurde es als "sehr
+        -- unscheinbar und schwer zu sehen", und das ist die richtige
+        -- Beschreibung: es sah aus wie ein Suchfeld.
+        --
+        -- `keepText`: der eingefuegte Text bleibt stehen. Diese Seite
+        -- wird beim Einlesen ausdruecklich NICHT neu gezeichnet (sonst
+        -- waeren die gefuellten Felder wieder weg), und ein Feld, das
+        -- sich dabei selbst leert, sieht aus, als waere nichts
+        -- angekommen.
+        --------------------------------------------------
+        { type = "input", lines = 6, keepText = true,
+          label = "Sim-Ausgabe hier einfügen",
+          placeholder = "Die ganze Zeichenkette aus dem Sim — oder Wertname und Zahl",
+          buttonLabel = "Einlesen", buttonWidth = 130,
+          note = "Strg+V fügt ein, Strg+A markiert alles. Was dabei"
+              .. " herauskommt, steht danach im Chat.",
           onAccept = function(text)
               local raw, problem, ignored, info = SW.Parse(text)
               if not raw then
@@ -6394,6 +6505,8 @@ function ShowPriorisierung()
                   ignored, info)
           end },
     }
+
+    for _, block in ipairs(base) do blocks[#blocks + 1] = block end
 
     blocks[#blocks + 1] = { type = "divider" }
     blocks[#blocks + 1] = { type = "button", label = "Zur Werteverteilung",
@@ -6705,4 +6818,13 @@ end
 function WeintCodex.Charakter.ShowGems()
     WeintCodex.Charakter.Show()
     ShowGems()
+end
+
+-- Dasselbe fuer die Priorisierung. Gebraucht wird sie vom Import der
+-- Sim-Gewichte (modules/sync.lua): der String fuellt die Felder dieser
+-- Seite, und wer danach erst die richtige Unterseite suchen muss, hat
+-- den halben Weg vor sich.
+function WeintCodex.Charakter.ShowPriorisierung()
+    WeintCodex.Charakter.Show()
+    ShowPriorisierung()
 end

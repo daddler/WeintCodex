@@ -302,5 +302,105 @@ do
     Check("Kein Zugriff auf ein fremdes Addon", #hits == 0, hits[1])
 end
 
+--== Der Uebertragungsstring aus der Companion ==============================
+-- Er ist der Weg OHNE /reload. Erzeugt wird er drueben in
+-- core/stat_weights.build_transfer(); zerlegt hier. Laufen die beiden
+-- auseinander, kommt eine Gewichtung an, die zur Haelfte fehlt - und das
+-- sieht von aussen aus wie ein Sim, der nichts geliefert hat.
+do
+    local text = "WCIMPORT:SW:DEATHKNIGHT_BLOOD:84474e371e1f:1788186037::sim:"
+        .. "strength|56,stamina|58,hit|100,expertise|85,crit|48,haste|50,"
+        .. "mastery|55,dodge|55,parry|56"
+
+    -- Die Nutzlast steht hinter "WCIMPORT:SW:" - so uebergibt sie
+    -- modules/sync.lua.
+    local payload = text:match("^WCIMPORT:SW:(.+)$")
+    local entry, problem = SW.ParseTransfer(payload)
+
+    Check("Uebertragungsstring wird gelesen", entry ~= nil, problem)
+    Check("… mit der Spezialisierung",
+        entry and entry.spec == "DEATHKNIGHT_BLOOD", entry and entry.spec)
+    Check("… mit der Kennung",
+        entry and entry.id == "84474e371e1f", entry and entry.id)
+    Check("… und allen neun Gewichten",
+        entry and entry.weights.hit == 100 and entry.weights.strength == 56
+        and entry.weights.parry == 56, Show(entry and entry.weights))
+
+    -- Ein leeres Charakterfeld darf keinen Abschnitt verschieben: der
+    -- Name kommt aus dem Spiel und ist oft gar nicht bekannt.
+    Check("Leeres Charakterfeld verschiebt nichts",
+        entry and entry.character == "", entry and entry.character)
+end
+
+do
+    -- Ohne Spezialisierung liesse sich die Gewichtung keinem Profil
+    -- zuordnen. Eine zu raten waere die stille Falschauskunft.
+    local entry, problem = SW.ParseTransfer(":abc:0::sim:hit|100")
+    Check("Ohne Spezialisierung wird abgelehnt", entry == nil)
+    Check("… und sagt warum",
+        problem and problem:find("Spezialisierung", 1, true) ~= nil, problem)
+
+    local none = SW.ParseTransfer("MAGE_FIRE:abc:0::sim:")
+    Check("Ohne ein einziges Gewicht wird abgelehnt", none == nil)
+end
+
+--== Ein Vorschlag wird hingelegt, nicht angewendet =========================
+-- Der ganze Ablauf haengt am Gedaechtnis: dieselbe Liste kommt bei jedem
+-- Login erneut, und ohne `seen` stuende ein gestern uebernommener
+-- Vorschlag heute wieder da.
+do
+    WeintCodex.SavedData = {}
+
+    local entry = {
+        id = "abc123", spec = "MAGE_FIRE",
+        weights = { intellect = 100, crit = 80 },
+        created = 1788186037,
+    }
+
+    local ok = SW.Offer(entry)
+    Check("Vorschlag liegt bereit", ok == true)
+    Check("… und ist unter seiner Spec zu finden",
+        SW.Pending("MAGE_FIRE") ~= nil)
+    Check("… aber nicht unter einer anderen",
+        SW.Pending("MAGE_FROST") == nil)
+
+    -- Er darf die gespeicherte Gewichtung NICHT angefasst haben.
+    Check("Nichts wurde gespeichert",
+        WeintCodex.SavedData.customWeights == nil)
+
+    SW.Resolve("MAGE_FIRE")
+    Check("Nach dem Erledigen liegt nichts mehr an",
+        SW.Pending("MAGE_FIRE") == nil)
+
+    local again = SW.Offer(entry)
+    Check("Dieselbe Zustellung wird nicht erneut angeboten", again == false)
+    Check("… und legt auch nichts hin", SW.Pending("MAGE_FIRE") == nil)
+
+    -- Von Hand eingefuegt wird immer angeboten: wer den String selbst
+    -- einsetzt, hat ihn gerade angefasst.
+    local forced = SW.Offer(entry, true)
+    Check("Von Hand eingefuegt wird trotzdem angeboten", forced == true)
+
+    -- Eine geaenderte Gewichtung ist ein neuer Vorschlag - die Kennung
+    -- haengt drueben am Inhalt.
+    SW.Resolve("MAGE_FIRE")
+    local changed = SW.Offer({
+        id = "def456", spec = "MAGE_FIRE",
+        weights = { intellect = 100, crit = 90 },
+    })
+    Check("Eine andere Kennung ist ein neuer Vorschlag", changed == true)
+end
+
+do
+    WeintCodex.SavedData = {}
+
+    -- Ohne Gewicht ueber null hat ein Vorschlag nichts zu sagen; ohne
+    -- Spec liesse er sich nicht zuordnen.
+    Check("Vorschlag ohne Gewichte wird abgelehnt",
+        SW.Offer({ id = "x", spec = "MAGE_FIRE", weights = {} }) == false)
+    Check("Vorschlag ohne Spezialisierung wird abgelehnt",
+        SW.Offer({ id = "x", weights = { crit = 50 } }) == false)
+end
+
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))
 os.exit(fails == 0 and 0 or 1)
