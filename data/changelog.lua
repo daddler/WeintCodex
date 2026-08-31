@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.7.3.1",
+        date    = "30.08.2026",
+        notes   = {
+            "Die Uebernahme der Sim-Gewichte kommt jetzt ohne ein zweites Addon aus - WeintCodex liest keine fremden Daten mehr.",
+            "Und sie haengt an keinem festen Format: gelesen wird jedes Paar aus Wertname und Zahl.",
+            "Damit geht alles, was du von |cffD4A24Awowsims.com/mop|r kopierst - die Ausgabezeichenkette genauso wie die abgeschriebene Tabelle.",
+            "Deutsche Namen und Kommazahlen gehen auch: |cffD4A24ABeweglichkeit 1,00|r.",
+        },
+    },
+    {
         version = "2.7.3.0",
         date    = "30.08.2026",
         notes   = {

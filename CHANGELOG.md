@@ -2,6 +2,21 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.7.3.1] – 2026-08-30
+
+**Die Übernahme der Sim-Gewichte kommt ohne ein zweites Addon aus.** 2.7.3.0 hat dafür die gespeicherten Daten eines anderen Addons gelesen und sein Ausgabeformat vorausgesetzt. Beides ist raus: WeintCodex fasst keine fremden Daten mehr an, und der Import hängt an keinem festen Format mehr.
+
+### Geändert
+- **Gelesen wird jedes Paar aus Wertname und Zahl** — mehr braucht es nicht. Damit geht alles, was du von [wowsims.com/mop](https://www.wowsims.com/mop/) kopierst: die Ausgabezeichenkette genauso wie die abgeschriebene Werte-Tabelle, eine JSON-Zeile oder eine von Hand getippte Liste. Getrennt werden darf mit Gleichheitszeichen, Doppelpunkt, Komma, Semikolon, Tabulator, Zeilenumbruch oder schlicht einem Leerzeichen
+- **Deutsche Wertnamen und Kommazahlen gehen auch** — *Beweglichkeit 1,00*, *Kritische Trefferwertung 0,68*, eine Zeile je Wert
+- **Es werden keine Daten eines anderen Addons mehr gelesen.** Der Weg über dessen gespeicherte Skalen ist ersatzlos entfallen
+
+### Technisch
+- **Warum das der robustere Weg ist und nicht der bequemere:** ein Muster, das auf *ein* Ausgabeformat passt, geht kaputt, sobald jene Seite ihre Ausgabe umstellt — und das merkt niemand ausser dem, der sich wundert, warum seine Gewichtung zur Hälfte fehlt. Wertepaare sind das, was alle Quellen gemeinsam haben
+- **Das Komma wird am ganzen Text entschieden, nicht an der einzelnen Stelle.** Es trennt hier Wertepaare, steht im Deutschen aber auch vor der Nachkommastelle: „Krit 0,68" wäre sonst als *Krit 0* gelesen worden — der Wert fällt still auf null, und genau das fällt niemandem auf. Steht irgendwo im Text ein Punkt zwischen Ziffern, schreibt diese Quelle Nachkommastellen mit Punkt und das Komma trennt Tausender; sonst ist das Komma die Nachkommastelle. Das genügt, weil danach auf „größtes Gewicht = 100" skaliert wird: es zählt nur das **Verhältnis**, und „3,400 / 1,870" ergibt als 3.4 / 1.87 dieselbe Gewichtung wie als 3400 / 1870
+- **Zweiwortnamen werden zusammengezogen** („Crit Rating"). Wird nur das letzte Wort genommen, trifft *Rating* nie zu und der Wert fällt weg
+- Der Testlauf prüft jetzt **dieselben Zahlen in fünf Gestalten** (Ausgabezeichenkette, bloße Paarliste, kopierte Tabelle, JSON-Zeile, deutsch getippt) und stellt strukturell sicher, dass `modules/statweights.lua` kein fremdes Addon anfasst
+
 ## [2.7.3.0] – 2026-08-30
 
 **Neu: Wertegewichte aus einem Sim übernehmen.** Ein Sim im Spiel wäre eine eigene Spielsimulation — und einer, der nur so aussieht, wäre schlimmer als keiner: seine Zahlen sähen aus wie echte. Was ein Sim aber liefert und was hier fehlte, sind die **Wertegewichte**, und genau die sind die Schnittstelle: WeintCodex rechnet ohnehin mit Gewichten, an drei Stellen. Wer simuliert hat, setzt sein Ergebnis jetzt ein, statt es abzutippen.

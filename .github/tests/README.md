@@ -26,13 +26,18 @@ gehört nicht in den Addon-Ordner eines Spielers.
 
 ## Sim-Gewichte
 
-`statweights_test.lua` prüft `modules/statweights.lua`: das Zerlegen einer
-Pawn-Zeichenkette, die Skalierung auf die Hausskala, doppelte Schreibweisen
-desselben Werts, fremde Schlüssel (die die Skalierung **nicht** verzerren
-dürfen), negative Gewichte und die Ablehnungen. Eine fremde Zeichenkette zu
-zerlegen ist genau die Sorte Rechnung, die man ausserhalb des Spiels prüfen
-können muss — ein Muster, das ein Feld verschluckt, fällt im Spiel erst auf,
-wenn jemand mit einer halben Gewichtung rechnet.
+`statweights_test.lua` prüft `modules/statweights.lua`. Der Kern ist nicht
+„liest es das Format", sondern **liest es dieselben Zahlen in jeder Gestalt**:
+Ausgabezeichenkette, bloße Paarliste, kopierte Werte-Tabelle, JSON-Zeile und
+deutsch getippt müssen alle dieselbe Gewichtung ergeben. Ein Import, der nur
+eine Gestalt versteht, geht kaputt, sobald die Quelle ihre Ausgabe umstellt —
+und das merkt niemand ausser dem, der sich wundert, warum seine Gewichtung
+zur Hälfte fehlt.
+
+Dazu die Stellen, an denen ein Fehler still bleibt: das Komma zwischen Ziffern
+(„Krit 0,68" darf nicht *Krit 0* werden), Zweiwortnamen („Crit Rating"),
+fremde Schlüssel, die die Skalierung nicht verzerren dürfen, negative Gewichte
+— und strukturell, dass die Datei kein fremdes Addon anfasst.
 
 ```bash
 lua5.1 .github/tests/statweights_test.lua .

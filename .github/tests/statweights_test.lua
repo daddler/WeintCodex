@@ -2,22 +2,25 @@
 --
 -- Das Zerlegen einer fremden Zeichenkette ist genau die Sorte Rechnung, die
 -- man ausserhalb des Spiels pruefen koennen muss: ein Muster, das ein Feld
--- verschluckt, faellt im Spiel erst auf, wenn jemand eine Gewichtung
--- benutzt, die zur Haelfte fehlt.
+-- verschluckt, faellt im Spiel erst auf, wenn jemand mit einer Gewichtung
+-- rechnet, die zur Haelfte fehlt.
+--
+-- Geprueft wird ausdruecklich gegen MEHRERE Gestalten desselben Inhalts -
+-- Ausgabezeichenkette, kopierte Tabelle, JSON-Zeile, getippte Liste. Ein
+-- Import, der nur eine davon versteht, geht kaputt, sobald die Quelle ihre
+-- Ausgabe umstellt.
 --
 --   lua5.1 .github/tests/statweights_test.lua .
 
 local ROOT = ...
 
 WeintCodex = {}
-UnitClass = function() return "Moench", "MONK", 10 end
-
 dofile(ROOT .. "/modules/statweights.lua")
 local SW = WeintCodex.StatWeights
 
 local fails = 0
 local function Check(name, ok, detail)
-    print(string.format("%-46s %s", name, ok and "ok" or ("ABWEICHUNG  " .. (detail or ""))))
+    print(string.format("%-48s %s", name, ok and "ok" or ("ABWEICHUNG  " .. (detail or ""))))
     if not ok then fails = fails + 1 end
 end
 
@@ -31,113 +34,148 @@ local function Show(t)
     return table.concat(out, " ")
 end
 
---== Die vollstaendige Pawn-Zeichenkette ===================================
-do
-    local str = '( Pawn: v1: "WW Monk": Agility=1.00, HitRating=0.88,'
-             .. ' ExpertiseRating=0.85, HasteRating=0.75, CritRating=0.68,'
-             .. ' MasteryRating=0.66, Stamina=0.10 )'
-    local raw, name, ignored = SW.Parse(str)
-    Check("Pawn-Zeichenkette wird gelesen", raw ~= nil and name == "WW Monk", tostring(name))
-
-    local w = SW.Normalize(raw)
-    -- Der groesste Wert wird 100, die Verhaeltnisse bleiben.
-    Check("Auf 100 skaliert, Verhaeltnisse bleiben",
-        w and w.agility == 100 and w.hit == 88 and w.expertise == 85
-          and w.haste == 75 and w.crit == 68 and w.mastery == 66 and w.stamina == 10,
-        Show(w))
-    Check("Nichts faelschlich verworfen", ignored and #ignored == 0,
-        ignored and table.concat(ignored, ","))
+local function Weights(text)
+    local raw = SW.Parse(text)
+    return (SW.Normalize(raw))
 end
 
---== Ganze Zahlen statt Bruchteilen ========================================
+--== Dieselben Zahlen in vier Gestalten =====================================
+-- Beweglichkeit 1.00, Treffer 0.88, Krit 0.68 - egal wie geschrieben.
 do
-    -- Manche Sims geben schon grosse Zahlen heraus. Skaliert wird trotzdem
-    -- auf 100, sonst stuenden die Felder auf 999.
-    local raw = SW.Parse('( Pawn: v1: "X": Strength=3400, CritRating=1870, HasteRating=1700 )')
-    local w = SW.Normalize(raw)
-    Check("Grosse Zahlen kommen auch auf die Skala",
-        w and w.strength == 100 and w.crit == 55 and w.haste == 50, Show(w))
+    local want = "agility=100 crit=68 hit=88"
+
+    local forms = {
+        ["Ausgabezeichenkette"] =
+            '( X: v1: "WW Monk": Agility=1.00, HitRating=0.88, CritRating=0.68 )',
+        ["blosse Paarliste"] =
+            "Agility=1.00, HitRating=0.88, CritRating=0.68",
+        ["kopierte Tabelle"] =
+            "Agility\t1.00\nHit Rating\t0.88\nCrit Rating\t0.68",
+        ["JSON-Zeile"] =
+            '{ "Agility": 1.00, "HitRating": 0.88, "CritRating": 0.68 }',
+        ["deutsch getippt"] =
+            "Beweglichkeit 1,0\nTrefferwertung 0.88\nKritische Trefferwertung 0.68",
+    }
+
+    for label, text in pairs(forms) do
+        local w = Weights(text)
+        Check("Gelesen: " .. label, Show(w) == want, Show(w))
+    end
 end
 
---== Ohne Klammer-Rahmen ===================================================
+--== Das deutsche Dezimalkomma =============================================
 do
-    local raw = SW.Parse("Agility=1, CritRating=0.5, HasteRating=0.25")
-    local w = SW.Normalize(raw)
-    Check("Blosse Paarliste wird auch gelesen",
-        w and w.agility == 100 and w.crit == 50 and w.haste == 25, Show(w))
+    -- "Krit 0,68" darf nicht als "Krit 0" gelesen werden - der Wert fiele
+    -- still auf null, und genau das faellt niemandem auf.
+    local w = Weights("Beweglichkeit 1,00\nKrit 0,68\nTempo 0,75")
+    Check("Komma als Nachkommastelle",
+        w and w.agility == 100 and w.crit == 68 and w.haste == 75, Show(w))
+
+    -- Dieselben Zahlen in Tausenderschreibweise. Weil nach dem Lesen auf
+    -- "groesstes Gewicht = 100" skaliert wird, muss dabei DASSELBE
+    -- herauskommen - egal, ob das Komma als Nachkommastelle oder als
+    -- Tausendertrennzeichen gelesen wurde. Entscheidend ist nur, dass die
+    -- Lesart innerhalb eines Textes einheitlich ist.
+    local t = Weights("Strength 3,400\nCritRating 1,870")
+    Check("Komma ohne Punkte im Text",
+        t and t.strength == 100 and t.crit == 55, Show(t))
+
+    -- Und mit Punktschreibweise daneben wird das Komma zum Tausender.
+    local e = Weights("Strength 3,400\nCritRating 1,870\nHasteRating 1700.0")
+    Check("Komma neben Punktschreibweise",
+        e and e.strength == 100 and e.crit == 55 and e.haste == 50, Show(e))
+
+    -- Und ein Komma zwischen zwei Paaren trennt weiterhin.
+    local c = Weights("Agility=1,CritRating=0.5")
+    Check("Komma trennt weiterhin zwei Paare",
+        c and c.agility == 100 and c.crit == 50, Show(c))
 end
 
---== Fremde Schluessel fallen NICHT unter den Tisch =========================
+--== Der Maszstab ===========================================================
 do
-    -- Eine Pawn-Skala traegt Dinge wie Dps oder MetaSocketEffect. Sie
+    -- Sims geben Bruchteile heraus, andere Quellen grosse Zahlen. Beides
+    -- landet auf derselben Skala, und die Verhaeltnisse bleiben.
+    local a = Weights("Strength=1, CritRating=0.55, HasteRating=0.5")
+    local b = Weights("Strength=3400, CritRating=1870, HasteRating=1700")
+    Check("Bruchteile und grosse Zahlen ergeben dasselbe",
+        Show(a) == Show(b) and a and a.strength == 100 and a.crit == 55,
+        Show(a) .. "  /  " .. Show(b))
+end
+
+--== Fremde Schluessel ======================================================
+do
+    -- Eine Sim-Ausgabe traegt Dinge wie Dps oder MetaSocketEffect. Sie
     -- duerfen die Skalierung nicht verzerren - und sie muessen gemeldet
     -- werden, sonst haelt man das Ergebnis fuer vollstaendig.
     local raw, _, ignored = SW.Parse(
-        '( Pawn: v1: "X": Agility=1, CritRating=0.5, Dps=980, MetaSocketEffect=41 )')
+        "Agility=1, CritRating=0.5, Dps=980, MetaSocketEffect=41")
     local w = SW.Normalize(raw)
     Check("Dps verzerrt die Skala nicht",
         w and w.agility == 100 and w.crit == 50 and w.dps == nil, Show(w))
-    local named = ignored and table.concat(ignored, ",") or ""
-    Check("Unbekannte Schluessel werden gemeldet",
-        named:find("Dps", 1, true) ~= nil and named:find("MetaSocketEffect", 1, true) ~= nil,
+
+    local named = table.concat(ignored or {}, ",")
+    Check("Unbekannte Namen werden gemeldet",
+        named:find("Dps", 1, true) and named:find("MetaSocketEffect", 1, true),
         named)
 end
 
---== Mehrere Schreibweisen desselben Werts =================================
+--== Ein Wert, zwei Namen ===================================================
 do
-    local raw = SW.Parse("Intellect=1, SpellHitRating=0.9, HitRating=0.6")
-    local w = SW.Normalize(raw)
+    local w = Weights("Intellect=1, SpellHitRating=0.9, HitRating=0.6")
     -- Es ist EIN Wert, nicht zwei: addiert werden darf hier nichts.
-    Check("Zwei Namen fuer Treffer werden nicht addiert",
-        w and w.hit == 90, Show(w))
+    Check("Zwei Namen fuer Treffer werden nicht addiert", w and w.hit == 90, Show(w))
 end
 
---== Negative Gewichte =====================================================
+--== Zweiwortnamen ==========================================================
+do
+    -- "Crit Rating" muss als EIN Name gelesen werden. Wird nur das letzte
+    -- Wort genommen, trifft "Rating" nie zu und der Wert faellt weg.
+    local w = Weights("Agility 1  Crit Rating 0.5  Haste Rating 0.25")
+    Check("Zweiwortnamen werden zusammengezogen",
+        w and w.agility == 100 and w.crit == 50 and w.haste == 25, Show(w))
+end
+
+--== Negative Gewichte ======================================================
 do
     local raw = SW.Parse("Agility=1, Strength=-1, CritRating=0.5")
     local w, negatives = SW.Normalize(raw)
+    -- Unsere Skala kennt "egal", nicht "meiden" - das wird gesagt, nicht
+    -- stillschweigend gemacht.
     Check("Negatives wird 0 und gemeldet",
         w and w.strength == nil and w.agility == 100
           and negatives and #negatives == 1 and negatives[1] == "strength",
         Show(w))
 end
 
---== Was nicht gelesen werden kann, sagt es ================================
+--== Was nicht gelesen werden kann, sagt es =================================
 do
     local a = SW.Parse("")
-    local b = SW.Parse("völliger Unsinn ohne Gleichheitszeichen")
-    local c = SW.Parse('( Pawn: v2: "X": Agility=1 )')
-    Check("Leer, Unsinn und Fassung 2 werden abgelehnt",
-        a == nil and b == nil and c == nil)
+    local b = SW.Parse("völliger Unsinn ohne eine einzige Zahl")
+    Check("Leer und Unsinn werden abgelehnt", a == nil and b == nil)
 
-    -- Und eine Skala, in der alles 0 ist, ergibt keine Gewichtung -
-    -- statt einer stillen leeren.
-    local raw = SW.Parse("Agility=0, CritRating=0")
-    Check("Alles 0 ergibt keine Gewichtung", SW.Normalize(raw) == nil)
+    -- Eine Liste, in der alles 0 ist, ergibt keine Gewichtung - statt einer
+    -- stillen leeren.
+    Check("Alles 0 ergibt keine Gewichtung",
+        SW.Normalize(SW.Parse("Agility=0, CritRating=0")) == nil)
+
+    -- Und eine Zahl ohne Namen davor erfindet keinen Wert.
+    Check("Blosse Zahlen erfinden nichts", SW.Parse("1 2 3 4") == nil)
 end
 
---== Pawn-Skalen der eigenen Klasse ========================================
+--== Kein fremdes Addon =====================================================
 do
-    PawnCommon = { Scales = {
-        ["Mine"]   = { LocalizedName = "Mein Windläufer", ClassID = 10,
-                       Values = { Agility = 1, CritRating = 0.5, Dps = 12 } },
-        ["Fremd"]  = { LocalizedName = "Heilige Priesterin", ClassID = 5,
-                       Values = { Intellect = 1 } },
-        ["Frei"]   = { LocalizedName = "Ohne Klasse",
-                       Values = { Agility = 1 } },
-    } }
-    local scales = SW.PawnScales()
-    local names = {}
-    for _, s in ipairs(scales) do names[#names + 1] = s.name end
-    table.sort(names)
-    Check("Nur Skalen der eigenen Klasse (plus klassenlose)",
-        #scales == 2 and names[1] == "Mein Windläufer" and names[2] == "Ohne Klasse",
-        table.concat(names, ", "))
-
-    local raw = SW.FromValues(scales[1].values)
-    local w = SW.Normalize(raw)
-    Check("Pawn-Skala geht durch dieselbe Rechnung",
-        w and w.agility == 100 and w.crit == 50 and w.dps == nil, Show(w))
+    -- Diese Datei darf die gespeicherten Daten keines anderen Addons
+    -- anfassen. Geprueft wird strukturell, nicht am Verhalten.
+    local f = io.open(ROOT .. "/modules/statweights.lua", "r")
+    local text = f:read("*a")
+    f:close()
+    local hits = {}
+    for line in text:gmatch("[^\r\n]+") do
+        if not line:match("^%s*%-%-") and line:match("Pawn") then
+            hits[#hits + 1] = line
+        end
+    end
+    Check("Kein Zugriff auf ein fremdes Addon", #hits == 0, hits[1])
 end
 
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))

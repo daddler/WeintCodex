@@ -1,21 +1,36 @@
 --------------------------------------------------
 -- WeintCodex :: Sim-Gewichte uebernehmen (seit 2.7.3.0)
 --------------------------------------------------
--- Ein Sim im Spiel waere Monate Arbeit und eine eigene Spielsimulation —
--- und einer, der nur so aussieht, waere schlimmer als keiner: seine Zahlen
--- saehen aus wie echte. Was ein Sim aber liefert und was hier fehlte, sind
--- die WERTEGEWICHTE. Genau die sind die Schnittstelle: WeintCodex rechnet
+-- Ein Sim im Spiel waere eine eigene Spielsimulation; einer, der nur so
+-- aussieht, waere schlimmer als keiner, weil seine Zahlen aussehen wie
+-- echte. Was ein Sim aber liefert und was hier fehlte, sind die
+-- WERTEGEWICHTE — und genau die sind die Schnittstelle: WeintCodex rechnet
 -- ohnehin mit Gewichten, an drei Stellen (Sockel, Verzauberungen,
--- Umschmieden). Wer simuliert hat, soll sein Ergebnis hier einsetzen
--- koennen, statt es abzutippen.
+-- Umschmieden). Wer simuliert hat, setzt sein Ergebnis hier ein, statt es
+-- abzutippen.
 --
--- DAS FORMAT IST PAWN, UND ZWAR AUS EINEM GRUND.
+-- KEIN FREMDES ADDON UND KEIN FREMDES FORMAT.
 --
--- WoWSims, Raidbots, AskMrRobot und Pawn selbst geben Wertegewichte
--- allesamt als Pawn-Zeichenkette heraus. Sie ist einzeilig, sie ist Text,
--- und sie ist seit Jahren stabil. Ein eigenes Format zu erfinden hiesse,
--- die eine Sache nachzubauen, die es schon gibt — und ReforgeLite liest
--- dieselbe.
+-- Diese Datei liest weder die gespeicherten Daten eines anderen Addons noch
+-- verlangt sie eine bestimmte Zeichenkette. Sie liest WERTEPAARE: einen
+-- Wertnamen, dann eine Zahl. Alles andere im Text wird uebergangen.
+--
+-- Das ist ausdruecklich der robustere Weg und nicht der bequemere. Ein
+-- Muster, das auf EIN Ausgabeformat passt, geht kaputt, sobald jene Seite
+-- ihre Ausgabe umstellt — und das merkt hier niemand ausser dem, der sich
+-- wundert, warum seine Gewichtung zur Haelfte fehlt. Wertepaare dagegen
+-- sind das, was jede Quelle gemeinsam hat:
+--
+--   * die Ausgabezeichenkette von wowsims.com/mop,
+--   * die abgeschriebene Werte-Tabelle (Name, Tabulator, Zahl),
+--   * eine JSON-Zeile { "Agility": 1, "CritRating": 0.55 },
+--   * oder eine von Hand getippte Liste.
+--
+-- Getrennt werden darf mit Gleichheitszeichen, Doppelpunkt, Komma,
+-- Semikolon, Tabulator, Zeilenumbruch oder schlicht einem Leerzeichen.
+-- Klammern und Anfuehrungszeichen fallen weg. Was uebrig bleibt und keinen
+-- bekannten Wertnamen trifft, wird NICHT stillschweigend verworfen,
+-- sondern gemeldet (siehe unten).
 --
 -- DIESE DATEI ZERLEGT UND RECHNET, SIE ZEICHNET NICHT.
 --
@@ -32,37 +47,52 @@ WeintCodex.StatWeights = {}
 local SW = WeintCodex.StatWeights
 
 --------------------------------------------------
--- Die Namen, die Sims benutzen
+-- Die Namen, unter denen ein Wert auftauchen kann
 --
--- Pawn kennt fuer denselben Wert mehrere Schreibweisen, und die Exporte
--- der Sims sind sich darin nicht einig: WoWSims schreibt `CritRating`,
--- aeltere Pawn-Skalen `SpellCritRating`, manche Zettel schlicht `Crit`.
--- Aufgeschrieben wird deshalb jede, die vorkommt — dieselbe Lehre wie bei
--- den ITEM_MOD-Schluesseln in modules/stat_match.lua: die Schreibweise ist
--- nicht unsere Entscheidung.
+-- Aufgeschrieben wird jede Schreibweise, die vorkommt — dieselbe Lehre wie
+-- bei den ITEM_MOD-Schluesseln in modules/stat_match.lua: wie eine Quelle
+-- ihre Werte nennt, ist nicht unsere Entscheidung. Leerzeichen sind dabei
+-- egal ("Crit Rating" und "CritRating" sind derselbe Name), Gross- und
+-- Kleinschreibung auch.
 --------------------------------------------------
 
 local NAMES = {
-    strength  = { "Strength", "Str" },
-    agility   = { "Agility", "Agi" },
-    intellect = { "Intellect", "Int" },
-    stamina   = { "Stamina", "Sta" },
-    spirit    = { "Spirit", "Spi", "Mp5" },
-    hit       = { "HitRating", "Hit", "SpellHitRating", "MeleeHitRating",
-                  "RangedHitRating" },
-    crit      = { "CritRating", "Crit", "SpellCritRating", "MeleeCritRating",
-                  "RangedCritRating" },
-    haste     = { "HasteRating", "Haste", "SpellHasteRating",
-                  "MeleeHasteRating", "RangedHasteRating" },
-    expertise = { "ExpertiseRating", "Expertise", "Exp" },
-    mastery   = { "MasteryRating", "Mastery" },
-    dodge     = { "DodgeRating", "Dodge" },
-    parry     = { "ParryRating", "Parry" },
+    strength  = { "Strength", "Str", "Stärke", "Staerke" },
+    agility   = { "Agility", "Agi", "Beweglichkeit" },
+    intellect = { "Intellect", "Int", "Intelligenz" },
+    stamina   = { "Stamina", "Sta", "Ausdauer" },
+    spirit    = { "Spirit", "Spi", "Willenskraft" },
+
+    hit       = { "HitRating", "Hit", "SpellHitRating", "SpellHit",
+                  "MeleeHitRating", "RangedHitRating", "PhysicalHitRating",
+                  "Trefferwertung", "Treffer" },
+    crit      = { "CritRating", "Crit", "CriticalStrike", "CritChance",
+                  "SpellCritRating", "SpellCrit", "MeleeCritRating",
+                  "RangedCritRating", "PhysicalCritRating",
+                  "KritischeTrefferwertung", "Krit" },
+    haste     = { "HasteRating", "Haste", "SpellHasteRating", "SpellHaste",
+                  "MeleeHasteRating", "RangedHasteRating",
+                  "Tempowertung", "Tempo" },
+    expertise = { "ExpertiseRating", "Expertise", "Exp",
+                  "Waffenkundewertung", "Waffenkunde" },
+    mastery   = { "MasteryRating", "Mastery", "Meisterschaftswertung",
+                  "Meisterschaft" },
+    dodge     = { "DodgeRating", "Dodge", "Ausweichwertung", "Ausweichen" },
+    parry     = { "ParryRating", "Parry", "Parierwertung", "Parieren",
+                  "Parierchance" },
 }
 
 local LOOKUP = {}
-for key, names in pairs(NAMES) do
-    for _, name in ipairs(names) do LOOKUP[name:lower()] = key end
+do
+    -- Verglichen wird ohne Leerzeichen und in Kleinschreibung. `lower()`
+    -- laesst alles oberhalb von ASCII in Ruhe, deshalb stehen die deutschen
+    -- Namen oben schon klein genug beieinander — und zusaetzlich in einer
+    -- Umlaut-freien Schreibweise, damit "Staerke" ebenso trifft.
+    for key, names in pairs(NAMES) do
+        for _, name in ipairs(names) do
+            LOOKUP[name:gsub("%s+", ""):lower()] = key
+        end
+    end
 end
 
 -- Die Reihenfolge, in der die Seite sie anzeigt. Muss zu WEIGHT_STATS in
@@ -75,25 +105,80 @@ SW.ORDER = { "strength", "agility", "intellect", "stamina", "spirit",
 --------------------------------------------------
 -- Zerlegen
 --
--- Rueckgabe: weights (rohe Zahlen, unskaliert), name, ignored
+-- Rueckgabe: weights (rohe Zahlen, unskaliert), quelle, ignored
 --            oder nil, Fehlertext
 --
--- `ignored` sammelt jeden Schluessel, den wir nicht kennen. Er wird nicht
--- verschwiegen: eine Pawn-Skala traegt Dinge wie `Dps` oder
--- `MetaSocketEffect`, und wer nicht sieht, dass sie unter den Tisch
--- fallen, haelt das Ergebnis fuer vollstaendig.
+-- `ignored` sammelt jeden Namen, der vor einer Zahl stand und den wir nicht
+-- kennen. Er wird nicht verschwiegen: eine Sim-Ausgabe traegt Dinge wie
+-- `Dps` oder `MetaSocketEffect`, und wer nicht sieht, dass sie unter den
+-- Tisch fallen, haelt das Ergebnis fuer vollstaendig.
 --------------------------------------------------
 
+local function IsNumber(token)
+    return token:match("^%-?%d+%.?%d*$") ~= nil
+        or token:match("^%-?%.%d+$") ~= nil
+end
+
 local function ParsePairs(text)
+    --------------------------------------------------
+    -- ZUERST DAS KOMMA ZWISCHEN ZIFFERN, DANN ERST TRENNEN.
+    --
+    -- Ein Komma trennt hier Wertepaare — aber es steht im Deutschen auch
+    -- zwischen Vor- und Nachkommastelle und im Englischen vor den Tausendern.
+    -- Wer "Krit 0,68" einfuegt, bekaeme sonst den Wert 0 zugeschrieben und
+    -- die 68 als unbekannten Rest: der Wert faellt still auf null, und
+    -- genau das faellt niemandem auf.
+    --
+    -- ENTSCHIEDEN WIRD AM GANZEN TEXT, NICHT AN DER EINZELNEN STELLE.
+    -- Steht irgendwo ein Punkt zwischen Ziffern, schreibt diese Quelle
+    -- Nachkommastellen mit Punkt — dann ist ein Komma ein
+    -- Tausendertrennzeichen und wird herausgenommen. Steht nirgends einer,
+    -- ist das Komma die Nachkommastelle.
+    --
+    -- Und das genuegt hier, weil weiter unten auf "groesstes Gewicht = 100"
+    -- skaliert wird: was zaehlt, ist das VERHAELTNIS der Zahlen
+    -- zueinander. Solange eine Lesart innerhalb eines Textes einheitlich
+    -- ist, kommt dasselbe heraus — "3,400 / 1,870" ergibt als 3.4 / 1.87
+    -- dieselbe Gewichtung wie als 3400 / 1870.
+    --------------------------------------------------
+    if text:match("%d%.%d") then
+        -- Punktschreibweise: Komma trennt Tausender. Wiederholt, weil
+        -- "1,234,567" mehrere Stellen hat.
+        for _ = 1, 4 do
+            local next_ = text:gsub("(%d),(%d%d%d)", "%1%2")
+            if next_ == text then break end
+            text = next_
+        end
+    else
+        text = text:gsub("(%d),(%d+)", "%1.%2")
+    end
+
+    -- Alles, was trennen kann, wird zu einem Leerzeichen; Klammern und
+    -- Anfuehrungszeichen fallen weg. Danach steht in jedem Token entweder
+    -- ein Wortbestandteil oder eine Zahl.
+    local flat = text:gsub("[%(%)%[%]{}\"']", " ")
+                     :gsub("[=:,;\t\r\n]", " ")
+
+    local tokens = {}
+    for token in flat:gmatch("%S+") do tokens[#tokens + 1] = token end
+
     local weights, ignored, found = {}, {}, 0
-    -- Ein abschliessendes Komma anhaengen, damit auch das letzte Paar auf
-    -- dasselbe Muster passt (derselbe Kniff wie in ReforgeLite).
-    for pair in (text .. ","):gmatch("[^,]*,") do
-        local stat, value = pair:match("^%s*([%a%d_]+)%s*=%s*(%-?[%d%.]+)%s*,$")
-        value = tonumber(value)
-        if stat and value then
-            local key = LOOKUP[stat:lower()]
-            if key then
+    local seenIgnored = {}
+
+    local i = 1
+    while i <= #tokens do
+        if IsNumber(tokens[i]) then
+            -- Eine Zahl allein sagt nichts. Der Name steht davor, und er
+            -- kann aus zwei Woertern bestehen ("Crit Rating"). Der
+            -- laengere Name gewinnt, sonst traefe "Rating" nie zu.
+            local value = tonumber(tokens[i])
+            local one   = tokens[i - 1]
+            local two   = (i >= 3) and (tokens[i - 2] .. tokens[i - 1]) or nil
+
+            local key = (two and LOOKUP[two:gsub("%s+", ""):lower()])
+                     or (one and LOOKUP[one:gsub("%s+", ""):lower()])
+
+            if key and value then
                 -- Mehrere Schreibweisen desselben Werts (SpellHitRating
                 -- neben HitRating): die groessere gewinnt, statt sie zu
                 -- addieren — es ist derselbe Wert, nicht zwei.
@@ -101,41 +186,34 @@ local function ParsePairs(text)
                     weights[key] = value
                 end
                 found = found + 1
-            else
-                ignored[#ignored + 1] = stat
+            elseif one and one:match("^[%a]") and not seenIgnored[one] then
+                seenIgnored[one] = true
+                ignored[#ignored + 1] = one
             end
         end
+        i = i + 1
     end
+
     if found == 0 then return nil end
     return weights, ignored
 end
+
+SW.ParsePairs = ParsePairs
 
 function SW.Parse(text)
     if type(text) ~= "string" or text:match("^%s*$") then
         return nil, "Da steht nichts."
     end
 
-    -- Die vollstaendige Pawn-Zeichenkette: ( Pawn: v1: "Name": Stat=Wert, … )
-    local version, name, values =
-        text:match('^%s*%(%s*[Pp]awn%s*:%s*v(%d+)%s*:%s*"([^"]*)"%s*:%s*(.-)%s*%)%s*$')
-
-    if version and tonumber(version) and tonumber(version) > 1 then
-        return nil, "Das ist eine Pawn-Zeichenkette der Fassung "
-            .. version .. " — gelesen wird Fassung 1."
-    end
-
-    -- Ohne Klammer-Rahmen wird der ganze Text als Paarliste gelesen. Manche
-    -- Sims geben nur "Agility=1, CritRating=0.55, …" heraus, und daran soll
-    -- der Import nicht scheitern.
-    local weights, ignored = ParsePairs(values or text)
+    local weights, ignored = ParsePairs(text)
     if not weights then
-        return nil, "Darin steht kein einziges Wertepaar der Form"
-            .. " |cffD4A24AName=Zahl|r. Erwartet wird eine"
-            .. " Pawn-Zeichenkette, wie WoWSims, Raidbots und AMR sie"
-            .. " ausgeben."
+        return nil, "Darin steht kein einziges Wertepaar. Erwartet wird ein"
+            .. " Wertname und eine Zahl — |cffD4A24ABeweglichkeit 100|r,"
+            .. " |cffD4A24ACritRating=0.55|r, eine kopierte Werte-Tabelle"
+            .. " oder das, was dir dein Sim ausgibt."
     end
 
-    return weights, (name ~= "" and name or nil), ignored
+    return weights, nil, ignored
 end
 
 --------------------------------------------------
@@ -180,57 +258,4 @@ function SW.Normalize(raw)
         if scaled > 0   then out[key] = scaled end
     end
     return out, negatives
-end
-
---------------------------------------------------
--- Skalen aus Pawn, falls Pawn installiert ist
---
--- Wer schon eine Skala gepflegt hat, soll sie nicht erst exportieren
--- muessen. Gelesen wird nur, was Pawn selbst gespeichert hat; geschrieben
--- wird dort nie.
---------------------------------------------------
-
-function SW.PawnScales()
-    local out = {}
-    local common = _G.PawnCommon
-    if not (common and common.Scales) then return out end
-
-    local _, _, classId = UnitClass("player")
-    for key, scale in pairs(common.Scales) do
-        if type(scale) == "table" and type(scale.Values) == "table" then
-            -- Nur die Skalen der eigenen Klasse: eine Heilerskala auf einem
-            -- Schurken ist keine Auswahl, sondern eine Falle. Skalen ohne
-            -- Klassenangabe bleiben drin — sie koennen selbst gebaut sein.
-            if scale.ClassID == nil or classId == nil or scale.ClassID == classId then
-                out[#out + 1] = {
-                    name   = scale.LocalizedName or tostring(key),
-                    values = scale.Values,
-                }
-            end
-        end
-    end
-    table.sort(out, function(a, b) return a.name < b.name end)
-    return out
-end
-
--- Eine Pawn-Skala hat ihre Werte schon als Tabelle; sie muss nur durch
--- dieselbe Namenszuordnung und dieselbe Skalierung wie eine eingefuegte
--- Zeichenkette. Zwei Wege mit zwei Rechnungen waeren zwei Gelegenheiten
--- auseinanderzulaufen.
-function SW.FromValues(values)
-    if type(values) ~= "table" then return nil end
-    local raw, ignored, found = {}, {}, 0
-    for stat, value in pairs(values) do
-        if type(value) == "number" then
-            local key = LOOKUP[tostring(stat):lower()]
-            if key then
-                if not raw[key] or value > raw[key] then raw[key] = value end
-                found = found + 1
-            else
-                ignored[#ignored + 1] = tostring(stat)
-            end
-        end
-    end
-    if found == 0 then return nil end
-    return raw, nil, ignored
 end

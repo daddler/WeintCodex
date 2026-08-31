@@ -6268,45 +6268,31 @@ function ShowPriorisierung()
         { type = "divider" },
         { type = "header", text = "Aus einem Sim übernehmen" },
         { type = "text", size = 10, text =
-            "WoWSims, Raidbots und AskMrRobot geben ihre Wertegewichte als"
-            .. " Pawn-Zeichenkette heraus. Füg sie hier ein — die Felder"
-            .. " links werden damit gefüllt, gespeichert wird erst auf"
+            "Sim deinen Charakter auf |cffD4A24Awowsims.com/mop|r und lass"
+            .. " dir dort die Wertegewichte ausrechnen. Was du davon"
+            .. " kopierst, kommt hier hinein – die Ausgabezeichenkette"
+            .. " genauso wie die abgeschriebene Tabelle." },
+        { type = "text", size = 9, color = "textFaint", text =
+            "Gelesen wird jedes Paar aus Wertname und Zahl —"
+            .. " Beweglichkeit 1,00 · CritRating=0.55 · eine Zeile je Wert."
+            .. " Die Felder links werden gefüllt, gespeichert wird erst auf"
             .. " deinen Klick." },
-        { type = "input", placeholder = "( Pawn: v1: \"…\": … )",
+        { type = "input", placeholder = "Wertname und Zahl, je Zeile oder mit Komma",
           buttonLabel = "Einlesen",
           onAccept = function(text)
-              local raw, name, ignored = SW.Parse(text)
+              local raw, problem, ignored = SW.Parse(text)
               if not raw then
                   print(WeintCodex.ColorText("danger", "[WeintCodex]") .. " "
-                      .. (name or "Das konnte ich nicht lesen."))
+                      .. (problem or "Das konnte ich nicht lesen."))
                   return
               end
               -- NICHT die Seite neu zeichnen: die Felder, die eben
               -- gefuellt wurden, gaebe es danach nicht mehr — sie
               -- entstuenden neu aus den GESPEICHERTEN Werten, und der
               -- Import waere wieder weg. Sie sind bereits aktualisiert.
-              ApplyWeights(raw, name and ("„" .. name .. "\"") or "der Eingabe", ignored)
+              ApplyWeights(raw, "der Eingabe", ignored)
           end },
     }
-
-    -- Wer Pawn benutzt, hat seine Skala schon — dann muss er sie nicht
-    -- erst exportieren. Gelesen wird nur; in Pawn wird nie geschrieben.
-    local scales = SW.PawnScales()
-    if #scales > 0 then
-        blocks[#blocks + 1] = { type = "header", text = "Skalen aus Pawn" }
-        for _, scale in ipairs(scales) do
-            blocks[#blocks + 1] = { type = "button", label = scale.name,
-                onClick = function()
-                    local raw, _, ignored = SW.FromValues(scale.values)
-                    if not raw then
-                        print(WeintCodex.ColorText("danger", "[WeintCodex]")
-                            .. " In dieser Pawn-Skala steht kein Wert, den ich kenne.")
-                        return
-                    end
-                    ApplyWeights(raw, "Pawn („" .. scale.name .. "\")", ignored)
-                end }
-        end
-    end
 
     blocks[#blocks + 1] = { type = "divider" }
     blocks[#blocks + 1] = { type = "button", label = "Zur Werteverteilung",

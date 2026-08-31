@@ -513,19 +513,18 @@ Bis 1.3.2.3 schlug **die gelieferte Identität den eingeloggten Charakter**: `ac
 
 ### Sim-Gewichte übernehmen (`modules/statweights.lua`, seit 2.7.3.0)
 
-**Ein Sim im Spiel wird es nicht geben, und das ist eine Entscheidung.** Ein brauchbarer wäre eine eigene Spielsimulation; einer, der nur so aussieht, wäre schlimmer als keiner, weil seine Zahlen aussehen wie echte — dieselbe Linie, aus der der Rotationshelfer den Tankspecs keine Liste andichtet. Was ein Sim aber liefert und was hier fehlte, sind die **Wertegewichte**, und genau die sind die Schnittstelle: das Addon rechnet ohnehin mit Gewichten, an drei Stellen.
+**Ein Sim im Spiel wird es nicht geben, und das ist eine Entscheidung.** Ein brauchbarer wäre eine eigene Spielsimulation; einer, der nur so aussieht, wäre schlimmer als keiner, weil seine Zahlen aussehen wie echte — dieselbe Linie, aus der der Rotationshelfer den Tankspecs keine Liste andichtet. Was ein Sim aber liefert und was hier fehlte, sind die **Wertegewichte**, und genau die sind die Schnittstelle: das Addon rechnet ohnehin mit Gewichten, an drei Stellen. Die Quelle ist [wowsims.com/mop](https://www.wowsims.com/mop/).
 
-**Das Format ist Pawn, und zwar aus einem Grund.** WoWSims, Raidbots, AskMrRobot und Pawn selbst geben Wertegewichte allesamt als Pawn-Zeichenkette heraus (`( Pawn: v1: "Name": Stat=Wert, … )`). Sie ist einzeilig, sie ist Text, sie ist seit Jahren stabil, und ReforgeLite liest dieselbe. Ein eigenes Format hätte nachgebaut, was es schon gibt.
+**Kein fremdes Addon und kein fremdes Format** (so korrigiert in 2.7.3.1; die erste Fassung las die gespeicherten Skalen eines anderen Addons und setzte dessen Ausgabeformat voraus). Gelesen werden **Wertepaare**: ein Wertname, dann eine Zahl. Alles andere im Text wird übergangen. Das ist ausdrücklich der robustere Weg und nicht der bequemere — ein Muster, das auf *ein* Ausgabeformat passt, geht kaputt, sobald jene Seite ihre Ausgabe umstellt, und das merkt niemand ausser dem, der sich wundert, warum seine Gewichtung zur Hälfte fehlt. Wertepaare sind das, was alle Quellen gemeinsam haben: die Ausgabezeichenkette, die abgeschriebene Tabelle, eine JSON-Zeile, eine getippte Liste.
 
-Fünf Dinge daran sind nicht Geschmack:
+Sechs Dinge daran sind nicht Geschmack:
 
-- **Die Datei zerlegt und rechnet, sie zeichnet nicht.** Das Zerlegen einer fremden Zeichenkette ist genau die Sorte Rechnung, die man ausserhalb des Spiels prüfen können muss — `.github/tests/statweights_test.lua` tut das.
+- **Die Datei zerlegt und rechnet, sie zeichnet nicht.** Das Zerlegen einer fremden Zeichenkette ist genau die Sorte Rechnung, die man ausserhalb des Spiels prüfen können muss — `.github/tests/statweights_test.lua` stellt dieselben Zahlen in fünf Gestalten gegen den Parser und prüft strukturell, dass hier kein fremdes Addon angefasst wird.
 - **Der Import füllt die Felder, er speichert nicht.** Was von aussen kommt, wird angesehen, bevor es gilt. Und die Seite wird danach ausdrücklich **nicht** neu gezeichnet: die Eingabefelder entstünden dabei neu aus den *gespeicherten* Werten, und der Import wäre wieder weg.
-- **Skaliert wird auf „größtes Gewicht = 100"** (die Skala der Spec-Profile). Ein Maßstabswechsel, keine Wertung — die Verhältnisse bleiben, und alle drei Seiten vergleichen Gewichte ohnehin nur untereinander. **Fremde Schlüssel dürfen dabei nicht mitzählen**: ein `Dps=980` aus einer Pawn-Skala hätte alles andere plattgedrückt.
-- **Mehrere Schreibweisen desselben Werts werden nicht addiert** (`SpellHitRating` neben `HitRating`) — es ist ein Wert, nicht zwei. Aufgeschrieben werden trotzdem alle Schreibweisen, die vorkommen: dieselbe Lehre wie bei den `ITEM_MOD`-Schlüsseln in `modules/stat_match.lua`.
-- **Was nicht übernommen wurde, wird gesagt** — unbekannte Schlüssel und negative Gewichte (unsere Skala kennt „egal", nicht „meiden"). Wer es nicht sieht, hält das Ergebnis für vollständig.
-
-Pawn-Skalen werden gelesen, wenn Pawn installiert ist — nur die der eigenen Klasse (eine Heilerskala auf einem Schurken ist keine Auswahl, sondern eine Falle), und **in Pawn wird nie geschrieben**.
+- **Skaliert wird auf „größtes Gewicht = 100"** (die Skala der Spec-Profile). Ein Maßstabswechsel, keine Wertung — die Verhältnisse bleiben, und alle drei Seiten vergleichen Gewichte ohnehin nur untereinander. **Fremde Schlüssel dürfen dabei nicht mitzählen**: ein `Dps=980` hätte alles andere plattgedrückt.
+- **Das Komma wird am ganzen Text entschieden, nicht an der einzelnen Stelle.** Es trennt hier Wertepaare, steht im Deutschen aber auch vor der Nachkommastelle: „Krit 0,68" wäre sonst als *Krit 0* gelesen worden, der Wert fällt still auf null. Steht irgendwo ein Punkt zwischen Ziffern, trennt das Komma Tausender; sonst ist es die Nachkommastelle. Das genügt, weil danach normiert wird — es zählt nur das Verhältnis, und die Lesart muss bloß innerhalb eines Textes einheitlich sein.
+- **Mehrere Schreibweisen desselben Werts werden nicht addiert** (`SpellHitRating` neben `HitRating`) — es ist ein Wert, nicht zwei. Aufgeschrieben werden trotzdem alle Schreibweisen, die vorkommen, deutsche eingeschlossen: dieselbe Lehre wie bei den `ITEM_MOD`-Schlüsseln in `modules/stat_match.lua`.
+- **Was nicht übernommen wurde, wird gesagt** — unbekannte Namen und negative Gewichte (unsere Skala kennt „egal", nicht „meiden"). Wer es nicht sieht, hält das Ergebnis für vollständig.
 
 ### Mitreden — ja oder nein? (`core/optin.lua`, seit 2.7.2.0)
 
