@@ -211,6 +211,25 @@ function SE.Nudge()
 end
 
 function SE.Provide()
+    -- Fuer Heiler gibt es nichts bereitzustellen: ihr Text entsteht im
+    -- Spiel und geht ueber die Zwischenablage. Ein Neuladen waere hier
+    -- ein Schritt, der nichts bewirkt — und einer, den man erst nach dem
+    -- Ladebildschirm als sinnlos erkennt.
+    local QE = WeintCodex.QELive
+    local profileKey = WeintCodex.Charakter
+        and WeintCodex.Charakter.GetProfileKey
+        and WeintCodex.Charakter.GetProfileKey()
+
+    if QE and QE.Entry and QE.Entry(profileKey) then
+        Say("Als Heiler geht die Ausrüstung über die Zwischenablage zu "
+            .. "QE Live — dafür ist kein Neuladen nötig.")
+        if WeintCodex.Navigation and WeintCodex.Navigation.GoToTab then
+            WeintCodex.Navigation.GoToTab("charakter")
+        end
+        SE.ShowPage()
+        return
+    end
+
     if InCombatLockdown() then
         Say("Im Kampf wird nicht neu geladen. Danach noch einmal.")
         return
@@ -302,6 +321,206 @@ function SE.Ago(stamp)
     return days == 1 and "gestern" or ("vor %d Tagen"):format(days)
 end
 
+--------------------------------------------------
+-- DER HEILER-ZWEIG DERSELBEN SEITE (seit 2.9.1.0)
+--------------------------------------------------
+--
+-- Gesimmt wird nicht ueberall dasselbe. Fuer Schadensausteiler ist die
+-- Adresse wowsims.com/mop, fuer Heiler questionablyepic.com/live — und
+-- das ist keine Vorliebe, sondern das Werkzeug, mit dem Heiler ihre
+-- Ausruestung planen.
+--
+-- EINE SEITE, ZWEI WEGE — UND SIE SEHEN NICHT GLEICH AUS.
+--
+-- Der wowsims-Zweig darueber dreht sich um das Neuladen: dort liest die
+-- COMPANION eine Datei, und WoW schreibt sie erst beim Neuladen. Hier
+-- entsteht der Text im Spiel und geht ueber die Zwischenablage — also
+-- gibt es nichts bereitzustellen und nichts neu zu laden. Beides in
+-- einen gemeinsamen Ablauf zu pressen hiesse, dem Heiler einen Schritt
+-- abzuverlangen, den es fuer ihn nicht gibt.
+--
+-- WELCHE SEITE ES WIRD, ENTSCHEIDET DIE DATENLAGE.
+--
+-- Gefragt wird `QE.Entry(profileKey)` und nicht "ist das ein Heiler":
+-- massgeblich ist, ob QE Live diese Spezialisierung ueberhaupt fuehrt.
+-- Eine Spec ohne Eintrag bekommt den bisherigen Weg statt einer Seite,
+-- die auf ein Werkzeug zeigt, das ihr nichts zu sagen hat.
+--------------------------------------------------
+
+local function HealerPage(frame, profileKey, entry)
+    local QE = WeintCodex.QELive
+
+    WeintCodex.PageHead(frame, {
+        eyebrow = "Charakter",
+        title   = "Simmen",
+        sub     = "Ausrüstung an QE Live — dem Werkzeug für Heiler.",
+        titleSize = 20, subSize = 10,
+        x = PAD_X, y = 14, height = HEAD_H - 14,
+    })
+
+    local y = -HEAD_H
+
+    y = Paragraph(frame, y, 11, C.textNormal,
+        "Für Heiler rechnet " .. WeintCodex.ColorText("textNormal",
+            "questionablyepic.com/live") .. " — WeintCodex rechnet das "
+        .. "nicht nach und die Companion auch nicht. Was hier passiert, "
+        .. "ist der Weg dorthin:")
+
+    y = Paragraph(frame, y, 10, C.textDim,
+        WeintCodex.ColorText("gold", "1.") .. " Den Text unten markieren "
+        .. "und mit Strg+C kopieren.\n"
+        .. WeintCodex.ColorText("gold", "2.") .. " Auf QE Live einen "
+        .. "Charakter deiner Spezialisierung anlegen und den Text dort "
+        .. "unter Import einfügen.\n"
+        .. WeintCodex.ColorText("gold", "3.") .. " Top Gear laufen lassen "
+        .. "— das Ergebnis steht dort. Zurück ins Spiel kommt es nicht: "
+        .. "QE Live gibt keine Wertegewichte heraus.")
+
+    --------------------------------------------------
+    -- Der Stand
+    --
+    -- Vier Faelle, und sie verlangen Verschiedenes: nichts angelegt,
+    -- Grunddaten fehlen noch, alles gelesen, Text nicht baubar. Ein
+    -- gemeinsamer Satz waere fuer drei von ihnen falsch (dieselbe
+    -- Ueberlegung wie im wowsims-Zweig darueber).
+    --------------------------------------------------
+
+    local text, missing, written = QE.Export()
+
+    local box = CreateFrame("Frame", nil, frame)
+    box:SetPoint("TOPLEFT",  frame, "TOPLEFT",  PAD_X, y)
+    box:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD_X, y)
+    box:SetHeight(56)
+
+    local ok   = text ~= nil and (type(missing) ~= "table" or #missing == 0)
+    local tone = ok and C.green or C.gold
+
+    SetSolidBg(box, tone[1], tone[2], tone[3], 0.10)
+    DrawBorder(box, tone[1], tone[2], tone[3], 0.45, 1)
+
+    local head = Text(box, 12, true)
+    head:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -10)
+    head:SetTextColor(unpack(ok and C.green or C.goldBright))
+
+    local body = Text(box, 10)
+    body:SetPoint("TOPLEFT",  box, "TOPLEFT",  12, -30)
+    body:SetPoint("TOPRIGHT", box, "TOPRIGHT", -12, -30)
+    body:SetSpacing(2)
+    body:SetTextColor(unpack(C.textDim))
+
+    if not text then
+        head:SetText("Der Text lässt sich gerade nicht bauen")
+        -- `missing` traegt hier den Grund: QE.Export gibt im Fehlerfall
+        -- nil samt Begruendung zurueck.
+        body:SetText(tostring(missing or "Unbekannter Grund.")
+            .. " Über /wc qe prüfen steht jede Zwischenzahl im Chat.")
+    elseif #missing > 0 then
+        head:SetText("Ein paar Gegenstände fehlen noch")
+        body:SetText(("%d von %d gelesen. Für %s hat der Client die "
+            .. "Grunddaten noch nicht — kurz warten und die Seite erneut "
+            .. "öffnen."):format(written, written + #missing,
+                table.concat(missing, ", ")))
+    else
+        head:SetText(("%d Gegenstände gelesen"):format(written))
+        body:SetText(("Für %s. Steine, Verzauberungen und "
+            .. "Aufwertungsstufen sind dabei."):format(
+                tostring(entry.label or profileKey)))
+    end
+
+    y = y - 66
+
+    --------------------------------------------------
+    -- Das Kopierfeld
+    --
+    -- Es ist beschreibbar, weil sich aus einem gesperrten Feld in WoW
+    -- nichts kopieren laesst; was hineingetippt wird, wird sofort
+    -- zurueckgesetzt. Ein Feld, das den Text unter den Fingern des
+    -- Nutzers verliert, sieht aus wie ein Fehler.
+    --------------------------------------------------
+
+    if text then
+        local FIELD_H = 132
+
+        local scroll = CreateFrame("ScrollFrame", nil, frame)
+        scroll:SetPoint("TOPLEFT",  frame, "TOPLEFT",  PAD_X, y)
+        scroll:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD_X, y)
+        scroll:SetHeight(FIELD_H)
+
+        SetSolidBg(scroll, C.surface2[1], C.surface2[2], C.surface2[3], 0.95)
+        DrawBorder(scroll, C.borderStrong[1], C.borderStrong[2],
+            C.borderStrong[3], 1.0, 1)
+
+        local edit = CreateFrame("EditBox", nil, scroll)
+        edit:SetMultiLine(true)
+        edit:SetAutoFocus(false)
+        edit:SetFont(F.mono or F.sans, 10, "")
+        edit:SetWidth(1)   -- wird unten an den Rahmen angepasst
+        edit:SetTextInsets(8, 8, 6, 6)
+        edit:SetText(text)
+        edit:SetCursorPosition(0)
+        edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        edit:SetScript("OnTextChanged", function(self, byUser)
+            if byUser and self:GetText() ~= text then
+                self:SetText(text)
+                self:HighlightText()
+            end
+        end)
+
+        scroll:SetScrollChild(edit)
+        scroll:EnableMouseWheel(true)
+        scroll:SetScript("OnMouseWheel", function(self, delta)
+            local range = self:GetVerticalScrollRange() or 0
+            if range <= 0 then return end
+            local target = (self:GetVerticalScroll() or 0) - (delta * 24)
+            if target < 0 then target = 0 elseif target > range then target = range end
+            self:SetVerticalScroll(target)
+        end)
+
+        -- Die Breite kommt erst, wenn der Rahmen sie kennt: er haengt an
+        -- beiden Kanten, und eine zur Bauzeit gemessene Zahl waere die,
+        -- die der Detailbereich gleich wieder verschiebt.
+        scroll:SetScript("OnSizeChanged", function(self, width)
+            if width and width > 20 then edit:SetWidth(width - 16) end
+        end)
+        local width = scroll:GetWidth()
+        if width and width > 20 then edit:SetWidth(width - 16) end
+
+        y = y - FIELD_H - 10
+
+        local mark = WeintCodex.CreateButton(frame, {
+            text = "Text markieren",
+            kind = "primary",
+            height = 32,
+            tooltip = "Markiert den ganzen Text — danach Strg+C. "
+                .. "Auch über /wc qe.",
+            onClick = function()
+                edit:SetFocus()
+                edit:HighlightText()
+            end,
+        })
+        mark:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD_X, y)
+
+        y = y - 42
+    end
+
+    --------------------------------------------------
+    -- Was QE Live NICHT zurueckgibt
+    --
+    -- Der Satz muss dastehen. Wer von den Schadensausteilern kommt,
+    -- erwartet nach dem Sim eine Gewichtung im Spiel — und sucht sonst
+    -- eine Funktion, die es nicht gibt.
+    --------------------------------------------------
+
+    y = Paragraph(frame, y, 9, C.textFaint,
+        "QE Live gibt keine Wertegewichte zu deinem Charakter heraus — "
+        .. "sein Top Gear antwortet mit einem Ausrüstungssatz. Was es je "
+        .. "Spezialisierung an Gewichten führt, liegt unter "
+        .. WeintCodex.ColorText("textDim", "Priorisierung")
+        .. " als Vorschlag bereit."
+        .. (entry.beta and " Diese Spezialisierung führt QE Live selbst "
+            .. "noch als Beta." or ""))
+end
+
 function SE.ShowPage()
     local cp = WeintCodex.ContentPanel
     if not cp then return end
@@ -324,6 +543,20 @@ function SE.ShowPage()
 
     pageFrame = CreateFrame("Frame", nil, cp)
     pageFrame:SetAllPoints(cp)
+
+    -- Die Weiche. Fuehrt QE Live diese Spezialisierung, ist der Weg ein
+    -- anderer — siehe der Kommentar ueber HealerPage.
+    local QE = WeintCodex.QELive
+    local profileKey = WeintCodex.Charakter
+        and WeintCodex.Charakter.GetProfileKey
+        and WeintCodex.Charakter.GetProfileKey()
+    local healer = QE and QE.Entry and QE.Entry(profileKey)
+
+    if healer then
+        HealerPage(pageFrame, profileKey, healer)
+        pageFrame:Show()
+        return
+    end
 
     local state = SE.State()
 

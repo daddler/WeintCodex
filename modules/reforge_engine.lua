@@ -410,6 +410,13 @@ local function UpgradeLevel(link, itemId, quality)
     return (cur - base) / 4, cur, base
 end
 
+-- Exportiert fuer modules/qelive.lua: der Importtext fuer QE Live traegt
+-- die Aufwertungsstufe je Gegenstand, und eine zweite Fassung dieser
+-- Rechnung waere genau die Doppelung, an der die Sockelbewertung ueber
+-- fuenf Releases gescheitert ist. Ein Teil auf 4/4 traegt gut 16 % mehr
+-- Wertung — wer das ueberschlaegt, liegt bei jedem Betrag daneben.
+RE.UpgradeLevel = UpgradeLevel
+
 -- Rueckgabe: Werte, Herkunft ("tabelle" | "kurve" | "grund")
 local function ScaleToUpgrade(stats, itemId, upgrade, baseIlvl)
     if not (upgrade and upgrade > 0 and baseIlvl) then return stats, "grund" end

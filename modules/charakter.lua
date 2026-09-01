@@ -6156,7 +6156,17 @@ function ShowPriorisierung()
     -- Ein Vorschlag fuellt deshalb die Felder und faerbt den Kasten
     -- darueber, aber er aendert nichts an `sd.customWeights`.
     --------------------------------------------------
-    local SW      = WeintCodex.StatWeights
+    local SW = WeintCodex.StatWeights
+
+    -- Fuer die sechs Heiler fuehrt QE Live eigene Gewichte. Angeboten
+    -- werden sie hier und nicht beim Login: bei PLAYER_LOGIN ist die
+    -- Spezialisierung nicht verlaesslich, und eine Datenquelle, die sich
+    -- seit Wochen nicht geaendert hat, muss sich niemandem in den Weg
+    -- stellen. Ein zugestellter Sim-Vorschlag hat Vorrang — das
+    -- entscheidet QE.OfferWeights selbst.
+    local QE = WeintCodex.QELive
+    if QE and QE.OfferWeights then QE.OfferWeights(effKey) end
+
     local pending = SW and SW.Pending and SW.Pending(effKey) or nil
 
     if pending then
@@ -6200,35 +6210,92 @@ function ShowPriorisierung()
 
     if pending then
         local banner = CreateFrame("Frame", nil, prioFrame)
-        banner:SetSize(430, 34)
         banner:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff)
         SetSolidBg(banner, C.accentCardTop[1], C.accentCardTop[2],
             C.accentCardTop[3], 1.0)
         DrawBorder(banner, C.accent[1], C.accent[2], C.accent[3], 0.55, 1)
 
-        local when = ""
-        if pending.created and pending.created > 0 then
-            when = " vom " .. date("%d.%m.%Y", pending.created)
-        end
+        --------------------------------------------------
+        -- ZWEI QUELLEN, ZWEI SAETZE
+        --
+        -- Ein Sim-Ergebnis ist zu DIESEM Charakter und dieser
+        -- Ausruestung gerechnet. Die Gewichte von QE Live gelten fuer
+        -- die Spezialisierung und fuer jeden gleich. Beides unter
+        -- derselben Zeile zu fuehren hiesse, dem Spieler eine
+        -- Nachschlagetabelle als sein Sim-Ergebnis zu verkaufen — und
+        -- was er damit tut, haengt genau an diesem Unterschied.
+        --------------------------------------------------
 
-        local who = ""
-        if pending.character and pending.character ~= "" then
-            who = " (" .. pending.character .. ")"
+        local headline, note
+
+        if pending.source == "qelive" then
+            local entry = QE and QE.Entry and QE.Entry(effKey)
+
+            headline = "Wertegewichte von QE Live"
+                .. (entry and entry.label and (" (" .. entry.label .. ")") or "")
+                .. "."
+
+            note = "Sie gelten für die Spezialisierung, nicht für deinen"
+                .. " Charakter — QE Live rechnet keine eigene Gewichtung"
+                .. " je Spieler."
+
+            -- Was nicht uebernommen wurde, wird gesagt. Ohne diesen Satz
+            -- haelt man die Felder fuer vollstaendig ersetzt, obwohl das
+            -- Profil dort weiter gilt.
+            local gaps = entry and entry.gaps
+            if gaps and #gaps > 0 then
+                local labels = {}
+                for _, key in ipairs(gaps) do
+                    for _, st in ipairs(WEIGHT_STATS) do
+                        if st.key == key then labels[#labels + 1] = st.label end
+                    end
+                end
+                if #labels > 0 then
+                    note = note .. " Für " .. table.concat(labels, " und ")
+                        .. " führt QE Live keine Zahl — dort steht weiter"
+                        .. " der Wert der Spec."
+                end
+            end
+
+            if entry and entry.beta then
+                note = note .. " Diese Spezialisierung führt QE Live"
+                    .. " selbst noch als Beta."
+            end
+        else
+            local when = ""
+            if pending.created and pending.created > 0 then
+                when = " vom " .. date("%d.%m.%Y", pending.created)
+            end
+
+            local who = ""
+            if pending.character and pending.character ~= "" then
+                who = " (" .. pending.character .. ")"
+            end
+
+            headline = "Sim-Gewichtung aus der Companion" .. when .. who .. "."
+            note = ""
         end
 
         local text = banner:CreateFontString(nil, "OVERLAY")
         text:SetFont(WeintCodex.Fonts.sans, 10, "")
         text:SetPoint("TOPLEFT",  banner, "TOPLEFT",  10, -6)
-        text:SetPoint("TOPRIGHT", banner, "TOPRIGHT", -10, -6)
+        text:SetWidth(410)
         text:SetJustifyH("LEFT")
         text:SetSpacing(2)
-        text:SetText(WeintCodex.ColorText("gold",
-                "Sim-Gewichtung aus der Companion" .. when .. who .. ".")
+        text:SetText(WeintCodex.ColorText("gold", headline)
             .. " " .. WeintCodex.ColorText("textFaint",
-                "Sie steht in den Feldern und gilt noch nicht — "
+                (note ~= "" and (note .. " ") or "")
+                .. "Sie steht in den Feldern und gilt noch nicht — "
                 .. "Speichern & Anwenden macht sie wirksam."))
 
-        yOff = yOff - 42
+        -- Gemessen statt geschaetzt: der Text ist je nach Quelle ein
+        -- Satz oder vier, und eine feste Hoehe legt die Felder darunter
+        -- genau dann in den Kasten, wenn am meisten dasteht (dieselbe
+        -- Regel wie bei InspectorCard).
+        local height = text:GetStringHeight() + 14
+        banner:SetSize(430, height)
+
+        yOff = yOff - height - 8
     end
 
     -- Eingabefelder

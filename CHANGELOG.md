@@ -2,6 +2,47 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.1.0] – 2026-09-01
+
+**Als Heiler führt *Charakter → Simmen* jetzt zu QE Live.**
+Gesimmt wird für Schadensausteiler auf wowsims. Für Heiler ist das die
+falsche Adresse — geplant wird dort questionablyepic.com/live, und alle
+sechs Heiler-Spezialisierungen sind vertreten. Die Seite erkennt selbst,
+worauf du gerade stehst, und zeigt den Weg, der zu deiner Spec gehört.
+
+**Deine Ausrüstung steht dort zum Kopieren bereit.**
+Ein Feld mit dem fertigen Text: markieren, Strg+C, auf QE Live unter
+*Import* einfügen. Steine, Verzauberungen und Aufwertungsstufen sind
+dabei. Ein zweites Addon brauchst du dafür nicht, und neu laden musst du
+auch nichts — anders als beim Weg zu wowsims.
+
+**Und die Gewichte, die QE Live für deine Spec führt, liegen unter
+*Priorisierung* bereit.**
+Als Vorschlag, wie eine Sim-Gewichtung aus WeintCompanion: er füllt die
+Felder und gilt erst, wenn du auf *Speichern & Anwenden* drückst.
+
+Ein Wort zur Ehrlichkeit: **QE Live gibt keine Gewichtung zu deinem
+Charakter heraus.** Sein *Top Gear* antwortet mit einem
+Ausrüstungssatz, nicht mit Zahlen je Wert. Was du übernehmen kannst,
+gilt für die Spezialisierung und für jeden gleich — das steht auch so
+auf der Seite. Für die beiden Priester führt QE Live gar kein
+Tempo-Gewicht; dort bleibt es beim Wert deiner Spec, und die Seite sagt
+es.
+
+### Neu
+- *Charakter → Simmen* zeigt für Heiler den Weg zu QE Live statt zu wowsims — mit der eigenen Ausrüstung als Text zum Kopieren
+- `/wc qe` öffnet dieselbe Seite; `/wc qe prüfen` schreibt in den Chat, was gelesen wurde
+- Auf *Priorisierung* liegt für Heiler ein Gewichtungs-Vorschlag von QE Live. Er sagt, woher er kommt, dass er für die Spezialisierung gilt und welche Werte QE Live nicht führt
+- Kommt aus WeintCompanion eine Sim-Gewichtung, hat die Vorrang — sie ist zu deinem Charakter gerechnet
+
+### Technisch
+- `data/qelive.lua` trägt QE Lives `defaultStatWeights` und `autoReforgeOrder` je Heiler-Spec als **Rohzahlen**; skaliert wird in `modules/qelive.lua` über `SW.Normalize`, also mit derselben Rechnung wie eine eingefügte Sim-Ausgabe. `WeintCodex_ValidateQELiveData()` hält sie beim Login gegen `data/spec_profiles.lua`
+- **Ein Null-Gewicht wird nicht übernommen, sondern als Lücke geführt** (`gaps`). Beide Priester tragen drüben `haste: 0`, beim Disziplin-Priester mit einem „TODO" daneben — eine 0 hiesse hier „egal", und der Umschmiede-Planer schmiedete das Tempo restlos weg, bei einer Spec, für die `data/breakpoints.lua` selbst eine Tempo-Treppe führt
+- `modules/qelive.lua` **schreibt** ein fremdes Format und muss deshalb laut scheitern — dieselbe Auflage wie `core/wowsims_link.py` drüben. `QE.HEADER_LINES` (8) steht als benannte Zahl da (QE Live liest fest ab Zeile neun), `QE.ReadBack` liest den fertigen Text mit **QE Lives eigener Regel** zurück, und `QE.Export` gibt nichts heraus, wenn dabei etwas anderes herauskommt als hineinging
+- Aufwertungsstufe und Link-Felder kommen aus `modules/reforge_engine.lua` (`RE.UpgradeLevel` neu exportiert, `RE.LinkParts`) — eine zweite Fassung wäre die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist
+- Der Vorschlag entsteht beim Zeichnen von *Priorisierung*, nicht beim Login: dort ist die Spezialisierung nicht verlässlich, und eine Datenquelle, die sich seit Wochen nicht geändert hat, muss sich niemandem in den Weg stellen
+- Neuer Testlauf `.github/tests/qelive_test.lua` (Format gegen QE Lives eigene Leseregel, die Skalierung, der Vorrang des Sim-Vorschlags, die Datendatei gegen die Spec-Profile)
+
 ## [2.9.0.1] – 2026-09-01
 
 **Behoben: die Verzauberung deiner Waffe wurde falsch abgelesen.** Auf einer Waffe mit *Windweise* stand unter *Charakter → Verzauberungen* nicht die Verzauberung, sondern ein Wert des Gegenstands — „+554 Meisterschaft", dazu der Hinweis, die ID passe nicht zur Datenbank. Verzaubert war die Waffe richtig; falsch war nur, was WeintCodex daraus gemacht hat.

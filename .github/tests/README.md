@@ -81,3 +81,32 @@ gar keine Verzauberungszeile dasteht — dort wird nichts eingesetzt.
 ```bash
 lua5.1 .github/tests/enchant_scan_test.lua .
 ```
+
+## QE Live (der Heiler-Weg)
+
+`qelive_test.lua` prüft `modules/qelive.lua` und `data/qelive.lua`. Diese
+Dateien **schreiben** ein fremdes Format, und das ist die Sorte Fehler, die
+nirgends auffällt: QE Live nimmt einen falsch gebauten Text an, zeigt eine
+Ausrüstung, und nur wer nachzählt, sieht, dass drei Teile fehlen. Es gibt
+keine Fehlermeldung, an der man das erkennen könnte — dieselbe Fehlerklasse
+wie die laufende Nummer des Umschmieders und die Feldnummern in
+`core/wowsims_link.py` drüben.
+
+Geprüft wird deshalb gegen **QE Lives eigene Regel** statt gegen unsere
+Annahme darüber: dass die Gegenstände ab Zeile neun beginnen (eine Kopfzeile
+zu wenig verschluckt den ersten — das führt der Lauf vor, statt es zu
+behaupten), dass `gem_id`/`enchant_id` nicht als Gegenstandsnummer gelesen
+werden, und dass im ersten Feld einer Zeile keine Nummer stehen darf, weil
+es drüben übersprungen wird.
+
+Dazu die Gewichte: skaliert wird mit derselben Rechnung wie eine eingefügte
+Sim-Ausgabe, und eine als **Lücke** geführte Zahl darf nicht in den Vorschlag
+geraten (beide Priester tragen bei QE Live `haste: 0`, und eine 0 hiesse hier
+„egal"). Ein zugestellter Sim-Vorschlag hat Vorrang — er ist zu diesem
+Charakter gerechnet, die QE-Zahlen gelten für die Spezialisierung.
+
+Dieselben Zahlen hält `tests/test_qelive.py` in WeintCompanion.
+
+```bash
+lua5.1 .github/tests/qelive_test.lua .
+```

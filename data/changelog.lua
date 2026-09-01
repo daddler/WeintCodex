@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.1.0",
+        date    = "01.09.2026",
+        notes   = {
+            "Neu fuer Heiler: |cffD4A24ACharakter -> Simmen|r fuehrt jetzt zu |cffD4A24AQE Live|r statt zu wowsims. Die Seite erkennt selbst, worauf du stehst.",
+            "Deine Ausruestung steht dort als Text zum Kopieren bereit - mit Steinen, Verzauberungen und Aufwertungsstufen. Ein zweites Addon brauchst du nicht, neu laden auch nicht.",
+            "Auch ueber |cffD4A24A/wc qe|r zu erreichen.",
+            "Unter |cffD4A24APriorisierung|r liegt zusaetzlich die Gewichtung bereit, die QE Live fuer deine Spezialisierung fuehrt. Sie fuellt nur die Felder - gelten tut sie erst nach |cffD4A24ASpeichern & Anwenden|r.",
+            "Wichtig: QE Live rechnet keine Gewichtung zu DEINEM Charakter. Was du dort bekommst, ist ein Ausruestungssatz - die Zahlen gelten fuer die Spezialisierung.",
+        },
+    },
+    {
         version = "2.9.0.1",
         date    = "01.09.2026",
         notes   = {
