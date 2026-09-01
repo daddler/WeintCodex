@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.0.1",
+        date    = "01.09.2026",
+        notes   = {
+            "Behoben: Auf verzauberten Waffen stand ein Wert des Gegenstands als Verzauberung da, zum Beispiel |cffD4A24A+554 Meisterschaft|r statt |cffD4A24AWindweise|r - mit dem Hinweis, die ID passe nicht zur Datenbank. Verzaubert war die Waffe richtig.",
+            "Zwei Waffenverzauberungen hiessen im Addon anders als im Spiel: |cffD4A24AWindweise|r stand als \"Lied des Windes\" und |cffD4A24AFlussgesang|r als \"Lied des Flusses\". Beide Namen gibt es im Spiel nicht - als Empfehlung waren sie damit nicht auffindbar.",
+            "Waffenverzauberungen werden jetzt am Namen erkannt, den der Client anzeigt. Ein Wert des Gegenstands wird dort nicht mehr eingesetzt.",
+        },
+    },
+    {
         version = "2.9.0.0",
         date    = "31.08.2026",
         notes   = {

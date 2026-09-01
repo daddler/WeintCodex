@@ -38,12 +38,24 @@ WeintCodex_Enchants = {
     -- WAFFE (MoP-Verzauberungen)
     --------------------------------------------------
 
-    [4441] = { name = "Lied des Windes",  slot = "Waffe" },   -- Windsong (Proc: 1500 Krit/Tempo/Meisterschaft)
+    -- ZWEI DAVON WAREN ERFUNDEN. "Lied des Windes" (4441) und "Lied des
+    -- Flusses" (4446) waren aus dem Englischen uebersetzt statt aus dem
+    -- Client abgeschrieben - der deutsche Client sagt "Windweise" und
+    -- "Flussgesang". Das ist nicht nur ein falscher Empfehlungstext: die
+    -- Waffenverzauberungen sind Proc-Verzauberungen, also NAMENSZEILEN
+    -- ohne Werte, und eine Namenszeile wird nur ueber ihren Namen erkannt.
+    -- Auf einer Waffe mit "Windweise" fiel die echte Zeile deshalb aus dem
+    -- Scan, und uebrig blieb der Meisterschaftswert des Gegenstands - samt
+    -- der Marke "(ID 4441 abweichend)" an einer korrekt verzauberten Waffe.
+    -- Die Erkennung haengt seit 2.9.0.1 nicht mehr allein an diesen Namen
+    -- (siehe LooksLikeEnchantText in modules/charakter.lua); richtig sein
+    -- muessen sie trotzdem, denn sie stehen in den Empfehlungen.
+    [4441] = { name = "Windweise",        slot = "Waffe" },   -- Windsong (Proc: 1500 Krit/Tempo/Meisterschaft)
     [4442] = { name = "Jadegeist",        slot = "Waffe" },   -- Jade Spirit (Proc: 1650 Intelligenz)
     [4443] = { name = "Elementarkraft",   slot = "Waffe" },   -- Elemental Force (Elementarschaden-Proc)
     [4444] = { name = "Tanzender Stahl",  slot = "Waffe" },   -- Dancing Steel (Proc: 1650 Stärke ODER Beweglichkeit)
     [4445] = { name = "Koloss",           slot = "Waffe" },   -- Colossus (Absorbschild-Proc, Tank)
-    [4446] = { name = "Lied des Flusses", slot = "Waffe" },   -- River's Song (Ausweich-Proc, Tank)
+    [4446] = { name = "Flussgesang",      slot = "Waffe" },   -- River's Song (Ausweich-Proc, Tank)
 
     --------------------------------------------------
     -- WAFFE: Todesritter-Runenverzierungen

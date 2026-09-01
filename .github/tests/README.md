@@ -60,3 +60,24 @@ wird das *Ergebnis* — hat sich der Zeitstempel bewegt? — und nicht der Versu
 ```bash
 lua5.1 .github/tests/simexport_test.lua .
 ```
+
+## Verzauberungserkennung
+
+`enchant_scan_test.lua` prüft, welche Verzauberung `modules/charakter.lua` auf
+einem angelegten Gegenstand erkennt. Dieselbe Fehlerklasse ist dreimal
+ausgeliefert worden und nahm jedes Mal denselben Ausgang: eine **Wertzeile des
+Gegenstands** stand als Verzauberung da, samt der Marke „(ID … abweichend)" an
+einem korrekt verzauberten Teil (2.0.0.3 Handschuhe, 2.0.1.0 Handgelenke,
+2.9.0.1 Waffe).
+
+Der Lauf stellt echte Tooltips gegen die Erkennung: die gemeldete Waffe mit
+*Windweise*, dieselbe Waffe mit einem absichtlich falsch geschriebenen
+Datenbanknamen (**die Erkennung darf nicht an unserer Übersetzung hängen** —
+das war der Fehler), Handgelenke mit einer Wertverzauberung zwischen
+vierstelligen Gegenstandswerten und einer Umschmiedezeile, die grünen
+Beschriftungen des Clients („Benutzen:", „Ausgerüstet:"), und den Fall, in dem
+gar keine Verzauberungszeile dasteht — dort wird nichts eingesetzt.
+
+```bash
+lua5.1 .github/tests/enchant_scan_test.lua .
+```

@@ -2,6 +2,27 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.0.1] – 2026-09-01
+
+**Behoben: die Verzauberung deiner Waffe wurde falsch abgelesen.** Auf einer Waffe mit *Windweise* stand unter *Charakter → Verzauberungen* nicht die Verzauberung, sondern ein Wert des Gegenstands — „+554 Meisterschaft", dazu der Hinweis, die ID passe nicht zur Datenbank. Verzaubert war die Waffe richtig; falsch war nur, was WeintCodex daraus gemacht hat.
+
+**Und zwei Waffenverzauberungen hiessen hier anders als im Spiel.** „Lied des Windes" und „Lied des Flusses" waren aus dem Englischen übersetzt statt aus dem Spiel abgeschrieben. Sie heissen **Windweise** und **Flussgesang**. Wer die Empfehlung gelesen hat, hat im Auktionshaus nach etwas gesucht, das es nicht gibt.
+
+Beides hing zusammen: Waffenverzauberungen tragen keine Zahlen, sondern nur ihren Namen — und erkannt wurden sie bisher nur, wenn dieser Name buchstabengleich im Addon stand. Tat er das nicht, fiel die richtige Zeile aus der Suche, und der nächstbeste Wert des Gegenstands rückte nach.
+
+### Behoben
+- **Waffenverzauberungen werden am Namen erkannt, den der Client anzeigt**, nicht mehr an unserer eigenen Schreibweise. Kennt das Addon den Namen nicht, steht er trotzdem da — mit dem leisen Zusatz, dass er hier so nicht hinterlegt ist
+- **Ein Wert des Gegenstands wird nicht mehr als Verzauberung eingesetzt.** Eine Verzauberung, die nachweislich keine Zahlen liefert, kann keine Wertzeile sein
+- **Windweise** (statt „Lied des Windes") und **Flussgesang** (statt „Lied des Flusses") — die vier übrigen Waffenverzauberungen waren richtig
+- Der falsche Hinweis „(ID … abweichend)" auf korrekt verzauberten Waffen ist damit weg
+
+### Technisch
+- `RankEnchantCandidate` prüft den **Eintrag**, nicht seine Werte: bis 2.9.0.0 stand dort `if dbStats then return nil end`, und ein Eintrag *ohne* Werte ist genau der Fall, für den der schwächste Rang („plausible Größenordnung, mehr wissen wir nicht") nie gedacht war. Alle dreizehn wertlosen Einträge von `data/enchants.lua` sind Waffen-Procs, DK-Runen und Zielfernrohre — Zeilen ohne Zahlen. Der Rang gilt jetzt nur noch, wenn wir zu einer ID wirklich nichts wissen, so wie es in `CLAUDE.md` schon beschrieben stand
+- `LooksLikeEnchantText` lässt eine grüne Zeile ohne Zahl durch, wenn unser Eintrag sagt, dass diese Verzauberung ein Proc ist. Vorher musste ihr Text buchstabengleich in `data/enchants.lua` stehen — und der Name ist das unzuverlässigste Feld jener Datei (von Hand gepflegt, am Client nicht auflösbar, von Blizzard mitten in MoP umbenannt). Die Beschriftungen des Clients (`ITEM_SPELL_TRIGGER_ONUSE`/`ONEQUIP`) sind ausgenommen: sie sind grün, kommen ohne Zahl aus und gehören dem Gegenstand
+- Welche Zeile es wird, entscheidet weiterhin allein die Rangfolge — ein Namenstreffer schlägt nach wie vor alles andere
+- `.github/tests/enchant_scan_test.lua` stellt die Erkennung gegen echte Tooltips, ohne Spiel: die gemeldete Waffe, dieselbe Waffe mit absichtlich falsch geschriebenem Datenbanknamen, Handgelenke mit einer Wertverzauberung zwischen vierstelligen Gegenstandswerten und einer Umschmiedezeile, die grünen Beschriftungen des Clients, und der Fall ohne jede Verzauberungszeile. Mit dem Stand von 2.9.0.0 schlägt er fehl (`lua5.1 .github/tests/enchant_scan_test.lua .`)
+- `WeintCodex.Charakter.ResolveEnchant` ist dafür exportiert — dieselbe Rechnung lag dreimal daneben (2.0.0.3, 2.0.1.0, 2.9.0.1) und nahm jedes Mal denselben Ausgang
+
 ## [2.9.0.0] – 2026-08-31
 
 **Neu: Simmen, ohne im Sim etwas nachzubauen.** Seit 2.8.0.0 kommt eine Sim-Gewichtung ohne Abtippen ins Spiel. Der Weg *davor* war weiter Handarbeit: auf [wowsims.com/mop](https://www.wowsims.com/mop/) musste man seine Ausrüstung Stück für Stück selbst zusammenklicken. Wer das einmal gemacht hat, simmt nicht jede Woche erneut — und eine Gewichtung, die zur Ausrüstung von vor vier Wochen gehört, ist schlechter als ihr Ruf.

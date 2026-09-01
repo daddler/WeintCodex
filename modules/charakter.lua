@@ -786,7 +786,8 @@ end
 --
 --   A) "Verzaubert: <Name>"  (ENCHANT_LINE_PATTERN)
 --   B) erste GRÜNE Zeile, die wie eine Verzauberung aussieht
---      ("+170 Meisterschaftswertung" bzw. ein Proc-Name aus der DB)
+--      ("+170 Meisterschaftswertung" bzw. eine Namenszeile ohne Werte,
+--      wenn unser Eintrag sagt, dass diese Verzauberung ein Proc ist)
 --
 -- Aus dem gefundenen Text werden Stat + Wert geparst. Widerspricht das
 -- dem DB-Eintrag der Verzauberungs-ID, gewinnt der Client: wir suchen
@@ -795,15 +796,52 @@ end
 -- die richtige Verzauberung an.
 --------------------------------------------------
 
+-- Beschriftungen des CLIENTS ("Benutzen: %s", "Ausgerüstet: %s"), nicht
+-- unsere. Beide Zeilen sind grün und können ohne Zahl auskommen — sie
+-- gehören dem Gegenstand und nie einer Verzauberung.
+local TRIGGER_PREFIXES = {}
+do
+    for _, raw in ipairs({ _G.ITEM_SPELL_TRIGGER_ONUSE   or "Benutzen",
+                           _G.ITEM_SPELL_TRIGGER_ONEQUIP or "Ausgerüstet" }) do
+        local prefix = raw:gsub("%%s.*$", ""):gsub("[%s:]*$", ""):lower()
+        if prefix ~= "" then TRIGGER_PREFIXES[#TRIGGER_PREFIXES + 1] = prefix end
+    end
+end
+
+local function IsTriggerLine(lower)
+    for _, prefix in ipairs(TRIGGER_PREFIXES) do
+        if lower:find(prefix, 1, true) == 1 then return true end
+    end
+    return false
+end
+
 -- Grüne Zeile plausibilisieren, damit nicht z.B. eine Sockel-/Setbonus-
 -- Zeile als Verzauberung durchgeht.
-local function LooksLikeEnchantText(text, enchSlot)
+--
+-- EINE NAMENSZEILE DARF NICHT AN UNSERER NAMENSPFLEGE HÄNGEN. Bis 2.9.0.0
+-- kam eine Zeile ohne "+Zahl" nur durch, wenn ihr Text BUCHSTABENGLEICH in
+-- data/enchants.lua stand. Genau das trifft die Waffenverzauberungen: sie
+-- sind Procs, tragen also keine Werte und bestehen aus nichts als ihrem
+-- Namen — und der ist das unzuverlässigste Feld jener Datei (von Hand
+-- gepflegt, am Client nicht auflösbar, von Blizzard mitten in MoP
+-- umbenannt). Auf einer Waffe mit "Windweise", die dort "Lied des Windes"
+-- hiess, fiel die echte Verzauberungszeile deshalb aus dem Scan, und übrig
+-- blieb der Meisterschaftswert des Gegenstands.
+--
+-- Sagt unser Eintrag dagegen, dass diese Verzauberung KEINE Werte hat, dann
+-- wissen wir auch ohne den Namen, wonach zu suchen ist: nach einer grünen
+-- Zeile ohne Zahl, die keine Beschriftung des Clients ist. Welche davon es
+-- ist, entscheidet weiterhin die Rangfolge (RankEnchantCandidate) — ein
+-- Namenstreffer schlägt sie nach wie vor.
+local function LooksLikeEnchantText(text, enchSlot, db)
     if text:find("^%s*%+%d") then return true end
-    if not WeintCodex_Enchants then return false end
     local lower = text:lower()
-    for _, db in pairs(WeintCodex_Enchants) do
-        if db.name and (not enchSlot or db.slot == enchSlot)
-           and lower == db.name:lower() then
+    if IsTriggerLine(lower) then return false end
+    if db and not db.stats and not text:find("%d") then return true end
+    if not WeintCodex_Enchants then return false end
+    for _, entry in pairs(WeintCodex_Enchants) do
+        if entry.name and (not enchSlot or entry.slot == enchSlot)
+           and lower == entry.name:lower() then
             return true
         end
     end
@@ -953,7 +991,7 @@ local function IsReforgeLine(text)
     return false
 end
 
-local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
+local function RankEnchantCandidate(text, scanned, enchSlot, db)
     -- Rang 1: der Text IST der Name einer Verzauberung dieses Slots.
     -- Für Wertzeilen ("+894 Meisterschaft") kann dieser Rang nicht mehr
     -- greifen — EnchantNamesMatch lehnt sie ab, weil ihre Aussage in den
@@ -991,9 +1029,9 @@ local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
     if FindEnchantByStats(enchSlot, scanned) then return 2 end
 
     -- Rang 3: die Werte überschneiden sich mit dem DB-Eintrag DIESER ID.
-    if dbStats then
+    if db and db.stats then
         for key in pairs(scanned) do
-            if dbStats[key] then return 3 end
+            if db.stats[key] then return 3 end
         end
     end
 
@@ -1003,7 +1041,14 @@ local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
     -- dazu, ist nicht die Datenbank falsch, sondern der Scan gescheitert —
     -- dann ist ihr Name die ehrlichere Antwort als eine geratene
     -- Gegenstandszeile.
-    if dbStats then return nil end
+    --
+    -- GEPRÜFT WIRD DER EINTRAG, NICHT SEINE WERTE. Bis 2.9.0.0 stand hier
+    -- `if dbStats then`, und ein Eintrag OHNE Werte ist genau der Fall, für
+    -- den dieser Rang nie gedacht war: eine Proc-Verzauberung liefert keine
+    -- Zahlen, also kann keine Wertzeile sie sein. Auf jeder Waffe fiel damit
+    -- der Meisterschafts- oder Trefferwert des Gegenstands unter die Grenze
+    -- von MAX_ENCHANT_VALUE und wurde als Verzauberung ausgegeben.
+    if db then return nil end
     return 5
 end
 
@@ -1061,8 +1106,7 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
     -- Treffer, Reihenfolge egal), für Rang 5 die LETZTE: die Werte des
     -- Gegenstands stehen im Tooltip oben, die Verzauberung darunter.
     if not found then
-        local db      = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
-        local dbStats = db and db.stats
+        local db       = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
         local bestRank = nil
 
         for i = 2, n do
@@ -1072,10 +1116,10 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
                and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
                and not IsReforgeLine(txt)
                and IsGreenLine(line)
-               and LooksLikeEnchantText(txt, enchSlot) then
+               and LooksLikeEnchantText(txt, enchSlot, db) then
 
                 local scanned = ParseAllStats(txt)
-                local rank    = RankEnchantCandidate(txt, scanned, enchSlot, dbStats)
+                local rank    = RankEnchantCandidate(txt, scanned, enchSlot, db)
 
                 if rank and (not bestRank
                              or rank < bestRank
@@ -1228,7 +1272,7 @@ end
 -- gilt und wie viele Slots überhaupt zählen können.
 --
 -- In MoP ist die Nebenhand IMMER verzauberbar:
---   Waffe            -> Waffenverzauberungen (Lied des Windes usw.)
+--   Waffe            -> Waffenverzauberungen (Windweise usw.)
 --   Schild           -> "Großes Parieren" oder "Mächtige Intelligenz"
 --   Beihand-Gegenst. -> "Mächtige Intelligenz"
 -- (siehe data/enchants.lua, Block NEBENHAND)
@@ -2758,7 +2802,7 @@ local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName, scannedSt
     -- Nur deckungsgleiche Statschlüssel zählen (siehe SM.CompareStats),
     -- sonst würde der Abgleich neue Fehler erzeugen statt alte zu beheben.
     --
-    -- Proc-Verzauberungen (Lied des Windes, Jadegeist, DK-Runen) haben
+    -- Proc-Verzauberungen (Windweise, Jadegeist, DK-Runen) haben
     -- bewusst keine Werte; für sie liefert SM.EnchantStats nil und dieser
     -- Block hält sich komplett heraus.
     --------------------------------------------------
@@ -3729,6 +3773,14 @@ WeintCodex.Charakter.ScanItemSockets   = ScanItemSockets
 WeintCodex.Charakter.ClassifyEquipLoc  = ClassifyEquipLoc
 WeintCodex.Charakter.OffhandEnchSlot   = OFFHAND_ENCH_SLOT
 WeintCodex.Charakter.SocketColorLabel  = SOCKET_COLOR_LABEL
+
+-- WELCHE VERZAUBERUNG LIEGT DRAUF - die eine Rechnung dieser Datei, die
+-- dreimal danebenlag (2.0.0.3, 2.0.1.0, 2.9.0.1) und jedes Mal denselben
+-- Ausgang nahm: eine Wertzeile des GEGENSTANDS stand als Verzauberung da.
+-- Sie liest nichts als Tooltiptext und ist damit genau die Sorte Rechnung,
+-- die ohne Spiel pruefbar sein muss - .github/tests/enchant_scan_test.lua
+-- stellt sie gegen echte Tooltips.
+WeintCodex.Charakter.ResolveEnchant    = ResolveEnchant
 
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
