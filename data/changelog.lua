@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.1.1",
+        date    = "02.09.2026",
+        notes   = {
+            "Deine Bossnotizen bleiben zuverlaessiger stehen. In einem seltenen Fall wurden sie beim Tippen in eine Ablage geschrieben, die das Spiel beim Abmelden gar nicht sichert - danach waren sie weg, ohne Fehlermeldung.",
+            "Ohne ausgewaehlten Boss wird jetzt nichts mehr geschrieben. Vorher konnte das einen Fehler mitten im Tippen ausloesen, nach dem das Feld fuer den Rest der Sitzung nichts mehr gespeichert hat.",
+            "Wichtig zu wissen: |cffD4A24AWoW schreibt Notizen erst beim Abmelden oder nach /reload auf die Festplatte.|r Ein abgestuerzter oder abgewuergter Client verliert deshalb, was seitdem getippt wurde.",
+        },
+    },
+    {
         version = "2.9.1.0",
         date    = "01.09.2026",
         notes   = {

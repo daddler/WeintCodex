@@ -2,6 +2,30 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.1.1] – 2026-09-02
+
+**Bossnotizen bleiben zuverlässiger stehen.**
+Gemeldet wurde, dass eingetragene Notizen nach einem Update wieder weg
+seien. Am Update liegt es nicht — es tauscht nur den Addon-Ordner und
+fasst deine gespeicherten Daten nie an. Zwei Stellen im Notizfeld
+konnten sie aber verlieren, ohne dass irgendetwas davon zu sehen war,
+und die sind jetzt zu.
+
+**Was zu wissen bleibt:** *World of Warcraft schreibt gespeicherte Daten
+erst beim Abmelden und nach `/reload` auf die Festplatte.* Wer den
+Client abwürgt oder abstürzt, verliert alles, was seit dem Anmelden
+dazugekommen ist — Notizen eingeschlossen. Vor einem Update also einmal
+sauber ausloggen.
+
+### Behoben
+- Notizen wurden in einem seltenen Fall in eine Ablage geschrieben, die das Spiel gar nicht sichert. Beim nächsten Anmelden waren sie weg — ohne Fehler, ohne Meldung
+- Ohne ausgewählten Boss wird nichts mehr geschrieben. Vorher konnte das einen Fehler mitten im Tippen auslösen, nach dem das Feld für den Rest der Sitzung nichts mehr gespeichert hat
+
+### Technisch
+- `SetBossNoteColumn` in `modules/bossguides.lua` legte im Rückfallweg `WeintCodex.SavedData = {}` an, also eine Tabelle **neben** der SavedVariable. WoW sichert nur, was in der `.toc` steht; alles, was danach in diese Tabelle geschrieben wurde, war beim nächsten Login weg. Geschrieben wird jetzt in `WeintCodex_SavedData`, und `WeintCodex.SavedData` wird darauf gesetzt
+- `bossNotes[nil] = …` ist ein Lua-Fehler, und er fiele mitten in `OnTextChanged` an — der Handler bricht ab und speichert von da an nichts mehr. `GetBossNoteColumn`/`SetBossNoteColumn` steigen deshalb ohne Bossnamen aus
+- Auf der Gegenseite schreibt WeintCompanion seit 2.7.1 nie mehr blind in `WeintCodex.lua`: der Lese-Ändern-Schreiben-Ablauf der Inbox prüft unmittelbar vor dem Ersetzen, ob WoW die Datei zwischenzeitlich selbst geschrieben hat, und lässt es sonst bleiben. Und das Backup vor jeder Aktualisierung sichert dort jetzt auch die SavedVariables, nicht nur den Addon-Ordner
+
 ## [2.9.1.0] – 2026-09-01
 
 **Als Heiler führt *Charakter → Simmen* jetzt zu QE Live.**
