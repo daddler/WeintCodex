@@ -719,6 +719,66 @@ local function BuildStatsPanel()
         line:SetJustifyH("LEFT")
         statsPanel.lines[i] = line
     end
+
+    --------------------------------------------------
+    -- Wofür das hier zählt
+    --------------------------------------------------
+    -- Drei Übungstage in Folge haken die Rotationslektion im
+    -- Trainingsplan der Academy ab. Gezählt wurde das seit jeher -
+    -- gesehen hat es niemand: hier stand nichts davon, und im
+    -- Trainingsplan erschien am dritten Tag wortlos ein Haken. Wer
+    -- gestern geübt hat, erfuhr nirgends, dass heute der Tag ist,
+    -- an dem es sich lohnt.
+    --
+    -- Eigene Zeile am Fuß des Panels und nicht in der gemeinsamen
+    -- Liste darüber: die ist bei einer aussagekräftigen Sitzung voll,
+    -- und dann fiele ausgerechnet diese Zeile heraus.
+    --
+    -- Gezählt wird der Stand in der Companion (dort wird auch
+    -- abgehakt), sein Satz kommt fertig mit. Eine eigene Zählung hier
+    -- stünde irgendwann auf einer anderen Zahl als die, die tatsächlich
+    -- abhakt.
+    --------------------------------------------------
+    statsPanel.academy = NewFont(statsPanel, WeintCodex.Fonts.sans, 10, "")
+    statsPanel.academy:SetPoint("BOTTOMLEFT", statsPanel, "BOTTOMLEFT", 2, 2)
+    statsPanel.academy:SetPoint("RIGHT", statsPanel, "RIGHT", -2, 0)
+    statsPanel.academy:SetJustifyH("LEFT")
+end
+
+-- Der Stand der Übungsserie für die gerade gespielte Spezialisierung.
+--
+-- Ohne Zustellung bleibt die Zeile leer: dass es die Academy gibt,
+-- ist keine Auskunft über diesen Charakter.
+local function UpdateAcademyLine()
+
+    if not statsPanel or not statsPanel.academy then return end
+
+    local entry
+
+    if WeintCodex.Companion and WeintCodex.Companion.AcademyPracticeFor then
+        entry = WeintCodex.Companion.AcademyPracticeFor(nil, currentSpecKey)
+    end
+
+    if entry and (entry.text or "") ~= "" then
+        SetText(statsPanel.academy, entry.text,
+            entry.done and "green" or (entry.alive and "purple" or "textFaint"))
+        return
+    end
+
+    local state
+    if WeintCodex.Companion and WeintCodex.Companion.AcademyStateFor then
+        state = WeintCodex.Companion.AcademyStateFor(
+            (WeintCodex.Names and WeintCodex.Names.Me()) or "")
+    end
+
+    -- Es gibt eine Auswertung, nur noch keinen gezählten Übungstag.
+    -- Die Zahl der nötigen Tage steht bewusst NICHT hier: sie gehört
+    -- der Companion, und zwei Fassungen davon liefen auseinander.
+    SetText(statsPanel.academy,
+        state and "Gewertete Sitzungen zählen für deinen Trainingsplan in der Academy."
+            or "",
+        "textFaint")
+
 end
 
 local function FillStatsPanel()
@@ -736,6 +796,7 @@ local function FillStatsPanel()
         statsPanel.busy:Set(0, "textFaint")
         statsPanel.uptime:Set(0, "textFaint")
         for _, line in ipairs(statsPanel.lines) do SetText(line, "") end
+        UpdateAcademyLine()
         return
     end
 
@@ -821,6 +882,8 @@ local function FillStatsPanel()
                 entry.uptime >= 90 and "green" or (entry.uptime >= 70 and "gold" or "red"))
         end
     end
+
+    UpdateAcademyLine()
 end
 
 --------------------------------------------------
@@ -1014,7 +1077,10 @@ local function LayoutFrame(visibleRows)
         panel:ClearAllPoints()
         panel:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + 2, -y)
         panel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD - 2, -y)
-        local height = (activePanel == "stats") and 230 or 215
+        -- 248 statt 230: die Academy-Zeile haengt am Fuss des
+        -- Statistik-Panels und braucht ihre eigene Zeile, sonst
+        -- ueberdeckte sie die letzte Zeile der Liste darueber.
+        local height = (activePanel == "stats") and 248 or 215
         panel:SetHeight(height)
         y = y + height + 4
     end

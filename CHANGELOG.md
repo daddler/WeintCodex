@@ -2,6 +2,55 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.2.0] – 2026-09-02
+
+**Die Academy zeigt jetzt, ob du besser wirst.**
+Bisher stand auf der Übersicht immer nur der zuletzt ausgewertete
+Pull. Ein einzelner Kampf beantwortet aber nicht die Frage, die man
+tatsächlich hat. Unter der Bewertung steht deshalb ab sofort ein
+*Verlauf*: eine Säule je aufgezeichnetem Pull, dazu ein Satz, wie es
+sich entwickelt hat und welcher Bereich über alle Pulls am
+schwächsten steht.
+
+**Der Trainingsplan sagt, warum er so sortiert ist.**
+Er richtet sich nach den letzten Pulls und nicht nach diesem einen
+Kampf — deshalb kann seine Reihenfolge den Sternen auf der Übersicht
+widersprechen. Bisher stand dazu nichts da und es sah nach einem
+Fehler aus. Jetzt steht der Grund über der Liste.
+
+**Deine Übungstage an der Trainingspuppe sind sichtbar.**
+Drei Tage in Folge mit einer gewerteten Sitzung haken die
+Rotationslektion ab. Gezählt wurde das schon immer, zu sehen war es
+nirgends: am dritten Tag erschien wortlos ein Haken. Der Stand steht
+jetzt im *Rotationshelfer* unter *Bewertung* und an der Lektion
+selbst — samt einem Knopf, der das Übungsfenster öffnet.
+
+**Warst du im ausgewerteten Pull gar nicht dabei, steht das da.**
+Vorher sah man sechs leere Balken, und die sehen aus wie eine
+schlechte Bewertung oder wie ein Defekt.
+
+**Und jede Bewertung nennt ihre Zahl.**
+"Platz 3 von 8" oder "62 % genutzt" steht jetzt vor der Erklärung.
+
+**Bleibt ein Bereich unbewertet, obwohl ein Kampf ausgewertet wurde,
+sagt die Seite warum.**
+
+Für all das braucht es **WeintCompanion 2.8.0**. Mit einer älteren
+Fassung verhält sich die Seite wie bisher, statt etwas zu behaupten.
+
+### Behoben
+- Der Lektionskatalog konnte im Spiel weniger Lektionen zeigen als auf dem Desktop. Der Fortschritt "x von y erledigt" zählte dann gegen eine zu kleine Zahl, ohne dass das irgendwo aufgefallen wäre
+- Beim ersten Öffnen der Academy war die Seite zu breit gezeichnet: ihre rechte Hälfte lag unter der Detailspalte. Beim nächsten Aufruf sass es wieder — die Sorte Fehler, die man für ein Flackern hält
+- Wer im Spiel unter einem Namen mit Realmzusatz ausgewertet wird, bekam die abgehakte Übungslektion nie zu sehen. Sie wurde unter dem nackten Namen gespeichert und unter dem vollständigen gesucht (behoben in WeintCompanion 2.8.0)
+
+### Technisch
+- `hasActor`, `metric` und der Grund für eine fehlende Tiefenauswertung wurden seit jeher mitgeliefert und in `modules/academy.lua` nie gelesen. Drei zugestellte Auskünfte, die genau die Fragen beantworten, die die Seite nicht beantworten konnte
+- Neu in `academy_state`: `planNote`, `note`, `gapText`, `progress` (Punkte, Richtung und beide Sätze der Lernkurve) und `practice` (Übungsserie je Spec-Schlüssel). Alle additiv — eine ältere Companion schickt sie nicht, und dann sagt die Seite dazu nichts. **Gerechnet wird an keinem davon etwas**: Punkte, Richtung und sämtliche Sätze entstehen drüben, dieselbe Regel, aus der es dieses Modul überhaupt gibt
+- `AppliesToMe` ist entfallen. Der zugestellte Katalog *ist* bereits der dieses Charakters (`lessons_for_actor`); die Datei filterte ihn ein zweites Mal nach denselben Feldern nach, mit einer eigenen Auslegung — und konnte dabei nur wegnehmen. Eine abweichende Schreibweise der Spezialisierung hätte den halben Katalog verschwinden lassen
+- `Page()` ruft `SetDetailShown(true)` vor dem Aufbau statt sich auf das `SetInspector` am Ende zu verlassen. Genau die Falle aus `CLAUDE.md`: wer vor dem Einrücken misst, legt die Seite 372 px zu breit an
+- `WeintCodex.Companion.AcademyPracticeFor(character, specKey)` ist die eine Stelle, an der die Übungsserie gelesen wird — geschlüsselt über den Profilschlüssel des Addons, weil nur der Client weiss, welche Spezialisierung gerade gespielt wird
+- Das Statistik-Panel des Rotationshelfers ist 18 px höher (248): die Academy-Zeile hängt an seinem Fuss und nicht in der gemeinsamen Zeilenliste darüber, die bei einer aussagekräftigen Sitzung voll ist
+
 ## [2.9.1.1] – 2026-09-02
 
 **Bossnotizen bleiben zuverlässiger stehen.**

@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.2.0",
+        date    = "02.09.2026",
+        notes   = {
+            "Die |cffD4A24AAcademy|r zeigt jetzt einen |cffD4A24AVerlauf|r: eine Saeule je aufgezeichnetem Pull, dazu ein Satz, wie es sich entwickelt. Ein einzelner Kampf beantwortet nicht, ob du besser wirst.",
+            "Der |cffD4A24ATrainingsplan|r sagt jetzt, warum er so sortiert ist - er folgt den letzten Pulls und nicht diesem einen Kampf.",
+            "Deine Uebungstage an der Trainingspuppe sind sichtbar: im |cffD4A24ARotationshelfer|r und an der Lektion selbst, mit Knopf zum Uebungsfenster. Drei Tage in Folge haken sie ab.",
+            "Warst du im ausgewerteten Pull nicht dabei, steht das jetzt da - statt sechs leerer Balken, die wie eine schlechte Bewertung aussehen.",
+            "Dafuer braucht es |cffD4A24AWeintCompanion 2.8.0|r. Mit einer aelteren Fassung bleibt alles wie bisher.",
+        },
+    },
+    {
         version = "2.9.1.1",
         date    = "02.09.2026",
         notes   = {
