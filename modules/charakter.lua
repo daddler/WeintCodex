@@ -786,7 +786,8 @@ end
 --
 --   A) "Verzaubert: <Name>"  (ENCHANT_LINE_PATTERN)
 --   B) erste GRÜNE Zeile, die wie eine Verzauberung aussieht
---      ("+170 Meisterschaftswertung" bzw. ein Proc-Name aus der DB)
+--      ("+170 Meisterschaftswertung" bzw. eine Namenszeile ohne Werte,
+--      wenn unser Eintrag sagt, dass diese Verzauberung ein Proc ist)
 --
 -- Aus dem gefundenen Text werden Stat + Wert geparst. Widerspricht das
 -- dem DB-Eintrag der Verzauberungs-ID, gewinnt der Client: wir suchen
@@ -795,15 +796,52 @@ end
 -- die richtige Verzauberung an.
 --------------------------------------------------
 
+-- Beschriftungen des CLIENTS ("Benutzen: %s", "Ausgerüstet: %s"), nicht
+-- unsere. Beide Zeilen sind grün und können ohne Zahl auskommen — sie
+-- gehören dem Gegenstand und nie einer Verzauberung.
+local TRIGGER_PREFIXES = {}
+do
+    for _, raw in ipairs({ _G.ITEM_SPELL_TRIGGER_ONUSE   or "Benutzen",
+                           _G.ITEM_SPELL_TRIGGER_ONEQUIP or "Ausgerüstet" }) do
+        local prefix = raw:gsub("%%s.*$", ""):gsub("[%s:]*$", ""):lower()
+        if prefix ~= "" then TRIGGER_PREFIXES[#TRIGGER_PREFIXES + 1] = prefix end
+    end
+end
+
+local function IsTriggerLine(lower)
+    for _, prefix in ipairs(TRIGGER_PREFIXES) do
+        if lower:find(prefix, 1, true) == 1 then return true end
+    end
+    return false
+end
+
 -- Grüne Zeile plausibilisieren, damit nicht z.B. eine Sockel-/Setbonus-
 -- Zeile als Verzauberung durchgeht.
-local function LooksLikeEnchantText(text, enchSlot)
+--
+-- EINE NAMENSZEILE DARF NICHT AN UNSERER NAMENSPFLEGE HÄNGEN. Bis 2.9.0.0
+-- kam eine Zeile ohne "+Zahl" nur durch, wenn ihr Text BUCHSTABENGLEICH in
+-- data/enchants.lua stand. Genau das trifft die Waffenverzauberungen: sie
+-- sind Procs, tragen also keine Werte und bestehen aus nichts als ihrem
+-- Namen — und der ist das unzuverlässigste Feld jener Datei (von Hand
+-- gepflegt, am Client nicht auflösbar, von Blizzard mitten in MoP
+-- umbenannt). Auf einer Waffe mit "Windweise", die dort "Lied des Windes"
+-- hiess, fiel die echte Verzauberungszeile deshalb aus dem Scan, und übrig
+-- blieb der Meisterschaftswert des Gegenstands.
+--
+-- Sagt unser Eintrag dagegen, dass diese Verzauberung KEINE Werte hat, dann
+-- wissen wir auch ohne den Namen, wonach zu suchen ist: nach einer grünen
+-- Zeile ohne Zahl, die keine Beschriftung des Clients ist. Welche davon es
+-- ist, entscheidet weiterhin die Rangfolge (RankEnchantCandidate) — ein
+-- Namenstreffer schlägt sie nach wie vor.
+local function LooksLikeEnchantText(text, enchSlot, db)
     if text:find("^%s*%+%d") then return true end
-    if not WeintCodex_Enchants then return false end
     local lower = text:lower()
-    for _, db in pairs(WeintCodex_Enchants) do
-        if db.name and (not enchSlot or db.slot == enchSlot)
-           and lower == db.name:lower() then
+    if IsTriggerLine(lower) then return false end
+    if db and not db.stats and not text:find("%d") then return true end
+    if not WeintCodex_Enchants then return false end
+    for _, entry in pairs(WeintCodex_Enchants) do
+        if entry.name and (not enchSlot or entry.slot == enchSlot)
+           and lower == entry.name:lower() then
             return true
         end
     end
@@ -953,7 +991,7 @@ local function IsReforgeLine(text)
     return false
 end
 
-local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
+local function RankEnchantCandidate(text, scanned, enchSlot, db)
     -- Rang 1: der Text IST der Name einer Verzauberung dieses Slots.
     -- Für Wertzeilen ("+894 Meisterschaft") kann dieser Rang nicht mehr
     -- greifen — EnchantNamesMatch lehnt sie ab, weil ihre Aussage in den
@@ -991,9 +1029,9 @@ local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
     if FindEnchantByStats(enchSlot, scanned) then return 2 end
 
     -- Rang 3: die Werte überschneiden sich mit dem DB-Eintrag DIESER ID.
-    if dbStats then
+    if db and db.stats then
         for key in pairs(scanned) do
-            if dbStats[key] then return 3 end
+            if db.stats[key] then return 3 end
         end
     end
 
@@ -1003,7 +1041,14 @@ local function RankEnchantCandidate(text, scanned, enchSlot, dbStats)
     -- dazu, ist nicht die Datenbank falsch, sondern der Scan gescheitert —
     -- dann ist ihr Name die ehrlichere Antwort als eine geratene
     -- Gegenstandszeile.
-    if dbStats then return nil end
+    --
+    -- GEPRÜFT WIRD DER EINTRAG, NICHT SEINE WERTE. Bis 2.9.0.0 stand hier
+    -- `if dbStats then`, und ein Eintrag OHNE Werte ist genau der Fall, für
+    -- den dieser Rang nie gedacht war: eine Proc-Verzauberung liefert keine
+    -- Zahlen, also kann keine Wertzeile sie sein. Auf jeder Waffe fiel damit
+    -- der Meisterschafts- oder Trefferwert des Gegenstands unter die Grenze
+    -- von MAX_ENCHANT_VALUE und wurde als Verzauberung ausgegeben.
+    if db then return nil end
     return 5
 end
 
@@ -1061,8 +1106,7 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
     -- Treffer, Reihenfolge egal), für Rang 5 die LETZTE: die Werte des
     -- Gegenstands stehen im Tooltip oben, die Verzauberung darunter.
     if not found then
-        local db      = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
-        local dbStats = db and db.stats
+        local db       = WeintCodex_Enchants and WeintCodex_Enchants[enchantId]
         local bestRank = nil
 
         for i = 2, n do
@@ -1072,10 +1116,10 @@ local function ScanEquippedEnchant(slotId, enchantId, link, enchSlot)
                and not txt:find(SOCKET_BONUS_PREFIX, 1, true)
                and not IsReforgeLine(txt)
                and IsGreenLine(line)
-               and LooksLikeEnchantText(txt, enchSlot) then
+               and LooksLikeEnchantText(txt, enchSlot, db) then
 
                 local scanned = ParseAllStats(txt)
-                local rank    = RankEnchantCandidate(txt, scanned, enchSlot, dbStats)
+                local rank    = RankEnchantCandidate(txt, scanned, enchSlot, db)
 
                 if rank and (not bestRank
                              or rank < bestRank
@@ -1228,7 +1272,7 @@ end
 -- gilt und wie viele Slots überhaupt zählen können.
 --
 -- In MoP ist die Nebenhand IMMER verzauberbar:
---   Waffe            -> Waffenverzauberungen (Lied des Windes usw.)
+--   Waffe            -> Waffenverzauberungen (Windweise usw.)
 --   Schild           -> "Großes Parieren" oder "Mächtige Intelligenz"
 --   Beihand-Gegenst. -> "Mächtige Intelligenz"
 -- (siehe data/enchants.lua, Block NEBENHAND)
@@ -2758,7 +2802,7 @@ local function EvaluateEnchant(enchId, slotKey, bestList, tooltipName, scannedSt
     -- Nur deckungsgleiche Statschlüssel zählen (siehe SM.CompareStats),
     -- sonst würde der Abgleich neue Fehler erzeugen statt alte zu beheben.
     --
-    -- Proc-Verzauberungen (Lied des Windes, Jadegeist, DK-Runen) haben
+    -- Proc-Verzauberungen (Windweise, Jadegeist, DK-Runen) haben
     -- bewusst keine Werte; für sie liefert SM.EnchantStats nil und dieser
     -- Block hält sich komplett heraus.
     --------------------------------------------------
@@ -3729,6 +3773,14 @@ WeintCodex.Charakter.ScanItemSockets   = ScanItemSockets
 WeintCodex.Charakter.ClassifyEquipLoc  = ClassifyEquipLoc
 WeintCodex.Charakter.OffhandEnchSlot   = OFFHAND_ENCH_SLOT
 WeintCodex.Charakter.SocketColorLabel  = SOCKET_COLOR_LABEL
+
+-- WELCHE VERZAUBERUNG LIEGT DRAUF - die eine Rechnung dieser Datei, die
+-- dreimal danebenlag (2.0.0.3, 2.0.1.0, 2.9.0.1) und jedes Mal denselben
+-- Ausgang nahm: eine Wertzeile des GEGENSTANDS stand als Verzauberung da.
+-- Sie liest nichts als Tooltiptext und ist damit genau die Sorte Rechnung,
+-- die ohne Spiel pruefbar sein muss - .github/tests/enchant_scan_test.lua
+-- stellt sie gegen echte Tooltips.
+WeintCodex.Charakter.ResolveEnchant    = ResolveEnchant
 
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
@@ -6092,6 +6144,35 @@ function ShowPriorisierung()
     local defaults = baseProfile.statWeights or {}
     local current  = (entry and entry.weights) or {}
 
+    --------------------------------------------------
+    -- LIEGT EIN VORSCHLAG AUS DER COMPANION BEREIT?
+    --
+    -- Er kommt entweder ueber die Addon-Bruecke (beim Login gelesen) oder
+    -- als eingefuegter String (sofort). Beide Wege legen ihn nur HIN;
+    -- wirksam wird er erst, wenn hier auf Speichern gedrueckt wird —
+    -- dieselbe Regel, die fuer einen von Hand eingefuegten Text schon
+    -- immer galt ("der Import fuellt die Felder, er speichert nicht").
+    --
+    -- Ein Vorschlag fuellt deshalb die Felder und faerbt den Kasten
+    -- darueber, aber er aendert nichts an `sd.customWeights`.
+    --------------------------------------------------
+    local SW = WeintCodex.StatWeights
+
+    -- Fuer die sechs Heiler fuehrt QE Live eigene Gewichte. Angeboten
+    -- werden sie hier und nicht beim Login: bei PLAYER_LOGIN ist die
+    -- Spezialisierung nicht verlaesslich, und eine Datenquelle, die sich
+    -- seit Wochen nicht geaendert hat, muss sich niemandem in den Weg
+    -- stellen. Ein zugestellter Sim-Vorschlag hat Vorrang — das
+    -- entscheidet QE.OfferWeights selbst.
+    local QE = WeintCodex.QELive
+    if QE and QE.OfferWeights then QE.OfferWeights(effKey) end
+
+    local pending = SW and SW.Pending and SW.Pending(effKey) or nil
+
+    if pending then
+        current = pending.weights
+    end
+
     local desc = prioFrame:CreateFontString(nil, "OVERLAY")
     desc:SetFont(WeintCodex.Fonts.sans, 9, "")
     desc:SetPoint("TOPLEFT",  prioFrame, "TOPLEFT",  16, -HEAD_H)
@@ -6110,16 +6191,115 @@ function ShowPriorisierung()
     local cb = CreateFrame("CheckButton", nil, prioFrame, "UICheckButtonTemplate")
     cb:SetSize(24, 24)
     cb:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 12, -84)
-    cb:SetChecked(entry and entry.enabled and true or false)
+    cb:SetChecked((pending ~= nil) or (entry and entry.enabled and true or false))
 
     local cbLbl = prioFrame:CreateFontString(nil, "OVERLAY")
     cbLbl:SetFont(WeintCodex.Fonts.sans, 11, "")
     cbLbl:SetPoint("LEFT", cb, "RIGHT", 4, 0)
     cbLbl:SetText("|cffddddffEigene Gewichtung verwenden|r |cff4A4A52(für " .. (specDisplay or profileKey) .. ")|r")
 
+    --------------------------------------------------
+    -- DER HINWEIS STEHT UEBER DEN FELDERN, NICHT DANEBEN
+    --
+    -- Ohne ihn saehen die gefuellten Felder aus wie der gespeicherte
+    -- Stand — und wer dann weggeht, ohne zu speichern, haelt eine
+    -- Gewichtung fuer aktiv, die es nie war. Genannt wird beides: woher
+    -- sie kommt und dass sie noch nicht gilt.
+    --------------------------------------------------
+    local yOff = -116
+
+    if pending then
+        local banner = CreateFrame("Frame", nil, prioFrame)
+        banner:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff)
+        SetSolidBg(banner, C.accentCardTop[1], C.accentCardTop[2],
+            C.accentCardTop[3], 1.0)
+        DrawBorder(banner, C.accent[1], C.accent[2], C.accent[3], 0.55, 1)
+
+        --------------------------------------------------
+        -- ZWEI QUELLEN, ZWEI SAETZE
+        --
+        -- Ein Sim-Ergebnis ist zu DIESEM Charakter und dieser
+        -- Ausruestung gerechnet. Die Gewichte von QE Live gelten fuer
+        -- die Spezialisierung und fuer jeden gleich. Beides unter
+        -- derselben Zeile zu fuehren hiesse, dem Spieler eine
+        -- Nachschlagetabelle als sein Sim-Ergebnis zu verkaufen — und
+        -- was er damit tut, haengt genau an diesem Unterschied.
+        --------------------------------------------------
+
+        local headline, note
+
+        if pending.source == "qelive" then
+            local entry = QE and QE.Entry and QE.Entry(effKey)
+
+            headline = "Wertegewichte von QE Live"
+                .. (entry and entry.label and (" (" .. entry.label .. ")") or "")
+                .. "."
+
+            note = "Sie gelten für die Spezialisierung, nicht für deinen"
+                .. " Charakter — QE Live rechnet keine eigene Gewichtung"
+                .. " je Spieler."
+
+            -- Was nicht uebernommen wurde, wird gesagt. Ohne diesen Satz
+            -- haelt man die Felder fuer vollstaendig ersetzt, obwohl das
+            -- Profil dort weiter gilt.
+            local gaps = entry and entry.gaps
+            if gaps and #gaps > 0 then
+                local labels = {}
+                for _, key in ipairs(gaps) do
+                    for _, st in ipairs(WEIGHT_STATS) do
+                        if st.key == key then labels[#labels + 1] = st.label end
+                    end
+                end
+                if #labels > 0 then
+                    note = note .. " Für " .. table.concat(labels, " und ")
+                        .. " führt QE Live keine Zahl — dort steht weiter"
+                        .. " der Wert der Spec."
+                end
+            end
+
+            if entry and entry.beta then
+                note = note .. " Diese Spezialisierung führt QE Live"
+                    .. " selbst noch als Beta."
+            end
+        else
+            local when = ""
+            if pending.created and pending.created > 0 then
+                when = " vom " .. date("%d.%m.%Y", pending.created)
+            end
+
+            local who = ""
+            if pending.character and pending.character ~= "" then
+                who = " (" .. pending.character .. ")"
+            end
+
+            headline = "Sim-Gewichtung aus der Companion" .. when .. who .. "."
+            note = ""
+        end
+
+        local text = banner:CreateFontString(nil, "OVERLAY")
+        text:SetFont(WeintCodex.Fonts.sans, 10, "")
+        text:SetPoint("TOPLEFT",  banner, "TOPLEFT",  10, -6)
+        text:SetWidth(410)
+        text:SetJustifyH("LEFT")
+        text:SetSpacing(2)
+        text:SetText(WeintCodex.ColorText("gold", headline)
+            .. " " .. WeintCodex.ColorText("textFaint",
+                (note ~= "" and (note .. " ") or "")
+                .. "Sie steht in den Feldern und gilt noch nicht — "
+                .. "Speichern & Anwenden macht sie wirksam."))
+
+        -- Gemessen statt geschaetzt: der Text ist je nach Quelle ein
+        -- Satz oder vier, und eine feste Hoehe legt die Felder darunter
+        -- genau dann in den Kasten, wenn am meisten dasteht (dieselbe
+        -- Regel wie bei InspectorCard).
+        local height = text:GetStringHeight() + 14
+        banner:SetSize(430, height)
+
+        yOff = yOff - height - 8
+    end
+
     -- Eingabefelder
     local boxes = {}
-    local yOff = -116
 
     for _, st in ipairs(WEIGHT_STATS) do
         local row = CreateFrame("Frame", nil, prioFrame)
@@ -6179,6 +6359,10 @@ function ShowPriorisierung()
         if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Invalidate then
             WeintCodex.ReforgeEngine.Invalidate()
         end
+        -- Erledigt: die Companion stellt dieselbe Liste bei jedem Login
+        -- erneut zu, und ohne diesen Vermerk stuende der Vorschlag morgen
+        -- wieder da (siehe SW.Resolve).
+        if pending and SW and SW.Resolve then SW.Resolve(effKey) end
         print("|cffD4A24A[WeintCodex]|r Gewichtung für " .. (specDisplay or profileKey) .. " gespeichert"
             .. (cb:GetChecked() and " und aktiviert." or " (derzeit deaktiviert).")
             .. " |cff4A4A52Sockel-, Verzauberungs- und Umschmiede-Vorschläge"
@@ -6196,6 +6380,22 @@ function ShowPriorisierung()
         ShowPriorisierung()
     end)
     resetBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 186, yOff - 8)
+
+    -- VERWERFEN IST EINE EIGENE HANDLUNG, UND SIE ZAEHLT ALS ERLEDIGT.
+    -- Ohne sie bliebe nur "wegklicken und hoffen" — und der Vorschlag
+    -- stuende nach dem naechsten Login wieder da, obwohl man ihn bewusst
+    -- nicht wollte. Gespeichert wird dabei nichts: was vorher galt, gilt
+    -- weiter.
+    if pending then
+        local dropBtn = MakeBtn(prioFrame, "Vorschlag verwerfen", 150, 24, function()
+            if SW and SW.Resolve then SW.Resolve(effKey) end
+            print("|cffD4A24A[WeintCodex]|r Sim-Vorschlag für "
+                .. (specDisplay or profileKey) .. " verworfen."
+                .. " |cff4A4A52An deiner Gewichtung ändert sich nichts.|r")
+            ShowPriorisierung()
+        end)
+        dropBtn:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 376, yOff - 8)
+    end
 
     local hint = prioFrame:CreateFontString(nil, "OVERLAY")
     hint:SetFont(WeintCodex.Fonts.sans, 9, "")
@@ -6216,8 +6416,6 @@ function ShowPriorisierung()
     -- Speichern. Ein Import, der still aktiviert, ist genau die Sorte
     -- Empfehlung, die man nicht nachvollziehen kann.
     --------------------------------------------------
-    local SW = WeintCodex.StatWeights
-
     -- Deutsche Schreibweise: 7,5 % statt 7.5 %.
     local function Pct(v)
         return (string.format("%.1f", v or 0):gsub("%.", ","))
@@ -6356,7 +6554,20 @@ function ShowPriorisierung()
         end
     end
 
-    local blocks = {
+    local blocks = {}
+
+    -- Der Vorschlag steht als Erstes, weil er die eine Frage ist, die
+    -- beim Oeffnen der Seite offen ist.
+    if pending then
+        blocks[#blocks + 1] = { type = "header", text = "Vorschlag aus der Companion" }
+        blocks[#blocks + 1] = { type = "text", size = 10, text =
+            "Die Felder links sind damit gefüllt. |cffD4A24AGespeichert ist"
+            .. " noch nichts|r — sieh sie dir an und drück dann auf"
+            .. " Speichern & Anwenden." }
+        blocks[#blocks + 1] = { type = "divider" }
+    end
+
+    local base = {
         { type = "header", text = "Eigene Gewichtung" },
         { type = "rows", rows = {
             { label = "Status", value = (entry and entry.enabled) and "aktiv" or "inaktiv",
@@ -6375,8 +6586,27 @@ function ShowPriorisierung()
             .. " Beweglichkeit 1,00 · CritRating=0.55 · eine Zeile je Wert."
             .. " Die Felder links werden gefüllt, gespeichert wird erst auf"
             .. " deinen Klick." },
-        { type = "input", placeholder = "Sim-Ausgabe einfügen, oder Wertname und Zahl",
-          buttonLabel = "Einlesen",
+        --------------------------------------------------
+        -- DAS FELD IST DIE GROSSE FORM, UND ZWAR AUS EINEM GRUND.
+        --
+        -- Bis 2.7.4.0 war es eine einzeilige Zeile mit einem Knopf
+        -- daneben — an genau der Stelle, an der eine mehrere Kilobyte
+        -- lange Sim-Ausgabe hinein soll. Gemeldet wurde es als "sehr
+        -- unscheinbar und schwer zu sehen", und das ist die richtige
+        -- Beschreibung: es sah aus wie ein Suchfeld.
+        --
+        -- `keepText`: der eingefuegte Text bleibt stehen. Diese Seite
+        -- wird beim Einlesen ausdruecklich NICHT neu gezeichnet (sonst
+        -- waeren die gefuellten Felder wieder weg), und ein Feld, das
+        -- sich dabei selbst leert, sieht aus, als waere nichts
+        -- angekommen.
+        --------------------------------------------------
+        { type = "input", lines = 6, keepText = true,
+          label = "Sim-Ausgabe hier einfügen",
+          placeholder = "Die ganze Zeichenkette aus dem Sim — oder Wertname und Zahl",
+          buttonLabel = "Einlesen", buttonWidth = 130,
+          note = "Strg+V fügt ein, Strg+A markiert alles. Was dabei"
+              .. " herauskommt, steht danach im Chat.",
           onAccept = function(text)
               local raw, problem, ignored, info = SW.Parse(text)
               if not raw then
@@ -6394,6 +6624,8 @@ function ShowPriorisierung()
                   ignored, info)
           end },
     }
+
+    for _, block in ipairs(base) do blocks[#blocks + 1] = block end
 
     blocks[#blocks + 1] = { type = "divider" }
     blocks[#blocks + 1] = { type = "button", label = "Zur Werteverteilung",
@@ -6688,6 +6920,23 @@ function WeintCodex.Charakter.Show()
     end
 
     items[#items + 1] = { label = "Priorisierung", onClick = ShowPriorisierung }
+
+    -- SIMMEN STEHT NEBEN PRIORISIERUNG, WEIL DORT ANKOMMT, WAS DORT
+    -- LOSGESCHICKT WIRD.
+    --
+    -- Die Seite selbst simmt nicht (das tut wowsims) und rechnet nichts
+    -- (das tut niemand hier) — sie stellt die Ausruestung fuer die
+    -- Companion bereit, und zurueck kommt eine Gewichtung, die genau eine
+    -- Unterseite weiter oben landet. Gezeichnet wird sie von
+    -- modules/simexport.lua; darum ruft jene Seite Charakter.LeaveView()
+    -- auf. Sie haengt hier und nicht in der Navigationsspalte: dort ist
+    -- kein Platz mehr (die Rechnung steht ueber der tabs-Tabelle in
+    -- core/navigation.lua).
+    if WeintCodex.SimExport and WeintCodex.SimExport.ShowPage then
+        items[#items + 1] = { label = "Simmen",
+                              onClick = WeintCodex.SimExport.ShowPage }
+    end
+
     items[#items + 1] = { label = "Twinks",        onClick = ShowTwinkverwaltung }
 
     WeintCodex.Navigation.BuildSidebar("Charakter", items)
@@ -6705,4 +6954,13 @@ end
 function WeintCodex.Charakter.ShowGems()
     WeintCodex.Charakter.Show()
     ShowGems()
+end
+
+-- Dasselbe fuer die Priorisierung. Gebraucht wird sie vom Import der
+-- Sim-Gewichte (modules/sync.lua): der String fuellt die Felder dieser
+-- Seite, und wer danach erst die richtige Unterseite suchen muss, hat
+-- den halben Weg vor sich.
+function WeintCodex.Charakter.ShowPriorisierung()
+    WeintCodex.Charakter.Show()
+    ShowPriorisierung()
 end

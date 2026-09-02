@@ -558,7 +558,7 @@ end
 --   2) Tooltip des enchant:-Hyperlinks (viele IDs lösen darüber auf)
 -- Rückgabe: stats | nil, quelle ("db" | "tooltip")
 --
--- Für Proc-Verzauberungen (Lied des Windes, Jadegeist, DK-Runen) gibt es
+-- Für Proc-Verzauberungen (Windweise, Jadegeist, DK-Runen) gibt es
 -- bewusst KEINE Stats — die dürfen nie über Werte verglichen werden, ihr
 -- Nutzen steckt im Proc. Für sie liefert diese Funktion nil, und der
 -- Werteabgleich hält sich dann heraus.

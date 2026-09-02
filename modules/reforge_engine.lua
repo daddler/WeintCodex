@@ -410,6 +410,13 @@ local function UpgradeLevel(link, itemId, quality)
     return (cur - base) / 4, cur, base
 end
 
+-- Exportiert fuer modules/qelive.lua: der Importtext fuer QE Live traegt
+-- die Aufwertungsstufe je Gegenstand, und eine zweite Fassung dieser
+-- Rechnung waere genau die Doppelung, an der die Sockelbewertung ueber
+-- fuenf Releases gescheitert ist. Ein Teil auf 4/4 traegt gut 16 % mehr
+-- Wertung — wer das ueberschlaegt, liegt bei jedem Betrag daneben.
+RE.UpgradeLevel = UpgradeLevel
+
 -- Rueckgabe: Werte, Herkunft ("tabelle" | "kurve" | "grund")
 local function ScaleToUpgrade(stats, itemId, upgrade, baseIlvl)
     if not (upgrade and upgrade > 0 and baseIlvl) then return stats, "grund" end
@@ -803,6 +810,56 @@ end
 RE.ItemOptions = ItemOptions
 
 --------------------------------------------------
+-- UMSCHMIEDEN KOSTET GOLD — EIN PLAN MUSS SICH LOHNEN.
+--
+-- Bis 2.7.4.0 hat der Planer jeden Plan von Grund auf neu gerechnet und
+-- den Iststand an keiner Stelle bevorzugt. Fuer einen blanken Charakter
+-- ist das richtig. Fuer einen, der schon umgeschmiedet ist, ist es teuer:
+-- der Umschmieder verlangt seine Gebuehr fuer JEDE Aenderung, auch fuer
+-- eine, die nichts bringt.
+--
+-- Und "nichts bringt" ist hier der Normalfall, nicht der Sonderfall. Der
+-- Planer misst sich an Wertungen, die er selbst nur auf ein paar Punkte
+-- genau kennt: die Aufwertungsstufe wird hochgerechnet, der Buff-Faktor
+-- herausgerechnet, jede Umschmiedung gerundet. Eine Abweichung von einer
+-- einzigen Wertung je Teil reicht, damit derselbe Charakter beim naechsten
+-- Aufruf eine andere, gleich gute Verteilung bekommt — und jede davon
+-- kostet den vollen Satz. Genau das war der Fehlerbericht: sechs bis zehn
+-- Durchlaeufe statt eines, mehrere tausend Gold statt drei-, vierhundert.
+--
+-- Zwei Zahlen loesen das, und beide sind Aussagen ueber das SPIEL und
+-- nicht ueber diese Rechnung:
+--
+--   * CAP_SLACK — ab wann eine Grenze als erreicht gilt. 40 Wertung sind
+--     bei 340 je Prozent gut ein Zehntel Prozentpunkt Trefferchance. Wer
+--     dafuer ein Teil umschmiedet, bezahlt fuer nichts. Vorher stand hier
+--     EIN Punkt, und weil ein verfehltes Pflicht-Kap jede Punktzahl
+--     schlaegt, hat ein einziger Punkt Rueckstand vier Teile bewegt — und
+--     die Verteilung dabei nachweislich verschlechtert.
+--
+--   * WORTH_RATING — was eine einzelne Umschmiedung mindestens bringen
+--     muss, gemessen in Wertung des hoechstgewichteten Werts. Zehn davon
+--     sind weniger, als jede echte Verbesserung bringt (eine Umschmiedung
+--     bewegt hundert bis vierhundert Wertung), und mehr, als das Rauschen
+--     der Rundungen je erzeugt.
+--
+-- Beide wirken an ZWEI Stellen, und das ist dieselbe Bauform wie beim
+-- Suchlauf selbst: die erste steuert, die zweite prueft nach. Im Suchlauf
+-- traegt jede Moeglichkeit, die dem Iststand entspricht, den Bonus schon
+-- mit (Stufe 1 und 2); danach wird jede uebrig gebliebene Aenderung noch
+-- einmal einzeln gegen dieselbe Zahl gehalten, mit den exakten Summen
+-- (Stufe 3, DropNotWorthIt). Eine Naeherung, die man nicht nachprueft, ist
+-- das Problem — nicht die Naeherung.
+--------------------------------------------------
+
+-- Ab wann eine Grenze als erreicht gilt (Wertung).
+local CAP_SLACK = 40
+
+-- Was eine Umschmiedung mindestens bringen muss, in Wertung des
+-- hoechstgewichteten Werts.
+local WORTH_RATING = 10
+
+--------------------------------------------------
 -- Istwerte und Ziele
 --------------------------------------------------
 
@@ -940,8 +997,21 @@ local function BuildContext(scan, items)
         end
     end
 
+    -- Was eine einzelne Umschmiedung mindestens einbringen muss, in
+    -- Punkten dieser Bewertung: WORTH_RATING Wertung im hoechstgewichteten
+    -- Wert. Die Zahl steht damit im selben Massstab wie die Punktzahl und
+    -- nicht daneben — sonst waere sie fuer eine Spec mit kleinen Gewichten
+    -- eine Sperre und fuer eine mit grossen ein Nichts.
+    local weights = (profile and profile.statWeights) or {}
+    local topWeight = 0
+    for _, key in ipairs(R.STATS) do
+        local w = weights[key] or 0
+        if w > topWeight then topWeight = w end
+    end
+
     return {
-        weights     = (profile and profile.statWeights) or {},
+        weights     = weights,
+        worth       = topWeight * WORTH_RATING,
         target      = target,
         targetOrder = order,
         live        = live,
@@ -999,13 +1069,18 @@ end
 
 RE.Score = Score
 
+-- Die Toleranz gehoert zur Bewertung und wird deshalb hier herausgegeben:
+-- der Testlauf muss gegen dieselbe Zahl rechnen, sonst prueft er eine
+-- andere Regel als die, die im Spiel gilt.
+RE.CAP_SLACK = CAP_SLACK
+
 -- Erfuellt eine Verteilung die Pflicht-Kaps? Rueckgabe: Zahl der
 -- verfehlten Kaps (0 = alles erreicht). Kleiner ist besser, und das
 -- schlaegt jede Punktzahl — unter dem Trefferkap gehen Schlaege daneben.
 local function CapMisses(ctx, total)
     local misses = 0
     for key, goal in pairs(ctx.target) do
-        if goal.require and (total[key] or 0) < goal.rating - 1 then
+        if goal.require and (total[key] or 0) < goal.rating - CAP_SLACK then
             misses = misses + 1
         end
     end
@@ -1165,6 +1240,11 @@ local function RunDP(ctx, items)
                     score = score + (ctx.weights[key] or 0) * (option.delta[key] or 0)
                 end
             end
+            -- Was schon dranliegt, ist umsonst. Deshalb traegt genau diese
+            -- Moeglichkeit den Bonus: bei gleichem Ergebnis gewinnt sie,
+            -- und bei fast gleichem auch — sonst bezahlt der Spieler die
+            -- Gebuehr fuer eine Rundungsdifferenz.
+            if j == item.keep then score = score + ctx.worth end
             local key = d1 .. "/" .. d2
             local prev = best[key]
             if not prev or score > prev.score then
@@ -1172,8 +1252,13 @@ local function RunDP(ctx, items)
             end
             Breathe()
         end
+        -- Nach Nummer sortiert, damit der Lauf nicht an der Reihenfolge
+        -- von `pairs` haengt: zwei gleich gute Verteilungen sind nicht
+        -- gleich teuer, und welche herauskommt, darf nicht davon abhaengen,
+        -- wie Lua seine Tabelle gerade sortiert hat.
         local list = {}
         for _, entry in pairs(best) do list[#list + 1] = entry end
+        table.sort(list, function(a, b) return a.index < b.index end)
         perItem[i] = list
     end
 
@@ -1223,8 +1308,8 @@ local function RunDP(ctx, items)
 
     for key, score in pairs(scores) do
         local miss = 0
-        if req1 and ex1[key] < req1 - 1 then miss = miss + 1 end
-        if req2 and ex2[key] < req2 - 1 then miss = miss + 1 end
+        if req1 and ex1[key] < req1 - CAP_SLACK then miss = miss + 1 end
+        if req2 and ex2[key] < req2 - CAP_SLACK then miss = miss + 1 end
 
         -- Der Wert an einer Achse zaehlt nur bis zum Ziel; das steckt im
         -- Zustand, nicht in der laufenden Punktzahl, und kommt deshalb
@@ -1235,7 +1320,13 @@ local function RunDP(ctx, items)
             full = full + (ctx.weights[dims[2]] or 0) * min(ex2[key], ctx.target[dims[2]].rating)
         end
 
-        if bestKey == nil or miss < bestMiss or (miss == bestMiss and full > bestScore) then
+        -- Bei Gleichstand entscheidet der kleinere Zustandsschluessel und
+        -- nicht, wer zuerst aus `pairs` kam. Eine Wahl, die von der
+        -- Tabellenreihenfolge abhaengt, ist bei jedem Aufruf eine andere —
+        -- und jede andere kostet den vollen Satz Gebuehren.
+        if bestKey == nil or miss < bestMiss
+           or (miss == bestMiss and (full > bestScore
+               or (full == bestScore and key < bestKey))) then
             bestKey, bestScore, bestMiss = key, full, miss
         end
         Breathe()
@@ -1279,6 +1370,7 @@ local function Polish(ctx, items, choice)
                     for j, option in ipairs(item.options) do
                         ApplyDelta(total, option.delta, 1)
                         local score = Score(ctx, total)
+                                      + ((j == item.keep) and ctx.worth or 0)
                         local miss  = CapMisses(ctx, total)
                         if bestJ == nil or miss < bestMiss
                            or (miss == bestMiss and score > bestScore + 1e-9) then
@@ -1314,6 +1406,8 @@ local function Polish(ctx, items, choice)
                             for jb, optB in ipairs(itemB.options) do
                                 ApplyDelta(total, optB.delta, 1)
                                 local score = Score(ctx, total)
+                                    + ((ja == itemA.keep) and ctx.worth or 0)
+                                    + ((jb == itemB.keep) and ctx.worth or 0)
                                 local miss  = CapMisses(ctx, total)
                                 if bestA == nil or miss < bestMiss
                                    or (miss == bestMiss and score > bestScore + 1e-9) then
@@ -1344,6 +1438,94 @@ local function Polish(ctx, items, choice)
 end
 
 --------------------------------------------------
+-- Stufe 3: die Kostenprobe
+--
+-- WAS UEBRIG BLEIBT, MUSS SICH EINZELN LOHNEN.
+--
+-- Der Suchlauf beantwortet "welche Verteilung ist die beste". Das ist
+-- nicht dieselbe Frage wie "welche Aenderung ist ihr Geld wert": eine
+-- Verteilung, die um zwei Punkte besser ist, ist besser — und trotzdem
+-- gibt niemand dafuer die Gebuehr fuer sechs Teile aus.
+--
+-- Hier wird deshalb jede vorgeschlagene Aenderung noch einmal einzeln
+-- gefragt: was verliert der Plan, wenn dieses eine Teil bleibt, wie es
+-- ist? Weniger als ctx.worth, und das Pflicht-Kap haelt trotzdem — dann
+-- bleibt es. Gerechnet wird dabei mit den EXAKTEN Summen und derselben
+-- Bewertung wie im Suchlauf; eine zweite Rechnung mit eigenen Regeln
+-- waere genau die Doppelung, an der die Sockelbewertung ueber fuenf
+-- Releases gescheitert ist.
+--
+-- Zurueckgenommen wird immer die BILLIGSTE Aenderung zuerst, und danach
+-- wird neu gefragt. Das ist tragend, nicht ordentlich: Aenderungen haengen
+-- an einem Kap voneinander ab. Wer zwei Teile braucht, um das Kap zu
+-- fuellen, verliert beim Herausnehmen des ersten viel — sobald aber das
+-- andere Teil den Weg dorthin schon deckt, verliert er nichts mehr. Genau
+-- diese Reihenfolge findet die Schleife, ein einzelner Durchgang nicht.
+--
+-- Und wer ein Teil gesperrt hat, ist hier ohnehin fertig: dessen einzige
+-- Moeglichkeit IST der Iststand.
+--------------------------------------------------
+
+-- Die Punktzahl EINER Verteilung, so wie der ganze Suchlauf sie sieht:
+-- die Bewertung plus der Bonus fuer jedes Teil, das bleiben darf. Damit
+-- messen alle drei Stufen an derselben Groesse — Stufe 3 ist dann nichts
+-- weiter als ein letzter Schritt bergauf auf genau dieser Groesse
+-- (zurueckgenommen wird, wenn `s >= score - worth`, und das ist dieselbe
+-- Ungleichung wie "Bonus dazu, Punktzahl weg").
+local function Value(ctx, items, choice, total)
+    local sum = Score(ctx, total)
+    for i, item in ipairs(items) do
+        if choice[i] == item.keep then sum = sum + ctx.worth end
+    end
+    return sum
+end
+
+RE.Value = Value
+
+local function DropNotWorthIt(ctx, items, choice, asIs)
+    local total  = TotalsFor(ctx, items, choice)
+    local score  = Score(ctx, total)
+    local misses = CapMisses(ctx, total)
+    local dropped = {}
+
+    local moved = true
+    while moved do
+        moved = false
+        local bestI, bestScore, bestMisses
+
+        for i, item in ipairs(items) do
+            if choice[i] ~= asIs[i] then
+                ApplyDelta(total, item.options[choice[i]].delta, -1)
+                ApplyDelta(total, item.options[asIs[i]].delta, 1)
+                local s = Score(ctx, total)
+                local m = CapMisses(ctx, total)
+                -- Ein Pflicht-Kap darf dabei nie verlorengehen: unter dem
+                -- Trefferkap gehen Schlaege daneben, und das ist keine
+                -- Frage der Gebuehr.
+                if m <= misses and s >= score - ctx.worth
+                   and (bestI == nil or s > bestScore) then
+                    bestI, bestScore, bestMisses = i, s, m
+                end
+                ApplyDelta(total, item.options[asIs[i]].delta, -1)
+                ApplyDelta(total, item.options[choice[i]].delta, 1)
+                Breathe()
+            end
+        end
+
+        if bestI then
+            ApplyDelta(total, items[bestI].options[choice[bestI]].delta, -1)
+            ApplyDelta(total, items[bestI].options[asIs[bestI]].delta, 1)
+            choice[bestI]  = asIs[bestI]
+            score, misses  = bestScore, bestMisses
+            dropped[bestI] = true
+            moved = true
+        end
+    end
+
+    return choice, total, dropped
+end
+
+--------------------------------------------------
 -- Warum diese Umschmiedung?
 --
 -- Die Begruendung wird nicht dazuerfunden, sie wird an der Entscheidung
@@ -1363,13 +1545,13 @@ local function ReasonFor(ctx, option, before)
     -- DIE ZAHL GEHOERT DAZU. "Fuellt Trefferwertung" beantwortet die
     -- Frage halb; wer die Zeile liest, will wissen, wie weit es noch hin
     -- ist — und ob dieses eine Teil den Weg ueberhaupt schafft.
-    if goalDst and (before[dstKey] or 0) < goalDst.rating - 1 then
+    if goalDst and (before[dstKey] or 0) < goalDst.rating - CAP_SLACK then
         local gap = floor(goalDst.rating - (before[dstKey] or 0) + 0.5)
         return string.format("%s %s (es fehlen %d)",
             goalDst.kind == "cap" and "füllt" or "geht auf",
             goalDst.label or R.LABEL[dstKey], gap), "green"
     end
-    if goalSrc and (before[srcKey] or 0) > goalSrc.rating + 1 then
+    if goalSrc and (before[srcKey] or 0) > goalSrc.rating + CAP_SLACK then
         local over = floor((before[srcKey] or 0) - goalSrc.rating + 0.5)
         return string.format("%s liegt %d über der Grenze — dort zählt sie nicht mehr",
             goalSrc.label or R.LABEL[srcKey], over), "gold"
@@ -1383,7 +1565,7 @@ local function ReasonFor(ctx, option, before)
     if map then
         for to in pairs(map) do
             local goal = ctx.target[to]
-            if goal and to ~= dstKey and (before[to] or 0) < goal.rating - 1 then
+            if goal and to ~= dstKey and (before[to] or 0) < goal.rating - CAP_SLACK then
                 return string.format("%s zählt als %s", R.SHORT[dstKey],
                     goal.label or R.LABEL[to]), "green"
             end
@@ -1532,6 +1714,10 @@ local function BuildPlan(signature)
             end
         end
     end
+    -- Der Iststand ist ab hier auch ein Startpunkt des Suchlaufs: jede
+    -- Moeglichkeit, die ihm entspricht, traegt den Bonus (siehe oben).
+    for i, item in ipairs(items) do item.keep = asIs[i] end
+
     local beforeTotals = TotalsFor(ctx, items, asIs)
     local scoreBefore  = Score(ctx, beforeTotals)
 
@@ -1545,17 +1731,27 @@ local function BuildPlan(signature)
         for i = 1, #items do blank[i] = 1 end
         choice, afterTotals = Polish(ctx, items, blank)
     end
-    local scoreAfter = Score(ctx, afterTotals)
 
     -- Und der Iststand als zweiter Startpunkt: der Suchlauf geht immer nur
     -- bergauf, und "so lassen" muss eine erreichbare Antwort bleiben.
+    -- Verglichen wird ueber Value und nicht ueber Score, weil sonst genau
+    -- an dieser Stelle wieder die teurere von zwei gleich guten
+    -- Verteilungen gewaenne.
     local altChoice = {}
     for i, v in ipairs(asIs) do altChoice[i] = v end
     local altPolished, altTotals = Polish(ctx, items, altChoice)
-    local altScore = Score(ctx, altTotals)
-    if Better(ctx, altTotals, altScore, afterTotals, scoreAfter) then
-        choice, afterTotals, scoreAfter = altPolished, altTotals, altScore
+    if Better(ctx, altTotals, Value(ctx, items, altPolished, altTotals),
+                   afterTotals, Value(ctx, items, choice, afterTotals)) then
+        choice, afterTotals = altPolished, altTotals
     end
+
+    -- Stufe 3: was uebrig bleibt, muss sich einzeln lohnen.
+    local dropped
+    choice, afterTotals, dropped = DropNotWorthIt(ctx, items, choice, asIs)
+
+    -- Berichtet wird die nackte Bewertung, ohne Bonus: sie steht neben
+    -- scoreBefore, und die beiden muessen dasselbe messen.
+    local scoreAfter = Score(ctx, afterTotals)
 
     local rows, changes, cost = {}, 0, 0
     for i, item in ipairs(items) do
@@ -1602,6 +1798,14 @@ local function BuildPlan(signature)
             if item.locked then
                 row.reason, row.reasonTone =
                     "Von dir gesperrt — bleibt, wie es ist.", "gold"
+            elseif dropped[i] then
+                -- ES GAB HIER ETWAS, ES WAR NUR ZU WENIG. Das ist eine
+                -- andere Auskunft als "hier ist nichts zu holen", und ein
+                -- Text fuer beides waere fuer einen der beiden Faelle
+                -- falsch.
+                row.reason, row.reasonTone =
+                    "Der Gewinn wäre kleiner als die Gebühr — bleibt, wie es ist.",
+                    "textDim"
             elseif item.noSecondary then
                 row.reason, row.reasonTone =
                     "Kein umschmiedbarer Sekundärwert auf diesem Teil.", "textDim"
@@ -1785,8 +1989,11 @@ function RE.CapOutlook()
             target  = goal.rating,
             before  = cache.plan.before[key] or 0,
             after   = after,
-            -- Schliesst der Plan diese Grenze von selbst?
-            closes  = after >= goal.rating - 1,
+            -- Schliesst der Plan diese Grenze von selbst? Mit derselben
+            -- Toleranz wie der Suchlauf: sonst hielte die Sockelseite eine
+            -- Grenze fuer offen, die der Planer als erreicht abgehakt hat,
+            -- und empfaehle einen Stein fuer eine Luecke, die es nicht gibt.
+            closes  = after >= goal.rating - CAP_SLACK,
             -- Und raeumt er einen Ueberschuss weg, der jetzt noch dasteht?
             over    = max(0, after - goal.rating),
         }

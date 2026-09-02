@@ -99,6 +99,68 @@ local function setup(items, weights, caps, ratings)
     RE.ForgetLinks()
 end
 
+--== Vorbereitung: Moeglichkeiten, Iststand, Summen ========================
+-- Gemessen wird gegen RE.Value und RE.CAP_SLACK, also gegen genau die
+-- Groesse, die der Planer selbst maximiert. Eine eigene Zielgroesse im
+-- Testlauf hiesse, eine andere Regel zu pruefen als die, die im Spiel
+-- gilt — und dann bestaetigt der Test nur sich selbst.
+local function prepare(ctx)
+    local items = RE.ScanItems()
+    for _, item in ipairs(items) do
+        item.options = RE.ItemOptions(item, ctx.mult, ctx.conv)
+        item.keep = 1
+        if item.current then
+            for j, option in ipairs(item.options) do
+                if option.src == item.current.src and option.dst == item.current.dst then
+                    item.keep = j
+                    break
+                end
+            end
+        end
+    end
+    return items
+end
+
+local function totalsFor(ctx, items, choice)
+    local total = {}
+    for k, v in pairs(ctx.baseline) do total[k] = v end
+    for j, item in ipairs(items) do
+        for k, v in pairs(item.options[choice[j]].delta) do
+            total[k] = (total[k] or 0) + v
+        end
+    end
+    return total
+end
+
+local function misses(ctx, total)
+    local n = 0
+    for key, goal in pairs(ctx.target) do
+        if goal.require and (total[key] or 0) < goal.rating - RE.CAP_SLACK then
+            n = n + 1
+        end
+    end
+    return n
+end
+
+-- Die Wahl, die der Plan getroffen hat, als Nummernliste — damit sie sich
+-- mit derselben Zielgroesse messen laesst wie die rohe Gewalt.
+local function planChoice(plan, items)
+    local choice = {}
+    for i, item in ipairs(items) do
+        choice[i] = item.keep
+        local row = plan.rows[i]
+        for j, option in ipairs(item.options) do
+            if row and ((row.target == nil and option.src == nil)
+                or (row.target and option.src == row.target.src
+                    and option.dst == row.target.dst)) then
+                choice[i] = j
+                break
+            end
+        end
+    end
+    return choice
+end
+
 --== Rohe Gewalt ============================================================
 local function brute(ctx, items)
     local best, bestScore, bestMiss
@@ -106,18 +168,9 @@ local function brute(ctx, items)
     local n = #items
     local function rec(i)
         if i > n then
-            local total = {}
-            for k, v in pairs(ctx.baseline) do total[k] = v end
-            for j, item in ipairs(items) do
-                for k, v in pairs(item.options[choice[j]].delta) do
-                    total[k] = (total[k] or 0) + v
-                end
-            end
-            local score = RE.Score(ctx, total)
-            local miss = 0
-            for key, goal in pairs(ctx.target) do
-                if goal.require and (total[key] or 0) < goal.rating - 1 then miss = miss + 1 end
-            end
+            local total = totalsFor(ctx, items, choice)
+            local score = RE.Value(ctx, items, choice, total)
+            local miss  = misses(ctx, total)
             if best == nil or miss < bestMiss or (miss == bestMiss and score > bestScore + 1e-9) then
                 best, bestScore, bestMiss = { unpack(choice) }, score, miss
             end
@@ -144,16 +197,17 @@ local function check(name, items, weights, caps, ratings)
     end
 
     local ctx = plan.ctx
-    local scanned = RE.ScanItems()
-    for _, item in ipairs(scanned) do
-        item.options = RE.ItemOptions(item, ctx.mult, ctx.conv)
-    end
+    local scanned = prepare(ctx)
     local _, bruteScore, bruteMiss = brute(ctx, scanned)
 
-    local planMiss = plan.capMisses or 0
-    local ok = (planMiss <= bruteMiss) and (plan.scoreAfter >= bruteScore - 1e-6)
+    local choice    = planChoice(plan, scanned)
+    local total     = totalsFor(ctx, scanned, choice)
+    local planScore = RE.Value(ctx, scanned, choice, total)
+    local planMiss  = misses(ctx, total)
+
+    local ok = (planMiss <= bruteMiss) and (planScore >= bruteScore - 1e-6)
     print(string.format("%-34s Planer %10.1f (%d verfehlt)   roh %10.1f (%d)   %s",
-        name, plan.scoreAfter, planMiss, bruteScore, bruteMiss, ok and "ok" or "ABWEICHUNG"))
+        name, planScore, planMiss, bruteScore, bruteMiss, ok and "ok" or "ABWEICHUNG"))
     if not ok then fails = fails + 1 end
 end
 
@@ -436,6 +490,145 @@ do
     print(string.format("%-34s %s", "Zuordnung nur in stat_match.lua",
         #offenders == 0 and "ok" or ("auch in: " .. table.concat(offenders, ", "))))
     if #offenders > 0 then fails = fails + 1 end
+end
+
+--== EIN PLAN MUSS EIN FIXPUNKT SEIN ======================================
+-- DIE PRUEFUNG, DIE MEHRERE TAUSEND GOLD GEKOSTET HAT.
+--
+-- Ein Planer, der nach dem Umschmieden erneut umschmieden will, ist nicht
+-- ungenau, er ist teuer: der Umschmieder verlangt seine Gebuehr fuer jede
+-- Aenderung, und sechs bis zehn Durchlaeufe sind das Sechs- bis Zehnfache
+-- der Kosten eines einzigen. Genau das war der Fehlerbericht.
+--
+-- Geprueft wird deshalb nicht die Punktzahl, sondern das Verhalten: planen,
+-- den Plan wie das Spiel anwenden, neu planen. Danach darf nichts mehr
+-- offen sein.
+--
+-- Und zwar AUCH DANN NICHT, wenn die Wirklichkeit um eine Wertung je Teil
+-- danebenliegt. Diese Abweichung ist unvermeidbar — die Aufwertungsstufe
+-- wird hochgerechnet, der Buff-Faktor herausgerechnet, jede Umschmiedung
+-- gerundet —, und vor 2.7.5.0 hat sie gereicht: aus einer Runde wurden
+-- fuenf, aus zwoelf Umschmiedungen fuenfundzwanzig, und eine der Runden
+-- hat die Verteilung dabei nachweislich VERSCHLECHTERT.
+--------------------------------------------------
+do
+    local CRI = { hit = 6, crit = 9, haste = 18, mastery = 26, expertise = 24,
+                  dodge = 3, parry = 4 }
+    local CAP_RATING = 2550     -- 7,5 % Treffer bei 340 Wertung je Prozent
+
+    local GEAR = {
+        { crit = 400, haste = 300 }, { crit = 350, mastery = 250 },
+        { haste = 500, mastery = 200 }, { hit = 300, crit = 200 },
+        { mastery = 450, expertise = 150 }, { crit = 500, haste = 200 },
+        { haste = 520, mastery = 190 }, { crit = 300, haste = 300 },
+        { mastery = 470, crit = 150 }, { haste = 260, mastery = 260 },
+        { crit = 480, haste = 320 }, { crit = 420, mastery = 300 },
+    }
+
+    -- Der Abstand zum Kap haengt am Istwert und wird deshalb nach jeder
+    -- Runde neu bestimmt — so, wie modules/charakter.lua es im Spiel tut.
+    local function recap(withCap)
+        if not withCap then CAPCTX.caps = {} return end
+        local live = RATINGS[CRI.hit] or 0
+        CAPCTX.caps = { { stat = "hit", typ = "melee", capPct = 7.5,
+            underRating = math.max(0, CAP_RATING - live),
+            overRating  = math.max(0, live - CAP_RATING),
+            perPct = 340, label = "Trefferwertung" } }
+    end
+
+    -- Das Spiel: 40 % des Grundwerts wandern, der Item-Link traegt es, die
+    -- Kampfwertung bewegt sich mit. `skew` ist die eine Wertung, um die
+    -- unsere Rechnung danebenliegen darf.
+    local function applyPlan(plan)
+        local n = 0
+        for _, row in ipairs(plan.rows) do
+            if row.changed and not row.locked and not row.problem then
+                n = n + 1
+                local it = ITEMS[row.slot]
+                local pair = row.target or row.current
+                local src, dst = R.STATS[pair.src], R.STATS[pair.dst]
+                local moved = math.floor((it.raw[src] or 0) * 0.4) + (it.skew or 0)
+                local sign = row.target and 1 or -1
+                RATINGS[CRI[src]] = (RATINGS[CRI[src]] or 0) - sign * moved
+                RATINGS[CRI[dst]] = (RATINGS[CRI[dst]] or 0) + sign * moved
+                it.reforge = row.target
+                    and (R.TABLE_BASE + R.PAIR_INDEX[row.target.src][row.target.dst])
+                    or 0
+            end
+        end
+        return n
+    end
+
+    local function converge(name, hitStart, withCap, skewed, maxRounds, maxForges)
+        setup(GEAR, W, {}, { [6] = hitStart, [9] = 2000, [18] = 1800,
+                             [26] = 1900, [24] = 400 })
+        for i in ipairs(GEAR) do ITEMS[i].skew = skewed and ((i % 3) - 1) or 0 end
+        recap(withCap)
+
+        local rounds, forges, worse = 0, 0, 0
+        for _ = 1, 12 do
+            RE.Invalidate()
+            RE.ForgetLinks()
+            recap(withCap)
+            local plan = RE.GetPlan(true)
+            if not plan.ok then
+                print("FEHLER  " .. name .. ": " .. tostring(plan.problem))
+                fails = fails + 1
+                return
+            end
+            if plan.changes == 0 then break end
+            if plan.scoreAfter < plan.scoreBefore - 1e-6 then worse = worse + 1 end
+            rounds = rounds + 1
+            forges = forges + applyPlan(plan)
+        end
+
+        local ok = rounds <= maxRounds and forges <= maxForges and worse == 0
+        print(string.format("%-40s %d Runde(n), %2d Umschmiedungen%s   %s",
+            name, rounds, forges,
+            worse > 0 and (" · " .. worse .. "x schlechter geworden") or "",
+            ok and "ok" or "ABWEICHUNG"))
+        if not ok then fails = fails + 1 end
+    end
+
+    -- Ohne Abweichung muss es trivialerweise stehen.
+    converge("Fixpunkt ohne Kap",              2600, false, false, 1, 12)
+    converge("Fixpunkt mit Kap",               1550, true,  false, 1, 12)
+    -- Und mit: das ist der gemeldete Fall.
+    converge("Fixpunkt trotz Rundung (ohne Kap)", 2600, false, true,  1, 12)
+    converge("Fixpunkt trotz Rundung (am Kap)",   1550, true,  true,  1, 12)
+    converge("Fixpunkt trotz Rundung (ueber Kap)", 2850, true,  true,  1, 12)
+end
+
+--== ZWEIMAL DASSELBE FRAGEN, ZWEIMAL DIESELBE ANTWORT =====================
+-- Ein Suchlauf, der an der Reihenfolge von `pairs` haengt, gibt bei jedem
+-- Aufruf eine andere von mehreren gleich guten Verteilungen heraus — und
+-- jede andere kostet den vollen Satz Gebuehren, ohne einen Punkt zu
+-- bringen.
+do
+    local GEAR = {
+        { crit = 400, haste = 300 }, { crit = 350, mastery = 250 },
+        { haste = 500, mastery = 200 }, { hit = 300, crit = 200 },
+        { mastery = 450, expertise = 150 }, { crit = 500, haste = 200 },
+    }
+    local function shapeOf()
+        setup(GEAR, W, { { stat = "hit", typ = "melee", capPct = 7.5,
+                           underRating = 900, overRating = 0,
+                           perPct = 340, label = "Trefferwertung" } },
+              { [6] = 1650, [9] = 2000, [18] = 1800, [26] = 1900, [24] = 400 })
+        local plan = RE.GetPlan(true)
+        local out = {}
+        for _, row in ipairs(plan.rows or {}) do
+            out[#out + 1] = row.target
+                and (R.STATS[row.target.src] .. ">" .. R.STATS[row.target.dst]) or "-"
+        end
+        return table.concat(out, ",")
+    end
+    local first = shapeOf()
+    local same = true
+    for _ = 1, 5 do if shapeOf() ~= first then same = false end end
+    print(string.format("%-40s %s", "Derselbe Charakter, derselbe Plan",
+        same and "ok" or "ABWEICHUNG - der Plan wechselt"))
+    if not same then fails = fails + 1 end
 end
 
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))

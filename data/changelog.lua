@@ -7,6 +7,58 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.1.0",
+        date    = "01.09.2026",
+        notes   = {
+            "Neu fuer Heiler: |cffD4A24ACharakter -> Simmen|r fuehrt jetzt zu |cffD4A24AQE Live|r statt zu wowsims. Die Seite erkennt selbst, worauf du stehst.",
+            "Deine Ausruestung steht dort als Text zum Kopieren bereit - mit Steinen, Verzauberungen und Aufwertungsstufen. Ein zweites Addon brauchst du nicht, neu laden auch nicht.",
+            "Auch ueber |cffD4A24A/wc qe|r zu erreichen.",
+            "Unter |cffD4A24APriorisierung|r liegt zusaetzlich die Gewichtung bereit, die QE Live fuer deine Spezialisierung fuehrt. Sie fuellt nur die Felder - gelten tut sie erst nach |cffD4A24ASpeichern & Anwenden|r.",
+            "Wichtig: QE Live rechnet keine Gewichtung zu DEINEM Charakter. Was du dort bekommst, ist ein Ausruestungssatz - die Zahlen gelten fuer die Spezialisierung.",
+        },
+    },
+    {
+        version = "2.9.0.1",
+        date    = "01.09.2026",
+        notes   = {
+            "Behoben: Auf verzauberten Waffen stand ein Wert des Gegenstands als Verzauberung da, zum Beispiel |cffD4A24A+554 Meisterschaft|r statt |cffD4A24AWindweise|r - mit dem Hinweis, die ID passe nicht zur Datenbank. Verzaubert war die Waffe richtig.",
+            "Zwei Waffenverzauberungen hiessen im Addon anders als im Spiel: |cffD4A24AWindweise|r stand als \"Lied des Windes\" und |cffD4A24AFlussgesang|r als \"Lied des Flusses\". Beide Namen gibt es im Spiel nicht - als Empfehlung waren sie damit nicht auffindbar.",
+            "Waffenverzauberungen werden jetzt am Namen erkannt, den der Client anzeigt. Ein Wert des Gegenstands wird dort nicht mehr eingesetzt.",
+        },
+    },
+    {
+        version = "2.9.0.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Neu: |cffD4A24ACharakter -> Simmen|r. Ein Knopf stellt deine Ausruestung fuer WeintCompanion bereit — dort oeffnet der Sim danach mit allem, was du anhast.",
+            "Du musst im Sim also nichts mehr nachbauen. Nur noch |cffD4A24ASuggest Reforges|r druecken.",
+            "Die Seite sagt dir, ob der Rechner deinen jetzigen Stand sieht. Aendert sich deine Ausruestung, sieht er sie erst nach einem |cffD4A24A/reload|r.",
+            "Dafuer wird das Addon |cffD4A24AWowSimsExporter|r gebraucht. Fehlt es, steht das auf der Seite samt Adresse.",
+            "Zurueck geht es wie bisher: die Gewichtung landet auf |cffD4A24APriorisierung|r.",
+        },
+    },
+    {
+        version = "2.8.0.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Neu: Du kannst am Rechner simmen und das Ergebnis herueberschicken. In WeintCompanion unter |cffD4A24ASimmen|r - nach dem naechsten |cffD4A24A/reload|r liegt es hier bereit.",
+            "Es steht dann auf |cffD4A24ACharakter -> Priorisierung|r in den Feldern und gilt erst, wenn du auf |cffD4A24ASpeichern & Anwenden|r drueckst. |cffD4A24AVorschlag verwerfen|r raeumt ihn weg, und er kommt nicht wieder.",
+            "Ohne Neuladen geht es auch: In der Companion den String kopieren und hier unter |cffD4A24AImport|r einfuegen - der wirkt sofort.",
+            "Das Feld fuer die Sim-Ausgabe ist jetzt eine grosse Flaeche statt einer schmalen Zeile. Es war kaum zu finden.",
+        },
+    },
+    {
+        version = "2.7.5.0",
+        date    = "31.08.2026",
+        notes   = {
+            "Umschmieden kostet jetzt einen Durchgang statt sechs bis zehn - und damit ein Bruchteil des Goldes.",
+            "Der Plan bleibt nach |cffD4A24AAlles umschmieden|r stehen: die Liste ist danach leer und bleibt leer.",
+            "Was weniger bringt, als die Gebuehr kostet, wird nicht mehr vorgeschlagen - die Zeile sagt es dann auch.",
+            "Eine Grenze, die auf ein paar Punkte erreicht ist, gilt jetzt als erreicht. Ein Punkt Rueckstand hat vorher vier Teile bewegt.",
+            "Derselbe Charakter bekommt jetzt denselben Plan - zweimal hinsehen ergab vorher zwei Vorschlaege.",
+        },
+    },
+    {
         version = "2.7.4.0",
         date    = "31.08.2026",
         notes   = {

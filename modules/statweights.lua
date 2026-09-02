@@ -555,3 +555,207 @@ function SW.Normalize(raw)
     end
     return out, negatives
 end
+
+--------------------------------------------------
+-- WAS VON DER COMPANION KOMMT
+--
+-- Seit WeintCompanion 2.5.0 gibt es einen zweiten Weg, eine
+-- Gewichtung hierher zu bringen: man simmt am Schreibtisch und die
+-- Companion reicht das Ergebnis weiter. Sie tut das auf ZWEI Wegen,
+-- und beide landen hier:
+--
+--   * ueber die Addon-Bruecke (Nachricht `stat_weights`, gelesen beim
+--     Login bzw. nach /reload — WoW liest seine SavedVariables zur
+--     Laufzeit nicht erneut),
+--   * oder als `WCIMPORT:SW:`-Zeichenkette, die man ohne Neuladen
+--     unter *Import* einfuegt. Wer im Raid steht, laedt nicht neu.
+--
+-- WAS ANKOMMT, IST EIN VORSCHLAG UND KEINE EINSTELLUNG.
+--
+-- Er fuellt die Felder auf *Priorisierung* und wird erst auf Klick
+-- wirksam — dieselbe Regel, die dort fuer einen von Hand eingefuegten
+-- Text schon gilt ("der Import fuellt die Felder, er speichert
+-- nicht"). Eine Gewichtung, die sich nach einem Login von selbst
+-- geaendert haette, waere von einem Fehler nicht zu unterscheiden:
+-- die Steinempfehlungen saehen anders aus als gestern, und niemand
+-- wuesste warum.
+--
+-- DESHALB WIRD GEMERKT, WAS ERLEDIGT IST.
+--
+-- Zugestellt wird bei jedem Login dieselbe Liste (die Companion
+-- schickt immer alles, sonst liesse sich eine geloeschte Gewichtung
+-- gar nicht ausdruecken). Ohne Gedaechtnis stuende der Vorschlag,
+-- den man gestern uebernommen hat, heute wieder da. `seen` haelt je
+-- Spec die Kennung des zuletzt erledigten Vorschlags fest — und die
+-- Kennung haengt am INHALT, sodass dieselbe Gewichtung derselbe
+-- Vorschlag bleibt und eine geaenderte ein neuer ist.
+--
+-- Von Hand eingefuegt wird dagegen IMMER angeboten: wer den String
+-- selbst einfuegt, hat ihn gerade angefasst, und "kenne ich schon,
+-- passiert nichts" waere dort ein toter Knopf.
+--------------------------------------------------
+
+local function Store()
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    local sd = WeintCodex.SavedData
+    sd.statWeights = sd.statWeights or {}
+    sd.statWeights.pending = sd.statWeights.pending or {}
+    sd.statWeights.seen    = sd.statWeights.seen    or {}
+    return sd.statWeights
+end
+
+SW.Store = Store
+
+-- Ein Eintrag, wie ihn beide Wege liefern. Rueckgabe: der bereinigte
+-- Eintrag oder nil samt Grund.
+--
+-- Geprueft wird nur, was ohne Kenntnis der Spec zu pruefen ist: dass
+-- ein Profilschluessel dasteht und mindestens ein Gewicht groesser
+-- null. Ob es DIESE Spec ueberhaupt gibt, entscheidet nicht diese
+-- Datei — ein Profil, das WeintCodex noch nicht kennt, ist ein
+-- Vorschlag fuer spaeter und kein Fehler.
+function SW.CleanEntry(entry)
+    if type(entry) ~= "table" then return nil, "keine Angaben" end
+
+    local spec = tostring(entry.spec or ""):upper()
+    if spec == "" then
+        return nil, "ohne Spezialisierung — eine Gewichtung liesse sich"
+            .. " keinem Profil zuordnen"
+    end
+
+    local weights, count = {}, 0
+    for key, value in pairs(entry.weights or {}) do
+        local number = tonumber(value)
+        if number and number > 0 then
+            if number > 999 then number = 999 end
+            weights[tostring(key)] = math.floor(number + 0.5)
+            count = count + 1
+        end
+    end
+
+    if count == 0 then
+        return nil, "ohne ein einziges Gewicht ueber null"
+    end
+
+    return {
+        id        = tostring(entry.id or ""),
+        spec      = spec,
+        weights   = weights,
+        character = tostring(entry.character or ""),
+        source    = tostring(entry.source or "sim"),
+        created   = tonumber(entry.created) or 0,
+    }
+end
+
+-- Einen Vorschlag hinlegen. `force` (Import von Hand) uebergeht das
+-- Gedaechtnis.
+--
+-- Rueckgabe: true, wenn er jetzt bereitliegt.
+function SW.Offer(entry, force)
+    local clean, problem = SW.CleanEntry(entry)
+    if not clean then return false, problem end
+
+    local store = Store()
+
+    if not force and clean.id ~= "" and store.seen[clean.spec] == clean.id then
+        -- Der bereinigte Eintrag geht trotzdem zurueck: der Aufrufer
+        -- raeumt damit auf, was NICHT mehr geliefert wird, und eine
+        -- erledigte Gewichtung ist geliefert — sie liegt nur nicht
+        -- mehr zur Frage an.
+        return false, "bereits erledigt", clean
+    end
+
+    store.pending[clean.spec] = clean
+    return true, nil, clean
+end
+
+function SW.Pending(specKey)
+    if not specKey or specKey == "" then return nil end
+    return Store().pending[tostring(specKey):upper()]
+end
+
+-- Alle offenen Vorschlaege, zur Anzeige der Anzahl. Reihenfolge egal:
+-- gezaehlt wird, nicht sortiert.
+function SW.PendingCount()
+    local count = 0
+    for _ in pairs(Store().pending) do count = count + 1 end
+    return count
+end
+
+-- Uebernommen ODER verworfen — beides heisst "erledigt", und beides
+-- darf nach dem naechsten Login nicht erneut dastehen. Der Unterschied
+-- liegt beim Aufrufer: der eine speichert vorher die Gewichtung, der
+-- andere nicht.
+function SW.Resolve(specKey)
+    local key = tostring(specKey or ""):upper()
+    if key == "" then return false end
+
+    local store = Store()
+    local entry = store.pending[key]
+    if not entry then return false end
+
+    store.pending[key] = nil
+    if entry.id ~= "" then
+        store.seen[key] = entry.id
+    end
+    return true
+end
+
+--------------------------------------------------
+-- Der Uebertragungsstring
+--
+--   WCIMPORT:SW:<Profilschluessel>:<Kennung>:<Zeitstempel>:<Charakter>:<Quelle>:<stat>|<wert>,...
+--
+-- Dieselbe Form wie die uebrigen Importe (Abschnitte mit ":",
+-- Datensaetze mit ",", Felder mit "|"), damit es keinen zweiten
+-- Parser im Addon gibt. Erzeugt wird er drueben in
+-- `core/stat_weights.build_transfer()`; zerlegt wird er hier und
+-- nicht in `modules/sync.lua`, weil das Zerlegen einer fremden
+-- Zeichenkette die Sorte Rechnung ist, die der Testlauf ohne Spiel
+-- pruefen koennen muss.
+--
+-- TOLERANT NACH HINTEN, STRENG VORN: fehlende Felder hinter der
+-- Gewichtung sind kein Fehler (eine aeltere Companion schickt sie
+-- vielleicht nicht), ein fehlender Profilschluessel oder eine leere
+-- Gewichtung sehr wohl — die liessen sich nicht zuordnen bzw. haetten
+-- nichts zu sagen.
+--------------------------------------------------
+
+function SW.ParseTransfer(payload)
+    if type(payload) ~= "string" then return nil, "Leerer Import-String." end
+
+    local fields = {}
+    for part in (payload .. ":"):gmatch("([^:]*):") do
+        fields[#fields + 1] = part
+    end
+
+    local spec  = tostring(fields[1] or ""):gsub("%s+", ""):upper()
+    local pairsText = fields[6] or ""
+
+    if spec == "" then
+        return nil, "Dem String fehlt die Spezialisierung — ohne sie"
+            .. " liesse sich die Gewichtung keinem Profil zuordnen."
+    end
+
+    local weights, count = {}, 0
+    for key, value in pairsText:gmatch("([%a_]+)|(%-?%d+)") do
+        local number = tonumber(value)
+        if number and number > 0 then
+            weights[key:lower()] = number
+            count = count + 1
+        end
+    end
+
+    if count == 0 then
+        return nil, "In dem String steht kein einziges Gewicht."
+    end
+
+    return {
+        id        = fields[2] or "",
+        spec      = spec,
+        created   = tonumber(fields[3]) or 0,
+        character = fields[4] or "",
+        source    = (fields[5] ~= "" and fields[5]) or "sim",
+        weights   = weights,
+    }
+end

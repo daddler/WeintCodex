@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.7.4.0"
+WeintCodex.Version = "2.9.1.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -132,6 +132,32 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if verb == "umschmieden" or verb == "reforge" or verb == "schmieden" then
         if WeintCodex.Reforge and WeintCodex.Reforge.Command then
             WeintCodex.Reforge.Command(rest)
+        end
+        return
+    end
+
+    -- Simmen: die eigene Ausruestung fuer die Companion bereitstellen
+    -- (modules/simexport.lua). Der Knopf sitzt unter Charakter -> Simmen;
+    -- der Befehl ist der Weg dahin, wenn man schon weiss, was man will.
+    --   /wc simmen          Seite oeffnen
+    --   /wc simmen jetzt    bereitstellen und neu laden
+    --   /wc simmen pruefen  was der Exporter gemeldet hat
+    if verb == "simmen" or verb == "sim" or verb == "wowsims" then
+        if WeintCodex.SimExport and WeintCodex.SimExport.Command then
+            WeintCodex.SimExport.Command(rest)
+        end
+        return
+    end
+
+    -- QE Live: derselbe Weg fuer Heiler (modules/qelive.lua). Er landet
+    -- auf derselben Seite - die Seite entscheidet selbst, welchen der
+    -- beiden Wege sie zeigt -, hat aber einen eigenen Namen, weil ihn
+    -- sucht, wer "QE" kennt und mit "simmen" nichts anfaengt.
+    --   /wc qe          Seite oeffnen und den Text markieren
+    --   /wc qe pruefen  jede Zwischenzahl in den Chat
+    if verb == "qe" or verb == "qelive" then
+        if WeintCodex.QELive and WeintCodex.QELive.Command then
+            WeintCodex.QELive.Command(rest)
         end
         return
     end
@@ -315,6 +341,14 @@ local function OnEvent(self, event, addonName)
 
         if WeintCodex_ValidateBiSData then
             WeintCodex_ValidateBiSData()
+        end
+
+        -- Die abgeschriebenen QE-Live-Gewichte gegen die Spec-Profile:
+        -- ein Profilschluessel, den es nicht gibt, traegt den Vorschlag
+        -- ins Leere, und eine dort geschlossene Luecke haelt bei uns eine
+        -- Auskunft zurueck, die es inzwischen gibt.
+        if WeintCodex_ValidateQELiveData then
+            WeintCodex_ValidateQELiveData()
         end
 
         -- Dasselbe fuer die Prioritaetenlisten des Rotationshelfers:

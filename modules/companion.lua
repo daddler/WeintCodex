@@ -483,6 +483,18 @@ end
 --                    support, mechanics, consumables, warnings }
 --                  (Zeilenschemata siehe modules/weinttv.lua)
 --
+-- stat_weights    { version = 1,
+--                    sets = { { id, spec, weights = { crit = 58, ... },
+--                               character, realm, source, created }, ... } }
+--                  Wertegewichte aus einem Sim, vom Schreibtisch geschickt
+--                  (WeintCompanion 2.5.0). Es ist ein VORSCHLAG und keine
+--                  Einstellung: er fuellt die Felder auf *Priorisierung*
+--                  und wird erst auf Klick wirksam. Zugestellt wird immer
+--                  die ganze Liste, also verschwindet eine geloeschte
+--                  Gewichtung dadurch, dass sie fehlt. Die Grenzen aus dem
+--                  Sim sind bewusst NICHT dabei - sie gelten fuer jeden
+--                  gleich und stehen in data/spec_profiles.lua.
+--
 -- Zwei Konventionen aus der Companion gelten hier genauso:
 --   stars == 0  heisst "keine Daten", nicht "schlecht"
 --   at    == -1 heisst "kein Zeitpunkt bekannt"
@@ -663,6 +675,56 @@ INBOX_HANDLERS.weakaura_library = function(payload)
 
     if WeintCodex.WeakAuras and WeintCodex.WeakAuras.Refresh then
         WeintCodex.WeakAuras.Refresh()
+    end
+
+end
+
+--
+-- Die Gewichtungen aus einem Sim. Sie werden HINGELEGT, nicht angewendet
+-- - siehe der lange Kommentar bei SW.Offer in modules/statweights.lua.
+-- Der ganze Vorgang haengt am Gedaechtnis dort: dieselbe Liste kommt bei
+-- jedem Login erneut, und ohne das stuende ein gestern uebernommener
+-- Vorschlag heute wieder da.
+--
+INBOX_HANDLERS.stat_weights = function(payload)
+
+    if type(payload) ~= "table" then return end
+    if type(payload.sets) ~= "table" then return end
+
+    local SW = WeintCodex.StatWeights
+    if not (SW and SW.Offer) then return end
+
+    -- Was hier nicht mehr steht, gibt es nicht mehr: die Companion
+    -- schickt immer alles, eine Einzelnachricht koennte "es gibt mich
+    -- nicht mehr" gar nicht ausdruecken. Erledigte Vorschlaege bleiben
+    -- erledigt (SW.Offer sieht in `seen` nach), offene, die nicht mehr
+    -- geliefert werden, verschwinden.
+    local store = SW.Store()
+    local delivered = {}
+
+    local fresh = 0
+
+    for _, entry in ipairs(payload.sets) do
+        local ok, _, clean = SW.Offer(entry)
+        if clean then delivered[clean.spec] = true end
+        if ok then fresh = fresh + 1 end
+    end
+
+    for spec in pairs(store.pending) do
+        if not delivered[spec] then store.pending[spec] = nil end
+    end
+
+    if fresh > 0 then
+        -- Gesagt wird es genau einmal und mit dem Weg dorthin: ein
+        -- Vorschlag, den niemand findet, ist keiner. Der Text steht
+        -- absichtlich nicht in statweights.lua - die Datei zerlegt und
+        -- rechnet, sie redet nicht.
+        print(WeintCodex.ColorText("gold", "[WeintCodex]")
+            .. " Aus der Companion " .. (fresh == 1
+                and "liegt eine Sim-Gewichtung"
+                or  ("liegen " .. fresh .. " Sim-Gewichtungen"))
+            .. " bereit. |cff4A4A52Charakter -> Priorisierung|r"
+            .. " – dort ansehen und uebernehmen.")
     end
 
 end

@@ -2,6 +2,140 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.1.0] – 2026-09-01
+
+**Als Heiler führt *Charakter → Simmen* jetzt zu QE Live.**
+Gesimmt wird für Schadensausteiler auf wowsims. Für Heiler ist das die
+falsche Adresse — geplant wird dort questionablyepic.com/live, und alle
+sechs Heiler-Spezialisierungen sind vertreten. Die Seite erkennt selbst,
+worauf du gerade stehst, und zeigt den Weg, der zu deiner Spec gehört.
+
+**Deine Ausrüstung steht dort zum Kopieren bereit.**
+Ein Feld mit dem fertigen Text: markieren, Strg+C, auf QE Live unter
+*Import* einfügen. Steine, Verzauberungen und Aufwertungsstufen sind
+dabei. Ein zweites Addon brauchst du dafür nicht, und neu laden musst du
+auch nichts — anders als beim Weg zu wowsims.
+
+**Und die Gewichte, die QE Live für deine Spec führt, liegen unter
+*Priorisierung* bereit.**
+Als Vorschlag, wie eine Sim-Gewichtung aus WeintCompanion: er füllt die
+Felder und gilt erst, wenn du auf *Speichern & Anwenden* drückst.
+
+Ein Wort zur Ehrlichkeit: **QE Live gibt keine Gewichtung zu deinem
+Charakter heraus.** Sein *Top Gear* antwortet mit einem
+Ausrüstungssatz, nicht mit Zahlen je Wert. Was du übernehmen kannst,
+gilt für die Spezialisierung und für jeden gleich — das steht auch so
+auf der Seite. Für die beiden Priester führt QE Live gar kein
+Tempo-Gewicht; dort bleibt es beim Wert deiner Spec, und die Seite sagt
+es.
+
+### Neu
+- *Charakter → Simmen* zeigt für Heiler den Weg zu QE Live statt zu wowsims — mit der eigenen Ausrüstung als Text zum Kopieren
+- `/wc qe` öffnet dieselbe Seite; `/wc qe prüfen` schreibt in den Chat, was gelesen wurde
+- Auf *Priorisierung* liegt für Heiler ein Gewichtungs-Vorschlag von QE Live. Er sagt, woher er kommt, dass er für die Spezialisierung gilt und welche Werte QE Live nicht führt
+- Kommt aus WeintCompanion eine Sim-Gewichtung, hat die Vorrang — sie ist zu deinem Charakter gerechnet
+
+### Technisch
+- `data/qelive.lua` trägt QE Lives `defaultStatWeights` und `autoReforgeOrder` je Heiler-Spec als **Rohzahlen**; skaliert wird in `modules/qelive.lua` über `SW.Normalize`, also mit derselben Rechnung wie eine eingefügte Sim-Ausgabe. `WeintCodex_ValidateQELiveData()` hält sie beim Login gegen `data/spec_profiles.lua`
+- **Ein Null-Gewicht wird nicht übernommen, sondern als Lücke geführt** (`gaps`). Beide Priester tragen drüben `haste: 0`, beim Disziplin-Priester mit einem „TODO" daneben — eine 0 hiesse hier „egal", und der Umschmiede-Planer schmiedete das Tempo restlos weg, bei einer Spec, für die `data/breakpoints.lua` selbst eine Tempo-Treppe führt
+- `modules/qelive.lua` **schreibt** ein fremdes Format und muss deshalb laut scheitern — dieselbe Auflage wie `core/wowsims_link.py` drüben. `QE.HEADER_LINES` (8) steht als benannte Zahl da (QE Live liest fest ab Zeile neun), `QE.ReadBack` liest den fertigen Text mit **QE Lives eigener Regel** zurück, und `QE.Export` gibt nichts heraus, wenn dabei etwas anderes herauskommt als hineinging
+- Aufwertungsstufe und Link-Felder kommen aus `modules/reforge_engine.lua` (`RE.UpgradeLevel` neu exportiert, `RE.LinkParts`) — eine zweite Fassung wäre die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist
+- Der Vorschlag entsteht beim Zeichnen von *Priorisierung*, nicht beim Login: dort ist die Spezialisierung nicht verlässlich, und eine Datenquelle, die sich seit Wochen nicht geändert hat, muss sich niemandem in den Weg stellen
+- Neuer Testlauf `.github/tests/qelive_test.lua` (Format gegen QE Lives eigene Leseregel, die Skalierung, der Vorrang des Sim-Vorschlags, die Datendatei gegen die Spec-Profile)
+
+## [2.9.0.1] – 2026-09-01
+
+**Behoben: die Verzauberung deiner Waffe wurde falsch abgelesen.** Auf einer Waffe mit *Windweise* stand unter *Charakter → Verzauberungen* nicht die Verzauberung, sondern ein Wert des Gegenstands — „+554 Meisterschaft", dazu der Hinweis, die ID passe nicht zur Datenbank. Verzaubert war die Waffe richtig; falsch war nur, was WeintCodex daraus gemacht hat.
+
+**Und zwei Waffenverzauberungen hiessen hier anders als im Spiel.** „Lied des Windes" und „Lied des Flusses" waren aus dem Englischen übersetzt statt aus dem Spiel abgeschrieben. Sie heissen **Windweise** und **Flussgesang**. Wer die Empfehlung gelesen hat, hat im Auktionshaus nach etwas gesucht, das es nicht gibt.
+
+Beides hing zusammen: Waffenverzauberungen tragen keine Zahlen, sondern nur ihren Namen — und erkannt wurden sie bisher nur, wenn dieser Name buchstabengleich im Addon stand. Tat er das nicht, fiel die richtige Zeile aus der Suche, und der nächstbeste Wert des Gegenstands rückte nach.
+
+### Behoben
+- **Waffenverzauberungen werden am Namen erkannt, den der Client anzeigt**, nicht mehr an unserer eigenen Schreibweise. Kennt das Addon den Namen nicht, steht er trotzdem da — mit dem leisen Zusatz, dass er hier so nicht hinterlegt ist
+- **Ein Wert des Gegenstands wird nicht mehr als Verzauberung eingesetzt.** Eine Verzauberung, die nachweislich keine Zahlen liefert, kann keine Wertzeile sein
+- **Windweise** (statt „Lied des Windes") und **Flussgesang** (statt „Lied des Flusses") — die vier übrigen Waffenverzauberungen waren richtig
+- Der falsche Hinweis „(ID … abweichend)" auf korrekt verzauberten Waffen ist damit weg
+
+### Technisch
+- `RankEnchantCandidate` prüft den **Eintrag**, nicht seine Werte: bis 2.9.0.0 stand dort `if dbStats then return nil end`, und ein Eintrag *ohne* Werte ist genau der Fall, für den der schwächste Rang („plausible Größenordnung, mehr wissen wir nicht") nie gedacht war. Alle dreizehn wertlosen Einträge von `data/enchants.lua` sind Waffen-Procs, DK-Runen und Zielfernrohre — Zeilen ohne Zahlen. Der Rang gilt jetzt nur noch, wenn wir zu einer ID wirklich nichts wissen, so wie es in `CLAUDE.md` schon beschrieben stand
+- `LooksLikeEnchantText` lässt eine grüne Zeile ohne Zahl durch, wenn unser Eintrag sagt, dass diese Verzauberung ein Proc ist. Vorher musste ihr Text buchstabengleich in `data/enchants.lua` stehen — und der Name ist das unzuverlässigste Feld jener Datei (von Hand gepflegt, am Client nicht auflösbar, von Blizzard mitten in MoP umbenannt). Die Beschriftungen des Clients (`ITEM_SPELL_TRIGGER_ONUSE`/`ONEQUIP`) sind ausgenommen: sie sind grün, kommen ohne Zahl aus und gehören dem Gegenstand
+- Welche Zeile es wird, entscheidet weiterhin allein die Rangfolge — ein Namenstreffer schlägt nach wie vor alles andere
+- `.github/tests/enchant_scan_test.lua` stellt die Erkennung gegen echte Tooltips, ohne Spiel: die gemeldete Waffe, dieselbe Waffe mit absichtlich falsch geschriebenem Datenbanknamen, Handgelenke mit einer Wertverzauberung zwischen vierstelligen Gegenstandswerten und einer Umschmiedezeile, die grünen Beschriftungen des Clients, und der Fall ohne jede Verzauberungszeile. Mit dem Stand von 2.9.0.0 schlägt er fehl (`lua5.1 .github/tests/enchant_scan_test.lua .`)
+- `WeintCodex.Charakter.ResolveEnchant` ist dafür exportiert — dieselbe Rechnung lag dreimal daneben (2.0.0.3, 2.0.1.0, 2.9.0.1) und nahm jedes Mal denselben Ausgang
+
+## [2.9.0.0] – 2026-08-31
+
+**Neu: Simmen, ohne im Sim etwas nachzubauen.** Seit 2.8.0.0 kommt eine Sim-Gewichtung ohne Abtippen ins Spiel. Der Weg *davor* war weiter Handarbeit: auf [wowsims.com/mop](https://www.wowsims.com/mop/) musste man seine Ausrüstung Stück für Stück selbst zusammenklicken. Wer das einmal gemacht hat, simmt nicht jede Woche erneut — und eine Gewichtung, die zur Ausrüstung von vor vier Wochen gehört, ist schlechter als ihr Ruf.
+
+Die neue Unterseite *Charakter → Simmen* stellt deine Ausrüstung für WeintCompanion bereit. Dort öffnet der Sim danach mit allem, was du anhast; drücken musst du nur noch *Suggest Reforges*. Das Ergebnis geht denselben Weg zurück wie bisher und landet auf *Priorisierung*.
+
+**Warum es dafür einen Knopf braucht.** World of Warcraft schreibt seine Daten erst beim Neuladen oder beim Ausloggen auf die Festplatte. Was du gerade anhast, steht also noch nirgends, wo ein zweites Programm es sehen könnte. Genau das macht der Knopf — und die Seite sagt dir vorher, ob der Rechner deinen jetzigen Stand überhaupt schon sieht.
+
+### Neu
+- **Neue Unterseite *Charakter → Simmen*** (auch `/wc simmen`). Sie sagt in einem Satz, was der Rechner gerade sieht, und stellt auf Knopfdruck deinen jetzigen Stand bereit
+- **Die Seite nennt den Unterschied zwischen „aktuell" und „veraltet".** Nach dem Anmelden sieht der Rechner genau das, was du anhast; sobald du etwas umziehst, nicht mehr — und dann steht das da, statt dass man es raten muss
+- **Fehlt das Addon *WowSimsExporter*, steht das auf der Seite samt Adresse.** Es ist das Addon, das wowsims selbst dafür nennt, und es schreibt den Export, den die Companion liest. Abgeschaltet ist ein eigener Fall und bekommt seinen eigenen Satz
+- `/wc simmen jetzt` stellt direkt bereit, `/wc simmen prüfen` sagt, was gemeldet wurde
+
+### Geändert
+- Der Hinweis zum Neuladen ist derselbe wie bei der Companion-Synchronisation — es ist derselbe Vorgang, und zwei Erklärungen dafür wären eine zu viel
+- Im Kampf wird nicht neu geladen
+
+### Technisch
+- **`modules/simexport.lua`** liest aus den SavedVariables des WowSimsExporter (`WSEDB`) **nur Name und Zeitstempel** des letzten Exports, nie seinen Inhalt. Den liest die Companion aus derselben Datei; eine Kopie durch WeintCodex hindurch wäre eine zweite Fassung derselben Daten, die genau dann veraltet, wenn sie gebraucht wird. Geschrieben wird in fremde Daten nie — die Regel „kein fremdes Addon" aus `modules/statweights.lua` gilt dort unverändert weiter, sie betrifft das *Zerlegen* einer fremden Ausgabe
+- **Der Zeitstempel beim Anmelden ist der Vergleichspunkt.** In diesem Moment ist der Speicher nachweislich dasselbe wie die Festplatte (er kommt von dort); alles Spätere ist neuer. Ohne diesen Vergleich wäre „bereitgestellt" eine Behauptung über etwas, das man nicht sieht — dieselbe Linie wie `stars == 0`
+- **Der Stups an den Exporter geht über dessen eigenen Weg** (`OnCharacterChanged`) und darf scheitern: er hängt an einer Funktion eines fremden Addons, der eigentliche Zweck ist das Neuladen, und der automatische Export deckt den Normalfall ohnehin ab. Gemeldet wird das *Ergebnis* (hat sich der Zeitstempel bewegt?), nicht der Versuch — dieselbe Lehre wie beim Signalton in `modules/gearalert.lua`
+- **Der neueste Eintrag wird über alle AceDB-Profile hinweg gesucht.** Die Vorgabe liegt unter `Default`, aber wer sich je ein eigenes Profil angelegt hat, hat mehrere — und dann wäre ausgerechnet die Vorgabe die veraltete
+- `.github/tests/simexport_test.lua` prüft die vier Zustände, die Suche über alle Profile, den Stups (auch wenn das fremde Addon einen Fehler wirft) und die Altersangabe — ohne Spiel: `lua5.1 .github/tests/simexport_test.lua .`
+
+## [2.8.0.0] – 2026-08-31
+
+**Neu: Simmen am Schreibtisch, Ergebnis im Spiel.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt, musste das Ergebnis bisher selbst ins Spiel tragen: Zeichenkette kopieren, ingame die richtige Unterseite suchen, in ein sehr kleines Feld einfügen. WeintCompanion nimmt die Sim-Ausgabe jetzt entgegen und schickt sie herüber — nach dem nächsten `/reload` liegt sie hier bereit. Wer nicht neu laden will, bekommt in der Companion einen Import-String zum Einfügen; der wirkt sofort.
+
+**Und das Feld für die Sim-Ausgabe ist endlich zu sehen.** Es war eine einzeilige Zeile mit einem Knopf daneben — an genau der Stelle, an der eine seitenlange Zeichenkette hinein soll. Jetzt ist es eine große Fläche mit Aufschrift.
+
+### Neu
+- **Eine Gewichtung aus der Companion liegt nach dem Anmelden bereit.** Der Chat sagt es, und auf *Charakter → Priorisierung* steht sie in den Feldern, mit Datum und Charakter darüber
+- **Wirksam wird sie erst auf deinen Klick.** Sie füllt nur die Felder — genau wie ein selbst eingefügter Text. Ein Knopf *Speichern & Anwenden*, einer *Vorschlag verwerfen*: was du verwirfst, kommt nach dem nächsten Anmelden nicht wieder
+- **Ohne Neuladen geht es auch**: den String aus der Companion kopieren und unter *Import* einfügen. Danach steht die Seite offen und die Felder sind gefüllt
+- Die Grenzen aus dem Sim (Treffer, Waffenkunde) werden weiterhin nur genannt und nicht übernommen — sie gelten für jeden gleich
+
+### Geändert
+- **Das Eingabefeld unter *Aus einem Sim übernehmen* ist jetzt eine große Fläche** über die ganze Breite, mit Aufschrift, Platz für mehrere Zeilen und dem Knopf darunter. Der eingefügte Text bleibt nach dem Einlesen stehen
+- Ein Klick irgendwo in die Fläche setzt den Cursor hinein
+
+### Technisch
+- **Neuer Inbox-Typ `stat_weights`** (WeintCompanion 2.5.0) und **neuer Importtyp `WCIMPORT:SW:`**. Beide landen in derselben Ablage (`SavedData.statWeights.pending`) und werden von `ShowPriorisierung` gelesen; voller Vertrag in `docs/stat-weights-bridge.md` drüben
+- **Zugestellt wird immer die ganze Liste**, wie bei der WeakAura-Bibliothek: eine gelöschte Gewichtung verschwindet dadurch, dass sie in der nächsten Zustellung fehlt. Was nicht mehr geliefert wird, räumt der Handler weg
+- **`seen` je Spec hält fest, was erledigt ist** (übernommen *oder* verworfen). Ohne dieses Gedächtnis stünde derselbe Vorschlag nach jedem Login wieder da — die Companion schickt bei jedem Takt dieselbe Liste. Die Kennung hängt drüben am **Inhalt**, also ist dieselbe Gewichtung derselbe Vorschlag und eine geänderte ein neuer. Ein von Hand eingefügter String übergeht das Gedächtnis (`force`): wer ihn selbst einsetzt, hat ihn gerade angefasst
+- **`SW.ParseTransfer` liegt in `modules/statweights.lua`, nicht in `modules/sync.lua`** — das Zerlegen einer fremden Zeichenkette ist die Sorte Rechnung, die der Testlauf ohne Spiel prüfen können muss. `.github/tests/statweights_test.lua` hält den String, den die Companion tatsächlich erzeugt, dazu das Hinlegen, das Erledigen und die Regel, dass ein Vorschlag **nichts** speichert
+- **`InspectorInput` kennt zwei Formen** (`core/navigation.lua`): die alte einzeilige und eine große mit `lines`, `label`, `note` und `keepText`. Im mehrzeiligen Feld löst Enter nicht mehr aus, sondern fügt eine Zeile ein — wer einen Text mit Umbrüchen einfügt, will ihn nicht bei der ersten Zeile abgeschickt bekommen
+## [2.7.5.0] – 2026-08-31
+
+**Umschmieden kostet jetzt einen Durchgang statt sechs bis zehn.** Wer *Alles umschmieden* drückte, war danach nicht fertig: der Plan wollte gleich wieder etwas korrigieren, nach dem nächsten Durchgang erneut, und sechs bis zehn Runden waren normal. Der Umschmieder verlangt seine Gebühr für jede einzelne Änderung — aus drei-, vierhundert Gold wurden so mehrere tausend.
+
+Der Grund war nicht eine falsche Empfehlung, sondern eine unruhige. Der Planer hat jeden Plan von Grund auf neu gerechnet und dabei nie berücksichtigt, was schon dranliegt. Wertungen kennt er auf ein paar Punkte genau; eine Abweichung von einem einzigen Punkt hat gereicht, damit derselbe Charakter beim nächsten Aufruf eine andere, gleich gute Verteilung bekommt. Jede davon kostete den vollen Satz.
+
+### Behoben
+- **Der Plan bleibt jetzt stehen.** Ist ein Durchgang durch, ist die Liste leer — und bleibt leer. Ein zweiter Klick kostet nichts mehr, weil es nichts mehr zu tun gibt
+- **Was weniger bringt, als es kostet, wird nicht mehr vorgeschlagen.** Jede einzelne Zeile muss sich lohnen; wo sie das nicht tut, steht das auch dran: *Der Gewinn wäre kleiner als die Gebühr — bleibt, wie es ist*
+- **Eine Grenze, die auf ein paar Punkte erreicht ist, gilt als erreicht.** Vorher zählte schon **ein** Punkt Rückstand als verfehltes Trefferkap, und weil ein verfehltes Kap alles andere schlägt, hat das vier Teile bewegt — und die Verteilung dabei nachweislich verschlechtert. Ein Zehntel Prozentpunkt Trefferchance ist kein Teil wert
+- **Derselbe Charakter bekommt jetzt denselben Plan.** Zweimal hinsehen führte zu zwei verschiedenen Vorschlägen, ohne dass sich irgendetwas geändert hätte
+- **Meldet der Plan nach einem sauberen Durchgang trotzdem noch Änderungen, steht das im Chat** — samt der Bitte, `/wc umschmieden pruefen` zu melden. Ein zweiter Vorschlag, den man arglos anklickt, ist die teuerste Art, einen Fehler zu verschweigen
+
+### Geändert
+- `/wc umschmieden pruefen` nennt zusätzlich, wieviel eine Umschmiedung mindestens bringen muss und ab wann eine Grenze als verfehlt gilt
+
+### Technisch
+- **Der Suchlauf maximiert ab jetzt EINE Größe, und die schließt die Gebühr ein** (`Value` in `modules/reforge_engine.lua`): Bewertung plus ein Bonus für jedes Teil, das bleiben darf. Alle drei Stufen messen daran — die dynamische Programmierung, das Nachpolieren und die neue Kostenprobe. Zwei Zielgrößen nebeneinander wären genau die Doppelung, an der die Sockelbewertung über fünf Releases gescheitert ist
+- **`CAP_SLACK` (40 Wertung) und `WORTH_RATING` (10 Wertung im höchstgewichteten Wert)** sind Aussagen über das Spiel, nicht Stellschrauben: 40 Wertung sind bei 340 je Prozent gut ein Zehntel Prozentpunkt, und eine Umschmiedung bewegt hundert bis vierhundert Wertung. Beide liegen damit über dem Rauschen der Rundungen und unter jeder echten Verbesserung. `RE.CAP_SLACK` wird herausgegeben, damit der Testlauf gegen dieselbe Zahl rechnet statt gegen eine Kopie davon
+- **Stufe 3 (`DropNotWorthIt`) ist kein zweites Regelwerk**, sondern ein letzter Schritt bergauf auf derselben Größe: zurückgenommen wird, wenn `s >= score - worth`, und das ist dieselbe Ungleichung wie „Bonus dazu, Punktzahl weg". Zurückgenommen wird dabei immer die billigste Änderung zuerst und danach neu gefragt — am Kap hängen Änderungen voneinander ab, und ein einzelner Durchgang findet die Reihenfolge nicht
+- **Der Suchlauf hängt nicht mehr an der Reihenfolge von `pairs`.** Der Schlussvergleich der dynamischen Programmierung entschied bei Gleichstand nach Tabellenreihenfolge, die Optionsliste je Gegenstand ebenfalls. Zwei gleich gute Verteilungen sind nicht gleich teuer, also darf die Wahl zwischen ihnen nicht davon abhängen, wie Lua seine Tabelle gerade sortiert hat
+- **`RE.CapOutlook()` benutzt dieselbe Toleranz.** Sonst hielte die Sockelseite eine Grenze für offen, die der Planer als erreicht abgehakt hat — und empfähle einen Stein für eine Lücke, die es nicht gibt
+- **Der Testlauf prüft jetzt Verhalten, nicht nur Punktzahlen** (`.github/tests/reforge_engine_test.lua`): planen, den Plan wie das Spiel anwenden, neu planen — und das auch mit einer Wertung Abweichung je Teil, weil genau die unvermeidbar ist. Mit den alten Zahlen schlägt diese Prüfung fehl (5 Runden, 25 Umschmiedungen, eine davon verschlechternd), mit den neuen steht sie bei einer Runde. Dazu die Gegenprobe, dass derselbe Charakter sechsmal hintereinander denselben Plan bekommt
+- Die rohe Gewalt im Testlauf misst gegen `RE.Value` und `RE.CAP_SLACK` statt gegen eine eigene Zielgröße — ein Test mit eigener Regel bestätigt nur sich selbst. Der Planer trifft ihr Ergebnis in allen sechs Fällen exakt
+
 ## [2.7.4.0] – 2026-08-31
 
 **Neu: die Ausgabe von wowsims lesen.** Wer seinen Charakter auf [wowsims.com/mop](https://www.wowsims.com/mop/) simmt und auf *Suggest Reforges* drückt, bekommt eine lange Zeichenkette heraus — dieselbe, die man in ReforgeLite einfügt und damit fertig ist. WeintCodex hat sie bisher nicht angenommen: der Import kannte nur Wertepaare aus Name und Zahl, und in dieser Ausgabe stehen keine Namen.
