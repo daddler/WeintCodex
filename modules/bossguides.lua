@@ -835,6 +835,7 @@ end
 --------------------------------------------------
 
 local function GetBossNoteColumn(bossName, col)
+    if not bossName then return "" end
     local raw = WeintCodex.SavedData and WeintCodex.SavedData.bossNotes
         and WeintCodex.SavedData.bossNotes[bossName]
     if not raw then return "" end
@@ -844,14 +845,30 @@ local function GetBossNoteColumn(bossName, col)
     return raw["col" .. col] or ""
 end
 
+-- Geschrieben wird in WeintCodex_SavedData, nicht in eine frisch
+-- angelegte Tabelle. Der Rueckfallweg hier hiess frueher
+-- "WeintCodex.SavedData = {}", und das ist genau die Sorte Zeile, die
+-- nie auffaellt: WoW sichert nur die Variablen aus der .toc, eine
+-- eigene Tabelle daneben wird beim Abmelden nicht geschrieben. Der
+-- Nutzer tippt, das Feld zeigt seinen Text, und nach dem naechsten
+-- Anmelden ist er weg - ohne Fehler, ohne Meldung.
+--
+-- Und ohne Bossnamen wird gar nichts geschrieben: "bossNotes[nil] = ..."
+-- ist ein Lua-Fehler mitten im Tippen, und danach speichert das Feld
+-- fuer den Rest der Sitzung nichts mehr.
 local function SetBossNoteColumn(bossName, col, text)
-    if not WeintCodex.SavedData then WeintCodex.SavedData = {} end
-    if not WeintCodex.SavedData.bossNotes then WeintCodex.SavedData.bossNotes = {} end
+    if not bossName then return end
 
-    local raw = WeintCodex.SavedData.bossNotes[bossName]
+    WeintCodex_SavedData = WeintCodex_SavedData or {}
+    WeintCodex.SavedData = WeintCodex_SavedData
+
+    local sd = WeintCodex.SavedData
+    if not sd.bossNotes then sd.bossNotes = {} end
+
+    local raw = sd.bossNotes[bossName]
     local tbl = (type(raw) == "table") and raw or { col1 = raw or "" }
     tbl["col" .. col] = text
-    WeintCodex.SavedData.bossNotes[bossName] = tbl
+    sd.bossNotes[bossName] = tbl
 end
 
 -- Ein- oder zweispaltig ist eine Vorliebe, kein Bossmerkmal: die
