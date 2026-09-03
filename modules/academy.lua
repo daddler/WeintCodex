@@ -17,6 +17,32 @@
 --   * Das Log-Ergebnis (results) und das eigene Haekchen (completed)
 --     werden nie ineinander geschrieben. Angezeigt wird "erledigt",
 --     wenn eines von beidem zutrifft.
+--
+-- Seit 2.9.2.0 wird ausserdem gelesen, was schon laenger mitgeliefert
+-- wurde und hier bis dahin ungenutzt liegen blieb - jedes Feld
+-- beantwortet eine Frage, die die Seite vorher nicht beantworten
+-- konnte:
+--
+--   hasActor  Stand dieser Charakter im ausgewerteten Pull ueberhaupt
+--             drin? Ohne die Angabe sahen sechs leere Balken aus wie
+--             eine schlechte Bewertung oder wie ein Defekt.
+--   gapText   WARUM die Tiefenauswertung fehlt. Der Satz wird drueben
+--             formuliert (rating_gap_text), damit Spiel und Desktop
+--             denselben Sachverhalt nicht verschieden erklaeren.
+--   metric    Die Zahl hinter der Bewertung ("Platz 3 von 8").
+--   planNote  Warum der Plan so sortiert ist. Er folgt der Lernkurve,
+--             sobald sie genug Pulls kennt - und kann damit den
+--             Sternen daneben widersprechen, die zu DIESEM Kampf
+--             gehoeren. Ohne den Satz sieht das nach einem Fehler aus.
+--   progress  Die Lernkurve: "werde ich besser?" - eine Frage, die ein
+--             einzelner Pull nicht beantwortet.
+--   practice  Die Uebungsserie am Trainingsdummy. Sie entsteht aus den
+--             Sitzungen, die dieses Addon selbst meldet, und war hier
+--             bis dahin unsichtbar: erst am dritten Tag erschien
+--             wortlos ein Haken im Trainingsplan.
+--
+-- Gerechnet wird auch daran nichts. Punkte, Richtung und alle Saetze
+-- kommen fertig - dieselbe Regel, aus der es dieses Modul gibt.
 --------------------------------------------------
 
 WeintCodex = WeintCodex or {}
@@ -205,37 +231,25 @@ local function LessonById(id)
     return nil
 end
 
--- Gilt die Lektion fuer den aktuellen Charakter? Bildet die Auswahl aus
--- registry.py nach (Encounter -> Spec -> Klasse -> Rolle -> generisch):
--- ein leeres Feld heisst "gilt fuer alle".
-local function AppliesToMe(lesson)
-    local state = State()
-    local actor = (state and state.actor) or {}
-
-    if lesson.class and lesson.class ~= "" then
-        if (actor.class or "") ~= lesson.class then return false end
-    end
-    if lesson.spec and lesson.spec ~= "" then
-        if (actor.spec or "") ~= lesson.spec then return false end
-    end
-    if lesson.encounter and lesson.encounter ~= "" then
-        if (state and state.encounter or "") ~= lesson.encounter then return false end
-    end
-    if type(lesson.roles) == "table" and #lesson.roles > 0 then
-        local match = false
-        for _, role in ipairs(lesson.roles) do
-            if role == (actor.role or "") then match = true break end
-        end
-        if not match then return false end
-    end
-    return true
-end
-
+-- Der Katalog IST bereits der dieses Charakters.
+--
+-- Die Companion schickt nicht ihre 143 Lektionen, sondern das Ergebnis
+-- von lessons_for_actor() - Boss, Spezialisierung, Klasse, Rolle und
+-- Allgemeines sind dort schon ausgewaehlt, und der Katalog liegt hier
+-- ohnehin je Charakter. Bis 2.9.1.1 filterte diese Datei ihn ein
+-- zweites Mal nach denselben Feldern nach, mit einer eigenen
+-- Auslegung: sie behielt ALLES, was passt, waehrend drueben eine
+-- Ebene GEWAEHLT wird. Zwei Auslegungen derselben Auswahl - und die
+-- hiesige konnte nur wegnehmen. Weicht auch nur eine Schreibweise ab
+-- (die Spezialisierung des Akteurs gegen die der Lektion), verschwaende
+-- der halbe Katalog im Spiel, waehrend der Desktop ihn vollstaendig
+-- zeigt: der Katalog saehe leer aus, der Fortschritt zaehlte gegen
+-- einen zu kleinen Nenner, und zu sehen waere davon nichts.
 local function ApplicableLessons()
     local catalog = Catalog()
     local result  = {}
     for _, lesson in ipairs(catalog and catalog.lessons or {}) do
-        if lesson.id and AppliesToMe(lesson) then result[#result + 1] = lesson end
+        if lesson.id then result[#result + 1] = lesson end
     end
     return result
 end
@@ -251,6 +265,54 @@ local function IsDone(lessonId, completed)
     if completed[lessonId] then return true end
     local res = ResultFor(lessonId)
     return res ~= nil and res.status == "passed"
+end
+
+-- Stand dieser Charakter im ausgewerteten Pull ueberhaupt drin?
+--
+-- Drei Antworten, nicht zwei: nil heisst "eine aeltere Companion hat
+-- dazu nichts gesagt" und wird als solches behandelt, statt als "nein"
+-- gelesen zu werden. Sonst behauptete ein Addon-Update ploetzlich auf
+-- jedem Charakter, er sei nicht dabei gewesen.
+local function HasActor()
+    local state = State()
+    if not state then return nil end
+    if state.hasActor == nil then return nil end
+    return state.hasActor and true or false
+end
+
+-- Warum die Tiefenauswertung fehlt - in den Worten der Companion.
+--
+-- Leer ist dort Absicht: wo ohnehin auf jeder Zeile "noch keine Daten"
+-- steht (kein Raid, kein Pull), waere ein zweiter Satz Wiederholung.
+local function GapText()
+    local state = State()
+    local text = state and state.gapText
+    if type(text) ~= "string" or text == "" then return nil end
+    return text
+end
+
+-- Die Lernkurve. nil heisst "wurde nicht geliefert" (aeltere
+-- Companion), pulls == 0 heisst "es ist noch nichts aufgezeichnet" -
+-- zwei verschiedene Auskuenfte, und nur die zweite ist eine Aussage
+-- ueber den Spieler.
+local function Curve()
+    local state = State()
+    local progress = state and state.progress
+    if type(progress) ~= "table" then return nil end
+    return progress
+end
+
+-- Die Uebungsserie am Trainingsdummy, zugeordnet ueber die
+-- Lektions-ID: der Katalog ist ohnehin spec-genau, und eine zweite
+-- Uebersetzung Spec -> Lektion waere eine zweite Tabelle, die von der
+-- drueben abweichen kann.
+local function PracticeForLesson(lessonId)
+    if not lessonId then return nil end
+    local state = State()
+    for _, entry in ipairs(state and state.practice or {}) do
+        if entry.lessonId == lessonId then return entry end
+    end
+    return nil
 end
 
 --------------------------------------------------
@@ -292,6 +354,86 @@ local function DrawRatingBar(parent, x, y, stars)
         end
     end
     return MAX_STARS * (SEGMENT_W + SEGMENT_GAP)
+end
+
+-- Die Lernkurve als Saeulen.
+--
+-- Bewusst Saeulen und keine Linie: eine Linie waere in Lua ein
+-- Ausrichtungsproblem (gedrehte Texturen), und der Fehler daran faellt
+-- nur auf, wenn man ihn sucht. Gezeichnet wird EINE Reihe - die
+-- Gesamtlinie. Der schwaechste Bereich steht als Satz daneben, denn
+-- eine zweite Reihe haette nicht dieselbe Laenge (ein Pull ohne
+-- Bewertung dieses Bereichs ist dort kein Punkt) und verglichen
+-- wuerden Pulls, die nicht dieselben sind.
+--
+-- Die Achse steht fest bei 0..5 Sternen. Automatisch skaliert saehe
+-- ein Wackeln zwischen 4,1 und 4,3 aus wie der Aufstieg von 1 auf 5 -
+-- und genau dieser Vergleich ist der Sinn einer Lernkurve.
+local TREND_COL_W, TREND_COL_GAP, TREND_H = 10, 4, 30
+
+local function DrawTrendCard(frame, y, curve)
+
+    if not curve then return y end
+
+    local points = type(curve.points) == "table" and curve.points or {}
+    local pulls  = curve.pulls or 0
+
+    local card = WeintCodex.CreateCard(frame, {
+        width = frame:GetWidth() - 32, height = #points >= 2 and 96 or 62,
+        surface = "surface1", style = "border", borderColor = "hairline",
+    })
+    card:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, y)
+
+    local eyebrow = Text(card, 9, "TOPLEFT", card, "TOPLEFT", 14, -10)
+    eyebrow:SetText(WeintCodex.ColorText("textFaint",
+        "VERLAUF" .. (pulls > 0 and ("  ·  " .. pulls .. " PULLS") or "")))
+
+    if #points >= 2 then
+
+        -- Nur so viele Saeulen, wie nebeneinander passen: der Rest
+        -- waere sonst unter dem Kartenrand verschwunden statt sichtbar
+        -- zu fehlen.
+        local room = math.floor(
+            (card:GetWidth() - 28) / (TREND_COL_W + TREND_COL_GAP))
+        local from = math.max(1, #points - math.max(room, 1) + 1)
+
+        local index = 0
+        for i = from, #points do
+            local value = points[i] or 0
+            local h = math.max(2, math.floor(TREND_H * (value / MAX_STARS)))
+
+            local col = card:CreateTexture(nil, "OVERLAY")
+            col:SetSize(TREND_COL_W, h)
+            col:SetPoint("BOTTOMLEFT", card, "TOPLEFT",
+                14 + index * (TREND_COL_W + TREND_COL_GAP), -(28 + TREND_H))
+
+            -- Der letzte Pull hebt sich ab: er ist der, auf den sich
+            -- die Sterne auf derselben Seite beziehen.
+            local c = (i == #points) and C.purple or C.purpleDim
+            col:SetColorTexture(c[1], c[2], c[3], 0.95)
+
+            index = index + 1
+        end
+
+        local scale = Text(card, 9, "TOPRIGHT", card, "TOPRIGHT", -14, -34, 60, "RIGHT")
+        scale:SetText(WeintCodex.ColorText("textGhost", "0 – 5 ★"))
+    end
+
+    local line = Text(card, 10, "TOPLEFT", card, "TOPLEFT", 14,
+        #points >= 2 and -64 or -30, card:GetWidth() - 28)
+    line:SetWordWrap(false)
+    line:SetText(WeintCodex.ColorText("textMuted", curve.text or ""))
+
+    local areaText = curve.area and curve.area.text or ""
+    if areaText ~= "" and #points >= 2 then
+        local area = Text(card, 10, "TOPLEFT", card, "TOPLEFT", 14, -78,
+            card:GetWidth() - 28)
+        area:SetWordWrap(false)
+        area:SetText(WeintCodex.ColorText("textFaint", areaText))
+    end
+
+    return y - (card:GetHeight() + 12)
+
 end
 
 local function DrawPageHeader(frame, titleText)
@@ -384,6 +526,24 @@ local function Page(titleText, build)
     local cp = WeintCodex.ContentPanel
     if not cp then return end
 
+    --------------------------------------------------
+    -- Erst einruecken, dann messen
+    --------------------------------------------------
+    -- Jeder Ausgang dieser Seite endet mit einem Detailbereich, und
+    -- der nimmt sich 372 px von ContentPanel. Gesetzt wurde er
+    -- bisher am ENDE des Aufbaus - also nachdem die Karten ihre
+    -- Breite aus frame:GetWidth() gezogen hatten. Kam man von einer
+    -- Seite ohne Detailbereich, lag die erste Zeichnung damit 372 px
+    -- zu breit und ihre rechte Haelfte unter der Spalte. Beim
+    -- naechsten Aufbau sass es, weil der Bereich dann schon stand -
+    -- die Sorte Fehler, die man fuer ein Flackern haelt.
+    --
+    -- Die Bloecke stehen erst am Ende fest; sichtbar sein muss der
+    -- Bereich aber schon vorher, und das sind zwei verschiedene
+    -- Dinge.
+    --------------------------------------------------
+    WeintCodex.SetDetailShown(true)
+
     academyFrame = CreateFrame("Frame", nil, cp)
     academyFrame:SetAllPoints(cp)
     academyFrame:Show()
@@ -457,41 +617,83 @@ function WeintCodex.Academy.ShowOverview()
 
         y = y - 74
 
-        -- Bewertungsblock
-        local head = Text(frame, 9, "TOPLEFT", frame, "TOPLEFT", 20, y)
-        head:SetText(WeintCodex.ColorText("textFaint", "BEWERTUNG"))
-        y = y - 20
+        --------------------------------------------------
+        -- War dieser Charakter ueberhaupt dabei?
+        --------------------------------------------------
+        -- Sechs leere Balken sehen aus wie eine schlechte Bewertung
+        -- oder wie ein Defekt. Die Companion sagt seit jeher mit,
+        -- welcher der beiden Faelle vorliegt - gelesen wurde es hier
+        -- bis 2.9.2.0 nicht. Liegt kein Akteur vor, sind die Zeilen
+        -- ohnehin alle leer, also stehen sie nicht auch noch da.
+        --------------------------------------------------
+        if HasActor() == false then
 
-        for _, id in ipairs(OrderedCategories()) do
-            local rating = RatingFor(id)
-            local stars  = rating and rating.stars or 0
+            y = DrawNotice(frame, y,
+                CharacterName() .. " kommt im zuletzt ausgewerteten Pull "
+                .. "nicht vor. Deshalb gibt es hier keine Bewertung — nicht, "
+                .. "weil sie schlecht waere. Waehle in WeintCompanion den "
+                .. "Charakter, mit dem du im Raid warst, oder warte den "
+                .. "naechsten Pull ab.", 88)
 
-            local lbl = Text(frame, 11, "TOPLEFT", frame, "TOPLEFT", 24, y, 110)
-            lbl:SetText(WeintCodex.ColorText(
-                stars > 0 and "textNormal" or "textDim", CategoryLabel(id)))
+        else
 
-            DrawRatingBar(frame, 140, y + 1, stars)
+            -- Bewertungsblock
+            local head = Text(frame, 9, "TOPLEFT", frame, "TOPLEFT", 20, y)
+            head:SetText(WeintCodex.ColorText("textFaint", "BEWERTUNG"))
+            y = y - 20
 
-            local valLbl = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 244, y, 44, "RIGHT")
-            valLbl:SetText(WeintCodex.ColorText(
-                stars > 0 and "textMuted" or "textGhost",
-                stars > 0 and (stars .. "/5") or "—"))
+            for _, id in ipairs(OrderedCategories()) do
+                local rating = RatingFor(id)
+                local stars  = rating and rating.stars or 0
 
-            local detail = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 300, y,
-                math.max(frame:GetWidth() - 340, 160))
-            detail:SetWordWrap(false)
-            if stars > 0 then
-                detail:SetText(WeintCodex.ColorText("textMuted",
-                    rating.detail or CategoryHint(id)))
-            else
-                detail:SetText(WeintCodex.ColorText("textGhost",
-                    CategoryHint(id) .. " — noch keine Daten."))
+                local lbl = Text(frame, 11, "TOPLEFT", frame, "TOPLEFT", 24, y, 110)
+                lbl:SetText(WeintCodex.ColorText(
+                    stars > 0 and "textNormal" or "textDim", CategoryLabel(id)))
+
+                DrawRatingBar(frame, 140, y + 1, stars)
+
+                local valLbl = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 244, y, 44, "RIGHT")
+                valLbl:SetText(WeintCodex.ColorText(
+                    stars > 0 and "textMuted" or "textGhost",
+                    stars > 0 and (stars .. "/5") or "—"))
+
+                local detail = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 300, y,
+                    math.max(frame:GetWidth() - 340, 160))
+                detail:SetWordWrap(false)
+                if stars > 0 then
+                    -- Die Zahl zuerst: "Platz 3 von 8" beantwortet die
+                    -- Frage nach dem Balken genauer als jeder Satz -
+                    -- und wurde bis 2.9.2.0 mitgeliefert, ohne dass
+                    -- sie je jemand zu sehen bekam.
+                    local metric = rating.metric or ""
+                    detail:SetText(
+                        (metric ~= "" and (WeintCodex.ColorText("textNormal", metric)
+                            .. "   ") or "")
+                        .. WeintCodex.ColorText("textMuted",
+                            rating.detail or CategoryHint(id)))
+                else
+                    detail:SetText(WeintCodex.ColorText("textGhost",
+                        CategoryHint(id) .. " — noch keine Daten."))
+                end
+
+                y = y - 24
             end
 
-            y = y - 24
+            y = y - 12
+
+            -- Warum Bereiche unbewertet bleiben, obwohl ein Kampf
+            -- ausgewertet wurde. Der Satz kommt fertig aus der
+            -- Companion; leer ist er dort, wo ohnehin auf jeder Zeile
+            -- "noch keine Daten" steht.
+            local gap = GapText()
+            if gap then
+                y = DrawNotice(frame, y, gap, 74)
+            end
+
         end
 
-        y = y - 12
+        -- Werde ich besser? Ein einzelner Pull beantwortet das nicht.
+        y = DrawTrendCard(frame, y, Curve())
 
         -- Naechste offene Lektion aus der vom Sync gelieferten Reihenfolge
         local nextLesson = nil
@@ -541,21 +743,46 @@ function WeintCodex.Academy.ShowOverview()
         prog:SetText(WeintCodex.ColorText("textMuted",
             string.format("%d von %d Lektionen erledigt", done, total)))
 
-        WeintCodex.Navigation.SetInspector({
+        local curve  = Curve()
+        local blocks = {
             { type = "header", text = "Bewertung" },
             { type = "rows", rows = {
                 { label = "Bewertete Bereiche", value = rated .. " / " .. #OrderedCategories() },
                 { label = "Lektionen erledigt", value = done .. " / " .. total },
+                { label = "Aufgezeichnete Pulls",
+                  value = curve and tostring(curve.pulls or 0) or "—" },
             } },
-            { type = "divider" },
-            { type = "header", text = "Lesehilfe" },
-            { type = "card", lines = {
-                "Ein leerer Balken heisst 'keine Daten',",
-                "nicht 'schlecht'. Bereiche ohne Daten",
-                "zaehlen weder im Durchschnitt noch im",
-                "Trainingsplan mit.",
-            } },
-        })
+        }
+
+        -- Der Satz zum Profil (etwa: gegen wen hier verglichen wird).
+        -- Er wird drueben formuliert und stand hier bis 2.9.2.0
+        -- nirgends.
+        local note = state and state.note
+        if type(note) == "string" and note ~= "" then
+            blocks[#blocks + 1] = { type = "divider" }
+            blocks[#blocks + 1] = { type = "header", text = "Zur Bewertung" }
+            blocks[#blocks + 1] = { type = "text", text = note }
+        end
+
+        if curve and (curve.text or "") ~= "" then
+            blocks[#blocks + 1] = { type = "divider" }
+            blocks[#blocks + 1] = { type = "header", text = "Verlauf" }
+            blocks[#blocks + 1] = { type = "text", text = curve.text }
+            if curve.area and (curve.area.text or "") ~= "" then
+                blocks[#blocks + 1] = { type = "text", text = curve.area.text }
+            end
+        end
+
+        blocks[#blocks + 1] = { type = "divider" }
+        blocks[#blocks + 1] = { type = "header", text = "Lesehilfe" }
+        blocks[#blocks + 1] = { type = "card", lines = {
+            "Ein leerer Balken heisst 'keine Daten',",
+            "nicht 'schlecht'. Bereiche ohne Daten",
+            "zaehlen weder im Durchschnitt noch im",
+            "Trainingsplan mit.",
+        } }
+
+        WeintCodex.Navigation.SetInspector(blocks)
     end)
 end
 
@@ -592,6 +819,29 @@ function WeintCodex.Academy.ShowPlan()
             return
         end
 
+        --------------------------------------------------
+        -- Warum diese Reihenfolge?
+        --------------------------------------------------
+        -- Der Plan folgt der Lernkurve, sobald sie genug Pulls kennt -
+        -- und kann damit den Sternen auf der Uebersicht widersprechen,
+        -- die zu DIESEM einen Kampf gehoeren. Auf dem Desktop steht
+        -- der Satz seit jeher ueber dem Plan; hier fehlte er, und die
+        -- Reihenfolge sah nach einem Fehler aus. Formuliert wird er
+        -- drueben, wo die Entscheidung faellt.
+        --------------------------------------------------
+        local planNote = state and state.planNote
+        if type(planNote) == "string" and planNote ~= "" then
+            local pn = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 20, y,
+                math.max(frame:GetWidth() - 40, 200))
+            pn:SetText(WeintCodex.ColorText("textFaint", planNote))
+            -- Gemessen und nicht geschaetzt: der Satz nennt eine
+            -- Pullzahl und wird damit laenger, sobald mehr
+            -- aufgezeichnet ist - eine feste Hoehe schoebe die Liste
+            -- irgendwann darueber.
+            local ok, h = pcall(pn.GetStringHeight, pn)
+            y = y - (math.ceil((ok and type(h) == "number" and h > 0) and h or 12) + 10)
+        end
+
         local sf, inner = WeintCodex.CreateScrollArea(frame, 14, y, 20, 400)
         sf:ClearAllPoints()
         sf:SetPoint("TOPLEFT",     frame, "TOPLEFT",     14, y)
@@ -606,9 +856,14 @@ function WeintCodex.Academy.ShowPlan()
             local res    = ResultFor(id)
             local steps  = type(lesson.steps) == "table" and lesson.steps or {}
 
+            -- Die Uebungsserie am Trainingsdummy, wenn diese Lektion
+            -- eine ist, die man dort abarbeitet.
+            local practice = PracticeForLesson(id)
+
             -- Kartenhoehe aus dem Inhalt: Kopf + Zusammenfassung + Schritte
-            -- + optional die Check-Zeile.
+            -- + optional die Check-Zeile + optional die Uebungszeile.
             local cardH = 62 + (#steps * 16) + (res and 18 or 0)
+                + (practice and 42 or 0)
 
             local card = CreateFrame("Frame", nil, inner)
             card:SetSize(inner:GetWidth() - 4, cardH)
@@ -662,6 +917,44 @@ function WeintCodex.Academy.ShowPlan()
                 st:SetText(WeintCodex.ColorText("textDim", i .. ". ") ..
                     WeintCodex.ColorText("textMuted", step))
                 rowY = rowY - 16
+            end
+
+            --------------------------------------------------
+            -- Und hier faengt die Uebung an
+            --------------------------------------------------
+            -- Der Kreis, fuer den es den Rotationshelfer gibt: die
+            -- Academy nennt die Schwaeche, der Helfer uebt sie, nach
+            -- drei Tagen hakt die Companion die Lektion ab. Sichtbar
+            -- war davon bis 2.9.2.0 nur das Ergebnis - und das erst am
+            -- dritten Tag, wortlos.
+            --
+            -- Gezaehlt wird der Stand drueben (dort wird auch
+            -- abgehakt); hier steht sein Satz und der Weg zum Fenster.
+            --------------------------------------------------
+            if practice then
+
+                local line = Text(card, 10, "TOPLEFT", card, "TOPLEFT", 14,
+                    rowY - 2, card:GetWidth() - 150)
+                line:SetWordWrap(false)
+                line:SetText(WeintCodex.ColorText(
+                    practice.done and "success"
+                        or (practice.alive and "purple" or "textFaint"),
+                    practice.text or ""))
+
+                local open = WeintCodex.CreateButton(card, {
+                    kind = "ghost", text = "Rotationshelfer öffnen", size = 10,
+                    height = 20, padding = 20,
+                    tooltip = "Oeffnet das Uebungsfenster (/wc training).",
+                    onClick = function()
+                        if WeintCodex.RotationTrainer
+                           and WeintCodex.RotationTrainer.Show then
+                            WeintCodex.RotationTrainer.Show()
+                        end
+                    end,
+                })
+                open:SetPoint("TOPLEFT", card, "TOPLEFT", 12, rowY - 18)
+
+                rowY = rowY - 42
             end
 
             -- Erledigt-Haken. Schreibt NUR completed; das Log-Ergebnis

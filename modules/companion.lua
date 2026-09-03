@@ -445,6 +445,36 @@ function WeintCodex.Companion.AcademyProgress(character)
 
 end
 
+-- Die Uebungsserie am Trainingsdummy fuer eine Spezialisierung.
+--
+-- Gerechnet wird sie drueben (core/academy_dummy_sync.py) - aus den
+-- Sitzungen, die dieses Addon selbst meldet. Sie kommt fertig zurueck,
+-- Satz inklusive: welche Sitzung eine Serie fortsetzt, entscheidet die
+-- Stelle, die am dritten Tag auch die Lektion abhakt, und eine zweite
+-- Rechnung hier stuende irgendwann auf einer anderen Zahl.
+--
+-- Geschluesselt ist sie ueber den Profilschluessel des Addons
+-- ("WARRIOR_ARMS"): welche Spezialisierung gerade gespielt wird, weiss
+-- nur der Client - und er weiss es genauer als eine Zustellung vom
+-- letzten Login.
+--
+-- nil heisst "dazu liegt nichts vor" und wird als solches benannt,
+-- nicht als "noch nie geuebt".
+function WeintCodex.Companion.AcademyPracticeFor(character, specKey)
+
+    if not specKey or specKey == "" then return nil end
+
+    local state = WeintCodex.Companion.AcademyStateFor(
+        character or (WeintCodex.Names and WeintCodex.Names.Me()) or "")
+
+    for _, entry in ipairs(state and state.practice or {}) do
+        if entry.specKey == specKey then return entry end
+    end
+
+    return nil
+
+end
+
 ----------------------------------------------------------
 -- Inbox (Bot/Companion -> Addon): Nachrichtentypen
 ----------------------------------------------------------
@@ -467,6 +497,7 @@ end
 --                                     encounter, roles = {...} }, ... } }
 --
 -- academy_state    { character, encounter, pull, source, capturedAt,
+--                    hasActor,
 --                    actor   = { name, class, spec, role },
 --                    ratings = { { category, stars, detail, metric, at }, ... },
 --                    plan    = { "<lessonId>", ... },
@@ -474,7 +505,29 @@ end
 --                                  checks = { { status, detail }, ... } } },
 --                    completed = { "<lessonId>", ... },
 --                    excluded  = { "<lessonId>", ... },
---                    gap = "" | "no_raid" | "no_pull" | "sums_only" }
+--                    gap = "" | "no_raid" | "no_pull" | "sums_only",
+--                    gapText   = "<Satz>",
+--                    note      = "<Satz zum Profil>",
+--                    planNote  = "<warum der Plan so sortiert ist>",
+--                    progress  = { pulls, text, points = {...},
+--                                  first, last, direction,
+--                                  area = { category, label,
+--                                           points = {...}, text } },
+--                    practice  = { { specKey, lessonId, streak, target,
+--                                    missing, alive, practicedToday,
+--                                    done, lastDate, text }, ... } }
+--
+--                  Die letzten fuenf Felder gibt es seit WeintCompanion
+--                  2.8.0 und sie sind additiv: eine aeltere Companion
+--                  schickt sie nicht, und dann sagt die Seite dazu
+--                  nichts, statt etwas zu behaupten.
+--
+--                  KEINES davon wird hier nachgerechnet. Die Kurve, die
+--                  Begruendung des Plans, der Grund fuer eine leere
+--                  Auswertung und die Uebungsserie am Trainingsdummy
+--                  entstehen alle drueben - eine zweite Fassung
+--                  derselben Aussage liefe irgendwann anders aus, und
+--                  dann widerspraechen sich Spiel und Desktop.
 --
 -- weinttv_report   { capturedAt, source, pull, duration, bossHealth, kill,
 --                    hasAnalysis, gap, me,
