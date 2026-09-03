@@ -110,3 +110,26 @@ Dieselben Zahlen hält `tests/test_qelive.py` in WeintCompanion.
 ```bash
 lua5.1 .github/tests/qelive_test.lua .
 ```
+
+## Sockelempfehlung
+
+`gem_plan_test.lua` prüft `PlanItem` in `modules/charakter.lua` — die Rechnung
+hinter *Charakter → Sockel*. Es ist die am häufigsten gemeldete Rechnung dieses
+Addons und sie ist sechsmal ausgeliefert worden, ohne zu stimmen (1.3.3.3,
+2.0.0.3, 2.0.1.1, 2.3.0.1, 2.5.0.0 und der Fall unten). Von aussen sieht eine
+falsche Empfehlung immer gleich aus, ganz gleich, ob das Gewicht, die Liste
+oder der Spielraum daneben liegt — und aufgefallen ist sie jedes Mal erst, als
+jemand seine Sockel von Hand nachgerechnet hat.
+
+Festgenagelt ist der gemeldete Fall (Wildheitsdruide, 09/2026): drei Sockel, in
+allen dreien stand die richtige Antwort in seiner eigenen Profilliste, und in
+allen dreien hat das Gewicht sie überstimmt. Dazu die beiden Ursachen als
+eigene Prüfungen — dass **kein ungecappter Sekundärwert über der Hälfte des
+Primärwerts** liegen darf (sonst schlägt jeder Stein ohne Primärwert jeden mit)
+und dass die **kuratierte Liste eine Rangfolge ist**, auch wenn die Gewichte
+etwas anderes sagen. Und die Gegenprobe dazu, die genauso wichtig ist: an einem
+Cap, wo der erste Eintrag gar nichts mehr bringt, muss er weichen.
+
+```bash
+lua5.1 .github/tests/gem_plan_test.lua .
+```

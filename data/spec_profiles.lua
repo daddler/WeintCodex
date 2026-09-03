@@ -12,6 +12,26 @@
 --                     "Über Cap" markiert, wenn das Cap überschritten ist.
 --   statWeights  = { stat = Gewicht 0..100 }
 --                  -> Bewertet JEDEN Stein (auch nicht gelistete).
+--                  -> DAS SIND KEINE RANGPLAETZE, SONDERN WERTE JE PUNKT.
+--                     Ein Sockelstein bringt entweder 160 Primaer- oder
+--                     320 Sekundaerwert, ein Hybridstein 80 + 160 - liegt
+--                     ein Sekundaergewicht ueber der HAELFTE des
+--                     Primaergewichts, ist damit jeder Stein OHNE
+--                     Primaerwert staerker als jeder mit. In MoP sind 320
+--                     Sekundaer ungefaehr 160 Primaer wert, das Verhaeltnis
+--                     liegt also bei ~0,5. Wer eine Reihenfolge ausdruecken
+--                     will ("Meisterschaft vor Krit"), drueckt sie in den
+--                     Abstaenden aus und nicht, indem er alle Sekundaerwerte
+--                     nach oben schiebt: das kippt die Steinempfehlung fuer
+--                     die ganze Spec. Genau so gemeldet worden (09/2026,
+--                     Wildheitsdruide, "fuenf falsche Sockel"), und bei
+--                     diesem Stand tun es alle 39 Profile.
+--                  -> Was die Empfehlung angeht, ist das seit 2.9.3.0
+--                     entschaerft: dort entscheidet die kuratierte Liste
+--                     (siehe bestGems). Das URTEIL ueber einen angelegten
+--                     Stein haengt aber weiter an diesen Zahlen - eine zu
+--                     hohe Sekundaergewichtung laesst einen richtigen Stein
+--                     als "nur ok" dastehen.
 --   bestEnchants = { [Slot] = { id1, id2, ... } }  (id1 = beste)
 --                  -> JEDE ID DER LISTE GILT ALS OPTIMAL. Die Liste ist
 --                     keine Rangliste mit einem Sieger, sondern die Menge
@@ -69,7 +89,22 @@
 --                     entscheidet, wo, und die liest das Addon am Client
 --                     (Unterklasse des Gegenstands), nicht an diesem
 --                     Schlüssel.
---                  -> REIHENFOLGE IST RANGFOLGE. Die Liste muss NICHT mehr
+--                  -> REIHENFOLGE IST RANGFOLGE, und seit 2.9.3.0 ist sie
+--                     das auch im Code. Bis dahin nahm BestCandidate in
+--                     modules/charakter.lua schlicht das Maximum ueber alle
+--                     Kandidaten - die Liste grenzte nur die Menge ein,
+--                     entschieden hat immer das Gewicht. Damit galt an der
+--                     einen Stelle, an der es sichtbar wird, das Gegenteil
+--                     dessen, was hier steht. Jetzt gilt dieselbe Regel wie
+--                     bei den Verzauberungen: der erste brauchbare Eintrag
+--                     gewinnt, umgereiht wird NUR, wenn er komplett ins
+--                     Leere laeuft (an einem Cap, hinter einer
+--                     Tempo-Schwelle, oder weil das Umschmieden den Wert
+--                     ohnehin liefert). Welche Liste dabei gefragt wird,
+--                     haengt an der Strategie: bestGems[Sockelfarbe], wenn
+--                     der Sockelbonus gehalten werden soll, sonst
+--                     bestGems.prismatic ("staerkster Stein, Farbe egal").
+--                     Die Liste muss NICHT mehr
 --                     "bis zum Ende tragen": bis 2.5.0.0 nahm die
 --                     Sockelbonus-Entscheidung den ersten Stein, der in
 --                     KEINEN gecappten Stat läuft, und ohne einen solchen
@@ -1283,11 +1318,24 @@ WeintCodex_SpecProfiles = {
             { stat = "hit",       typ = "melee", pct = 7.5 },
             { stat = "expertise",                pct = 7.5 },
         },
-        -- Meisterschaft (Blutungsschaden) ist stärker als Krit und
-        -- arguably sogar wichtiger als Treffer/Waffenkunde-Cap.
+        -- SEKUNDÄRWERTE GEGEN BEWEGLICHKEIT — dieselbe Rechnung wie beim
+        -- Krieger weiter oben, und derselbe Fehler stand hier bis 2.9.3.0.
+        -- Ein Sockelstein bringt entweder 160 Primär- oder 320 Sekundärwert,
+        -- ein Hybridstein 80 + 160. Ab einem Sekundärgewicht über der HÄLFTE
+        -- des Primärgewichts ist damit jeder Stein OHNE Beweglichkeit stärker
+        -- als jeder mit — und genau das kam heraus: Meisterschaft stand auf
+        -- 90 von 100, also 0,9 Beweglichkeit je Punkt. In MoP sind 320
+        -- Sekundär ungefähr 160 Beweglichkeit wert, das Verhältnis liegt also
+        -- bei ~0,5. Gemeldet wurde es als "fünf falsche Sockel" an einem
+        -- Charakter, der nachweislich richtig gesockelt war.
+        --
+        -- Die REIHENFOLGE folgt den Guides (Icy Veins / Warcraft Tavern,
+        -- MoP Classic): Beweglichkeit > Treffer/Waffenkunde bis 7,5 % >
+        -- Meisterschaft > Krit > Tempo. Bis 2.9.3.0 standen Treffer und
+        -- Waffenkunde HINTER der Meisterschaft, was keine Quelle sagt.
         statWeights = {
-            agility = 100, mastery = 90, hit = 75, expertise = 72,
-            crit = 65, haste = 55, stamina = 10,
+            agility = 100, hit = 55, expertise = 53,
+            mastery = 50, crit = 46, haste = 40, stamina = 5,
         },
         bestEnchants = {
             Waffe        = { 4444, 4443 },
@@ -1295,22 +1343,37 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            -- HANDSCHUHE: Überragende Meisterschaft, nicht Waffenkunde.
+            -- Bis 2.9.3.0 stand hier NUR die Waffenkunde (4431) — damit
+            -- meldete das Addon einen korrekt verzauberten Handschuh als
+            -- Mangel. Waffenkunde ist über dem 7,5-%-Kap wertlos und lässt
+            -- sich, anders als eine Verzauberung, jederzeit umschmieden;
+            -- die Meisterschaft ist die Empfehlung der Guides und in den
+            -- Raiddaten die mit Abstand häufigste. Beide bleiben in der
+            -- Liste: unter dem Kap ist die Waffenkunde vertretbar.
+            ["Hände"]    = { 4430, 4431 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 12.600
+            -- Verschwimmen (140 Bewegl. + Lauftempo) vor Großer Präzision
+            -- (175 Treffer, nur solange das Kap offen ist). Der Kommentar
+            -- hier nannte bis 2.9.3.0 eine "Meisterschaft", die in keinem
+            -- der beiden Einträge steht.
+            ["Füße"]     = { 4425, 4428 },
             Ring         = { 84575 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
-            rot       = { 76692, 83151 },
-            gelb      = { 76697, 76700 },
-            blau      = { 76680 },
+            rot       = { 76692, 83151 },         -- Feingeschliffener Rubellit (160 Bewegl.)
+            -- GELB: der Aragonit hält die Beweglichkeit UND den Sockelbonus.
+            -- Bis 2.9.3.0 standen hier die beiden reinen Goldberylle vorn,
+            -- also 320 Sekundärwert ohne einen Punkt Beweglichkeit.
+            gelb      = { 76670, 76658, 76697, 76700 },
+            blau      = { 76680, 76641 },         -- Glitzernder Kunzit (Bewegl.+Treffer)
             orange    = { 76670, 76658 },         -- Versierter Aragonit (Agi+Meister)
             lila      = { 76680, 76687 },
             ["grün"]  = { 76641, 76643 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Meisterschaft (unser bester unbegrenzter Sekundärstat, mehr Blutungsschaden) > Krit > Tempo.",
+        gemNote = "Beweglichkeit > Treffer/Waffenkunde bis 7,5 % > Meisterschaft > Krit > Tempo. In roten Sockeln der reine Beweglichkeitsstein, in gelben und blauen der Hybrid, der den Sockelbonus hält.",
     },
 
     DRUID_GUARDIAN = {
