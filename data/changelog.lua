@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.3.0",
+        date    = "03.09.2026",
+        notes   = {
+            "|cffD4A24ASockel|r: die Empfehlung folgt jetzt wieder der Steinliste deiner Spezialisierung. Vorher konnte eine Rechnung sie ueberstimmen - und dann stand dort ein Stein ohne deinen Hauptwert, obwohl der richtige in der Liste steht.",
+            "Betroffen war jede Klasse. Am staerksten fielen rote Sockel auf: dort stand haeufig ein Treffer- oder Meisterschaftsstein statt des reinen Beweglichkeits-, Staerke- oder Intelligenzsteins.",
+            "|cffD4A24AWildheitsdruide|r: die Wertigkeiten sind korrigiert. Meisterschaft stand fast so hoch wie Beweglichkeit, damit gewann jeder Stein ohne Beweglichkeit. Treffer und Waffenkunde stehen jetzt wie in den Guides vor der Meisterschaft.",
+            "|cffD4A24AWildheitsdruide|r, Handschuhe: empfohlen wird |cffD4A24AUeberragende Meisterschaft|r. Bisher stand dort nur die Waffenkunde - ein richtig verzauberter Handschuh wurde damit als Mangel gemeldet.",
+            "Jede Sockelzeile sagt jetzt, ob der Vorschlag aus der Liste deiner Spezialisierung kommt oder ausgerechnet wurde.",
+        },
+    },
+    {
         version = "2.9.2.0",
         date    = "02.09.2026",
         notes   = {

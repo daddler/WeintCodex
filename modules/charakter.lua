@@ -2208,6 +2208,15 @@ end
 
 local gemPoolCache = {}
 
+-- Die Farbschlüssel in FESTER Reihenfolge. `pairs` ist in Lua ungeordnet,
+-- und der Topf trägt bei Gleichstand die Entscheidung: zwei gleich gute
+-- Steine sind nicht derselbe Stein, also darf die Wahl zwischen ihnen nicht
+-- davon abhängen, wie Lua seine Tabelle gerade sortiert hat. Dieselbe
+-- Überlegung wie beim Suchlauf in modules/reforge_engine.lua — dort kostete
+-- es Gold, hier kostet es die Nachvollziehbarkeit: derselbe Charakter bekam
+-- über zwei Sitzungen zwei verschiedene Empfehlungen für denselben Sockel.
+local GEM_LIST_ORDER = { "rot", "gelb", "blau", "prismatic", "orange", "lila", "grün" }
+
 -- Alle Steine, die das Profil irgendwo empfiehlt — ohne die Meta-Steine,
 -- die in keinen farbigen Sockel passen. Reihenfolge der Farbschlüssel bleibt
 -- als schwacher Rangfolge-Hinweis erhalten (frühere Einträge gewinnen einen
@@ -2219,16 +2228,29 @@ local function GemPool(profile, profileKey)
     if cached then return cached end
 
     local pool, seen = {}, {}
-    for color, list in pairs(profile.bestGems) do
-        if color ~= "meta" then
-            for _, id in ipairs(list) do
-                if not seen[id] then
-                    seen[id] = true
-                    pool[#pool + 1] = id
-                end
+    local function take(color)
+        local list = profile.bestGems[color]
+        if not list then return end
+        for _, id in ipairs(list) do
+            if not seen[id] then
+                seen[id] = true
+                pool[#pool + 1] = id
             end
         end
     end
+    for _, color in ipairs(GEM_LIST_ORDER) do take(color) end
+    -- Ein Schlüssel, den GEM_LIST_ORDER nicht kennt, fällt nicht heraus —
+    -- er kommt nur hinten an. Sonst wäre eine neue Farbe in einem Profil
+    -- lautlos unwirksam.
+    local rest = {}
+    for color in pairs(profile.bestGems) do
+        local known = (color == "meta")
+        for _, c in ipairs(GEM_LIST_ORDER) do if c == color then known = true end end
+        if not known then rest[#rest + 1] = color end
+    end
+    table.sort(rest)
+    for _, color in ipairs(rest) do take(color) end
+
     gemPoolCache[key] = pool
     return pool
 end
@@ -2262,6 +2284,23 @@ end
 --                      Kandidat 0 wert, `colorScore` fiel auf 0 und die
 --                      Entscheidung erklärte den Sockelbonus pauschal für
 --                      wertlos, statt ihn auszurechnen.
+--
+-- JEDE STRATEGIE HAT IHRE EIGENE KURATIERTE LISTE, und das ist keine
+-- Feinheit: die beiden stellen verschiedene Fragen, und im Profil steht zu
+-- jeder eine Antwort.
+--   MATCH  fragt "was gehört in einen Sockel DIESER Farbe" -> bestGems[Farbe]
+--   IGNORE fragt "was ist der stärkste Stein, wenn die Farbe egal ist"
+--          -> bestGems.prismatic, denn genau das ist ein Prismasockel
+-- Bis 2.9.2.0 war IGNORE ein freies Maximum. Damit stand eine kuratierte
+-- Antwort (MATCH) gegen ein Maximum (IGNORE), und ein einzelnes zu hohes
+-- Gewicht konnte die Liste über den Umweg der Strategiewahl doch noch
+-- überstimmen — dieselbe Wirkung, die der Fehlerbericht hatte, nur eine
+-- Ebene höher.
+--
+-- Zweiter Rückgabewert: wie viele Einträge am Anfang der Liste aus der
+-- kuratierten Liste dieser Strategie stammen. Nur die tragen eine Rangfolge
+-- (siehe BestCandidate); was danach kommt, ist ein Topf ohne Aussage über
+-- die Reihenfolge.
 local function CandidateList(profile, pool, socketColor, mustMatch)
     local list, seen = {}, {}
     local function add(id)
@@ -2269,44 +2308,100 @@ local function CandidateList(profile, pool, socketColor, mustMatch)
     end
 
     local best = profile.bestGems
-    if socketColor and best[socketColor] then
-        for _, id in ipairs(best[socketColor]) do add(id) end
-    end
-    if not mustMatch and best.prismatic then
-        for _, id in ipairs(best.prismatic) do add(id) end
-    end
+    local curated
     if mustMatch then
+        if socketColor and best[socketColor] then
+            for _, id in ipairs(best[socketColor]) do add(id) end
+        end
+        curated = #list
+        -- Der Topf ist der Ausweg, wenn die Farbliste am Cap nichts mehr
+        -- hergibt — er ersetzt sie nicht.
         for _, id in ipairs(pool) do
             if GemMatchesSocket(GemColor(id), socketColor) == true then add(id) end
         end
+    else
+        if best.prismatic then
+            for _, id in ipairs(best.prismatic) do add(id) end
+        end
+        curated = #list
+        if socketColor and best[socketColor] then
+            for _, id in ipairs(best[socketColor]) do add(id) end
+        end
     end
-    return list
+    return list, curated
 end
 
--- Bester Kandidat aus einer Liste.
+--------------------------------------------------
+-- BESTER KANDIDAT — UND WARUM DIE REIHENFOLGE DER LISTE DABEI ZÄHLT
+--
 --   mustMatch  – nur Steine, die den Sockelbonus dieses Sockels auslösen
 --   allowJC    – Schlangenaugen zugelassen (Beruf da UND Kontingent frei)
--- Rückgabe: gemId, wert
-local function BestCandidate(list, socketColor, mustMatch, allowJC, weights, headroom)
-    local bestId, bestValue = nil, -1
-    for _, id in ipairs(list) do
-        local ok = true
-        if not allowJC and IsJcGem(id) then ok = false end
-        if ok and mustMatch then
+--   curated    – so viele Einträge am Anfang stammen aus bestGems[Farbe]
+-- Rückgabe: gemId, wert, ausDerListe
+--
+-- DIE KURATIERTE LISTE IST EINE RANGFOLGE, UND BIS 2.9.2.0 WAR SIE KEINE.
+-- Der Kopf von data/spec_profiles.lua sagt seit jeher zweierlei: „REIHENFOLGE
+-- IST RANGFOLGE" und „id1 ist, was auf einen leeren Sockel dieser Farbe
+-- gehört". Diese Funktion war trotzdem ein reines Maximum über alle
+-- Kandidaten — die Liste grenzte nur die Menge ein, entschieden hat immer
+-- das Gewicht. Damit galt genau das, was CLAUDE.md ausschliesst („Where the
+-- two disagree the list decides"), an der einen Stelle nicht, an der es
+-- sichtbar wird.
+--
+-- Gemeldet wurde es an einem Wildheitsdruiden, der drei Sockel nachgerechnet
+-- hatte (Wowhead + eigener Sim). In allen drei Fällen stand die richtige
+-- Antwort in seiner eigenen Profilliste — und in allen drei Fällen hat das
+-- Gewicht sie überstimmt:
+--   roter Sockel  Feingeschliffener Rubellit (rot[1]) -> Versierter Aragonit
+--   gelber Sockel Glatter Goldberyll (gelb[1])        -> Frakturierter Goldberyll
+--   blauer Sockel Glitzernder Kunzit (blau[1])        -> Dioptas des Mentors
+-- Ursache ist immer dieselbe Rechnung: ein Sekundärwert, der mehr als die
+-- Hälfte des Primärwerts wiegt, macht JEDEN Stein ohne Primärwert stärker
+-- als jeden mit (160 Primär gegen 320 Sekundär, Hybrid 80 + 160). Das ist
+-- keine Feralbesonderheit — bei diesem Stand tun das alle 39 Profile.
+--
+-- DESHALB WIRD DIE LISTE HIER NICHT „BESSER SORTIERT", SIE WIRD GELESEN.
+-- Die Regel ist dieselbe wie bei den Verzauberungen (PreferredEnchantId,
+-- ein paar hundert Zeilen weiter oben): der erste brauchbare Eintrag
+-- gewinnt, umgereiht wird NUR, wenn er komplett ins Leere läuft — an einem
+-- Kap, hinter einer Tempo-Schwelle oder weil das Umschmieden den Wert
+-- ohnehin liefert. „Etwas weniger wert" ist kein Grund, eine kuratierte
+-- Liste umzusortieren.
+--
+-- Welche Liste dabei die kuratierte ist, entscheidet CandidateList: für
+-- MATCH die Farbliste, für IGNORE die Prismaliste. Beide Strategien sind
+-- damit listengeführt — stünde nur eine davon unter der Regel, könnte ein
+-- zu hohes Gewicht die Liste über die Strategiewahl doch noch überstimmen.
+--------------------------------------------------
+
+local function BestCandidate(list, socketColor, mustMatch, allowJC, weights, headroom, curated)
+    local function Usable(id)
+        if not allowJC and IsJcGem(id) then return nil end
+        if mustMatch then
             -- Unbekannte Steinfarbe (nil) zählt hier NICHT als Treffer: wir
             -- empfehlen keinen Stein, von dem wir nicht wissen, ob er den
             -- Bonus auslöst, den wir gerade für lohnend erklären.
-            ok = (GemMatchesSocket(GemColor(id), socketColor) == true)
+            if GemMatchesSocket(GemColor(id), socketColor) ~= true then return nil end
         end
-        if ok then
-            local value = GemValue(SM.GemStats(id), weights, headroom)
-            if value > bestValue then
-                bestId, bestValue = id, value
-            end
+        return GemValue(SM.GemStats(id), weights, headroom)
+    end
+
+    -- Die Liste zuerst, in ihrer Reihenfolge.
+    for i = 1, (curated or 0) do
+        local id = list[i]
+        local value = id and Usable(id)
+        if value and value > 0 then return id, value, true end
+    end
+
+    local bestId, bestValue = nil, -1
+    for _, id in ipairs(list) do
+        local value = Usable(id)
+        if value and value > bestValue then
+            bestId, bestValue = id, value
         end
     end
-    if not bestId then return nil, 0 end
-    return bestId, bestValue
+    if not bestId then return nil, 0, false end
+    return bestId, bestValue, false
 end
 
 local function IsColoredSocket(color)
@@ -2331,7 +2426,7 @@ end
 -- schlimmer als gar keiner.
 --------------------------------------------------
 
-local function ExplainGem(id, socket, room, weights, plan, ctx)
+local function ExplainGem(id, socket, room, weights, plan, ctx, fromList)
     if socket.color == "meta" then
         return "Meta-Sockel — hier entscheidet der Proc-Effekt, nicht die Wertung."
     end
@@ -2341,7 +2436,18 @@ local function ExplainGem(id, socket, room, weights, plan, ctx)
     local stats = SM.GemStats(id)
     room = room or {}
 
-    -- (a) Welcher Wert des Steins fuehrt die Wertung an?
+    -- (a) Woher kommt die Empfehlung? Das ist die erste Haelfte der Antwort
+    -- und sie hat zwei Auspraegungen, die zu Verschiedenem raten: steht der
+    -- Stein in der Liste des Spec-Profils, ist das eine kuratierte Aussage
+    -- und die Zahlen daneben sind Beiwerk; kommt er aus dem Topf, hat ihn
+    -- die Wertung ausgesucht — und dann ist die Wertung auch das, was man
+    -- nachrechnen wuerde. Beides unter demselben Satz zu fuehren hiesse,
+    -- eine Rechnung als Empfehlung auszugeben (und umgekehrt).
+    if fromList then
+        parts[#parts + 1] = "erste Wahl deines Spec-Profils für diese Sockelfarbe"
+    end
+
+    -- (b) Welcher Wert des Steins fuehrt die Wertung an?
     local lead, leadW = nil, -1
     if stats then
         for stat, value in pairs(stats) do
@@ -2349,12 +2455,12 @@ local function ExplainGem(id, socket, room, weights, plan, ctx)
             if value and value > 0 and w > leadW then lead, leadW = stat, w end
         end
     end
-    if lead then
+    if lead and not fromList then
         parts[#parts + 1] = string.format("%s (Gewicht %d) ist hier der stärkste Wert",
             StatShort(lead), leadW)
     end
 
-    -- (b) Welcher HOEHER gewichtete Wert ist ausgeschieden — und warum?
+    -- (c) Welcher HOEHER gewichtete Wert ist ausgeschieden — und warum?
     -- Genau das ist die Frage hinter jeder Rueckfrage zur Sockelseite:
     -- "wieso kein Trefferstein, ich bin doch unter dem Cap?"
     -- Ohne Anfuehrer gibt es kein "hoeher gewichtet als": dann steht hier
@@ -2373,7 +2479,7 @@ local function ExplainGem(id, socket, room, weights, plan, ctx)
             StatShort(blocked), blockedW, BlockedReason(blocked, ctx and ctx.capInfo))
     end
 
-    -- (c) Die Sockelbonus-Entscheidung, in Worten statt in Zahlen.
+    -- (d) Die Sockelbonus-Entscheidung, in Worten statt in Zahlen.
     if IsColoredSocket(socket.color) and (plan.bonusText or plan.bonus) then
         if plan.match then
             parts[#parts + 1] = "Farbe passt und hält den Sockelbonus"
@@ -2382,7 +2488,7 @@ local function ExplainGem(id, socket, room, weights, plan, ctx)
         end
     end
 
-    -- (d) Schlangenaugen sind kontingentiert; ohne diesen Hinweis sieht die
+    -- (e) Schlangenaugen sind kontingentiert; ohne diesen Hinweis sieht die
     -- Empfehlung fuer jeden ohne Juwelenschleifen nach einem Fehler aus.
     if IsJcGem(id) then
         parts[#parts + 1] = "Schlangenauge — nur mit Juwelenschleifen, begrenzte Zahl"
@@ -2472,23 +2578,26 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     local function Run(mustMatch)
         local room  = {}
         for stat, v in pairs(live) do room[stat] = v end
-        local picks, values, rooms, total = {}, {}, {}, 0
+        local picks, values, rooms, listed, total = {}, {}, {}, {}, 0
         for i, socket in ipairs(sockets) do
             local snapshot = {}
             for stat, v in pairs(room) do snapshot[stat] = v end
             rooms[i] = snapshot
 
-            local id, value
+            local id, value, fromList
             if socket.color == "meta" then
                 -- Meta-Sockel stehen ausserhalb: dort entscheiden
                 -- Proc-Effekte, die in keiner Zahl stehen.
                 id = profile.bestGems.meta and profile.bestGems.meta[1]
                 value = id and GemValue(SM.GemStats(id), weights, room) or 0
+                fromList = (id ~= nil)
             else
                 local needMatch = mustMatch and IsColoredSocket(socket.color)
-                local cands = CandidateList(profile, pool, socket.color, needMatch)
-                id, value = BestCandidate(cands, socket.color, needMatch,
-                                          ctx.allowJC, weights, room)
+                local cands, curated = CandidateList(profile, pool, socket.color, needMatch)
+                -- Welche Liste hier die kuratierte ist, haengt an der
+                -- Strategie (siehe CandidateList).
+                id, value, fromList = BestCandidate(cands, socket.color, needMatch,
+                                          ctx.allowJC, weights, room, curated)
                 if not id and needMatch then
                     -- Kein farblich passender Kandidat im Topf: dieser Sockel
                     -- kann den Bonus nicht halten, die Strategie scheitert.
@@ -2496,11 +2605,12 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
                 end
             end
 
-            picks[i], values[i] = id, value
+            picks[i], values[i], listed[i] = id, value, fromList or false
             total = total + value
             if id then ConsumeHeadroom(SM.GemStats(id), room) end
         end
-        return { gems = picks, value = values, room = rooms, total = total }
+        return { gems = picks, value = values, room = rooms,
+                 listed = listed, total = total }
     end
 
     local ignore = Run(false)
@@ -2528,6 +2638,7 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     plan.gems     = winner.gems
     plan.value    = winner.value
     plan.room     = winner.room
+    plan.listed   = winner.listed or {}
     plan.total    = winner.total
     plan.altTotal = loser and loser.total or nil
 
@@ -2536,7 +2647,8 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     -- daran ist die Sockelbewertung schon einmal auseinandergelaufen.
     plan.why = {}
     for i, socket in ipairs(sockets) do
-        plan.why[i] = ExplainGem(plan.gems[i], socket, plan.room[i], weights, plan, ctx)
+        plan.why[i] = ExplainGem(plan.gems[i], socket, plan.room[i], weights, plan, ctx,
+                                 plan.listed[i])
     end
 
     -- Erst jetzt den echten Spielraum verbrauchen: das ist der Plan, den wir
@@ -3782,6 +3894,15 @@ WeintCodex.Charakter.SocketColorLabel  = SOCKET_COLOR_LABEL
 -- stellt sie gegen echte Tooltips.
 WeintCodex.Charakter.ResolveEnchant    = ResolveEnchant
 
+-- WELCHER STEIN GEHOERT IN DIESEN SOCKEL - die zweite Rechnung dieser Datei,
+-- die ohne Spiel pruefbar sein muss. Sie liest nichts als das Spec-Profil,
+-- die Sockelfarben und den Spielraum; im Spiel faellt sie dagegen erst auf,
+-- wenn jemand seine Sockel von Hand nachrechnet und meldet, dass fuenf davon
+-- als falsch dastehen. .github/tests/gem_plan_test.lua stellt sie gegen
+-- genau diesen Fall.
+WeintCodex.Charakter.PlanItem          = PlanItem
+WeintCodex.Charakter.GemPool           = GemPool
+
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
 -- geändert haben, muss vorher hier durch — sonst liefert der Scan die
@@ -4072,13 +4193,20 @@ function WeintCodex.Charakter.DumpSockets()
                 for i, socket in ipairs(sockets) do
                     local recId = plan.gems and plan.gems[i]
                     local cur   = socket.gemId
-                    print(string.format("     %d) %-16s ist: %-34s soll: %s |cff4A4A52(%.0f)|r",
+                    -- WOHER die Empfehlung kommt, gehoert in diese Ausgabe:
+                    -- "aus der Liste" und "aus dem Topf gerechnet" sehen im
+                    -- Fenster gleich aus und raten zu Verschiedenem - beim
+                    -- einen sucht man den Fehler in data/spec_profiles.lua,
+                    -- beim anderen in den Gewichten.
+                    print(string.format("     %d) %-16s ist: %-34s soll: %s |cff4A4A52(%.0f, %s)|r",
                         i, SOCKET_COLOR_LABEL[socket.color] or "?",
                         cur and (GetGemDisplayName(cur) .. " ["
                                  .. (GemColor(cur) or "Farbe?") .. "]")
                             or "|cffff5555leer|r",
                         recId and GetGemDisplayName(recId) or "-",
-                        plan.value and plan.value[i] or 0))
+                        plan.value and plan.value[i] or 0,
+                        (plan.listed and plan.listed[i]) and "aus der Profilliste"
+                                                          or "nach Wertung"))
                 end
             end
         end

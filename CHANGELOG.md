@@ -2,6 +2,53 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.3.0] – 2026-09-03
+
+**Die Sockelempfehlung folgt wieder der Steinliste deiner Spezialisierung.**
+Für jede Sockelfarbe steht in WeintCodex eine kurze Liste, welcher
+Stein dort hingehört — und die stand bisher nur da. Entschieden hat
+in Wahrheit eine Rechnung daneben, und die konnte die Liste
+überstimmen. Das Ergebnis war meist ein Stein *ohne* deinen
+Hauptwert: ein Treffer- oder Meisterschaftsstein in einem roten
+Sockel, wo der reine Beweglichkeits-, Stärke- oder Intelligenzstein
+hingehört.
+
+Betroffen war **jede Klasse**, nicht nur die gemeldete. Wer seine
+Sockel bisher nach WeintCodex gesetzt hat, sollte einmal auf
+*Charakter → Sockel* schauen; die Vorschläge sehen an vielen Stellen
+anders aus als gestern.
+
+Die Rechnung ist damit nicht abgeschafft, sie greift nur noch da, wo
+die Liste nichts mehr hergibt: am Trefferkap zum Beispiel bringt ein
+Trefferstein nichts mehr, und dann rückt der nächste vor.
+
+**Wildheitsdruide: die Wertigkeiten stimmen jetzt.**
+Meisterschaft stand fast so hoch wie Beweglichkeit. Damit war
+rechnerisch jeder Stein ohne Beweglichkeit besser als jeder mit —
+und genau so sahen die Vorschläge aus. Treffer und Waffenkunde
+stehen jetzt wie in den Guides vor der Meisterschaft.
+
+**Wildheitsdruide, Handschuhe: Überragende Meisterschaft.**
+Empfohlen wurde nur die Waffenkunde. Ein korrekt verzauberter
+Handschuh wurde damit als Mangel gemeldet. Beide bleiben in der
+Liste — unter dem Waffenkunde-Kap ist auch sie vertretbar.
+
+**Jede Sockelzeile sagt, woher der Vorschlag kommt.**
+"Erste Wahl deines Spec-Profils" oder die Rechnung dahinter. Wer
+nachrechnet, sieht damit sofort, worauf er schauen muss.
+
+### Behoben
+- Auf *Charakter → Sockel* konnte derselbe Charakter über zwei Sitzungen zwei verschiedene Vorschläge für denselben Sockel bekommen, ohne dass sich etwas geändert hatte
+- Der Steinvorschlag für einen Sockel *ohne* Sockelbonus nahm nicht mehr zwingend den stärksten Stein
+
+### Technisch
+- `BestCandidate` in `modules/charakter.lua` war ein reines Maximum über alle Kandidaten; die kuratierte Liste grenzte nur die Menge ein. Der Kopf von `data/spec_profiles.lua` sagt seit jeher „REIHENFOLGE IST RANGFOLGE" und `CLAUDE.md` „where the two disagree the list decides" — beides galt an genau der Stelle nicht, an der es sichtbar wird. Die Regel ist jetzt dieselbe wie bei `PreferredEnchantId`: der erste brauchbare Eintrag gewinnt, umgereiht wird nur bei Wertung 0
+- Jede Strategie hat ihre eigene kuratierte Liste (`CandidateList`): MATCH fragt `bestGems[Sockelfarbe]`, IGNORE `bestGems.prismatic`. Stünde nur eine der beiden unter der Regel, könnte ein zu hohes Gewicht die Liste über den Umweg der Strategiewahl doch noch überstimmen
+- `GemPool` lief über `pairs` und war damit ungeordnet. Zwei gleich gute Steine sind nicht derselbe Stein — dieselbe Überlegung wie beim Suchlauf in `modules/reforge_engine.lua`
+- `statWeights` sind Werte **je Punkt**, keine Rangplätze: liegt ein Sekundärgewicht über der Hälfte des Primärgewichts, schlägt jeder Stein ohne Primärwert jeden mit (160 Primär gegen 320 Sekundär, Hybrid 80 + 160). Bei diesem Stand tun das **alle 39 Profile**; korrigiert ist bisher `DRUID_FERAL`. Für die Empfehlung ist das entschärft (die Liste entscheidet), für das *Urteil* über einen angelegten Stein nicht — der Kopf von `data/spec_profiles.lua` sagt das jetzt
+- `plan.listed` trägt je Sockel, ob der Vorschlag aus der Liste kam; `ExplainGem` und `/wc sockel` lesen es. Die Begründung wird abgelesen, nicht dazuerfunden
+- Neu: `.github/tests/gem_plan_test.lua` (`lua5.1 .github/tests/gem_plan_test.lua .`) — die drei gemeldeten Sockel, beide Ursachen einzeln, die Cap-Gegenprobe und ein Durchlauf über alle Specs. `PlanItem`/`GemPool` sind dafür exportiert
+
 ## [2.9.2.0] – 2026-09-02
 
 **Die Academy zeigt jetzt, ob du besser wirst.**
