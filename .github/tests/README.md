@@ -130,6 +130,17 @@ und dass die **kuratierte Liste eine Rangfolge ist**, auch wenn die Gewichte
 etwas anderes sagen. Und die Gegenprobe dazu, die genauso wichtig ist: an einem
 Cap, wo der erste Eintrag gar nichts mehr bringt, muss er weichen.
 
+Seit 2.9.3.1 steht dort ausserdem eine **Tabelle aus elf Spezialisierungen**,
+und die ist wichtiger als sie aussieht. Gemeldet wurde ein Meuchelschurke, dem
+für gelbe Sockel ein Stein ganz ohne Beweglichkeit empfohlen wurde — und es lag
+nahe, alle 26 Profile mit einem reinen Sekundärstein in `gelb` in einem Zug
+umzustellen. Das wäre für vier davon nachweislich falsch gewesen: Kampfschurke,
+Waffenkrieger, Vergelter und Schattenpriester tragen in den Raidlogs zu 83–93 %
+genau den reinen Stein. Ob in einen gelben Sockel der Hybrid oder der reine
+Stein gehört, ist **eine Frage je Spec** und keine Regel — die Tabelle hält
+beide Richtungen fest und bricht, sobald jemand die Verallgemeinerung doch
+noch zieht.
+
 ```bash
 lua5.1 .github/tests/gem_plan_test.lua .
 ```

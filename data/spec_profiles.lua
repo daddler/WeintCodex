@@ -89,6 +89,45 @@
 --                     entscheidet, wo, und die liest das Addon am Client
 --                     (Unterklasse des Gegenstands), nicht an diesem
 --                     Schlüssel.
+--                  -> HYBRID ODER REINER STEIN? DAS IST EINE FRAGE JE SPEC,
+--                     UND SIE HAT EINE RECHNUNG. Ein roter Stein gibt 160
+--                     Primaerwert, ein gelber 320 Sekundaerwert, ein oranger
+--                     Aragonit 80 Primaer + 160 Sekundaer. In einem GELBEN
+--                     Sockel loesen der reine Goldberyll und der Aragonit den
+--                     Sockelbonus BEIDE aus - der Bonus faellt aus dem
+--                     Vergleich also heraus, und uebrig bleibt: 160 Sekundaer
+--                     gegen 80 Primaer. Der Aragonit gewinnt genau dann, wenn
+--                     ein Punkt Sekundaerwert WENIGER als die Haelfte eines
+--                     Punktes Primaerwert wert ist.
+--
+--                     Das ist keine Konstante, sondern haengt an der Spec, und
+--                     es geht nachweislich in beide Richtungen. Belegt an den
+--                     Raidlogs (Anteil der Spieler, die den Stein tragen):
+--                       Meuchelschurke   Versierter Aragonit 89 %  -> Hybrid
+--                       Taeuschung       Gewandter Aragonit  97 %  -> Hybrid
+--                       Ueberleben       Toedlicher Aragonit 87 %  -> Hybrid
+--                       Kampfschurke     reiner Tempostein   90 %  -> rein
+--                       Waffen-Krieger   reiner Kritstein    90 %  -> rein
+--                       Vergelter        reiner Tempostein   93 %  -> rein
+--                       Schattenpriester reiner Tempostein   83 %  -> rein
+--                     Beweglichkeitsspecs landen meist beim Hybriden (auf die
+--                     Beweglichkeit wirken Ruestungsspezialisierung und
+--                     Stats-Buff, auf die Wertung nicht), Plattentraeger und
+--                     tempolastige Zauberer meist beim reinen Stein. MEIST -
+--                     der Kampfschurke steht neben dem Meuchelschurken und
+--                     antwortet andersherum.
+--
+--                     DESHALB WIRD HIER NICHTS UEBER EINEN KAMM GESCHOREN.
+--                     Beim Fehlerbericht 09/2026 (Meuchelschurke, siehe unten)
+--                     lag es nahe, alle 26 Profile mit einem reinen Stein in
+--                     `gelb` in einem Zug umzustellen - und das waere fuer
+--                     Krieger, Vergelter, Kampfschurken und Schattenpriester
+--                     nachweislich falsch gewesen. Geaendert wird ein Profil
+--                     nur mit einem Beleg FUER DIESE SPEC. Wo keiner vorliegt,
+--                     bleibt der Eintrag stehen: eine Empfehlung, die auf
+--                     einer Verallgemeinerung beruht, ist von einer richtigen
+--                     nicht zu unterscheiden, bis sie jemand nachrechnet.
+--
 --                  -> REIHENFOLGE IST RANGFOLGE, und seit 2.9.3.0 ist sie
 --                     das auch im Code. Bis dahin nahm BestCandidate in
 --                     modules/charakter.lua schlicht das Maximum ueber alle
@@ -442,14 +481,21 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
-            gelb      = { 76697, 76699 },
+            -- GELB: der Aragonit, nicht der reine Goldberyll (Rechnung im
+            -- Kopf dieser Datei). Tempo vor Krit ist hier NICHT aus den
+            -- Gewichten abgeleitet, die sagen das Gegenteil (Krit 75, Tempo
+            -- 68) — sondern aus den Raidlogs: Gewandter Aragonit 77 %,
+            -- Tödlicher 26 %. Welche der beiden Zahlen stimmt, ist eine
+            -- Datenfrage; dass ein Stein OHNE Beweglichkeit dort falsch
+            -- steht, ist keine.
+            gelb      = { 76666, 76658, 76699, 76697 },
             blau      = { 76680 },
             orange    = { 76658, 76666 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit überall (Feingeschliffener Rubellit / Tödlicher Aragonit). Cap: 7,5% Treffer — Waffenkunde bringt Fernkämpfern nichts.",
+        gemNote = "Beweglichkeit vor Krit. Cap: 7,5% Treffer — Waffenkunde bringt Fernkämpfern nichts. In gelbe Sockel gehört der Aragonit — er hält den Sockelbonus und die Beweglichkeit.",
     },
 
     HUNTER_MARKSMANSHIP = {
@@ -481,14 +527,18 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
-            gelb      = { 76697, 76699 },
+            -- GELB: Tödlicher Aragonit (Beweglichkeit + Krit), nicht der
+            -- reine Goldberyll — Rechnung im Kopf dieser Datei. In den
+            -- Raidlogs: Feingeschliffener Rubellit 79 % (rote Sockel),
+            -- Tödlicher Aragonit 67 % (gelbe).
+            gelb      = { 76658, 76666, 76697, 76699 },
             blau      = { 76680 },
             orange    = { 76658, 76666 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76641, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Krit. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht).",
+        gemNote = "Beweglichkeit > Krit. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht). In gelbe Sockel gehört der Tödliche Aragonit — er hält den Sockelbonus und die Beweglichkeit.",
     },
 
     HUNTER_SURVIVAL = {
@@ -520,14 +570,18 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
-            gelb      = { 76697, 76700 },
+            -- GELB: Tödlicher Aragonit, nicht der reine Goldberyll
+            -- (Rechnung im Kopf dieser Datei). In den Raidlogs am
+            -- deutlichsten von allen drei Jägern: Tödlicher 87 %,
+            -- Gewandter 5 %.
+            gelb      = { 76658, 76670, 76697, 76700 },
             blau      = { 76680 },
             orange    = { 76658, 76670 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76643, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht).",
+        gemNote = "Beweglichkeit > Krit > Tempo > Meisterschaft (Einzelziel). Meisterschaft stärker im AoE. Cap: 7,5% Treffer (Waffenkunde zählt für Fernkampf nicht). In gelbe Sockel gehört der Tödliche Aragonit — er hält den Sockelbonus und die Beweglichkeit.",
     },
 
     --------------------------------------------------
@@ -558,14 +612,21 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
-            gelb      = { 76700, 76699 },
+            -- GELB: der Versierte Aragonit, nicht der reine Goldberyll.
+            -- Siehe HYBRID ODER REINER STEIN im Kopf dieser Datei — hier ist
+            -- es belegt: in den Raidlogs steht der Aragonit bei 89 %, der
+            -- Frakturierte Goldberyll taucht gar nicht auf, und beide Guides
+            -- nennen ihn. So gemeldet (09/2026, Meuchelschurke, Sim gegen
+            -- Addon): "Frakturierter Goldberyll kommt bei Wowhead gar nicht
+            -- vor, Versierter Aragonit ist die richtige Wahl."
+            gelb      = { 76670, 76666, 76700, 76699 },
             blau      = { 76680 },
             orange    = { 76670, 76666 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76643, 76642 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Meisterschaft (Gifte). Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Meisterschaft (Gifte). Caps: 7,5% Treffer / 7,5% Waffenkunde. In gelbe Sockel gehört der Versierte Aragonit — er hält den Sockelbonus und die Beweglichkeit.",
     },
 
     ROGUE_COMBAT = {
@@ -626,14 +687,19 @@ WeintCodex_SpecProfiles = {
         bestGems = {
             meta      = { 95346, 76884 },
             rot       = { 76692, 83151 },
-            gelb      = { 76699, 76697 },
+            -- GELB: Gewandter Aragonit. Anders als beim Kampfschurken
+            -- darunter — dort ist Tempo so stark, dass der reine Goldberyll
+            -- gewinnt (90 % in den Raidlogs). Bei der Täuschung ist es
+            -- umgekehrt und ebenso deutlich: Aragonit 97 %, reiner
+            -- Tempostein 3 %.
+            gelb      = { 76666, 76658, 76699, 76697 },
             blau      = { 76680 },
             orange    = { 76666, 76658 },
             lila      = { 76680, 76687 },
             ["grün"]  = { 76642, 76641 },
             prismatic = { 76692, 83151 },
         },
-        gemNote = "Beweglichkeit > Tempo > Krit. Caps: 7,5% Treffer / 7,5% Waffenkunde.",
+        gemNote = "Beweglichkeit > Tempo > Krit. Caps: 7,5% Treffer / 7,5% Waffenkunde. In gelbe Sockel gehört der Gewandte Aragonit — er hält den Sockelbonus und die Beweglichkeit.",
     },
 
     --------------------------------------------------

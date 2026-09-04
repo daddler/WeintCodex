@@ -259,7 +259,81 @@ do
           list[2] == 4431, tostring(list[2]))
 end
 
---== 9) Keine Regression bei den anderen Specs ==============================
+--== 9) Der gemeldete Meuchelschurke (09/2026) ==============================
+-- "Frakturierter Goldberyll in gelbe Sockel kommt bei Wowhead gar nicht vor.
+-- Versierter Aragonit ist die richtige Wahl." Der Sim hatte recht. Die
+-- Ursache lag NICHT im Gewicht - seit 2.9.3.0 entscheidet die kuratierte
+-- Liste, und in der stand der reine Meisterschaftsstein vorn.
+do
+    local yel = PlanOne("ROGUE_ASSASSINATION", "gelb", AGI_BONUS)
+    Check("Meuchelschurke / gelber Sockel: Versierter Aragonit",
+          yel == 76670, Name(yel))
+
+    -- Die Gegenprobe: ohne Sockelbonus gibt es nichts zu halten, dann
+    -- gewinnt wieder der reine Beweglichkeitsstein (das ist prismatic).
+    local free = PlanOne("ROGUE_ASSASSINATION", "gelb", nil)
+    Check("... ohne Sockelbonus dagegen der Feingeschliffene Rubellit",
+          free == 76692, Name(free))
+end
+
+--== 10) Hybrid oder reiner Stein - JE SPEC, nicht ueber einen Kamm =========
+-- Die Rechnung steht im Kopf von data/spec_profiles.lua: in einem gelben
+-- Sockel loesen der reine Goldberyll UND der orange Aragonit den Sockelbonus
+-- aus, uebrig bleibt 160 Sekundaer gegen 80 Primaer. Wer gewinnt, haengt an
+-- der Spec - und es geht nachweislich in beide Richtungen.
+--
+-- WARUM DAS HIER FESTGENAGELT IST: beim Fehlerbericht oben lag es nahe, alle
+-- 26 Profile mit einem reinen Stein in `gelb` in einem Zug umzustellen. Fuer
+-- die vier unteren Zeilen waere das falsch gewesen. Diese Tabelle ist die
+-- Erinnerung daran, dass die naheliegende Verallgemeinerung geprueft wurde
+-- und durchgefallen ist; sie bricht, sobald jemand sie doch noch zieht.
+--
+-- Belegt an den Raidlogs (Anteil der Spieler, die den Stein tragen).
+do
+    local EXPECT = {
+        -- Spec                    Stein in einem gelben Sockel mit Bonus
+        { "ROGUE_ASSASSINATION",   76670, "Versierter Aragonit 89 %" },
+        { "ROGUE_SUBTLETY",        76666, "Gewandter Aragonit 97 %" },
+        { "HUNTER_SURVIVAL",       76658, "Toedlicher Aragonit 87 %" },
+        { "HUNTER_MARKSMANSHIP",   76658, "Toedlicher Aragonit 67 %" },
+        { "HUNTER_BEASTMASTERY",   76666, "Gewandter Aragonit 77 %" },
+        { "DRUID_FERAL",           76670, "seit 2.9.3.0" },
+        -- ... und die Gegenrichtung: hier ist der REINE Stein richtig.
+        { "ROGUE_COMBAT",          76699, "reiner Tempostein 90 %" },
+        { "WARRIOR_ARMS",          76697, "reiner Kritstein 90 %" },
+        { "WARRIOR_FURY",          76697, "reiner Kritstein" },
+        { "PALADIN_RETRIBUTION",   76699, "reiner Tempostein 93 %" },
+        { "PRIEST_SHADOW",         76699, "reiner Tempostein 83 %" },
+    }
+    for _, row in ipairs(EXPECT) do
+        local specKey, want, why = row[1], row[2], row[3]
+        local pick = PlanOne(specKey, "gelb", AGI_BONUS)
+        Check("gelb / " .. specKey .. ": " .. Name(want),
+              pick == want, Name(pick) .. "  (erwartet: " .. why .. ")")
+    end
+end
+
+--== 11) Ein Aragonit gehoert auch in die Farbliste, nicht nur nach orange ==
+-- In fast allen Faellen stand der richtige Stein bereits unter `orange` im
+-- selben Profil - er war nur nirgends die erste Antwort auf einen gelben
+-- Sockel, und `orange` beantwortet diese Frage nicht (es gibt keine orangen
+-- Sockel). Wer eine Spec umstellt, muss die Farbliste anfassen.
+do
+    local bad = {}
+    for _, specKey in ipairs({ "ROGUE_ASSASSINATION", "ROGUE_SUBTLETY",
+                               "HUNTER_BEASTMASTERY", "HUNTER_MARKSMANSHIP",
+                               "HUNTER_SURVIVAL", "DRUID_FERAL" }) do
+        local gelb = WeintCodex_SpecProfiles[specKey].bestGems.gelb
+        local st   = gelb and WeintCodex_GemStats[gelb[1]]
+        if not (st and (st.agility or 0) > 0) then
+            bad[#bad + 1] = specKey .. "=" .. Name(gelb and gelb[1])
+        end
+    end
+    Check("gelb[1] dieser Specs traegt Beweglichkeit",
+          #bad == 0, table.concat(bad, " "))
+end
+
+--== 12) Keine Regression bei den anderen Specs =============================
 -- Jede Spec, jede Sockelfarbe, mit und ohne Bonus: es muss ueberhaupt eine
 -- Empfehlung herauskommen, und sie muss den Sockel bedienen koennen.
 do

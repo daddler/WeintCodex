@@ -2,6 +2,35 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.3.1] – 2026-09-04
+
+**Meuchelschurke, gelbe Sockel: Versierter Aragonit.**
+Vorgeschlagen wurde der Frakturierte Goldberyll — ein Stein ganz ohne
+Beweglichkeit. In einen gelben Sockel gehört der Aragonit: er hält den
+Sockelbonus genauso und bringt zusätzlich Beweglichkeit mit.
+
+Dasselbe galt für **Täuschung** und für **alle drei Jäger**. Wer seine
+gelben Sockel nach WeintCodex gesetzt hat, sollte auf *Charakter →
+Sockel* noch einmal nachsehen.
+
+**Für andere Spezialisierungen bleibt es beim reinen Stein — mit Absicht.**
+Ob in einen gelben Sockel der Aragonit oder der reine Goldberyll gehört,
+ist keine Regel für alle, sondern hängt an der Spezialisierung. Beim
+Kampfschurken, beim Waffen- und Furorkrieger, beim Vergelter und beim
+Schattenpriester ist der reine Stein nachweislich richtig. Dort ändert
+sich nichts.
+
+### Behoben
+- *Charakter → Sockel* schlug für gelbe Sockel einen Stein ohne Hauptwert vor — bei Meuchelschurke, Täuschung und allen drei Jägerspezialisierungen
+
+### Technisch
+- Gemeldet am Meuchelschurken (Sim gegen Addon): `ROGUE_ASSASSINATION.bestGems.gelb` führte `76700` (320 Meisterschaft) an, richtig ist `76670` (80 Bewegl. + 160 Meisterschaft). Seit 2.9.3.0 entscheidet die kuratierte Liste — die Ursache lag also in der Liste, nicht im Gewicht
+- Die Rechnung dahinter steht jetzt im Kopf von `data/spec_profiles.lua`: in einem gelben Sockel lösen der reine Goldberyll und der orange Aragonit den Sockelbonus **beide** aus, der Bonus fällt aus dem Vergleich heraus, und übrig bleibt 160 Sekundär gegen 80 Primär. Der Aragonit gewinnt genau dann, wenn ein Punkt Sekundärwert weniger als die Hälfte eines Punktes Primärwert wert ist
+- **Das ist keine Konstante, und deshalb wurden die übrigen 21 Profile nicht mitgezogen.** Die naheliegende Verallgemeinerung („ein Stein ohne Primärwert ist immer falsch") wurde geprüft und fiel durch: in den Raidlogs tragen Kampfschurke (90 %), Waffenkrieger (90 %), Vergelter (93 %) und Schattenpriester (83 %) den reinen Stein. Geändert wurde nur, wofür ein Beleg **für diese Spec** vorlag — Meuchel (89 %), Täuschung (97 %), Überleben (87 %), Treffsicherheit (67 %), Tierherrschaft (77 %)
+- Beim Tierherrschaftsjäger widersprechen sich Liste und Gewicht (Raidlogs: Tempo-Hybrid 77 % gegen Krit-Hybrid 26 %; `statWeights` sagt Krit 75 vor Tempo 68). Die Liste entscheidet, das Gewicht bleibt eine offene Datenfrage — dieselbe Haltung wie bei `HUNTER_MARKSMANSHIP`
+- Der richtige Stein stand in fast allen Fällen bereits unter `orange` im selben Profil. `orange` beantwortet die Frage aber nicht (es gibt keine orangen Sockel) — wer eine Spec umstellt, muss die Farbliste anfassen
+- `.github/tests/gem_plan_test.lua` nagelt den gemeldeten Fall fest **und die Gegenrichtung**: eine Tabelle aus elf Specs, sechs mit Hybrid und fünf mit reinem Stein. Sie bricht, sobald jemand die Verallgemeinerung doch noch zieht
+
 ## [2.9.3.0] – 2026-09-03
 
 **Die Sockelempfehlung folgt wieder der Steinliste deiner Spezialisierung.**

@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.3.1",
+        date    = "04.09.2026",
+        notes   = {
+            "|cffD4A24AMeuchelschurke|r, gelbe Sockel: vorgeschlagen wird jetzt der |cffD4A24AVersierte Aragonit|r. Bisher stand dort der Frakturierte Goldberyll - ein Stein ganz ohne Beweglichkeit.",
+            "Dasselbe galt fuer |cffD4A24ATaeuschung|r und alle drei |cffD4A24AJaeger|r. Schau auf |cffD4A24ACharakter -> Sockel|r noch einmal nach, wenn du deine gelben Sockel danach gesetzt hast.",
+            "Der Aragonit haelt den Sockelbonus genauso wie der reine Stein - und bringt zusaetzlich Beweglichkeit mit.",
+            "Fuer Kampfschurke, Waffen- und Furorkrieger, Vergelter und Schattenpriester bleibt es beim reinen Stein. Das ist dort nachweislich richtig und keine Auslassung.",
+        },
+    },
+    {
         version = "2.9.3.0",
         date    = "03.09.2026",
         notes   = {
