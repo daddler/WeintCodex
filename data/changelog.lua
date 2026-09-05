@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.9.4.0",
+        date    = "05.09.2026",
+        notes   = {
+            "|cffD4A24ASockel|r: ein Vorschlag bleibt jetzt stehen, wenn du ihm gefolgt bist. Bisher standen nach dem Setzen der empfohlenen Steine beim naechsten Blick andere da.",
+            "Manche Steine bekamen danach sogar das Urteil |cffD4A24Aueber Cap|r - obwohl das Addon sie selbst empfohlen hatte.",
+            "Grund war die Rechnung dahinter: sie sah den Spielraum bis zum Trefferkap, ohne zu beruecksichtigen, dass die eigenen Steine ihn bereits fuellen.",
+            "Du musst nichts tun. Schau auf |cffD4A24ACharakter -> Sockel|r einmal nach - die Liste steht jetzt still.",
+            "Jede Zeile sagt weiterhin, warum dort dieser Stein steht. Im Feld daneben steht ausserdem, warum die Zahlen dort von deinem Charakterbogen abweichen.",
+        },
+    },
+    {
         version = "2.9.3.1",
         date    = "04.09.2026",
         notes   = {

@@ -354,6 +354,128 @@ do
           #bad == 0, table.concat(bad, " "))
 end
 
+--== 13) DER PLAN IST EIN FIXPUNKT ==========================================
+-- DER GEMELDETE FALL (09/2026): "Wenn man das, was WeintCodex vorschlaegt,
+-- durchzieht, ist beim naechsten Scan wieder ein anderer Vorschlag."
+--
+-- Die Ursache war eine Rueckkopplung und keine Ungenauigkeit: der Spielraum
+-- kam aus der Kampfwertung des Clients - und die ENTHAELT die angelegten
+-- Steine. Geplant wurden die Sockel aber, als waeren sie leer. Damit dreht
+-- sich ein Kreis, und jede Runde davon kostet Steine:
+--
+--   leere Sockel   5,0 % / Kap 7,5 %  -> Spielraum 850 -> Treffersteine
+--   umgesetzt      7,8 % / Kap 7,5 %  -> Spielraum   0 -> andere Steine
+--   umgesetzt      5,0 % / Kap 7,5 %  -> Spielraum 850 -> Treffersteine
+--
+-- Geprueft wird deshalb VERHALTEN und nicht eine Punktzahl: planen, den Plan
+-- wie das Spiel anwenden (Steine einsetzen, Kampfwertung nachziehen), neu
+-- planen - und dabei muss dasselbe herauskommen. Dieselbe Bauform wie die
+-- Fixpunkt-Probe des Umschmiede-Planers seit 2.7.5.0.
+do
+    local specKey = "DRUID_FERAL"
+    local profile = WeintCodex_SpecProfiles[specKey]
+    local PER_PCT = 340          -- Wertung je Prozentpunkt auf Stufe 90
+    local CAP_PCT = 7.5          -- Trefferkap
+    local BASE_PCT = 5.0         -- ohne Steine: 2,5 % darunter
+    local SOCKETS  = 4
+    local BONUS    = { stat = "agility", value = 120 }
+
+    -- Damit der Spielraum die Empfehlung ueberhaupt traegt, muss ein
+    -- Trefferstein die Liste anfuehren (dieselbe Vorbereitung wie in 4).
+    local keep = profile.bestGems.blau
+    profile.bestGems.blau = { 76636, 76680 }   -- 320 Treffer, dann 80 Bewegl. + 160 Treffer
+
+    -- Der Client, so weit diese Rechnung ihn braucht. Entscheidend ist die
+    -- eine Zeile: die Kampfwertung enthaelt, was in den Sockeln steckt.
+    local function CapStatesFor(gemHit)
+        local current = BASE_PCT + gemHit / PER_PCT
+        local over    = current - CAP_PCT
+        return { {
+            stat        = "hit", typ = "melee", capPct = CAP_PCT,
+            current     = current, overPct = over,
+            overRating  = (over > 0) and over * PER_PCT or 0,
+            underRating = (over < 0) and -over * PER_PCT or 0,
+            perPct      = PER_PCT, label = "Trefferwertung (Nahkampf)",
+        } }
+    end
+
+    -- Wie das Spiel: die vier Sockel tragen, was zuletzt geplant wurde, und
+    -- der Sockelbonus liegt an, weil alle Steine blau sind.
+    local function Scanned(equipped)
+        local out = {}
+        for _, gemId in ipairs(equipped) do
+            out[#out + 1] = { known = true, bonus = BONUS, bonusActive = true,
+                              sockets = { { color = "blau", gemId = gemId or nil } } }
+        end
+        return out
+    end
+
+    local function PlanRound(equipped)
+        local socketRating = CH.EquippedSocketRating(Scanned(equipped))
+        local headroom = CH.PlanningHeadroom(CapStatesFor(socketRating.hit or 0),
+                                             {}, nil, socketRating)
+        local ctx = { pool = CH.GemPool(profile, specKey),
+                      headroom = headroom, allowJC = false }
+        local room1 = headroom.hit
+        local out = {}
+        for i = 1, SOCKETS do
+            -- Der Spielraum wird ueber die Sockel VERBRAUCHT - deshalb
+            -- derselbe ctx fuer alle vier, so wie ScanCharacter es tut.
+            local plan = CH.PlanItem({ { color = "blau" } }, BONUS, "Sockelbonus",
+                                     profile, ctx)
+            out[i] = plan.gems[1]
+        end
+        return out, room1, socketRating
+    end
+
+    local function Show(list)
+        local t = {}
+        for i = 1, SOCKETS do t[i] = Name(list[i]) end
+        return table.concat(t, ", ")
+    end
+
+    -- Runde 1: alle vier Sockel leer.
+    local first, room1 = PlanRound({ false, false, false, false })
+    Check("Unter dem Trefferkap traegt der Spielraum die Empfehlung",
+          (room1 or 0) > 800 and first[1] == 76636,
+          string.format("Spielraum %.0f, %s", room1 or 0, Show(first)))
+
+    -- Der Spieler zieht den Vorschlag durch.
+    local second, room2, rating = PlanRound(first)
+    Check("Die angelegten Steine werden im Spielraum mitgezaehlt",
+          (rating.hit or 0) > 300, tostring(rating.hit))
+    Check("Nach dem Umsetzen steht derselbe Spielraum da",
+          math.abs((room1 or 0) - (room2 or 0)) < 1,
+          string.format("%.0f -> %.0f", room1 or 0, room2 or 0))
+    local same = true
+    for i = 1, SOCKETS do if first[i] ~= second[i] then same = false end end
+    Check("Nach dem Umsetzen steht derselbe Vorschlag da",
+          same, Show(first) .. "  ->  " .. Show(second))
+
+    -- Und er bleibt stehen: eine dritte Runde aendert nichts mehr.
+    local third = PlanRound(second)
+    local stable = true
+    for i = 1, SOCKETS do if second[i] ~= third[i] then stable = false end end
+    Check("... und auch in der Runde danach", stable,
+          Show(second) .. "  ->  " .. Show(third))
+
+    -- DIE GEGENPROBE. Ohne den Abzug der angelegten Steine - also so, wie es
+    -- bis 2.9.3.1 gerechnet wurde - verschwindet der Spielraum, und die
+    -- naechste Runde raet zu etwas anderem. Faellt diese Zeile weg, misst
+    -- der Lauf darueber nichts mehr.
+    local function OldRoom(equipped)
+        local socketRating = CH.EquippedSocketRating(Scanned(equipped))
+        local cs = CapStatesFor(socketRating.hit or 0)[1]
+        return math.max(0, cs.underRating or 0)
+    end
+    local leer, gesetzt = OldRoom({ false, false, false, false }), OldRoom(first)
+    Check("Gegenprobe: die alte Rechnung liess den Spielraum verschwinden",
+          leer > 800 and gesetzt < 1,
+          string.format("leer %.0f -> gesetzt %.0f", leer, gesetzt))
+
+    profile.bestGems.blau = keep
+end
+
 print("")
 if fails == 0 then
     print("Alle Pruefungen bestanden.")

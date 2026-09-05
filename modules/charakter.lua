@@ -3147,6 +3147,32 @@ local function Rationale(page, have)
         blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
             text = "Wertung zählt nur bis zur Grenze. Was darüber liegt,"
                 .. " bringt nichts mehr und gehört umgeschmiedet." }
+
+        -- WARUM DIE ZAHLEN OBEN NICHT DIE DES CHARAKTERBOGENS SIND.
+        --
+        -- Die Zeilen darueber zeigen den Iststand — der enthaelt die
+        -- Steine, die schon drinstecken. Geplant wird dagegen so, als
+        -- waeren alle Sockel leer (siehe PlanningHeadroom), sonst schluege
+        -- die Seite nach jedem Umsetzen etwas anderes vor. Wer beides
+        -- nebeneinander sieht und den Unterschied nicht erklaert bekommt,
+        -- haelt das eine fuer einen Fehler des anderen — und genau das
+        -- stand im Fehlerbericht.
+        -- Gezaehlt wird nur, was an einer Grenze steht: ein Kritstein macht
+        -- den Unterschied nicht aus, um den es hier geht.
+        local fromGems = 0
+        for stat in pairs(ctx.headroomInfo or {}) do
+            local v = (ctx.socketRating or {})[stat] or 0
+            if v > fromGems then fromGems = v end
+        end
+        if page == "gems" and fromGems > 0 then
+            blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+                text = "Die Zahlen oben sind dein Iststand — mit den Steinen,"
+                    .. " die schon drinstecken. Geplant wird hier ohne sie,"
+                    .. " damit ein Vorschlag stehen bleibt, wenn du ihm"
+                    .. " gefolgt bist. Was du bereits gesetzt hast, taucht"
+                    .. " deshalb wieder als Empfehlung auf, statt plötzlich"
+                    .. " falsch zu sein." }
+        end
     else
         blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
             text = "Für diese Spezialisierung ist keine Grenze hinterlegt –"
@@ -3204,6 +3230,144 @@ end
 
 WeintCodex.Charakter.Rationale = Rationale
 
+--------------------------------------------------
+-- DER SPIELRAUM WIRD OHNE DIE EIGENEN STEINE GEMESSEN (seit 2.9.4.0)
+--
+-- EINE EMPFEHLUNG, DIE SICH AENDERT, WEIL MAN IHR GEFOLGT IST, IST KEINE.
+-- Gemeldet wurde genau das: Steine nach dem Vorschlag der Seite gesetzt,
+-- neu geschaut — und dort stand ein anderer Vorschlag, teils mit dem Urteil
+-- "ueber Cap" auf genau dem Stein, den die Seite selbst empfohlen hatte.
+--
+-- Die Ursache ist eine Rueckkopplung und keine Ungenauigkeit. Der
+-- Spielraum kam aus der KAMPFWERTUNG des Clients, und die enthaelt die
+-- angelegten Steine; geplant wurden die Sockel aber so, als waeren sie
+-- LEER. Beides zusammen ergibt einen Kreis:
+--
+--   leere Sockel   Treffer 5,0 % / Kap 7,5 %  -> Spielraum 850  -> Treffersteine
+--   umgesetzt      Treffer 7,5 % / Kap 7,5 %  -> Spielraum   0  -> Kritsteine
+--   umgesetzt      Treffer 5,0 % / Kap 7,5 %  -> Spielraum 850  -> Treffersteine
+--
+-- Der Kreis schliesst sich also nicht einmal — er dreht sich weiter, und
+-- jede Runde kostet Steine. Dieselbe Fehlerklasse, die der
+-- Umschmiede-Planer in 2.7.5.0 hatte (ein Plan, der kein Fixpunkt ist),
+-- nur dass sie hier nicht Gold kostet, sondern Vertrauen.
+--
+-- AUFGELOEST WIRD SIE UEBER DEN MASSSTAB, NICHT UEBER EINEN MERKER. Ein
+-- Bonus fuer "so lassen" waere ein zweites Regelwerk neben der Rechnung;
+-- richtig ist, die Ausgangslage so zu messen, wie der Planer sie annimmt:
+-- als Charakter mit leeren Sockeln. Was die Steine gerade beitragen, wird
+-- dazugerechnet, weil es beim Neuvergeben verloren ginge — genau die
+-- Regel, aus der der Umschmiede-Planer die angelegten Umschmiedungen aus
+-- der Kampfwertung herausrechnet, bevor er neu plant ("alles so lassen"
+-- ergibt exakt wieder den Istwert).
+--
+--   Spielraum = Kap - (Istwert - Beitrag der Steine)
+--             = Abstand zum Kap - Ueberschuss + Beitrag der Steine
+--
+-- Damit ist der Spielraum von den Steinen UNABHAENGIG, und derselbe
+-- Charakter bekommt vor und nach dem Umsetzen denselben Plan. Zwei
+-- Einzelheiten, die nicht Geschmack sind:
+--
+--   * Der aktive Sockelbonus gehoert dazu. Ob er anliegt, entscheidet der
+--     Plan (er waehlt zwischen MATCH und IGNORE) — er ist damit Teil
+--     dessen, was neu vergeben wird, und muss aus derselben Ausgangslage
+--     heraus.
+--   * Ein Gegenstand ohne Basisdaten zaehlt NICHT mit. Was der Client
+--     nicht gemeldet hat, ist keine 0 — dieselbe Zurueckhaltung wie
+--     ueberall sonst auf dieser Seite. Der Scan wiederholt sich nach der
+--     Nachlieferung ohnehin.
+--
+-- DIE ANDERE FRAGE BLEIBT DIE ANDERE FRAGE. Ob ein ANGELEGTER Stein gerade
+-- Wertung brachliegen laesst, beantwortet weiterhin der Overcap-Pass am
+-- Iststand ("was liegt an?"). Der Spielraum beantwortet "was gehoert
+-- hinein?", und nur dafuer ist der steinfreie Massstab der richtige.
+--------------------------------------------------
+
+-- Was tragen die ANGELEGTEN Steine und die von ihnen ausgeloesten
+-- Sockelboni gerade zu jedem Wert bei? Genau diese Wertung ginge beim
+-- Neuvergeben der Sockel verloren und gehoert deshalb in den Spielraum.
+local function EquippedSocketRating(scanned)
+    local sums = {}
+    for _, entry in ipairs(scanned or {}) do
+        -- Ohne Basisdaten kennt ScanItemSockets die eingebauten Sockel
+        -- nicht; eine geratene Null waere hier eine Aussage ueber unseren
+        -- Cache und keine ueber die Ruestung.
+        if entry.known then
+            for _, socket in ipairs(entry.sockets) do
+                local stats = socket.gemId and SM.GemStats(socket.gemId)
+                if stats then
+                    for stat, value in pairs(stats) do
+                        if value and value > 0 then
+                            sums[stat] = (sums[stat] or 0) + value
+                        end
+                    end
+                end
+            end
+            if entry.bonusActive and entry.bonus and entry.bonus.value then
+                local b = entry.bonus
+                sums[b.stat] = (sums[b.stat] or 0) + b.value
+            end
+        end
+    end
+    return sums
+end
+
+-- DIE EINE RECHNUNG FUER "WIEVIEL BRINGT DIESER WERT NOCH".
+--
+-- Sie stand bis 2.9.3.1 zweimal da — einmal in ScanCharacter, einmal in
+-- DumpSockets —, und damit rechnete ausgerechnet die Diagnose mit anderen
+-- Zahlen als die Seite, die sie erklaeren soll. Drei Quellen speisen einen
+-- Topf (Decken, Tempo-Treppe, Umschmiede-Plan), abgezogen wird ein
+-- Massstab (der Beitrag der Steine).
+--
+-- Zweiter Rueckgabewert: je Wert die Zwischenschritte, damit /wc sockel
+-- sie ausdrucken kann, ohne sie nachzubauen.
+local function PlanningHeadroom(capStates, breakpointStates, reforgeOutlook, socketRating)
+    local headroom, detail = {}, {}
+    socketRating = socketRating or {}
+
+    local function Set(stat, base, over, kind, label)
+        local gems = socketRating[stat] or 0
+        local room = math.max(0, (base or 0) - (over or 0) + gems)
+        headroom[stat] = room
+        detail[stat] = { kind = kind, label = label, live = base or 0,
+                         over = over or 0, gems = gems, room = room }
+    end
+
+    for _, cs in ipairs(capStates or {}) do
+        Set(cs.stat, cs.underRating, cs.overRating, "cap", cs.label)
+    end
+    for _, bp in ipairs(breakpointStates or {}) do
+        -- headroom == nil heisst "keine Aussage": der Wert bleibt dann
+        -- ungedeckelt, statt mit 0 als wertlos zu gelten.
+        if bp.headroom ~= nil then
+            Set(bp.stat, bp.headroom, bp.overRating, "breakpoint", bp.label)
+        end
+    end
+
+    -- Und was das Umschmieden ohnehin erledigt (siehe unten). `after` ist
+    -- der Stand nach dem Plan und enthaelt die Steine ebenfalls — also
+    -- derselbe Abzug wie oben, sonst zaehlte der Beitrag hier doppelt.
+    if reforgeOutlook then
+        for stat, look in pairs(reforgeOutlook) do
+            if headroom[stat] ~= nil then
+                local gems = socketRating[stat] or 0
+                local room = math.max(0, look.target - look.after + gems)
+                local d = detail[stat]
+                if d then
+                    d.reforgeBefore = d.room
+                    d.reforge = { target = look.target, after = look.after,
+                                  before = look.before }
+                    d.room = room
+                end
+                headroom[stat] = room
+            end
+        end
+    end
+
+    return headroom, detail
+end
+
 local function ScanCharacter()
     local capCtx = CapContext()
     local profile, profileKey, tankStyle, specDisplay =
@@ -3211,33 +3375,35 @@ local function ScanCharacter()
     local capStates        = capCtx.caps
     local breakpointStates = capCtx.breakpoints
 
-    -- CAP-SPIELRAUM FÜR DIE SOCKELEMPFEHLUNG.
+    --------------------------------------------------
+    -- 0) DIE SOCKEL EINMAL LESEN, BEVOR GEPLANT WIRD
     --
-    -- Bis 2.5.0.0 stand hier eine binäre Menge `overStats` ("dieser Stat ist
-    -- über dem Cap"), und FirstUncappedGem warf jeden Stein weg, der davon
-    -- irgendetwas lieferte. Jetzt sagt der Spielraum, wie viel Wertung in
-    -- einem gecappten Stat überhaupt noch etwas bringt — ein Hybridstein
-    -- behält am Cap seine andere Hälfte, statt ganz zu verschwinden.
-    --
-    -- Der Spielraum wird beim Planen der Slots VERBRAUCHT (siehe PlanItem).
-    -- Ohne das bekäme jeder Sockel denselben Restweg zum Cap gutgeschrieben
-    -- und die Seite empföhle zehn Treffersteine für eine Lücke, die einer
-    -- schliesst. Die Reihenfolge ist die von EQUIP_SLOTS und damit stabil.
-    --
-    -- Seit 2.6.2.0 speisen zwei Quellen denselben Spielraum: die Decken
-    -- (Treffer/Waffenkunde) und die Tempo-Treppe. Fuer den Planer ist das
-    -- dieselbe Frage — wieviel Wertung bringt in diesem Stat ueberhaupt
-    -- noch etwas —, und genau deshalb ist es EIN Topf und nicht zwei
-    -- Rechnungen nebeneinander (dieselbe Lehre wie bei PlanItem).
-    local headroom = {}
-    for _, cs in ipairs(capStates) do
-        headroom[cs.stat] = math.max(0, cs.underRating or 0)
-    end
-    for _, bp in ipairs(breakpointStates) do
-        -- headroom == nil heisst "keine Aussage": der Stat bleibt dann
-        -- ungecappt, statt mit 0 als wertlos zu gelten.
-        if bp.headroom ~= nil then
-            headroom[bp.stat] = math.max(0, bp.headroom)
+    -- Der Spielraum rechnet den Beitrag der ANGELEGTEN Steine heraus
+    -- (siehe PlanningHeadroom), und er muss stehen, BEVOR der erste
+    -- Gegenstand geplant wird. Gelesen wird deshalb einmal vorweg und
+    -- unten wiederverwendet — ein zweiter Durchlauf waere ein zweiter
+    -- Tooltip-Scan ueber die ganze Ausruestung, und genau den verbietet
+    -- sich diese Seite an jeder anderen Stelle auch.
+    --------------------------------------------------
+    -- Zwei Sichten auf dieselben Eintraege: nach Slot (die Schleife unten
+    -- greift danach) und als Liste in der Reihenfolge von EQUIP_SLOTS (die
+    -- Summe darunter zaehlt sie ab). Eine Tabelle mit beiden Zugriffsarten
+    -- waere genau die Sorte Doppelbelegung, die man erst bemerkt, wenn ein
+    -- Slot einmal numerisch heisst.
+    local socketScan, socketList = {}, {}
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local sockets, known, source = ScanItemSockets(link, slotDef.id)
+            if #sockets > 0 then
+                local bonus, bonusText, bonusActive = ScanSocketBonus(slotDef.id)
+                local entry = {
+                    sockets = sockets, known = known, source = source,
+                    bonus = bonus, bonusText = bonusText, bonusActive = bonusActive,
+                }
+                socketScan[slotDef.id] = entry
+                socketList[#socketList + 1] = entry
+            end
         end
     end
 
@@ -3250,16 +3416,7 @@ local function ScanCharacter()
     -- Sekundaerwerts je Gegenstand und laesst sich jederzeit zuruecknehmen.
     -- Wer einen Sockel benutzt, um ein Kap zu fuellen, das das Umschmieden
     -- ohnehin fuellt, verschenkt den Sockel — und genau das hat diese Seite
-    -- bis hierher getan. Sie rechnete mit dem Abstand zum Kap, den sie
-    -- GERADE sah, und empfahl deshalb Treffersteine fuer eine Luecke, die
-    -- das Umschmieden umsonst schliesst. Das ist die haeufigste Sorte
-    -- falscher Sockelempfehlung.
-    --
-    -- Der Spielraum ist deshalb nicht mehr "wieviel fehlt bis zum Kap",
-    -- sondern "wieviel fehlt NACH dem Umschmieden" — dieselbe Groesse, nur
-    -- richtig gemessen. Damit fallen beide Fehler weg: der Trefferstein,
-    -- den es nicht braucht, und die Meldung "verschwendet" fuer einen
-    -- Ueberschuss, den das Umschmieden gerade wegraeumt.
+    -- bis 2.7.0.0 getan.
     --
     -- Die Reihenfolge, die daraus folgt, ist die der Guides: erst
     -- umschmieden, dann sockeln. Sie steht als Hinweis auf der Seite, denn
@@ -3273,13 +3430,23 @@ local function ScanCharacter()
     if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.CapOutlook then
         reforgeOutlook = WeintCodex.ReforgeEngine.CapOutlook()
     end
-    if reforgeOutlook then
-        for stat, look in pairs(reforgeOutlook) do
-            if headroom[stat] ~= nil then
-                headroom[stat] = math.max(0, look.target - look.after)
-            end
-        end
-    end
+
+    -- CAP-SPIELRAUM FÜR DIE SOCKELEMPFEHLUNG.
+    --
+    -- Drei Quellen, EIN Topf (Decken, Tempo-Treppe, Umschmiede-Plan), und
+    -- gemessen wird er ohne die eigenen Steine — die ganze Herleitung steht
+    -- ueber PlanningHeadroom. Zwei Rechnungen nebeneinander waeren genau
+    -- die Doppelung, aus der Empfehlung und Urteil auseinanderlaufen
+    -- (dieselbe Lehre wie bei PlanItem).
+    --
+    -- Verbraucht wird der Topf beim Planen der Slots (siehe PlanItem):
+    -- ohne das bekaeme jeder Sockel denselben Restweg zum Cap
+    -- gutgeschrieben und die Seite empfoehle zehn Treffersteine fuer eine
+    -- Luecke, die einer schliesst. Die Reihenfolge ist die von EQUIP_SLOTS
+    -- und damit stabil.
+    local socketRating = EquippedSocketRating(socketList)
+    local headroom, headroomDetail =
+        PlanningHeadroom(capStates, breakpointStates, reforgeOutlook, socketRating)
 
     -- Der Overcap-Pass weiter unten markiert ANGELEGTE Steine, deren Wertung
     -- ganz verschwendet ist. Das ist die andere Frage (was liegt an?) und
@@ -3293,6 +3460,14 @@ local function ScanCharacter()
     -- Frage "welcher Stat steht ueberhaupt an einer Grenze" zaehlt aber
     -- der Stand am Anfang, sonst gaelte nach dem letzten Slot jeder Stat
     -- als gecappt.
+    --
+    -- DIE VERZAUBERUNGSEMPFEHLUNG LIEST DENSELBEN TOPF, und das bleibt so.
+    -- Er ist seit 2.9.4.0 um den Beitrag der Steine groesser, also wird die
+    -- kuratierte Liste SELTENER umgereiht — und "umgereiht wird nur, wenn
+    -- die erste Wahl komplett ins Leere laeuft" ist ohnehin die
+    -- zurueckhaltende Richtung (siehe PreferredEnchantId). Ein zweiter
+    -- Spielraum daneben waere genau die Doppelung, an der die
+    -- Sockelbewertung schon einmal auseinandergelaufen ist.
     local headroomAtStart = {}
     for stat, room in pairs(headroom) do headroomAtStart[stat] = room end
 
@@ -3338,6 +3513,12 @@ local function ScanCharacter()
         caps        = capStates,
         breakpoints = breakpointStates,
         reforge     = reforgeOutlook,
+        -- Womit geplant wurde, und warum es nicht der Abstand zum Kap ist,
+        -- den der Charakterbogen zeigt (siehe PlanningHeadroom). Die
+        -- Begruendungsebene liest das, statt es nachzurechnen.
+        headroom      = headroomAtStart,
+        headroomInfo  = headroomDetail,
+        socketRating  = socketRating,
         enchants    = { rows = {} },
         gems        = { rows = {} },
         issues      = {},
@@ -3441,14 +3622,19 @@ local function ScanCharacter()
             -- das hin (ihr Cache ist warm, und sie zeigt eine Zeile,
             -- keine Einblendung) - modules/gearalert.lua darf darauf
             -- keinen Alarm stuetzen und liest den Wert je Zeile mit.
-            local sockets, socketsKnown, socketSource = ScanItemSockets(link, slotDef.id)
+            -- Gelesen wurde beides schon im Vorlauf oben; hier noch einmal
+            -- zu scannen hiesse, jeden Tooltip zweimal zu lesen.
+            local entry = socketScan[slotDef.id]
+            local sockets      = entry and entry.sockets or {}
+            local socketsKnown = entry and entry.known
+            local socketSource = entry and entry.source
             if #sockets > 0 then
-                -- Sockelbonus auslesen (Wert UND Zustand kommen vom Client)
-                -- und den Gegenstand einmal durchrechnen. Empfehlung,
+                -- Der Sockelbonus kommt mit Wert UND Zustand vom Client.
+                -- Den Gegenstand einmal durchrechnen: Empfehlung,
                 -- Steinurteil und Bonuszeile lesen danach alle aus `plan`.
-                local bonus, bonusText, bonusActive = ScanSocketBonus(slotDef.id)
+                local bonus, bonusText = entry.bonus, entry.bonusText
                 local plan = PlanItem(sockets, bonus, bonusText, profile, planCtx)
-                plan.active = bonusActive
+                plan.active = entry.bonusActive
 
                 for socketIndex, socket in ipairs(sockets) do
                     local status, qualityPct, unknown, equiv, reason =
@@ -3903,6 +4089,14 @@ WeintCodex.Charakter.ResolveEnchant    = ResolveEnchant
 WeintCodex.Charakter.PlanItem          = PlanItem
 WeintCodex.Charakter.GemPool           = GemPool
 
+-- UND MIT WELCHEM SPIELRAUM. Dass eine Empfehlung stehenbleibt, wenn man
+-- ihr gefolgt ist, haengt an dieser Rechnung und nicht an PlanItem (siehe
+-- PlanningHeadroom). Der Testlauf plant deshalb, wendet den Plan wie das
+-- Spiel an und plant erneut - die Fixpunkt-Probe, die es beim
+-- Umschmiede-Planer seit 2.7.5.0 gibt.
+WeintCodex.Charakter.PlanningHeadroom    = PlanningHeadroom
+WeintCodex.Charakter.EquippedSocketRating = EquippedSocketRating
+
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
 -- geändert haben, muss vorher hier durch — sonst liefert der Scan die
@@ -4068,28 +4262,60 @@ function WeintCodex.Charakter.DumpSockets()
         return
     end
 
-    local capStates = BuildCapStates(profile)
-    local headroom = {}
+    local capStates        = BuildCapStates(profile)
+    local breakpointStates = BuildBreakpointStates(profile, profileKey, tankStyle)
+
+    -- WAS SCHON DRINSTECKT. Der Spielraum wird ohne die eigenen Steine
+    -- gemessen (siehe PlanningHeadroom), und genau dieser Abzug ist von
+    -- aussen unsichtbar: ein Charakter am Trefferkap, dem die Seite einen
+    -- Trefferstein empfiehlt, sieht ohne diese Zeile nach einem Fehler aus.
+    local scanned = {}
+    for _, slotDef in ipairs(EQUIP_SLOTS) do
+        local link = GetInventoryItemLink("player", slotDef.id)
+        if link then
+            local sockets, known = ScanItemSockets(link, slotDef.id)
+            if #sockets > 0 then
+                local bonus, _, active = ScanSocketBonus(slotDef.id)
+                scanned[#scanned + 1] = { sockets = sockets, known = known,
+                                          bonus = bonus, bonusActive = active }
+            end
+        end
+    end
+    local socketRating = EquippedSocketRating(scanned)
+
+    -- DIESELBE RECHNUNG WIE DIE SEITE, nicht eine zweite daneben. Bis
+    -- 2.9.3.1 stand sie hier ein zweites Mal - und damit rechnete
+    -- ausgerechnet die Diagnose mit anderen Zahlen als das, was sie
+    -- erklaeren soll.
+    local outlook = WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.CapOutlook
+                    and WeintCodex.ReforgeEngine.CapOutlook()
+    local headroom, detail =
+        PlanningHeadroom(capStates, breakpointStates, outlook, socketRating)
+
     for _, cs in ipairs(capStates) do
-        headroom[cs.stat] = math.max(0, cs.underRating or 0)
-        print(string.format("  |cff4A4A52Cap %s: %.2f%% / %.2f%%, Spielraum %d Wertung|r",
+        local d = detail[cs.stat] or {}
+        print(string.format("  |cff4A4A52Cap %s: %.2f%% / %.2f%%, Abstand %d, ueber Cap %d,"
+            .. " aus Steinen +%d -> Spielraum %d Wertung|r",
             cs.label or cs.stat, cs.current or 0, cs.capPct or 0,
-            math.floor(headroom[cs.stat] + 0.5)))
+            math.floor((cs.underRating or 0) + 0.5),
+            math.floor((cs.overRating or 0) + 0.5),
+            math.floor((d.gems or 0) + 0.5),
+            math.floor((headroom[cs.stat] or 0) + 0.5)))
     end
 
     -- Die Tempo-Treppe speist denselben Topf (siehe ScanCharacter). Sie
     -- hier wegzulassen hiesse, dass die Diagnose mit anderen Zahlen
     -- rechnet als die Seite - genau die Sorte Abweichung, wegen der es
     -- diesen Befehl ueberhaupt gibt.
-    for _, bp in ipairs(BuildBreakpointStates(profile, profileKey, tankStyle)) do
-        if bp.headroom ~= nil then
-            headroom[bp.stat] = math.max(0, bp.headroom)
-        end
-        print(string.format("  |cff4A4A52Schwelle %s: %.2f%% / %s, Spielraum %s (%s) - /wc tempo zeigt die Treppe|r",
+    for _, bp in ipairs(breakpointStates) do
+        local d = detail[bp.stat] or {}
+        print(string.format("  |cff4A4A52Schwelle %s: %.2f%% / %s, aus Steinen +%d,"
+            .. " Spielraum %s (%s) - /wc tempo zeigt die Treppe|r",
             bp.label or bp.stat, bp.current or 0,
             bp.capPct and string.format("%.2f%%", bp.capPct) or "kein Ziel",
-            bp.headroom and string.format("%d Wertung", math.floor(bp.headroom + 0.5))
-                         or "ungedeckelt",
+            math.floor((d.gems or 0) + 0.5),
+            headroom[bp.stat] and string.format("%d Wertung",
+                math.floor(headroom[bp.stat] + 0.5)) or "ungedeckelt",
             bp.targetSource or "auto"))
     end
 
@@ -4097,25 +4323,21 @@ function WeintCodex.Charakter.DumpSockets()
     --
     -- Der Planer verschiebt Wertung, ohne einen Sockel zu kosten; die
     -- Sockelplanung rechnet deshalb seit 2.7.0.0 mit dem Spielraum NACH
-    -- seinem Plan (siehe ScanCharacter). Fehlt diese Ausgabe hier, rechnet
-    -- die Diagnose mit anderen Zahlen als die Seite - genau die Sorte
-    -- Abweichung, wegen der es diesen Befehl ueberhaupt gibt.
-    local outlook = WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.CapOutlook
-                    and WeintCodex.ReforgeEngine.CapOutlook()
+    -- seinem Plan (siehe ScanCharacter).
     if not outlook then
         print("  |cff4A4A52Umschmiede-Planer: kein fertiger Plan (aus, rechnet noch"
             .. " oder Ausruestung hat sich geaendert) - gerechnet wird ohne ihn.|r")
     else
         for stat, look in pairs(outlook) do
-            local before = headroom[stat]
-            headroom[stat] = math.max(0, look.target - look.after)
+            local d = detail[stat]
             print(string.format(
                 "  |cff22C55EUmschmieden %s: %d -> %d (Ziel %d), Spielraum %s statt %s|r",
                 look.label or stat,
                 math.floor(look.before + 0.5), math.floor(look.after + 0.5),
                 math.floor(look.target + 0.5),
-                math.floor(headroom[stat] + 0.5),
-                before and tostring(math.floor(before + 0.5)) or "-"))
+                headroom[stat] and tostring(math.floor(headroom[stat] + 0.5)) or "-",
+                d and d.reforgeBefore
+                    and tostring(math.floor(d.reforgeBefore + 0.5)) or "-"))
         end
     end
 

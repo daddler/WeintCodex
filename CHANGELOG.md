@@ -2,6 +2,47 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.9.4.0] – 2026-09-05
+
+**Ein Sockel-Vorschlag bleibt jetzt stehen, wenn du ihm gefolgt bist.**
+Wer die empfohlenen Steine gesetzt hat, bekam beim nächsten Blick andere
+vorgeschlagen. Manche der gerade erst gesetzten Steine standen danach sogar
+als *über Cap* da — obwohl das Addon sie selbst empfohlen hatte.
+
+Der Grund lag in der Rechnung dahinter. Sie hat gesehen, wie weit dir noch
+etwas zum Trefferkap fehlt, und dabei nicht mitgezählt, dass genau deine
+Steine diese Lücke bereits füllen. Nach dem Setzen war die Lücke weg — und
+damit auch der Grund für die Empfehlung. Setzt man dann die neuen Steine,
+kommt die Lücke zurück, und der alte Vorschlag steht wieder da. Ein Kreis,
+und jede Runde davon kostet Steine.
+
+Geplant wird jetzt so, als wären alle Sockel leer: was du schon drin hast,
+zählt in dieser Rechnung als noch zu vergeben. Damit kommt vor und nach dem
+Setzen dasselbe heraus.
+
+**Du musst nichts tun.** Ein Blick auf *Charakter → Sockel* genügt — die
+Liste steht jetzt still. Im Feld daneben steht ausserdem, warum die Zahlen
+dort von deinem Charakterbogen abweichen.
+
+### Behoben
+- *Charakter → Sockel* schlug nach dem Umsetzen einer Empfehlung andere Steine vor — und wieder die alten, wenn man auch denen folgte
+- Ein gerade erst nach dieser Empfehlung gesetzter Stein konnte als *über Cap* gemeldet werden
+- Die Diagnose `/wc sockel` rechnete den Spielraum ein zweites Mal nach und konnte deshalb andere Zahlen zeigen als die Seite
+
+### Geändert
+- *Charakter → Sockel* erklärt im Feld rechts, warum der Spielraum dort nicht der Abstand ist, den der Charakterbogen zeigt
+- `/wc sockel` weist je Grenze aus, wie viel Wertung aus den angelegten Steinen kommt
+
+### Technisch
+- Ursache war eine Rückkopplung, keine Ungenauigkeit: der Spielraum kam aus der Kampfwertung des Clients (die die angelegten Steine **enthält**), geplant wurden die Sockel aber, als wären sie leer. Damit war der Plan kein Fixpunkt — dieselbe Fehlerklasse, die der Umschmiede-Planer in 2.7.5.0 hatte
+- Aufgelöst über den Maßstab statt über einen Merker: `Spielraum = Abstand zum Kap − Überschuss + Beitrag der angelegten Steine`, also der Abstand in einem Zustand ohne Steine. Damit ist er von den Steinen unabhängig, und `alles so lassen` ergibt wieder denselben Plan — dieselbe Regel, aus der `modules/reforge_engine.lua` die angelegten Umschmiedungen aus der Kampfwertung herausrechnet
+- Der aktive Sockelbonus gehört zum Abzug: ob er anliegt, entscheidet der Plan (MATCH gegen IGNORE), er ist damit Teil dessen, was neu vergeben wird. Ein Gegenstand ohne Basisdaten zählt **nicht** mit — was der Client nicht gemeldet hat, ist keine 0
+- Die Rechnung steht jetzt an **einer** Stelle (`PlanningHeadroom` in `modules/charakter.lua`) statt zweimal: `ScanCharacter` und `DumpSockets` hatten sie je für sich, und damit rechnete ausgerechnet die Diagnose mit anderen Zahlen als das, was sie erklären soll
+- `ScanCharacter` liest die Sockel einmal vorweg (`socketScan`/`socketList`) und verwendet sie in der Schleife wieder — der Abzug muss stehen, bevor der erste Gegenstand geplant wird, und ein zweiter Durchlauf wäre ein zweiter Tooltip-Scan über die ganze Ausrüstung
+- Der Overcap-Pass bleibt am Iststand: `was liegt an?` ist die andere Frage als `was gehört hinein?`, und nur für die zweite ist der steinfreie Maßstab der richtige
+- Die Verzauberungsempfehlung liest denselben Topf weiter. Er ist jetzt um den Steinbeitrag größer, die kuratierte Liste wird also **seltener** umgereiht — die zurückhaltende Richtung (`PreferredEnchantId` reiht nur um, wenn die erste Wahl komplett ins Leere läuft)
+- `.github/tests/gem_plan_test.lua` prüft das als **Verhalten** und nicht als Punktzahl: planen, den Plan wie das Spiel anwenden, neu planen — dreimal in Folge dasselbe Ergebnis. Mit der alten Rechnung fällt der Lauf durch und reproduziert den gemeldeten Kreis (Massiver Chrysokoll → Glitzernder Kunzit → Massiver Chrysokoll). Die Gegenprobe im Lauf hält fest, dass der alte Spielraum nach dem Setzen auf 0 fiel
+
 ## [2.9.3.1] – 2026-09-04
 
 **Meuchelschurke, gelbe Sockel: Versierter Aragonit.**
