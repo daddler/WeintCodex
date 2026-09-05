@@ -144,3 +144,30 @@ noch zieht.
 ```bash
 lua5.1 .github/tests/gem_plan_test.lua .
 ```
+
+## Geht das Fenster beim Umschmieder auf?
+
+`reforge_open_test.lua` prüft die Kette zwischen dem Schalter und dem Fenster.
+Gemeldet wurde: *„wenn man das Umschmieden aktiviert, öffnet es sich trotzdem
+nicht, wenn man den Umschmieder anklickt."* Dazwischen liegen vier
+Bedingungen, und bis 2.10.0.0 schwieg jede von ihnen — ein ausgeschalteter
+Planer, ein abgewähltes *Fenster beim Umschmieder öffnen*, ein „hier nicht von
+selbst" aus der Frage in `core/optin.lua` und ein Ereignis, das der Client gar
+nicht führt, sahen von aussen völlig gleich aus. Dieselbe Fehlerklasse, an der
+die Einkaufsliste eine ganze Fassung lang tot war.
+
+Geprüft wird **Verhalten** und keine Textausgabe: für jede Bedingung einmal,
+dass das Fenster wirklich zubleibt bzw. aufgeht, und dass ein Grund benannt
+wird. Dazu die zwei Fälle, die man beim Nachbessern leicht verwechselt: ein
+Client **ohne** `FORGE_MASTER_OPENED` muss über das Fenster des Umschmieders
+trotzdem hinkommen, und ein Client **mit** dem Ereignis darf diesen zweiten Weg
+gerade **nicht** daneben haben — sonst ginge das Fenster zweimal auf.
+
+Der laute Fall ist der gemeldete: die Frage aus `core/optin.lua` wird je
+Charakter gestellt, der Schalter gilt fürs ganze Konto. Ein „nein" von vor drei
+Wochen überstimmt also die Aktivierung von eben. Richtig ist das — lautlos war
+es nicht, und der Testlauf hält fest, dass beide Auswege im Chat stehen.
+
+```bash
+lua5.1 .github/tests/reforge_open_test.lua .
+```

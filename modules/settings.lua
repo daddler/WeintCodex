@@ -547,7 +547,17 @@ local function ViewReforge(y)
                 WeintCodex.Reforge.HideForge()
             end
         end,
-        onChange = SyncToggles,
+        -- Der Hinweis darunter kommt und geht mit diesem Schalter, und er
+        -- aendert die Hoehe der Seite — dafuer reicht SyncToggles nicht,
+        -- die Seite muss neu. Ein Neuaufbau MITTEN im Klick nimmt aber das
+        -- Widget weg, das man gerade umgelegt hat (siehe der Kommentar an
+        -- RE.SetOption), also erst im naechsten Bild.
+        onChange = function()
+            SyncToggles()
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0, WeintCodex.Settings.Refresh)
+            end
+        end,
     })
 
     y = Toggle(y, {
@@ -558,6 +568,24 @@ local function ViewReforge(y)
         disabled = function() return not RE.Enabled() end,
         disabledHint = "Erst mit aktivem Planer.",
     })
+
+    -- WARUM DAS FENSTER TROTZ EINGESCHALTETEM PLANER ZUBLEIBT.
+    --
+    -- Die Frage aus core/optin.lua wird je Charakter gestellt, dieser
+    -- Schalter gilt fuer das ganze Konto — sie beantworten also
+    -- Verschiedenes, und ein "nein, hilf mir hier nicht" von vor drei
+    -- Wochen ueberstimmt die Aktivierung von eben. Das ist richtig so;
+    -- lautlos zu sein war es nicht. Also steht es da, mit beiden Auswegen
+    -- daneben (lock, don't hide, wie in core/access.lua).
+    local RF = WeintCodex.Reforge
+    local block = RF and RF.OpenBlock and RF.OpenBlock()
+    if block and block.key ~= "off" and block.key ~= "autoOpen" then
+        y = Note(y, WeintCodex.ColorText("warning", "Geht beim Umschmieder"
+            .. " trotzdem nicht von selbst auf: ") .. block.short
+            .. " Mit |cffD4A24A/wc hier|r beantwortest du das für diesen"
+            .. " Charakter neu; der Knopf unten öffnet das Fenster jederzeit"
+            .. " von Hand.", "textMuted")
+    end
 
     y = Buttons(y, {
         { text = "Fenster jetzt anzeigen", kind = "ghost",

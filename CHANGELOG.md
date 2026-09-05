@@ -2,6 +2,44 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.10.0.1] – 2026-09-05
+
+**Das Fenster beim Umschmieder ging nicht auf — und sagte nicht, warum.**
+Gemeldet wurde: Umschmieden eingeschaltet, Umschmieder angeklickt, nichts
+passiert. Zwischen dem Schalter und dem Fenster liegen vier Bedingungen, und
+bisher schwieg jede von ihnen. Von aussen sah alles gleich aus.
+
+**Der häufigste Grund ist eine Antwort von vor Wochen.** Beim ersten Mal fragt
+WeintCodex auf jedem Charakter, ob es dir bei Verzauberungen, Sockelsteinen und
+dem Umschmieden von selbst helfen soll. Wer dort *Nein* gewählt hat, bekommt
+hier auch kein Fenster — der Schalter unter *Einstellungen → Umschmieden* gilt
+fürs ganze Konto, die Frage galt für diesen einen Charakter.
+
+Das bleibt so, denn beide Antworten meinen etwas anderes. Neu ist nur, dass du
+es erfährst: einmal im Chat, sobald du an einem Umschmieder stehst, mit beiden
+Auswegen daneben. *`/wc hier`* stellt die Frage erneut, *`/wc umschmieden
+fenster`* öffnet den Plan sofort. Unter *Einstellungen → Umschmieden* steht der
+Hinweis direkt unter dem Schalter.
+
+**Steht der Grund woanders, nennt ihn `/wc umschmieden prüfen`** — jetzt gleich
+in der ersten Zeile, und auch dann, wenn der Planer aus ist.
+
+### Behoben
+- Das Fenster beim Umschmieder blieb ohne jede Rückmeldung zu; der Grund steht jetzt im Chat, in der Diagnose und unter *Einstellungen → Umschmieden*
+- Auf Clients, die das Umschmieder-Ereignis nicht melden, geht das Fenster jetzt trotzdem auf
+
+### Geändert
+- `/wc umschmieden prüfen` beginnt mit *Geht das Fenster beim Umschmieder auf?* und läuft auch bei ausgeschaltetem Planer
+- *Einstellungen → Umschmieden* zeichnet sich nach dem Umlegen des Hauptschalters neu, damit der Hinweis sofort steht
+
+### Technisch
+- **Die Antwort auf „geht das Fenster auf, und wenn nein: warum" steht an EINER Stelle** (`RF.OpenBlock` in `modules/reforge.lua`). Das Ereignis liest sie, `RF.Dump` druckt sie, `modules/settings.lua` zeigt sie an — drei Fassungen davon wären drei Gelegenheiten auseinanderzulaufen, dieselbe Regel wie bei `PlanItem` und `Raids.ShouldInvite()`
+- `tell` trennt die Entscheidung von der Überraschung: ein selbst ausgeschalteter Planer schweigt (ein Beta-Werkzeug, das an jedem Umschmieder daran erinnert, ist der Grund, warum man Addons abschaltet), ein eingeschalteter, der wegen der Opt-in-Antwort trotzdem stumm bleibt, meldet sich — einmal je Sitzung und je Grund, nicht je Umschmieder
+- **Der `pcall` um `RegisterEvent` schreibt jetzt mit, was ankam** (`RF.registeredEvents`). Ein pcall, dessen Ergebnis niemand ansieht, ist kein Rückfallweg, sondern ein stiller Ausfall — dieselbe Lehre wie beim Signalton in `modules/gearalert.lua` und beim Einladungslauf in `modules/calendar.lua`. Fehlte ausgerechnet `FORGE_MASTER_OPENED`, war das Werkzeug beim Umschmieder tot und sah von aussen aus wie ein abgeschalteter Schalter
+- Für genau diesen Fall hängt sich `RF.ForgeOpened` sonst an `OnShow`/`OnHide` von `ReforgingFrame` (nachgeladen über `ADDON_LOADED` für `Blizzard_ReforgingUI`). Der Weg steht **ausschliesslich dahinter**, nie daneben: das Ereignis ist die Auskunft, ein Fenstername ist nur ein Name (siehe `modules/shoppinglist.lua`) — und zwei Wege nebeneinander liessen das Fenster zweimal aufgehen
+- Beide Wege laufen durch `RF.ForgeOpened`; die Diagnose sagt, welcher aktiv ist, welche Ereignisse sich anmelden liessen, ob der Client `ReforgingFrame` führt und wann zuletzt geöffnet wurde
+- `.github/tests/reforge_open_test.lua` prüft die Kette als **Verhalten**: je Bedingung, dass das Fenster zubleibt bzw. aufgeht und dass ein Grund benannt wird, dazu die zwei Fälle, die man beim Nachbessern verwechselt — ein Client ohne das Ereignis muss hinkommen, ein Client mit dem Ereignis darf den zweiten Weg nicht haben
+
 ## [2.10.0.0] – 2026-09-05
 
 **Du bestimmst, welcher Wert auf ein Teil kommt.**

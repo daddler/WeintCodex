@@ -1865,20 +1865,82 @@ RE.OnPlanReady(function()
     end
 end)
 
+--------------------------------------------------
+-- GEHT DAS FENSTER BEIM UMSCHMIEDER AUF — UND WENN NEIN, WARUM NICHT?
+--
+-- Zwischen "eingeschaltet" und "es steht da" liegen vier Bedingungen, und
+-- bis 2.10.0.0 schwieg jede von ihnen. Von aussen sah ein ausgeschalteter
+-- Planer, ein abgewaehltes "beim Umschmieder oeffnen", ein "hier nicht von
+-- selbst" auf diesem Charakter und ein Ereignis, das der Client gar nicht
+-- fuehrt, voellig gleich aus: man klickt den Umschmieder an, und es kommt
+-- nichts. Genau die Fehlerklasse, wegen der es /wc sockel, /wc tempo und
+-- /wc einkauf pruefen gibt — und wegen der die Einkaufsliste eine ganze
+-- Fassung lang tot war, ohne dass es jemand sehen konnte.
+--
+-- DIE ANTWORT STEHT DESHALB AN EINER STELLE. Das Ereignis liest sie, die
+-- Diagnose druckt sie, die Einstellungsseite zeigt sie an. Drei Fassungen
+-- davon waeren drei Gelegenheiten auseinanderzulaufen — dieselbe Regel wie
+-- bei PlanItem und Raids.ShouldInvite().
+--
+-- `tell` trennt dabei die Entscheidung von der Ueberraschung: einen
+-- ausgeschalteten Planer hat man selbst ausgeschaltet, und ein Beta-Werkzeug,
+-- das an jedem Umschmieder daran erinnert, ist der Grund, warum man Addons
+-- abschaltet. Ein eingeschalteter Planer, der wegen einer Antwort von vor
+-- drei Wochen trotzdem stumm bleibt, ist dagegen genau das, was gemeldet
+-- wurde.
+--------------------------------------------------
+
+function RF.OpenBlock()
+    if not RE.Enabled() then
+        return { key = "off", short = "Der Planer ist ausgeschaltet." }
+    end
+    if not RE.GetOption("autoOpen") then
+        return { key = "autoOpen",
+            short = "\"Fenster beim Umschmieder öffnen\" ist aus." }
+    end
+    if WeintCodex.OptIn and not WeintCodex.OptIn.Active() then
+        local me = (WeintCodex.OptIn.CharacterName and WeintCodex.OptIn.CharacterName())
+                   or "diesem Charakter"
+        return { key = "optIn", tell = true,
+            short = "Auf " .. me .. " hilft WeintCodex nicht von selbst.",
+            chat = "Der Umschmiede-Plan bleibt hier zu: auf " .. me
+                .. " hast du gewählt, dass WeintCodex nichts von sich aus sagt."
+                .. " |cffD4A24A/wc hier|r stellt die Frage erneut,"
+                .. " |cffD4A24A/wc umschmieden fenster|r öffnet den Plan jetzt." }
+    end
+    return nil
+end
+
+local told         = {}    -- je Grund einmal je Sitzung, nicht je Umschmieder
+local lastOpenSeen = nil   -- wann kam zuletzt FORGE_MASTER_OPENED?
+local lastBlock    = nil   -- und was hat das Fenster dabei aufgehalten?
+
 local watcher = CreateFrame("Frame")
 
--- Ueber pcall angemeldet: RegisterEvent mit einem Namen, den der Client
--- nicht kennt, wirft einen Fehler — und der beendet das Laden DIESER
--- Datei, nicht nur die Zeile. Der Umschmieder ist eine Einrichtung von
--- Cataclysm/MoP; sollte ein Clientstand eines dieser Ereignisse einmal
--- nicht fuehren, faellt genau die Funktion aus und nicht die Seite.
+-- WAS SICH ANMELDEN LIESS, WIRD FESTGEHALTEN.
+-- RegisterEvent mit einem Namen, den der Client nicht kennt, wirft einen
+-- Fehler — und der beendet das Laden DIESER Datei, nicht nur die Zeile.
+-- Der Umschmieder ist eine Einrichtung von Cataclysm/MoP; sollte ein
+-- Clientstand eines dieser Ereignisse einmal nicht fuehren, faellt genau
+-- die Funktion aus und nicht die Seite.
+--
+-- Nur: ein pcall, dessen Ergebnis niemand ansieht, ist kein Rueckfallweg,
+-- sondern ein stiller Ausfall — dieselbe Lehre wie beim Signalton in
+-- modules/gearalert.lua und beim Einladungslauf in modules/calendar.lua.
+-- Fehlt ausgerechnet FORGE_MASTER_OPENED, ist das Werkzeug beim Umschmieder
+-- tot, und von aussen sieht das aus wie ein abgeschalteter Schalter. Also
+-- wird mitgeschrieben, was ankam, /wc umschmieden pruefen druckt es aus,
+-- und fuer diesen einen Fall steht unten ein zweiter Weg bereit.
+local registered = {}
 for _, event in ipairs({
     "FORGE_MASTER_OPENED", "FORGE_MASTER_CLOSED", "FORGE_MASTER_ITEM_CHANGED",
     "PLAYER_EQUIPMENT_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
     "GET_ITEM_INFO_RECEIVED",
 }) do
-    pcall(watcher.RegisterEvent, watcher, event)
+    registered[event] = pcall(watcher.RegisterEvent, watcher, event) and true or false
 end
+
+RF.registeredEvents = registered
 
 -- Nachlieferung der Gegenstandsdaten. Ohne sie bliebe eine Zeile, die beim
 -- Aufbau noch keine Itemdaten hatte, dauerhaft auf "nicht planbar" stehen —
@@ -1904,15 +1966,33 @@ local function NoteRefill()
     end)
 end
 
+-- WAS BEIM OEFFNEN DES UMSCHMIEDERS PASSIERT — genau einmal aufgeschrieben.
+-- Es gibt zwei Wege hierher (das Ereignis und, falls der Client es nicht
+-- fuehrt, der Rueckfallweg unten), und zwei Fassungen davon waeren zwei
+-- Gelegenheiten auseinanderzulaufen.
+function RF.ForgeOpened()
+    lastOpenSeen = Now()
+    RE.Invalidate()
+
+    local block = RF.OpenBlock()
+    lastBlock = block
+    if not block then
+        RF.ShowForge(false)
+        return
+    end
+
+    -- Gesagt wird nur, was ueberrascht — und das einmal je Sitzung.
+    if block.tell and block.chat and not told[block.key] then
+        told[block.key] = true
+        Say(block.chat)
+    end
+end
+
 watcher:SetScript("OnEvent", function(_, event)
     if event == "GET_ITEM_INFO_RECEIVED" then
         NoteRefill()
     elseif event == "FORGE_MASTER_OPENED" then
-        RE.Invalidate()
-        if RE.Enabled() and RE.GetOption("autoOpen")
-           and not (WeintCodex.OptIn and not WeintCodex.OptIn.Active()) then
-            RF.ShowForge(false)
-        end
+        RF.ForgeOpened()
     elseif event == "FORGE_MASTER_CLOSED" then
         forgeWish = nil
         if forgeCo then StopRun("Das Fenster des Umschmieders ist zu.") end
@@ -1962,8 +2042,105 @@ end)
 -- gerechnet wurde und welche laufende Nummer der Umschmieder bekaeme.
 --------------------------------------------------
 
+--------------------------------------------------
+-- RUECKFALLWEG: der Client fuehrt FORGE_MASTER_OPENED nicht
+--
+-- Dann ist das Werkzeug beim Umschmieder tot, und zwar lautlos — genau der
+-- Ausfall, an dem die Einkaufsliste eine Fassung lang hing, weil sie fest
+-- am Fensternamen des alten Auktionshauses hing. Umgekehrt gilt dort aber
+-- auch: das Ereignis IST die Auskunft, ein Fenstername ist nur ein Name.
+-- Deshalb steht der Fensterweg hier nicht daneben, sondern ausschliesslich
+-- dahinter: nur wenn sich das Ereignis nicht anmelden liess. So gibt es
+-- weiterhin genau einen Weg, und /wc umschmieden pruefen sagt welchen.
+--------------------------------------------------
+
+local hookedFrame = false
+
+local function HookReforgingFrame()
+    if hookedFrame then return end
+    local frame = _G.ReforgingFrame
+    if not (frame and frame.HookScript) then return end
+    hookedFrame = true
+    frame:HookScript("OnShow", function() RF.ForgeOpened() end)
+    -- Das Zumachen haengt an seinem eigenen Ereignis. Fuehrt der Client es,
+    -- bleibt es dabei — sonst liefe das Schliessen zweimal, und die Zusage
+    -- "genau ein Weg" waere nur die halbe Wahrheit.
+    if not registered.FORGE_MASTER_CLOSED then
+        frame:HookScript("OnHide", function()
+            forgeWish = nil
+            if forgeCo then StopRun("Das Fenster des Umschmieders ist zu.") end
+            if forge then forge:Hide() end
+        end)
+    end
+end
+
+RF.UsesFrameFallback = not registered.FORGE_MASTER_OPENED
+
+if RF.UsesFrameFallback then
+    HookReforgingFrame()
+    if not hookedFrame then
+        -- Blizzard_ReforgingUI wird erst beim Umschmieder nachgeladen.
+        local lateHook = CreateFrame("Frame")
+        if pcall(lateHook.RegisterEvent, lateHook, "ADDON_LOADED") then
+            lateHook:SetScript("OnEvent", function(self, _, addon)
+                if addon == "Blizzard_ReforgingUI" then
+                    HookReforgingFrame()
+                    if hookedFrame then self:UnregisterAllEvents() end
+                end
+            end)
+        end
+    end
+end
+
 function RF.Dump()
     Say("Umschmieden — Diagnose (Beta):")
+
+    --------------------------------------------------
+    -- ZUERST: GEHT DAS FENSTER BEIM UMSCHMIEDER UEBERHAUPT AUF?
+    --
+    -- Das ist die erste Frage, die jemand hat, der hier landet — und sie
+    -- steht vor dem Abbruch "der Planer ist aus", weil ausgerechnet dann
+    -- die Antwort gebraucht wird. Gedruckt wird jede Zwischenstufe, aus
+    -- demselben Grund wie bei /wc sockel und /wc tempo: von aussen sehen
+    -- ein abgewaehlter Schalter, eine Antwort von vor drei Wochen und ein
+    -- Ereignis, das dieser Client nicht fuehrt, voellig gleich aus.
+    --------------------------------------------------
+    local block = RF.OpenBlock()
+    print("  Beim Umschmieder: " .. (block
+        and WeintCodex.ColorText("warning", "geht nicht auf — " .. block.short)
+        or  WeintCodex.ColorText("green", "geht auf")))
+
+    print("    Planer: " .. (RE.Enabled() and "an" or "aus")
+        .. "  ·  beim Umschmieder öffnen: "
+        .. (RE.GetOption("autoOpen") and "an" or "aus")
+        .. "  ·  hilft auf diesem Charakter: "
+        .. ((not WeintCodex.OptIn or WeintCodex.OptIn.Active()) and "ja" or "nein"))
+
+    -- WELCHE EREIGNISSE HABEN SICH ANGEMELDET? Fehlt FORGE_MASTER_OPENED,
+    -- ist das Werkzeug beim Umschmieder tot, egal wie die Schalter stehen.
+    local missing = {}
+    for _, event in ipairs({ "FORGE_MASTER_OPENED", "FORGE_MASTER_CLOSED",
+                             "FORGE_MASTER_ITEM_CHANGED" }) do
+        if not RF.registeredEvents[event] then missing[#missing + 1] = event end
+    end
+    print("    Ereignisse: " .. (#missing == 0
+        and WeintCodex.ColorText("green", "alle angemeldet")
+        or  WeintCodex.ColorText("warning", "dieser Client führt nicht: "
+            .. table.concat(missing, ", ")
+            .. (RF.UsesFrameFallback and " — es läuft über das Fenster des"
+                .. " Umschmieders statt über das Ereignis" or ""))))
+
+    print("    Umschmieder: " .. (_G.ReforgingFrame
+        and ("Fenster vorhanden, gerade "
+             .. (ReforgingFrameIsVisible() and "offen" or "zu"))
+        or  WeintCodex.ColorText("textFaint",
+            "Fenster noch nicht geladen (kommt erst beim Umschmieder)")))
+
+    print("    Zuletzt geöffnet: " .. (lastOpenSeen
+        and (string.format("vor %.0f s", Now() - lastOpenSeen)
+             .. (lastBlock and (WeintCodex.ColorText("warning",
+                 "  ·  aufgehalten: " .. lastBlock.short)) or ""))
+        or  WeintCodex.ColorText("textFaint", "in dieser Sitzung noch nicht")))
 
     if not RE.Enabled() then
         print("  " .. WeintCodex.ColorText("warning",

@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.10.0.1",
+        date    = "05.09.2026",
+        notes   = {
+            "|cffD4A24AUmschmieden|r: bei manchen ging das Fenster beim Umschmieder nicht auf, obwohl der Planer eingeschaltet war. Es sagt jetzt, woran es liegt, statt einfach zuzubleiben.",
+            "Der haeufigste Grund: auf diesem Charakter hast du einmal |cffD4A24ANein|r geantwortet auf die Frage, ob WeintCodex von sich aus helfen soll. Das gilt weiterhin - aber du erfaehrst es jetzt.",
+            "Zurueck geht es mit |cffD4A24A/wc hier|r. Sofort oeffnen: |cffD4A24A/wc umschmieden fenster|r oder der Knopf unter Einstellungen -> Umschmieden.",
+            "Steht der Grund woanders, nennt ihn |cffD4A24A/wc umschmieden pruefen|r - und Einstellungen -> Umschmieden zeigt ihn direkt unter dem Schalter an.",
+        },
+    },
+    {
         version = "2.10.0.0",
         date    = "05.09.2026",
         notes   = {
