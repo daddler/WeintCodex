@@ -476,6 +476,61 @@ do
     profile.bestGems.blau = keep
 end
 
+--== 14) DER WUNSCHWERT MUSS GENUG VORSPRUNG HABEN =========================
+-- Er rueckt einen Wert an die erste Stelle der Gewichtung — bedienbar im
+-- Umschmieder-Fenster und auf "Priorisierung", wirksam ueberall (es ist
+-- dieselbe Gewichtung, die auch Steine und Verzauberungen lesen).
+--
+-- EIN PUNKT VORSPRUNG SIEHT NACH EINER ENTSCHEIDUNG AUS UND BEWIRKT NICHTS.
+-- Der Umschmiede-Planer nimmt eine Umschmiedung nur an, wenn sie ueber
+-- seiner Lohnschwelle liegt (WORTH_RATING = 10, festgenagelt in
+-- .github/tests/reforge_engine_test.lua). Genau diesen Fehler hatte die
+-- eigene Priorisierung schon einmal: sie stand da und tat nichts.
+do
+    local WORTH = 10    -- RE.WORTH_RATING, siehe reforge_engine_test.lua
+    local base = { agility = 100, crit = 90, haste = 70, mastery = 55,
+                   hit = 100, expertise = 100 }
+    local fav = CH.FavorWeights(base, "mastery")
+
+    Check("Wunschwert steht vorn",
+          fav ~= nil and fav.mastery == 100 and fav.mastery >= (fav.crit or 0) * 1.2,
+          fav and (tostring(fav.mastery) .. " gegen " .. tostring(fav.crit)) or "nil")
+
+    -- Die Rangfolge darunter bleibt: was halb so viel wog, wiegt danach
+    -- immer noch etwa halb so viel. Sonst waere der Wunschwert kein
+    -- Vorrang, sondern eine neue Gewichtung.
+    Check("... die Rangfolge darunter bleibt",
+          fav and fav.crit > fav.haste and fav.haste > 0,
+          fav and string.format("Krit %d, Tempo %d", fav.crit, fav.haste) or "nil")
+
+    -- Primaerwerte werden nicht angefasst: sie lassen sich nicht
+    -- umschmieden, und in einem Sockel entscheiden sie die Steinwahl mit.
+    Check("Primaerwerte bleiben unangetastet",
+          fav and fav.agility == 100, fav and tostring(fav.agility) or "nil")
+
+    -- Ein Wert, den die Spec mit 0 fuehrt, wird NICHT nach vorn gerueckt:
+    -- das waere eine Aussage ueber das Spiel, die dieses Addon nicht trifft.
+    Check("Ein ungewichteter Wert wird abgelehnt",
+          CH.FavorWeights(base, "parry") == nil, "nicht abgelehnt")
+
+    -- DIE GEGENPROBE AN DER LOHNSCHWELLE, im unguenstigsten Fall: ein Teil,
+    -- das nur 200 Wertung im staerksten Wert traegt. Bringt die Umschmiedung
+    -- weniger als WORTH mal Spitzengewicht, nimmt Stufe 3 des Planers sie
+    -- wieder zurueck — und der Wunschwert waere unsichtbar.
+    local gain = 200 * ((fav and fav.mastery or 0) - (fav and fav.crit or 0))
+    local bar  = WORTH * (fav and fav.mastery or 0)
+    Check("... und liegt ueber der Lohnschwelle",
+          gain > bar, string.format("%d gegen %d", gain, bar))
+
+    -- Und die Gegenprobe zur Gegenprobe: mit einem Punkt Vorsprung waere es
+    -- genau nicht so. Faellt diese Zeile weg, misst die Zeile darueber
+    -- nichts mehr.
+    local thin = { crit = 90, mastery = 89, haste = 70 }
+    Check("Gegenprobe: ein Punkt Vorsprung reicht nicht",
+          200 * (thin.mastery - thin.crit) <= WORTH * thin.mastery,
+          "ein Punkt haette gereicht")
+end
+
 print("")
 if fails == 0 then
     print("Alle Pruefungen bestanden.")

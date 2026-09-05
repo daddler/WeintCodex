@@ -576,26 +576,60 @@ local function ViewReforge(y)
     })
 
     y = Spacer(y, 8)
-    y = Group(y, "Gesperrte Teile")
+    y = Group(y, "Was du selbst entschieden hast")
 
+    -- ZWEI ENTSCHEIDUNGEN, ZWEI ZEILEN. "Gesperrt" haelt den Iststand fest,
+    -- "von Hand gesetzt" verlangt etwas Bestimmtes — sie in einer Zahl
+    -- zusammenzufassen hiesse, dem Spieler zu verschweigen, was er wo
+    -- wieder loesen muss.
     local locked = 0
     local store = WeintCodex.SavedData and WeintCodex.SavedData.reforge
     for _ in pairs((store and store.locked) or {}) do locked = locked + 1 end
+    local manual = RE.ManualCount and RE.ManualCount() or 0
 
-    y = Info(y, "Vom Planer ausgenommen", tostring(locked),
+    y = Info(y, "Von Hand gesetzt", tostring(manual),
+        manual > 0 and "gold" or "textFaint")
+    y = Info(y, "Gesperrt (bleibt, wie es ist)", tostring(locked),
         locked > 0 and "gold" or "textFaint")
-    y = Note(y, "Ein Klick auf eine Zeile der Seite nimmt das Teil aus der"
-        .. " Planung — für Ausrüstung, die aus einem Grund so bleiben soll,"
-        .. " den diese Rechnung nicht kennt.", "textDim")
+    y = Note(y, "Im Fenster beim Umschmieder wählst du unter Alle Teile"
+        .. " selbst, welcher Wert auf ein Teil soll — der Planer lässt es"
+        .. " danach in Ruhe. Ein Klick auf eine Zeile der Seite nimmt ein"
+        .. " Teil nur aus der Planung, ohne etwas zu verlangen.", "textDim")
 
     y = Buttons(y, {
-        { text = "Alle Sperren lösen",
+        { text = "Alles freigeben",
+          tooltip = "Hebt Handauswahlen und Sperren auf — der Planer"
+              .. " entscheidet danach überall wieder selbst"
+              .. " (/wc umschmieden frei).",
           onClick = function()
               if store then store.locked = {} end
+              if RE.ClearManual then RE.ClearManual(nil) end
               if WeintCodex.ReforgeEngine then WeintCodex.ReforgeEngine.Invalidate() end
+              if WeintCodex.Reforge and WeintCodex.Reforge.RefreshForge then
+                  WeintCodex.Reforge.RefreshForge()
+              end
               WeintCodex.Settings.Refresh()
           end },
     })
+
+    y = Spacer(y, 8)
+    y = Group(y, "Wunschwert")
+
+    -- Er ist eine GEWICHTUNG und keine Option dieses Reiters: er haengt an
+    -- der Spezialisierung und wirkt auch auf Steine und Verzauberungen.
+    -- Deshalb steht hier nur, was gilt und wo man es aendert — eine
+    -- Auswahlliste an dieser Stelle waere eine zweite Bedienung fuer
+    -- denselben Speicher, und irgendwann widersprechen die beiden einander.
+    local favor = WeintCodex.Charakter and WeintCodex.Charakter.GetFavor
+                  and WeintCodex.Charakter.GetFavor()
+    local R = WeintCodex_Reforge
+    y = Info(y, "Für deine Spezialisierung",
+        favor and ((R and R.LABEL and R.LABEL[favor]) or favor) or "keiner",
+        favor and "gold" or "textFaint")
+    y = Note(y, "Rückt einen Wert an die erste Stelle deiner Gewichtung."
+        .. " Pflichtgrenzen wie das Trefferkap gehen weiterhin vor. Zu setzen"
+        .. " im Fenster beim Umschmieder oder auf Charakter → Priorisierung;"
+        .. " er gilt dort wie hier, es ist dieselbe Gewichtung.", "textDim")
 
     return y
 end

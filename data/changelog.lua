@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "2.10.0.0",
+        date    = "05.09.2026",
+        notes   = {
+            "|cffD4A24AUmschmieden|r: du kannst jetzt selbst bestimmen, welcher Wert auf ein Teil soll. Im Fenster beim Umschmieder steht dafuer der Reiter |cffD4A24AAlle Teile|r - Teil anklicken, Wert auswaehlen, fertig.",
+            "Was du selbst gesetzt hast, laesst der Planer in Ruhe. Es bleibt so, bis du es freigibst, und |cffD4A24AAlles umschmieden|r fuehrt es mit aus.",
+            "Neu ist auch ein |cffD4A24AWunschwert|r: ein Wert rueckt an die erste Stelle deiner Gewichtung. Zu setzen im selben Fenster oben rechts oder auf |cffD4A24ACharakter -> Priorisierung|r.",
+            "Er gilt auch fuer Sockelsteine und Verzauberungen - es ist dieselbe Gewichtung. Deine Pflichtgrenzen wie das Trefferkap gehen weiterhin vor.",
+            "Alles wieder loswerden: |cffD4A24AAlles freigeben|r unter Einstellungen -> Umschmieden.",
+        },
+    },
+    {
         version = "2.9.4.0",
         date    = "05.09.2026",
         notes   = {

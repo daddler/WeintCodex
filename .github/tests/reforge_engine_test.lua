@@ -631,5 +631,172 @@ do
     if not same then fails = fails + 1 end
 end
 
+--== VON HAND GESETZTE UMSCHMIEDUNGEN ======================================
+-- WER SELBST WAEHLT, WILL NICHT UEBERSTIMMT WERDEN. Eine Handauswahl ist
+-- eine Eingabe in den Plan und kein Weg daran vorbei: ItemOptions macht sie
+-- zur EINZIGEN Moeglichkeit dieses Slots, der Suchlauf plant um sie herum,
+-- und "Alles umschmieden" fuehrt sie mit aus. Faellt eine dieser drei
+-- Eigenschaften weg, sieht das im Spiel gleich aus — die Zeile steht da,
+-- und beim naechsten Plan steht etwas anderes.
+do
+    local GEAR = { { crit = 400, haste = 300 }, { crit = 350, mastery = 250 },
+                   { haste = 500, mastery = 200 } }
+    local RATINGS = { [6] = 300, [9] = 950, [18] = 800, [26] = 900, [24] = 150 }
+
+    local function idx(stat)
+        for i, key in ipairs(R.STATS) do if key == stat then return i end end
+    end
+
+    local function planNow()
+        setup(GEAR, W, {}, RATINGS)
+        return RE.GetPlan(true)
+    end
+
+    -- 1) Sie gilt, und zwar genau so.
+    RE.ClearManual(nil)
+    setup(GEAR, W, {}, RATINGS)
+    RE.SetManual(1, idx("crit"), idx("mastery"))
+    local plan = RE.GetPlan(true)
+    local row  = plan.ok and plan.rows[1]
+    local got  = row and row.target
+        and (R.STATS[row.target.src] .. ">" .. R.STATS[row.target.dst]) or "-"
+    print(string.format("%-40s %s", "Handauswahl steht im Plan",
+        got == "crit>mastery" and "ok" or ("ABWEICHUNG  " .. got)))
+    if got ~= "crit>mastery" then fails = fails + 1 end
+
+    -- 2) ... auch wenn der Suchlauf etwas anderes wollte. Ohne Handauswahl
+    -- entscheidet er selbst; die beiden duerfen nicht dasselbe sein, sonst
+    -- misst Punkt 1 nichts.
+    RE.ClearManual(nil)
+    local free = planNow()
+    local freeGot = free.ok and free.rows[1] and free.rows[1].target
+        and (R.STATS[free.rows[1].target.src] .. ">"
+             .. R.STATS[free.rows[1].target.dst]) or "-"
+    print(string.format("%-40s %s", "... und uebersteuert den Suchlauf",
+        freeGot ~= "crit>mastery" and "ok"
+            or "ABWEICHUNG - der Planer waehlt ohnehin dasselbe"))
+    if freeGot == "crit>mastery" then fails = fails + 1 end
+
+    -- 3) Der Rest der Ausruestung wird weiter geplant. Eine Handauswahl,
+    -- die den ganzen Lauf lahmlegt, waere schlimmer als keine.
+    setup(GEAR, W, {}, RATINGS)
+    RE.SetManual(1, idx("crit"), idx("mastery"))
+    plan = RE.GetPlan(true)
+    local others = 0
+    for i = 2, #(plan.rows or {}) do
+        if plan.rows[i].target then others = others + 1 end
+    end
+    print(string.format("%-40s %s", "Die uebrigen Teile werden weiter geplant",
+        others > 0 and "ok" or "ABWEICHUNG - nichts mehr geplant"))
+    if others == 0 then fails = fails + 1 end
+
+    -- 4) "Gar nicht umschmieden" ist eine eigene Aussage und nicht dasselbe
+    -- wie "keine Handauswahl".
+    setup(GEAR, W, {}, RATINGS)
+    RE.SetManual(2, nil, nil)
+    plan = RE.GetPlan(true)
+    local none = plan.ok and plan.rows[2] and plan.rows[2].target == nil
+    print(string.format("%-40s %s", "\"Gar nicht umschmieden\" bleibt leer",
+        none and "ok" or "ABWEICHUNG"))
+    if not none then fails = fails + 1 end
+
+    -- 5) Eine Handauswahl, die zu dem Teil nicht passt, wird GEMELDET und
+    -- nicht stillschweigend angewandt. Ein Auftrag mit einer Nummer, die
+    -- fuer diesen Gegenstand nichts bedeutet, kostet Gold fuer das Falsche.
+    setup(GEAR, W, {}, RATINGS)
+    RE.SetManual(1, idx("mastery"), idx("crit"))   -- Teil 1 traegt keine Meisterschaft
+    plan = RE.GetPlan(true)
+    row = plan.ok and plan.rows[1]
+    print(string.format("%-40s %s", "Unpassende Handauswahl faellt auf",
+        (row and row.manualInvalid) and "ok" or "ABWEICHUNG - stillschweigend geschluckt"))
+    if not (row and row.manualInvalid) then fails = fails + 1 end
+
+    -- 6) DIE KENNUNG. Sie stand fuer die eigene Priorisierung schon einmal
+    -- nicht darin, und die tat deshalb sichtbar nichts: `GetPlan` gab den
+    -- Plan von vorher zurueck. Geprueft wird deshalb OHNE erzwungenen Lauf.
+    RE.ClearManual(nil)
+    setup(GEAR, W, {}, RATINGS)
+    local before = RE.GetPlan(true)
+    local beforeGot = before.rows[3].target
+        and (R.STATS[before.rows[3].target.src] .. ">"
+             .. R.STATS[before.rows[3].target.dst]) or "-"
+    RE.SetManual(3, idx("mastery"), idx("crit"))
+    local after = RE.GetPlan()                     -- ausdruecklich ohne force
+    local afterGot = after.ok and after.rows[3] and after.rows[3].target
+        and (R.STATS[after.rows[3].target.src] .. ">"
+             .. R.STATS[after.rows[3].target.dst]) or "-"
+    print(string.format("%-40s %s", "Sie wirkt ohne erzwungenen Lauf",
+        afterGot == "mastery>crit" and "ok"
+            or ("ABWEICHUNG  " .. beforeGot .. " -> " .. afterGot)))
+    if afterGot ~= "mastery>crit" then fails = fails + 1 end
+
+    -- 7) Und sie ist wieder loszuwerden.
+    RE.ClearManual(nil)
+    local freed = RE.GetPlan()
+    local freedGot = freed.ok and freed.rows[3] and freed.rows[3].target
+        and (R.STATS[freed.rows[3].target.src] .. ">"
+             .. R.STATS[freed.rows[3].target.dst]) or "-"
+    print(string.format("%-40s %s", "Freigeben gibt das Teil zurueck",
+        freedGot == beforeGot and "ok"
+            or ("ABWEICHUNG  " .. freedGot .. " statt " .. beforeGot)))
+    if freedGot ~= beforeGot then fails = fails + 1 end
+
+    RE.ClearManual(nil)
+end
+
+--== DIE AUSWAHLLISTE UND DER UMSCHMIEDER MEINEN DASSELBE ==================
+-- RE.Choices sagt, was das Fenster anbietet; RE.ForgeIndex sagt, welche
+-- Nummer der Auftrag bekommt. Beide beantworten "welche Umschmiedung laesst
+-- dieser Gegenstand zu" — und boeten sie Verschiedenes an, koennte man im
+-- Fenster etwas waehlen, fuer das es keine Nummer gibt (oder schlimmer: die
+-- Nummer einer anderen).
+do
+    setup({ { crit = 400, haste = 300 }, { hit = 300, mastery = 250, crit = 100 } },
+          W, {}, { [6] = 300, [9] = 950, [18] = 800, [26] = 900, [24] = 150 })
+    local items = RE.ScanItems()
+    local bad = {}
+    for _, item in ipairs(items) do
+        for _, c in ipairs(RE.Choices(item)) do
+            if RE.ForgeIndex(item, c.src, c.dst) == nil then
+                bad[#bad + 1] = item.slotName .. " " .. R.STATS[c.src] .. ">" .. R.STATS[c.dst]
+            end
+        end
+        -- Und die Gegenrichtung: was Choices NICHT anbietet, darf der
+        -- Umschmieder auch nicht als eigenstaendige Umschmiedung kennen.
+        for src = 1, #R.STATS do
+            for dst = 1, #R.STATS do
+                if src ~= dst and RE.ForgeIndex(item, src, dst) ~= nil then
+                    local found = false
+                    for _, c in ipairs(RE.Choices(item)) do
+                        if c.src == src and c.dst == dst then found = true end
+                    end
+                    if not found then
+                        bad[#bad + 1] = "fehlt: " .. item.slotName .. " "
+                            .. R.STATS[src] .. ">" .. R.STATS[dst]
+                    end
+                end
+            end
+        end
+    end
+    print(string.format("%-40s %s", "Auswahlliste deckt sich mit der Nummer",
+        #bad == 0 and "ok" or ("ABWEICHUNG  " .. table.concat(bad, ", "))))
+    if #bad > 0 then fails = fails + 1 end
+end
+
+--== DIE LOHNSCHWELLE IST EINE ZAHL, UND SIE HAENGT NICHT ALLEIN =========
+-- Der Wunschwert in modules/charakter.lua staucht die uebrigen Werte auf 80
+-- gegen 100, damit eine Umschmiedung zu ihm ueber DIESE Schwelle kommt. Wer
+-- sie hier anhebt, muss dort nachrechnen — sonst steht der Wunschwert da
+-- und tut nichts (derselbe Fehler, den die eigene Priorisierung hatte).
+-- Geprueft wird deshalb der Wert selbst; die Rechnung darueber steht in
+-- .github/tests/gem_plan_test.lua, wo das Charaktermodul geladen ist.
+do
+    local ok = RE.WORTH_RATING == 10
+    print(string.format("%-40s %s", "Lohnschwelle steht auf 10",
+        ok and "ok" or ("ABWEICHUNG  " .. tostring(RE.WORTH_RATING)
+            .. " - Wunschwert-Vorsprung in charakter.lua nachrechnen")))
+    if not ok then fails = fails + 1 end
+end
+
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))
 os.exit(fails == 0 and 0 or 1)

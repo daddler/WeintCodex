@@ -391,18 +391,125 @@ local function GetEffectiveProfileKey(profileKey, tankStyle)
     return profileKey
 end
 
+--------------------------------------------------
+-- WUNSCHWERT (seit 2.10.0.0)
+--
+-- "Ich spiele auf Meisterschaft" ist eine haeufige und voellig legitime
+-- Ansage, und bis 2.9.4.0 war sie nur ueber die Priorisierung zu machen —
+-- acht Zahlen von Hand, auf einer Seite, die man erst finden muss. Der
+-- Wunschwert ist die Abkuerzung dorthin: EIN Wert, der nach vorn rueckt.
+--
+-- ER IST EINE GEWICHTSVORGABE UND WIRKT DESHALB UEBERALL. Steine,
+-- Verzauberungen und Umschmieden lesen dieselben Gewichte; ein Wunschwert,
+-- der nur beim Umschmieden gilt, waere eine zweite Gewichtung neben der
+-- ersten — genau die Doppelung, aus der zwei Seiten desselben Addons
+-- einander widersprechen. Er steht deshalb hier, in der einen Kette, die
+-- "welches Gewicht gilt" beantwortet, und die Oberflaechen sagen es dazu.
+--
+-- WARUM 100 GEGEN 80 UND NICHT 100 GEGEN 99. Der Suchlauf nimmt eine
+-- Umschmiedung nur an, wenn sie mehr bringt als seine Lohnschwelle
+-- (WORTH_RATING, siehe modules/reforge_engine.lua). Rechnet man das aus,
+-- braucht der Wunschwert je nach bewegter Wertung (200 bis 400 Punkte je
+-- Teil) etwa 3 bis 6 % Vorsprung, damit eine Umschmiedung zu ihm ueberhaupt
+-- ueber diese Schwelle kommt. Ein Punkt Vorsprung genuegt also gerade
+-- nicht — er sieht in der Liste nach einer Entscheidung aus und bewirkt
+-- nichts. 20 % liegen sicher darueber und lassen die uebrigen Werte
+-- trotzdem erkennbar: was halb so viel wog, wiegt danach immer noch halb
+-- so viel.
+--
+-- Gestaucht werden NUR die umschmiedbaren Sekundaerwerte. Beweglichkeit
+-- gegen Meisterschaft zu verrechnen waere Unsinn: ein Primaerwert laesst
+-- sich nicht umschmieden, und in einem Sockel entscheidet er die
+-- Steinwahl mit.
+--------------------------------------------------
+
+local FAVOR_TOP  = 100    -- der Wunschwert auf der Skala der Spec-Profile
+local FAVOR_REST = 80     -- worauf die uebrigen Sekundaerwerte gestaucht werden
+
+-- Die acht umschmiedbaren Werte kommen aus data/reforge.lua und werden
+-- hier nicht noch einmal aufgezaehlt: eine zweite Liste waere eine zweite
+-- Gelegenheit, einen Wert zu vergessen.
+local FAVOR_STATS = (WeintCodex_Reforge and WeintCodex_Reforge.STATS)
+    or { "spirit", "dodge", "parry", "hit", "crit", "haste", "expertise", "mastery" }
+
+local function FavorStore(create)
+    local sd = WeintCodex.SavedData
+    if not sd then return nil end
+    if not sd.statFavor then
+        if not create then return nil end
+        sd.statFavor = {}
+    end
+    return sd.statFavor
+end
+
+
+-- Die reine Rechnung, ohne Speicher und ohne Profil: sie ist der Teil, an
+-- dem der Wunschwert scheitern kann, ohne dass man es sieht (zu wenig
+-- Vorsprung heisst, er tut sichtbar nichts), und deshalb liegt sie fuer den
+-- Testlauf offen. `nil` heisst: dieser Wunschwert aendert nichts.
+function WeintCodex.Charakter.FavorWeights(base, stat)
+    if not (base and stat) then return nil end
+    if (base[stat] or 0) <= 0 then
+        -- Ein Wert, den diese Spec gar nicht gebrauchen kann, wird nicht
+        -- nach vorn gerueckt: das waere eine Aussage ueber das Spiel, die
+        -- dieses Addon nicht treffen will. Die Oberflaeche bietet ihn
+        -- deshalb auch nicht an.
+        return nil
+    end
+
+    local highest = 0
+    for _, key in ipairs(FAVOR_STATS) do
+        if key ~= stat and (base[key] or 0) > highest then highest = base[key] end
+    end
+
+    local weights = {}
+    for k, v in pairs(base) do weights[k] = v end
+    weights[stat] = FAVOR_TOP
+    if highest > FAVOR_REST then
+        local scale = FAVOR_REST / highest
+        for _, key in ipairs(FAVOR_STATS) do
+            if key ~= stat and (base[key] or 0) > 0 then
+                weights[key] = math.floor(base[key] * scale + 0.5)
+            end
+        end
+    end
+    return weights
+end
+
+local function ApplyFavor(profile, effKey)
+    local store = FavorStore(false)
+    local stat  = store and effKey and store[effKey]
+    if not (stat and profile and profile.statWeights) then return profile end
+
+    local weights = WeintCodex.Charakter.FavorWeights(profile.statWeights, stat)
+    if not weights then return profile end
+
+    local p = {}
+    for k, v in pairs(profile) do p[k] = v end
+    p.statWeights = weights
+    p.favorStat   = stat
+    return p
+end
+
 local function ApplyCustomWeights(profile, profileKey, tankStyle)
     if not profile then return profile end
     local effKey = GetEffectiveProfileKey(profileKey, tankStyle)
     local sd = WeintCodex.SavedData
     local cw = sd and sd.customWeights and effKey and sd.customWeights[effKey]
-    if not (cw and cw.enabled and cw.weights) then return profile end
 
-    local p = {}
-    for k, v in pairs(profile) do p[k] = v end
-    p.statWeights = cw.weights
-    p.customWeights = true
-    return p
+    if cw and cw.enabled and cw.weights then
+        local p = {}
+        for k, v in pairs(profile) do p[k] = v end
+        p.statWeights = cw.weights
+        p.customWeights = true
+        -- DER WUNSCHWERT IST DIE LETZTE SCHICHT, auch ueber einer eigenen
+        -- Gewichtung: wer beides gesetzt hat, hat zuletzt den Wunschwert
+        -- gesetzt und erwartet, dass er gilt. Die Priorisierungsseite sagt
+        -- an, dass ihre Zahlen dann nicht mehr die wirksamen sind.
+        return ApplyFavor(p, effKey)
+    end
+
+    return ApplyFavor(profile, effKey)
 end
 
 --------------------------------------------------
@@ -3138,6 +3245,21 @@ local function Rationale(page, have)
     if weightRows then
         blocks[#blocks + 1] = { type = "header", text = "Gewichte (stärkste zuerst)" }
         blocks[#blocks + 1] = { type = "rows", rows = weightRows }
+        -- WOHER DIESE ZAHLEN KOMMEN, entscheidet, was man mit ihnen macht:
+        -- ein Wunschwert ist die eigene Entscheidung von vorhin, eine
+        -- eigene Gewichtung eine eingetragene Tabelle, das Profil die
+        -- Vorgabe. Ohne diese Zeile sieht eine gestauchte Gewichtung wie
+        -- ein Fehler in den Spec-Daten aus.
+        if ctx.profile.favorStat then
+            blocks[#blocks + 1] = { type = "text", color = "gold", size = 9,
+                text = "Wunschwert: " .. (StatName(ctx.profile.favorStat))
+                    .. ". Er steht vorn, die übrigen Sekundärwerte sind"
+                    .. " gestaucht – zurücknehmen auf Priorisierung oder beim"
+                    .. " Umschmieder." }
+        elseif ctx.profile.customWeights then
+            blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+                text = "Deine eigene Gewichtung (Charakter → Priorisierung)." }
+        end
     end
 
     local limitRows = RationaleLimitRows(ctx.caps, ctx.breakpoints)
@@ -4115,6 +4237,38 @@ end
 -- Nur den Profil-Schlüssel (z.B. "PALADIN_RETRIBUTION") plus den
 -- lesbaren Spec-Namen. Für Module wie modules/bis.lua, die die Spec
 -- brauchen, aber keinen vollen Ausrüstungs-Scan auslösen wollen.
+-- Ohne Argumente: der Wunschwert des Charakters, der gerade gespielt wird.
+-- Die Aufrufer sollen den "effektiven Profilschluessel" (Tanks: getrennt je
+-- Spielstil) nicht kennen muessen — er entsteht an einer Stelle, und das ist
+-- hier. `GetCurrentSpecProfile` liest dabei nur Tabellen und keinen
+-- Ausruestungs-Scan; das Umschmieder-Fenster fragt waehrend eines Laufs
+-- viermal je Sekunde nach.
+local function CurrentFavorKey()
+    local _, profileKey, tankStyle = GetCurrentSpecProfile()
+    return GetEffectiveProfileKey(profileKey, tankStyle)
+end
+WeintCodex.Charakter.CurrentFavorKey = CurrentFavorKey
+
+function WeintCodex.Charakter.GetFavor()
+    local store  = FavorStore(false)
+    local effKey = CurrentFavorKey()
+    return store and effKey and store[effKey] or nil
+end
+
+function WeintCodex.Charakter.SetFavor(stat)
+    local store  = FavorStore(true)
+    local effKey = CurrentFavorKey()
+    if not (store and effKey) then return end
+    store[effKey] = stat or nil
+    -- Der Umschmiede-Planer haelt seinen Plan an einer Kennung fest, in der
+    -- die WIRKSAMEN Gewichte stehen — die aendern sich hierdurch, also muss
+    -- er es erfahren. Ohne das taete der Wunschwert sichtbar nichts, bis
+    -- sich zufaellig etwas anderes aendert.
+    if WeintCodex.ReforgeEngine and WeintCodex.ReforgeEngine.Invalidate then
+        WeintCodex.ReforgeEngine.Invalidate()
+    end
+end
+
 function WeintCodex.Charakter.GetProfileKey()
     local _, profileKey, _, specDisplay = GetCurrentSpecProfile()
     return profileKey, specDisplay
@@ -6645,6 +6799,57 @@ function ShowPriorisierung()
         local height = text:GetStringHeight() + 14
         banner:SetSize(430, height)
 
+        yOff = yOff - height - 8
+    end
+
+    --------------------------------------------------
+    -- EIN GESETZTER WUNSCHWERT GEHOERT HIERHIN, NICHT NUR INS FENSTER
+    --
+    -- Er ist die letzte Schicht ueber diesen Zahlen (siehe ApplyFavor).
+    -- Steht er, sind die Felder unten NICHT mehr das, womit gerechnet
+    -- wird — und eine Seite, die Gewichte zeigt, die nicht gelten, ist
+    -- schlimmer als eine, die gar keine zeigt. Aufheben laesst er sich
+    -- gleich hier: wer sich wundert, ist ohnehin schon auf dieser Seite.
+    --------------------------------------------------
+    local favorStat = WeintCodex.Charakter.GetFavor and WeintCodex.Charakter.GetFavor()
+    if favorStat then
+        local favorLabel = favorStat
+        for _, st in ipairs(WEIGHT_STATS) do
+            if st.key == favorStat then favorLabel = st.label end
+        end
+
+        local box = CreateFrame("Frame", nil, prioFrame)
+        box:SetPoint("TOPLEFT", prioFrame, "TOPLEFT", 16, yOff)
+        SetSolidBg(box, C.surface2[1], C.surface2[2], C.surface2[3], 0.85)
+        DrawBorder(box, C.gold[1], C.gold[2], C.gold[3], 0.50, 1)
+
+        local text = box:CreateFontString(nil, "OVERLAY")
+        text:SetFont(WeintCodex.Fonts.sans, 10, "")
+        text:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -6)
+        text:SetWidth(300)
+        text:SetJustifyH("LEFT")
+        text:SetSpacing(2)
+        text:SetText(WeintCodex.ColorText("gold",
+            "Wunschwert: " .. favorLabel .. ".")
+            .. " " .. WeintCodex.ColorText("textFaint",
+                "Er steht auf 100, die übrigen Sekundärwerte sind auf höchstens"
+                .. " 80 gestaucht. Gerechnet wird also mit dieser Fassung und"
+                .. " nicht mit den Zahlen unten. Pflichtgrenzen gehen weiterhin vor."))
+
+        local off = WeintCodex.CreateButton(box, {
+            text = "Aufheben", kind = "ghost", height = 22, size = 10,
+            backdrop = "surface2",
+            tooltip = "Nimmt den Wunschwert zurück. Danach gilt wieder genau"
+                .. " das, was hier in den Feldern steht.",
+            onClick = function()
+                WeintCodex.Charakter.SetFavor(nil)
+                ShowPriorisierung()
+            end,
+        })
+        off:SetPoint("TOPRIGHT", box, "TOPRIGHT", -8, -8)
+
+        local height = math.max(text:GetStringHeight() + 14, 38)
+        box:SetSize(430, height)
         yOff = yOff - height - 8
     end
 

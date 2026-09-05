@@ -96,6 +96,7 @@ local function Store()
         if store.options[key] == nil then store.options[key] = value end
     end
     store.locked = store.locked or {}
+    store.manual = store.manual or {}
     return store
 end
 
@@ -122,6 +123,73 @@ end
 function RE.SetLocked(slotId, on)
     Store().locked[slotId] = on and true or nil
     RE.Invalidate()
+end
+
+--------------------------------------------------
+-- VON HAND GESETZTE UMSCHMIEDUNGEN (seit 2.10.0.0)
+--
+-- WER SELBST WAEHLT, WILL NICHT UEBERSTIMMT WERDEN. Der Planer rechnet mit
+-- den Gewichten des Spec-Profils; wer einem Guide folgt, einen Wert fuer
+-- einen Kampf braucht oder schlicht anders spielt, weiss an dieser Stelle
+-- mehr als diese Rechnung. Bis 2.9.4.0 gab es dafuer nur die Sperre, und
+-- die kann genau eines: den ISTSTAND festhalten. "Ich will hier
+-- Meisterschaft" war damit nur ueber den Umschmieder von Hand zu haben —
+-- und beim naechsten Plan stand es wieder anders da.
+--
+-- EINE HANDAUSWAHL IST EINE EINGABE IN DEN PLAN, KEIN WEG DARAN VORBEI.
+-- Sie wird deshalb nicht sofort ausgefuehrt, sondern in ItemOptions zur
+-- EINZIGEN Moeglichkeit dieses Slots — der Suchlauf plant um sie herum,
+-- die Seite zeigt sie, und "Alles umschmieden" fuehrt sie mit aus. Damit
+-- gibt es weiterhin genau EINEN Ausfuehrungsweg (mit seinem Warten auf die
+-- Bestaetigung, seiner Kostenrechnung und seiner Fehlermeldung) statt
+-- eines zweiten daneben, der all das noch einmal nachbauen muesste.
+-- Nebenbei geht sie damit auch fernab des Umschmieders zu setzen.
+--
+-- `false` heisst "hier soll GAR NICHT umgeschmiedet werden" — eine eigene
+-- Aussage, die von "keine Handauswahl" (nil) zu unterscheiden ist.
+--------------------------------------------------
+
+function RE.GetManual(slotId)
+    local m = Store().manual[slotId]
+    if m == false then return false end
+    if type(m) == "table" and m.src and m.dst then return m end
+    return nil
+end
+
+function RE.SetManual(slotId, src, dst)
+    if not slotId then return end
+    local store = Store()
+    if src == nil and dst == nil then
+        store.manual[slotId] = false          -- ausdruecklich: nicht umschmieden
+    elseif src and dst then
+        store.manual[slotId] = { src = src, dst = dst }
+    else
+        return
+    end
+    -- Eine Handauswahl und eine Sperre sagen dasselbe ("nicht wegrechnen"),
+    -- aber die Sperre haelt den ISTSTAND fest und wuerde die Auswahl damit
+    -- gerade verhindern. Zwei Merker fuer eine Absicht waeren ausserdem
+    -- genau die Doppelung, die niemand mehr auseinanderhaelt.
+    store.locked[slotId] = nil
+    RE.Invalidate()
+end
+
+function RE.ClearManual(slotId)
+    local store = Store()
+    if slotId then
+        store.manual[slotId] = nil
+    else
+        store.manual = {}
+    end
+    RE.Invalidate()
+end
+
+function RE.ManualCount()
+    local n = 0
+    for _, m in pairs(Store().manual) do
+        if m ~= nil then n = n + 1 end
+    end
+    return n
 end
 
 --------------------------------------------------
@@ -476,6 +544,7 @@ local function ScanSlot(slotDef)
         icon     = texture,
         stats    = {},
         locked   = RE.IsLocked(slotDef.id),
+        manual   = RE.GetManual(slotDef.id),
     }
 
     local fromLink = itemId and ReforgeStatsOf(link)
@@ -773,8 +842,78 @@ local function DeltaOf(item, src, dst, mult, conv)
     return delta
 end
 
+--------------------------------------------------
+-- WELCHE UMSCHMIEDUNGEN LAESST DIESER GEGENSTAND ZU?
+--
+-- Die Regel des Clients, und sie steht hier EINMAL: jeder Wert, den der
+-- Gegenstand traegt, laesst sich auf jeden Wert schieben, den er NICHT
+-- traegt. ItemOptions rechnet darauf seine Betraege, die Handauswahl im
+-- Umschmieder-Fenster bietet dieselbe Liste an, und ForgeIndex zaehlt in
+-- derselben Reihenfolge ab. Drei Fassungen davon waeren drei
+-- Gelegenheiten auseinanderzulaufen — und die dritte kostet Gold, weil an
+-- der Zaehlung die laufende Nummer des Auftrags haengt.
+--
+-- OHNE RUECKSICHT AUF SPERRE UND HANDAUSWAHL: das hier ist, was der
+-- Gegenstand hergibt, nicht was wir gerade damit vorhaben. Wer von Hand
+-- waehlt, muss auch an einem festgehaltenen Slot noch etwas anderes
+-- waehlen koennen.
+--------------------------------------------------
+
+function RE.Choices(item)
+    local out = {}
+    if not (item and item.stats) or item.problem then return out end
+    for src = 1, #R.STATS do
+        if (item.stats[R.STATS[src]] or 0) > 0 then
+            local raw = floor((item.stats[R.STATS[src]] or 0) * R.COEFF)
+            if raw > 0 then
+                for dst = 1, #R.STATS do
+                    if dst ~= src and (item.stats[R.STATS[dst]] or 0) == 0 then
+                        out[#out + 1] = { src = src, dst = dst, raw = raw }
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Ist genau diese Umschmiedung fuer den Gegenstand zulaessig? Dieselbe
+-- Frage wie oben, nur einzeln gestellt — die Handauswahl braucht sie, um
+-- eine Wahl zu verwerfen, die zu einem inzwischen abgelegten Teil gehoerte.
+function RE.ChoiceAllowed(item, src, dst)
+    if not (item and item.stats and src and dst) then return false end
+    if item.problem then return false end
+    return (item.stats[R.STATS[src]] or 0) > 0
+       and (item.stats[R.STATS[dst]] or 0) == 0
+end
+
 local function ItemOptions(item, mult, conv)
     local options = { { src = nil, dst = nil, raw = 0, delta = {} } }
+
+    -- VON HAND GESETZT HEISST: GENAU DAS UND NICHTS ANDERES.
+    -- Der Suchlauf bekommt fuer diesen Slot nur diese eine Moeglichkeit
+    -- und plant um sie herum — er kann sie damit weder wegrechnen noch
+    -- als "lohnt nicht" zuruecknehmen.
+    if item.manual ~= nil and not item.problem then
+        if item.manual == false then
+            return options                      -- ausdruecklich: nicht umschmieden
+        end
+        local m = item.manual
+        if RE.ChoiceAllowed(item, m.src, m.dst) then
+            options[1] = {
+                src = m.src, dst = m.dst,
+                raw = floor((item.stats[R.STATS[m.src]] or 0) * R.COEFF),
+                delta = DeltaOf(item, m.src, m.dst, mult, conv),
+            }
+            return options
+        end
+        -- Nicht zulaessig (anderes Teil im Slot): sie wird IGNORIERT und
+        -- nicht stillschweigend geloescht. Wegwerfen waere ein Schreiben
+        -- mitten im Planen, und der Spieler saehe nie, dass seine
+        -- Entscheidung verschwunden ist — die Zeile sagt es ihm stattdessen.
+        item.manualInvalid = true
+    end
+
     if item.problem or item.noSecondary or item.locked then
         -- Ein gesperrter Slot behaelt in JEDEM Startpunkt seinen Iststand,
         -- sonst hiesse "nicht anfassen" in Wahrheit "zuruecksetzen".
@@ -789,20 +928,11 @@ local function ItemOptions(item, mult, conv)
         return options
     end
 
-    for src = 1, #R.STATS do
-        if (item.stats[R.STATS[src]] or 0) > 0 then
-            local raw = floor((item.stats[R.STATS[src]] or 0) * R.COEFF)
-            if raw > 0 then
-                for dst = 1, #R.STATS do
-                    if dst ~= src and (item.stats[R.STATS[dst]] or 0) == 0 then
-                        options[#options + 1] = {
-                            src = src, dst = dst, raw = raw,
-                            delta = DeltaOf(item, src, dst, mult, conv),
-                        }
-                    end
-                end
-            end
-        end
+    for _, choice in ipairs(RE.Choices(item)) do
+        options[#options + 1] = {
+            src = choice.src, dst = choice.dst, raw = choice.raw,
+            delta = DeltaOf(item, choice.src, choice.dst, mult, conv),
+        }
     end
     return options
 end
@@ -1073,6 +1203,11 @@ RE.Score = Score
 -- der Testlauf muss gegen dieselbe Zahl rechnen, sonst prueft er eine
 -- andere Regel als die, die im Spiel gilt.
 RE.CAP_SLACK = CAP_SLACK
+-- Der Wunschwert in modules/charakter.lua haengt an dieser Zahl: er braucht
+-- genug Vorsprung, damit eine Umschmiedung zu ihm ueber die Lohnschwelle
+-- kommt. Steht sie hier offen, kann der Testlauf beides gegeneinander
+-- halten, statt die 10 an zwei Stellen abzuschreiben.
+RE.WORTH_RATING = WORTH_RATING
 
 -- Erfuellt eine Verteilung die Pflicht-Kaps? Rueckgabe: Zahl der
 -- verfehlten Kaps (0 = alles erreicht). Kleiner ist besser, und das
@@ -1659,9 +1794,18 @@ local function Signature()
         end
     end
 
+    -- Sperre UND Handauswahl gehoeren dazu: beide steuern den Suchlauf,
+    -- und was ihn steuert, muss in seiner Kennung stehen. Ohne die
+    -- Handauswahl gaebe `GetPlan` den zwischengespeicherten Plan von vorher
+    -- zurueck, und die Wahl taete sichtbar nichts — genau der Fehler, den
+    -- die eigene Priorisierung schon einmal hatte (siehe oben).
     for _, slotDef in ipairs(slots) do
+        local manual = RE.GetManual(slotDef.id)
         parts[#parts + 1] = (GetInventoryItemLink("player", slotDef.id) or "-")
                             .. (RE.IsLocked(slotDef.id) and "!" or "")
+                            .. (manual == false and "#-"
+                                or manual and ("#" .. manual.src .. "." .. manual.dst)
+                                or "")
     end
     -- Die Kampfwertungen gerundet, und zwar grob: sie schwanken mit jedem
     -- Schmuckproc und jedem Raidbuff, und eine Kennung, die daran haengt,
@@ -1775,6 +1919,8 @@ local function BuildPlan(signature)
             tooltipReforged = item.tooltipReforged,
             statSetMismatch = item.statSetMismatch,
             locked      = item.locked,
+            manual      = item.manual,
+            manualInvalid = item.manualInvalid,
             problem     = item.problem,
             warning     = item.warning,
             noSecondary = item.noSecondary,
@@ -1789,13 +1935,24 @@ local function BuildPlan(signature)
                 amount = math.abs(option.delta[R.STATS[option.src]] or option.raw),
                 raw    = option.raw,
             }
-            row.reason, row.reasonTone = ReasonFor(ctx, option, beforeTotals)
+            if item.manual and not item.manualInvalid then
+                -- VON DIR GESETZT IST EIN ANDERER GRUND ALS GERECHNET.
+                -- Ein Text, der hier die Abwaegung des Suchlaufs erzaehlt,
+                -- waere schlicht falsch: entschieden hat sie niemand.
+                row.reason, row.reasonTone =
+                    "Von dir gesetzt — der Planer lässt dieses Teil in Ruhe.", "gold"
+            else
+                row.reason, row.reasonTone = ReasonFor(ctx, option, beforeTotals)
+            end
         else
             -- AUCH "NICHTS TUN" HAT EINEN GRUND, und es sind drei
             -- verschiedene: gesperrt, nichts zu verschieben, oder nichts
             -- zu gewinnen. Ein Text fuer alle drei waere fuer zwei davon
             -- falsch — dieselbe Regel wie bei BlockedReason drueben.
-            if item.locked then
+            if item.manual == false then
+                row.reason, row.reasonTone =
+                    "Von dir gesetzt: hier soll nicht umgeschmiedet werden.", "gold"
+            elseif item.locked then
                 row.reason, row.reasonTone =
                     "Von dir gesperrt — bleibt, wie es ist.", "gold"
             elseif dropped[i] then
@@ -1813,6 +1970,17 @@ local function BuildPlan(signature)
                 row.reason, row.reasonTone =
                     "Verschieben brächte hier keine Wertung.", "textDim"
             end
+        end
+
+        -- EINE VERWORFENE HANDAUSWAHL WIRD GESAGT, NICHT VERSCHLUCKT.
+        -- Sie gilt fuer den Slot; liegt dort ein Teil, das diese
+        -- Umschmiedung gar nicht zulaesst, plant der Suchlauf wieder selbst
+        -- — und ohne diesen Satz stuende da eine Empfehlung, von der der
+        -- Spieler annimmt, er haette sie ueberstimmt.
+        if item.manualInvalid then
+            row.reason, row.reasonTone =
+                "Deine Handauswahl passt nicht zu dem Teil, das hier liegt —"
+                .. " sie gilt nicht mehr. Wähle neu oder gib den Slot frei.", "gold"
         end
 
         local cur = item.current

@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "2.9.4.0"
+WeintCodex.Version = "2.10.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -129,6 +129,7 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     --   /wc umschmieden an|aus   Planer ein-/ausschalten
     --   /wc umschmieden fenster  Liste auch ohne Umschmieder zeigen
     --   /wc umschmieden pruefen  jede Zwischenzahl in den Chat
+    --   /wc umschmieden frei     alle Handauswahlen und Sperren aufheben
     if verb == "umschmieden" or verb == "reforge" or verb == "schmieden" then
         if WeintCodex.Reforge and WeintCodex.Reforge.Command then
             WeintCodex.Reforge.Command(rest)

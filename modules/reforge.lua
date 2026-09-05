@@ -212,7 +212,13 @@ local function DrawPlanRow(parent, x, y, width, row, index)
     slot:SetWidth(math.max(120, width - 300))
     slot:SetWordWrap(false)
     slot:SetTextColor(unpack(C.textFaint))
-    slot:SetText(row.slotName .. (row.locked and "  ·  gesperrt" or ""))
+    -- "gesperrt" und "von dir gesetzt" sind zwei verschiedene Entscheidungen:
+    -- das eine haelt den Iststand fest, das andere verlangt etwas Bestimmtes.
+    -- Ein Wort fuer beides waere fuer eines davon falsch.
+    slot:SetText(row.slotName
+        .. (row.manualInvalid and "  ·  |cffE2B33CHandauswahl passt nicht mehr|r"
+            or (row.manual ~= nil) and "  ·  |cffE2B33Cvon dir gesetzt|r"
+            or row.locked and "  ·  gesperrt" or ""))
 
     -- Die Umschmiedung selbst. Der Pfeil traegt die ganze Auskunft: was
     -- geht weg, was kommt dazu, wieviel.
@@ -272,14 +278,27 @@ local function DrawPlanRow(parent, x, y, width, row, index)
         if row.cost then
             GameTooltip:AddLine("Kosten: " .. Coins(row.cost), 0.83, 0.64, 0.29)
         end
-        GameTooltip:AddLine(row.locked and "Linksklick: Sperre aufheben"
-                                       or "Linksklick: dieses Teil in Ruhe lassen",
+        GameTooltip:AddLine((row.manual ~= nil) and "Linksklick: zurück an den Planer"
+            or row.locked and "Linksklick: Sperre aufheben"
+            or "Linksklick: dieses Teil in Ruhe lassen",
             0.42, 0.38, 0.35)
+        if row.manual == nil then
+            GameTooltip:AddLine("Selbst wählen, welcher Wert hierhin soll:"
+                .. " beim Umschmieder oder mit /wc umschmieden fenster",
+                0.42, 0.38, 0.35, true)
+        end
         GameTooltip:Show()
     end)
     frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame:SetScript("OnClick", function()
-        RE.SetLocked(row.slot, not row.locked)
+        -- Eine Handauswahl ist die staerkere Aussage: solange sie steht,
+        -- nimmt der Klick zuerst sie zurueck. Sonst waere die Sperre der
+        -- einzige Weg, und man haette zwei Zustaende uebereinander liegen.
+        if row.manual ~= nil then
+            RE.ClearManual(row.slot)
+        else
+            RE.SetLocked(row.slot, not row.locked)
+        end
         RF.ShowPage()
     end)
 
@@ -379,14 +398,42 @@ local function BuildInspector(plan)
         end
     end
 
+    --------------------------------------------------
+    -- WAS DAVON HAST DU SELBST ENTSCHIEDEN?
+    --
+    -- Ein von Hand gesetztes Teil bekommt genau EINE Moeglichkeit; von
+    -- aussen sieht das aus, als haette der Planer sie gewaehlt. Steht hier
+    -- nicht, wie viele es sind, wundert man sich beim naechsten Mal, warum
+    -- er dieselbe Verteilung "wieder" vorschlaegt.
+    --------------------------------------------------
+    local manuals = RE.ManualCount and RE.ManualCount() or 0
+    if manuals > 0 then
+        blocks[#blocks + 1] = { type = "divider" }
+        blocks[#blocks + 1] = { type = "rows", rows = {
+            { label = "Von dir gesetzt", value = tostring(manuals) .. " Teile",
+              valueColor = "gold" },
+        }}
+        blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+            text = "Der Planer lässt diese Teile in Ruhe. Klick auf eine Zeile"
+                .. " gibt sie ihm zurück." }
+    end
+
     blocks[#blocks + 1] = { type = "divider" }
+    blocks[#blocks + 1] = { type = "text", color = "textFaint", size = 9,
+        text = "Selbst wählen, welcher Wert auf ein Teil soll: im Fenster unter"
+            .. " Alle Teile. Es geht beim Umschmieder von selbst auf." }
     blocks[#blocks + 1] = { type = "button", style = "primary",
         label = "Fenster ansehen", onClick = function() RF.ShowForge(true) end }
     blocks[#blocks + 1] = { type = "button",
-        label = "Alle Sperren lösen", onClick = function()
+        label = "Alles freigeben", onClick = function()
+            -- Sperren UND Handauswahlen: beide sagen "nicht anfassen", und
+            -- ein Knopf, der nur die Haelfte davon aufhebt, laesst den
+            -- Spieler raten, warum sich immer noch nichts bewegt.
             local store = WeintCodex.SavedData and WeintCodex.SavedData.reforge
             if store then store.locked = {} end
+            RE.ClearManual(nil)
             RE.Invalidate()
+            RF.RefreshForge()
             RF.ShowPage()
         end }
     -- Der Weg zurueck zur anderen Haelfte derselben Frage: die
@@ -580,9 +627,30 @@ local forgeWish      = nil    -- Klick, der auf den fertigen Plan wartet
 local expectSettled  = false  -- nach einem sauberen Lauf: darf nichts mehr offen sein
 RF.runLog            = {}     -- was der letzte Lauf geschickt und gesehen hat
 
-local FORGE_W   = 340
-local FORGE_HDR = 42
-local FORGE_ROW = 30
+local FORGE_W    = 340
+local FORGE_HDR  = 42
+local FORGE_ROW  = 30
+local FORGE_BAR  = 40   -- Ansichtsleiste (das Segmented Control ist 38 hoch)
+local FORGE_PICK = 22   -- Zeilenhoehe der Auswahllisten
+
+--------------------------------------------------
+-- VIER ANSICHTEN, KEINE AUSKLAPPLISTEN
+--
+--   "plan"   was der Planer aendern will (die bisherige Liste)
+--   "all"    alle Teile mit ihrem Iststand — der Einstieg fuer die Handauswahl
+--   "pick"   die Auswahl fuer EIN Teil (forgePick traegt den Slot)
+--   "favor"  die Auswahl des Wunschwerts
+--
+-- Das Fenster ist 340 px breit und steht neben dem des Umschmieders. Eine
+-- Liste, die sich mitten darin aufklappt, schiebt alles darunter weg —
+-- und wer schon auf die naechste Zeile gezielt hat, klickt daneben. Beim
+-- Umschmieder kostet ein Fehlklick Gold, also wechselt die ganze Flaeche.
+--------------------------------------------------
+
+local forgeView = "plan"
+local forgePick = nil     -- Slot, dessen Auswahl offen steht
+local forgeBack = "plan"  -- wohin "Zurueck" fuehrt
+local pickRows  = {}
 
 -- Wie oft der Lauf von selbst nachsieht, und wie lange er auf EINEN
 -- Gegenstand wartet, bevor er aufgibt.
@@ -969,6 +1037,11 @@ function RF.StartRun()
     end
 
     RF.currentPlanRows = plan.rows
+    -- Der Zusammenhang des Plans wird mit festgehalten: aus ihm kommen die
+    -- wirksamen Gewichte, nach denen die Auswahlliste sortiert. Ihn waehrend
+    -- des Laufs neu zu holen hiesse, den Planer laufen zu lassen — genau das,
+    -- was hier nicht passieren darf.
+    RF.currentPlanCtx  = plan.ctx
     forgeWish = nil
 
     ClearCursor()
@@ -1046,9 +1119,64 @@ function BuildForge()
     closeLbl:SetText("x")
     close:SetScript("OnClick", function() RF.HideForge() end)
 
+    --------------------------------------------------
+    -- ANSICHTSLEISTE
+    --
+    -- Links der Umschalter Plan/Alle, rechts der Wunschwert. Beide sind
+    -- Bedienung dieses Fensters und keine Auskunft, deshalb stehen sie
+    -- ueber der Liste und nicht darunter neben dem Knopf, der Gold ausgibt.
+    --------------------------------------------------
+    forge.bar = CreateFrame("Frame", nil, forge)
+    forge.bar:SetHeight(FORGE_BAR)
+    forge.bar:SetPoint("TOPLEFT",  forge, "TOPLEFT",  8, -FORGE_HDR)
+    forge.bar:SetPoint("TOPRIGHT", forge, "TOPRIGHT", -8, -FORGE_HDR)
+
+    forge.tabs = WeintCodex.CreateSegmentedControl(forge.bar, {
+        items = { { text = "Plan", key = "plan" },
+                  { text = "Alle Teile", key = "all" } },
+        selected = 1, backdrop = "bgDark",
+        onSelect = function(key)
+            forgeView, forgePick = key, nil
+            RF.RefreshForge()
+        end,
+    })
+    -- Die Hoehe kommt vom Segmented Control selbst (38 px, Segmente 30):
+    -- sie hier zu stauchen liesse die Segmente oben und unten herausragen.
+    forge.tabs:SetPoint("LEFT", forge.bar, "LEFT", 0, 0)
+
+    forge.favor = CreateFrame("Button", nil, forge.bar)
+    forge.favor:SetHeight(FORGE_BAR - 10)
+    forge.favor:SetPoint("RIGHT", forge.bar, "RIGHT", -2, 0)
+    forge.favor.label = forge.favor:CreateFontString(nil, "OVERLAY")
+    forge.favor.label:SetFont(F.mono, 10, "")
+    forge.favor.label:SetPoint("RIGHT", forge.favor, "RIGHT", 0, 0)
+    forge.favor.label:SetJustifyH("RIGHT")
+    forge.favor.label:SetTextColor(unpack(C.textMuted))
+    forge.favor:SetScript("OnClick", function()
+        forgeBack, forgeView = forgeView, "favor"
+        RF.RefreshForge()
+    end)
+    forge.favor:SetScript("OnEnter", function(self)
+        -- Ein reiner Text sieht nicht nach Bedienung aus. Der Wechsel beim
+        -- Ueberfahren ist das Einzige, was ihn von einer Auskunft trennt.
+        self.label:SetTextColor(unpack(C.textBright))
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Wunschwert", 1, 1, 1)
+        GameTooltip:AddLine("Rückt einen Wert an die erste Stelle deiner"
+            .. " Gewichtung. Deine Pflichtgrenzen gehen weiterhin vor.",
+            0.66, 0.66, 0.69, true)
+        GameTooltip:AddLine("Gilt auch für Steine und Verzauberungen —"
+            .. " es ist dieselbe Gewichtung.", 0.83, 0.64, 0.29, true)
+        GameTooltip:Show()
+    end)
+    forge.favor:SetScript("OnLeave", function(self)
+        self.label:SetTextColor(unpack(C.textMuted))
+        GameTooltip:Hide()
+    end)
+
     forge.list = CreateFrame("Frame", nil, forge)
-    forge.list:SetPoint("TOPLEFT",  forge, "TOPLEFT",  10, -(FORGE_HDR + 6))
-    forge.list:SetPoint("TOPRIGHT", forge, "TOPRIGHT", -10, -(FORGE_HDR + 6))
+    forge.list:SetPoint("TOPLEFT",  forge, "TOPLEFT",  10, -(FORGE_HDR + FORGE_BAR))
+    forge.list:SetPoint("TOPRIGHT", forge, "TOPRIGHT", -10, -(FORGE_HDR + FORGE_BAR))
     forge.list:SetHeight(10)
 
     forge.action = WeintCodex.CreateButton(forge, {
@@ -1074,14 +1202,37 @@ function BuildForge()
     forge:Hide()
 end
 
+--------------------------------------------------
+-- Eine Zeile der Teileliste (Plan und "Alle Teile")
+--------------------------------------------------
+
 local function ForgeRow(index)
     local row = forgeRows[index]
     if row then return row end
 
-    row = CreateFrame("Frame", nil, forge.list)
+    row = CreateFrame("Button", nil, forge.list)
     row:SetHeight(FORGE_ROW)
     row:SetPoint("TOPLEFT",  forge.list, "TOPLEFT",  0, -((index - 1) * FORGE_ROW))
     row:SetPoint("TOPRIGHT", forge.list, "TOPRIGHT", 0, -((index - 1) * FORGE_ROW))
+
+    row.hl = row:CreateTexture(nil, "BACKGROUND")
+    row.hl:SetAllPoints(row)
+    row.hl:SetColorTexture(1, 1, 1, 0)
+    row:SetScript("OnEnter", function(self)
+        self.hl:SetColorTexture(1, 1, 1, 0.04)
+        if self.tip then
+            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            if self.link then GameTooltip:SetHyperlink(self.link)
+            else GameTooltip:SetText(self.tipTitle or "") end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(self.tip, 0.66, 0.66, 0.69, true)
+            GameTooltip:Show()
+        end
+    end)
+    row:SetScript("OnLeave", function(self)
+        self.hl:SetColorTexture(1, 1, 1, 0)
+        GameTooltip:Hide()
+    end)
 
     row.mark = row:CreateFontString(nil, "OVERLAY")
     row.mark:SetFont(F.mono, 11, "")
@@ -1109,6 +1260,384 @@ local function ForgeRow(index)
     return row
 end
 
+--------------------------------------------------
+-- Eine Zeile der Auswahllisten (Umschmiedung, Wunschwert)
+--
+-- Schmaler und ohne Symbol: hier steht keine Ausruestung, sondern eine
+-- Entscheidung. Der Punkt links sagt, welche gerade gilt.
+--------------------------------------------------
+
+local function PickRow(index)
+    local row = pickRows[index]
+    if row then return row end
+
+    row = CreateFrame("Button", nil, forge.list)
+    row:SetHeight(FORGE_PICK)
+    row:SetPoint("TOPLEFT",  forge.list, "TOPLEFT",  0, -((index - 1) * FORGE_PICK))
+    row:SetPoint("TOPRIGHT", forge.list, "TOPRIGHT", 0, -((index - 1) * FORGE_PICK))
+
+    row.hl = row:CreateTexture(nil, "BACKGROUND")
+    row.hl:SetAllPoints(row)
+    row.hl:SetColorTexture(1, 1, 1, 0)
+    row:SetScript("OnEnter", function(self)
+        if self:IsEnabled() then self.hl:SetColorTexture(1, 1, 1, 0.05) end
+    end)
+    row:SetScript("OnLeave", function(self) self.hl:SetColorTexture(1, 1, 1, 0) end)
+
+    row.mark = row:CreateFontString(nil, "OVERLAY")
+    row.mark:SetFont(F.mono, 10, "")
+    row.mark:SetPoint("LEFT", row, "LEFT", 4, 0)
+    row.mark:SetWidth(12)
+
+    row.label = row:CreateFontString(nil, "OVERLAY")
+    row.label:SetFont(F.sans, 11, "")
+    row.label:SetPoint("LEFT",  row, "LEFT", 20, 0)
+    row.label:SetPoint("RIGHT", row, "RIGHT", -54, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(false)
+
+    row.value = row:CreateFontString(nil, "OVERLAY")
+    row.value:SetFont(F.mono, 10, "")
+    row.value:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row.value:SetJustifyH("RIGHT")
+
+    pickRows[index] = row
+    return row
+end
+
+--------------------------------------------------
+-- WELCHE UMSCHMIEDUNG WOHIN? Die Reihenfolge der Auswahlliste.
+--
+-- Sortiert wird nach dem GEWICHT DES ZIELS, absteigend — man denkt in
+-- Zielen ("ich will Meisterschaft") und nicht in Quellen. Bei gleichem
+-- Ziel steht die Quelle vorn, die am wenigsten wehtut, also die mit dem
+-- niedrigsten Gewicht. Was die Spezialisierung gar nicht gewichtet, rutscht
+-- unter eine Trennzeile statt zu verschwinden: es ist zulaessig, es ist nur
+-- selten gemeint — und wer es sucht, sucht es dann auch dort.
+--------------------------------------------------
+
+local function SortedChoices(row, weights)
+    local list = RE.Choices(row)
+    local order = {}
+    for i, c in ipairs(list) do order[c] = i end
+    table.sort(list, function(a, b)
+        local wa, wb = weights[R.STATS[a.dst]] or 0, weights[R.STATS[b.dst]] or 0
+        if wa ~= wb then return wa > wb end
+        local sa, sb = weights[R.STATS[a.src]] or 0, weights[R.STATS[b.src]] or 0
+        if sa ~= sb then return sa < sb end
+        -- Feste Reihenfolge zum Schluss: zwei gleich bewertete Eintraege
+        -- sind nicht derselbe Eintrag, und welcher oben steht, darf nicht
+        -- davon abhaengen, wie die Sortierung gerade laeuft.
+        return order[a] < order[b]
+    end)
+    return list
+end
+
+-- Die wirksamen Gewichte, ohne dafuer zu rechnen: sie stehen im fertigen
+-- Plan. `CapContext()` liefe hier ueber die ganze Ausruestung — und dieses
+-- Fenster wird waehrend eines Laufs viermal je Sekunde neu gezeichnet.
+local function PlanWeights(plan)
+    -- `ctx.weights` ist genau das, womit der Suchlauf gerechnet hat. Die
+    -- Auswahlliste sortiert danach, und sie soll dieselbe Rangfolge zeigen,
+    -- nach der die Empfehlung daneben entstanden ist.
+    return (plan and plan.ctx and plan.ctx.weights)
+        or (plan and plan.ctx and plan.ctx.profile and plan.ctx.profile.statWeights)
+        or {}
+end
+
+--------------------------------------------------
+-- Die vier Ansichten
+--------------------------------------------------
+
+local function DrawTeile(plan, onlyChanged)
+    local shown, offen, kosten = 0, 0, 0
+    if not plan.ok then return 0, 0, 0 end
+
+    for _, planRow in ipairs(plan.rows) do
+        local relevant = onlyChanged
+            and (planRow.changed and not planRow.locked and not planRow.problem)
+            or (not onlyChanged)
+        if relevant then
+            shown = shown + 1
+            local row = ForgeRow(shown)
+            row.icon:SetTexture(planRow.icon)
+            row.name:SetText(planRow.name)
+            row.name:SetTextColor(unpack(C.textNormal))
+            row.link = planRow.link
+            row.tipTitle = planRow.name
+
+            local manual = planRow.manual ~= nil and not planRow.manualInvalid
+            local done   = SlotMatches(planRow.slot, planRow.target)
+
+            if planRow.problem then
+                row.move:SetText(planRow.problem)
+                row.move:SetTextColor(unpack(C.red))
+            elseif planRow.target then
+                row.move:SetText(string.format("%s → %s  +%d",
+                    R.SHORT[R.STATS[planRow.target.src]],
+                    R.SHORT[R.STATS[planRow.target.dst]],
+                    planRow.target.amount))
+                row.move:SetTextColor(unpack(manual and C.gold or C.textDim))
+            elseif planRow.current then
+                -- In "Alle Teile" steht bei einem Teil ohne Plan der
+                -- ISTSTAND: die Liste beantwortet dort "was ist gerade
+                -- drauf", nicht "was soll passieren".
+                row.move:SetText(string.format("jetzt: %s → %s",
+                    R.SHORT[R.STATS[planRow.current.src]],
+                    R.SHORT[R.STATS[planRow.current.dst]]))
+                row.move:SetTextColor(unpack(C.textFaint))
+            else
+                row.move:SetText(planRow.noSecondary and "nichts zu verschieben"
+                                                     or "nicht umgeschmiedet")
+                row.move:SetTextColor(unpack(C.textFaint))
+            end
+
+            if planRow.changed and not planRow.locked and not planRow.problem then
+                if done then
+                    row.name:SetTextColor(unpack(C.textFaint))
+                else
+                    offen  = offen + 1
+                    kosten = kosten + (planRow.cost or 0)
+                end
+            end
+
+            -- DER MARKER SAGT, WER ENTSCHIEDEN HAT.
+            -- "erledigt", "von dir gesetzt", "festgehalten" und "offen" sind
+            -- vier verschiedene Auskuenfte; ein Zeichen fuer alle waere fuer
+            -- drei davon falsch.
+            if planRow.manualInvalid then
+                row.mark:SetText("|cffE2B33C!|r")
+            elseif manual then
+                row.mark:SetText(done and "|cff7CC06E+|r" or "|cffE2B33C*|r")
+            elseif planRow.locked then
+                row.mark:SetText("|cffE2B33C=|r")
+            elseif planRow.changed and not planRow.problem then
+                row.mark:SetText(done and "|cff7CC06E+|r" or "|cff4A4A52·|r")
+            else
+                row.mark:SetText("")
+            end
+
+            row.tip = planRow.manualInvalid
+                and "Deine Handauswahl passt nicht mehr zu diesem Teil. Klick: neu wählen."
+                or manual and "Von dir gesetzt. Klick: ändern oder dem Planer zurückgeben."
+                or planRow.locked and "Festgehalten. Klick: selbst wählen oder freigeben."
+                or planRow.problem and "Klick: trotzdem selbst wählen."
+                or "Klick: diesen Wert selbst wählen."
+
+            local slotId = planRow.slot
+            row:SetScript("OnClick", function()
+                forgeBack, forgeView, forgePick = forgeView, "pick", slotId
+                RF.RefreshForge()
+            end)
+            row:Show()
+        end
+    end
+    return shown, offen, kosten
+end
+
+local function DrawPick(plan)
+    local target
+    for _, r in ipairs(plan.ok and plan.rows or {}) do
+        if r.slot == forgePick then target = r end
+    end
+    if not target then return 0 end
+
+    local weights = PlanWeights(plan)
+    local manual  = RE.GetManual(forgePick)
+    local shown   = 0
+
+    local function Add(label, value, active, colour, onClick, note)
+        shown = shown + 1
+        local row = PickRow(shown)
+        -- Wiederverwendete Zeile: eine Trennzeile hat sie abgeschaltet.
+        row:Enable()
+        row.mark:SetText(active and "|cff7CC06E●|r" or "|cff3A3A42○|r")
+        row.label:SetText(label)
+        row.label:SetTextColor(unpack(colour or C.textNormal))
+        row.value:SetText(value or "")
+        row.value:SetTextColor(unpack(C.textFaint))
+        row:SetScript("OnClick", onClick)
+        row:SetScript("OnEnter", function(self)
+            self.hl:SetColorTexture(1, 1, 1, 0.05)
+            if note then
+                GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+                GameTooltip:SetText(label, 1, 1, 1)
+                GameTooltip:AddLine(note, 0.66, 0.66, 0.69, true)
+                GameTooltip:Show()
+            end
+        end)
+        row:SetScript("OnLeave", function(self)
+            self.hl:SetColorTexture(1, 1, 1, 0)
+            GameTooltip:Hide()
+        end)
+        row:Show()
+        return row
+    end
+
+    local function Back()
+        forgeView, forgePick = forgeBack, nil
+        RF.RefreshForge()
+        -- Die Seite zeigt denselben Plan. Zoege sie nicht mit, stuende dort
+        -- eine Empfehlung, die es nicht mehr gibt — und die beiden
+        -- Oberflaechen desselben Plans widersprechen einander.
+        if PageVisible() then RF.ShowPage() end
+    end
+
+    Add("‹  " .. (target.slotName or "Zurück"), nil, false, C.textMuted, Back)
+
+    Add("Der Planer entscheidet", nil, manual == nil, C.textNormal, function()
+        RE.ClearManual(forgePick); Back()
+    end, "Nimmt deine Handauswahl zurück. Dieses Teil wird danach wieder"
+      .. " mitgeplant.")
+
+    Add("Gar nicht umschmieden", nil, manual == false, C.textNormal, function()
+        RE.SetManual(forgePick, nil, nil); Back()
+    end, "Hält fest, dass hier nichts verschoben werden soll.")
+
+    if target.problem then
+        shown = shown + 1
+        local row = PickRow(shown)
+        row.mark:SetText("")
+        row.label:SetText(target.problem)
+        row.label:SetTextColor(unpack(C.textFaint))
+        row.value:SetText("")
+        row:SetScript("OnClick", nil)
+        row:Disable()
+        row:Show()
+        return shown
+    end
+
+    local choices = SortedChoices(target, weights)
+    if #choices == 0 then
+        -- Reine Ausdauer-/Primaerteile und viele Schmuckstuecke. Das ist
+        -- kein Mangel, sondern der Gegenstand — aber ohne diesen Satz
+        -- steht da eine leere Liste, und die sieht nach einem Fehler aus.
+        shown = shown + 1
+        local row = PickRow(shown)
+        row.mark:SetText("")
+        row.label:SetText("Auf diesem Teil gibt es nichts zu verschieben.")
+        row.label:SetTextColor(unpack(C.textFaint))
+        row.value:SetText("")
+        row:SetScript("OnClick", nil)
+        row:Disable()
+        row:Show()
+    end
+    local restHeadShown = false
+    for _, c in ipairs(choices) do
+        local dstKey = R.STATS[c.dst]
+        local srcKey = R.STATS[c.src]
+        if (weights[dstKey] or 0) <= 0 and not restHeadShown then
+            restHeadShown = true
+            shown = shown + 1
+            local row = PickRow(shown)
+            row.mark:SetText("")
+            row.label:SetText("Für deine Spezialisierung ohne Gewicht")
+            row.label:SetTextColor(unpack(C.textFaint))
+            row.value:SetText("")
+            row:SetScript("OnClick", nil)
+            row:Disable()
+            row:Show()
+        end
+        local active = (manual and manual.src == c.src and manual.dst == c.dst) or false
+        Add(string.format("%s  →  %s", R.SHORT[srcKey], R.SHORT[dstKey]),
+            "+" .. c.raw, active,
+            (weights[dstKey] or 0) > 0 and C.textNormal or C.textFaint,
+            function() RE.SetManual(forgePick, c.src, c.dst); Back() end,
+            string.format("Verschiebt %d Wertung von %s nach %s. Gewicht deines"
+                .. " Profils: %s → %s.", c.raw, R.LABEL[srcKey], R.LABEL[dstKey],
+                tostring(weights[srcKey] or 0), tostring(weights[dstKey] or 0)))
+    end
+
+    return shown
+end
+
+local function DrawFavor(plan)
+    local weights = PlanWeights(plan)
+    local current = WeintCodex.Charakter and WeintCodex.Charakter.GetFavor
+                    and WeintCodex.Charakter.GetFavor() or nil
+    local shown = 0
+
+    local function Add(label, value, active, colour, onClick, note)
+        shown = shown + 1
+        local row = PickRow(shown)
+        -- Wiederverwendete Zeile: eine Trennzeile hat sie abgeschaltet.
+        row:Enable()
+        row.mark:SetText(active and "|cff7CC06E●|r" or "|cff3A3A42○|r")
+        row.label:SetText(label)
+        row.label:SetTextColor(unpack(colour or C.textNormal))
+        row.value:SetText(value or "")
+        row.value:SetTextColor(unpack(C.textFaint))
+        row:SetScript("OnClick", onClick)
+        row:SetScript("OnEnter", function(self)
+            self.hl:SetColorTexture(1, 1, 1, 0.05)
+            if note then
+                GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+                GameTooltip:SetText(label, 1, 1, 1)
+                GameTooltip:AddLine(note, 0.66, 0.66, 0.69, true)
+                GameTooltip:Show()
+            end
+        end)
+        row:SetScript("OnLeave", function(self)
+            self.hl:SetColorTexture(1, 1, 1, 0)
+            GameTooltip:Hide()
+        end)
+        row:Show()
+    end
+
+    local function Back()
+        forgeView, forgePick = forgeBack, nil
+        RF.RefreshForge()
+        -- Die Seite zeigt denselben Plan. Zoege sie nicht mit, stuende dort
+        -- eine Empfehlung, die es nicht mehr gibt — und die beiden
+        -- Oberflaechen desselben Plans widersprechen einander.
+        if PageVisible() then RF.ShowPage() end
+    end
+
+    Add("‹  Wunschwert", nil, false, C.textMuted, Back)
+    Add("Keiner — dein Profil entscheidet", nil, current == nil, C.textNormal,
+        function()
+            if WeintCodex.Charakter.SetFavor then WeintCodex.Charakter.SetFavor(nil) end
+            Back()
+        end,
+        "Die Gewichtung deiner Spezialisierung gilt unverändert.")
+
+    -- NUR WERTE, DIE DIESE SPEZIALISIERUNG UEBERHAUPT GEBRAUCHT.
+    -- Einen Wert nach vorn zu ruecken, den das Profil mit 0 fuehrt, waere
+    -- eine Aussage ueber das Spiel, die dieses Addon nicht trifft — und der
+    -- Planer wuerde ihr folgen. Wer sie fuer falsch haelt, aendert das
+    -- Gewicht auf "Priorisierung"; dann steht der Wert auch hier.
+    local order = {}
+    for _, key in ipairs(R.STATS) do
+        if (weights[key] or 0) > 0 then order[#order + 1] = key end
+    end
+    table.sort(order, function(a, b)
+        if weights[a] ~= weights[b] then return weights[a] > weights[b] end
+        return a < b
+    end)
+
+    for _, key in ipairs(order) do
+        Add(R.LABEL[key], "Gewicht " .. tostring(weights[key]), current == key,
+            C.textNormal,
+            function()
+                if WeintCodex.Charakter.SetFavor then
+                    WeintCodex.Charakter.SetFavor(key)
+                end
+                Back()
+            end,
+            R.LABEL[key] .. " steht danach an erster Stelle deiner Gewichtung."
+                .. " Pflichtgrenzen wie das Trefferkap gehen weiterhin vor."
+                .. " Gilt auch für Steine und Verzauberungen.")
+    end
+
+    if #order == 0 then
+        Add("Für diese Spezialisierung ist kein Profil hinterlegt", nil, false,
+            C.textFaint, nil)
+    end
+    return shown
+end
+
+--------------------------------------------------
+
 function RF.RefreshForge()
     if not forge then return end
 
@@ -1121,9 +1650,63 @@ function RF.RefreshForge()
     -- Item-Link und sind damit trotzdem der echte Stand.
     local plan
     if forgeCo and RF.currentPlanRows then
-        plan = { ok = true, rows = RF.currentPlanRows }
+        plan = { ok = true, rows = RF.currentPlanRows, ctx = RF.currentPlanCtx }
     else
         plan = RE.GetPlan()
+    end
+
+    -- WAEHREND EINES LAUFS WIRD AUCH NICHT GEWAEHLT.
+    -- Der Lauf arbeitet eine Liste ab, auf die geklickt wurde; sie unter
+    -- ihm zu aendern hiesse, dass das naechste Teil anders geschmiedet wird
+    -- als angezeigt. Die Ansicht faellt deshalb auf den Plan zurueck.
+    if forgeCo and (forgeView == "pick" or forgeView == "favor") then
+        forgeView, forgePick = "plan", nil
+    end
+
+    local shown, offen, kosten = 0, 0, 0
+    local rowH = FORGE_ROW
+
+    if forgeView == "pick" and forgePick then
+        shown, rowH = DrawPick(plan), FORGE_PICK
+        if shown == 0 then forgeView, forgePick = forgeBack, nil end
+    elseif forgeView == "favor" then
+        shown, rowH = DrawFavor(plan), FORGE_PICK
+    end
+
+    if forgeView == "plan" or forgeView == "all" then
+        shown, offen, kosten = DrawTeile(plan, forgeView == "plan")
+        rowH = FORGE_ROW
+    end
+
+    -- Die jeweils andere Zeilensorte verschwindet vollstaendig: sie haengt
+    -- am selben Rahmen und wuerde sonst darunter durchscheinen.
+    local pool     = (rowH == FORGE_PICK) and pickRows or forgeRows
+    local otherPool = (rowH == FORGE_PICK) and forgeRows or pickRows
+    for index = shown + 1, #pool do pool[index]:Hide() end
+    for _, row in ipairs(otherPool) do row:Hide() end
+
+    forge.list:SetHeight(math.max(1, shown * rowH))
+
+    --------------------------------------------------
+    -- Kopfzeile, Leiste, Knopf
+    --------------------------------------------------
+    local inList = (forgeView == "plan" or forgeView == "all")
+    forge.tabs:SetShown(inList)
+    forge.favor:SetShown(inList)
+
+    -- Waehrend eines Laufs aendert sich der Wunschwert nicht (die Auswahl
+    -- ist dann gesperrt), und dieses Fenster wird viermal je Sekunde neu
+    -- gezeichnet. Also nicht jedes Mal danach fragen.
+    if inList and not forgeCo then
+        local favor = WeintCodex.Charakter and WeintCodex.Charakter.GetFavor
+                      and WeintCodex.Charakter.GetFavor() or nil
+        forge.favor.label:SetText(favor
+            and ("Wunsch: " .. WeintCodex.ColorText("gold", R.SHORT[favor] or favor))
+            or  "|cff4A4A52Wunschwert wählen|r")
+        forge.favor:SetWidth(math.max(60, forge.favor.label:GetStringWidth() + 4))
+    end
+    if inList then
+        forge.tabs:Select(forgeView == "all" and 2 or 1)
     end
 
     -- DIE ZAHLEN KOMMEN AUS DEM ISTSTAND, NICHT AUS DEM PLAN.
@@ -1133,77 +1716,48 @@ function RF.RefreshForge()
     -- erledigt war. Was hier interessiert, ist aber, was noch aussteht und
     -- was das noch kostet. Gefragt wird das je Zeile am Item-Link, so wie
     -- auch der Haken davor.
-    local shown, offen, kosten = 0, 0, 0
-
-    if plan.ok then
-        for _, planRow in ipairs(plan.rows) do
-            if planRow.changed and not planRow.locked and not planRow.problem then
-                shown = shown + 1
-                local row = ForgeRow(shown)
-                row.icon:SetTexture(planRow.icon)
-                row.name:SetText(planRow.name)
-                row.name:SetTextColor(unpack(C.textNormal))
-
-                if planRow.target then
-                    row.move:SetText(string.format("%s → %s  +%d",
-                        R.SHORT[R.STATS[planRow.target.src]],
-                        R.SHORT[R.STATS[planRow.target.dst]],
-                        planRow.target.amount))
-                else
-                    row.move:SetText("Umschmiedung entfernen")
-                end
-                row.move:SetTextColor(unpack(C.textDim))
-
-                local done = SlotMatches(planRow.slot, planRow.target)
-                if done then
-                    row.name:SetTextColor(unpack(C.textFaint))
-                else
-                    offen  = offen + 1
-                    kosten = kosten + (planRow.cost or 0)
-                end
-                row.mark:SetText(done and "|cff7CC06E+|r" or "|cff4A4A52·|r")
-                row:Show()
-            end
-        end
-    end
-
-    for index = shown + 1, #forgeRows do forgeRows[index]:Hide() end
-
-    forge.list:SetHeight(math.max(1, shown * FORGE_ROW))
-
-    if plan.ok and shown > 0 then
-        if offen == 0 then
-            forge.sub:SetText(WeintCodex.ColorText("green", "Alle " .. shown .. " Teile erledigt."))
-        elseif offen < shown then
-            forge.sub:SetText(string.format("%d von %d offen · %s",
-                offen, shown, Coins(kosten)))
-        else
-            forge.sub:SetText(string.format("%d Teile · %s", shown, Coins(kosten)))
-        end
-    elseif plan.ok then
+    if forgeView == "pick" then
+        forge.sub:SetText("Wähle, was auf diesem Teil stehen soll.")
+    elseif forgeView == "favor" then
+        forge.sub:SetText("Ein Wert rückt an die erste Stelle deiner Gewichtung.")
+    elseif not plan.ok then
+        forge.sub:SetText(plan.computing
+            and (forgeWish and "Wird gerechnet — der Lauf startet gleich von selbst …"
+                           or "Wird gerechnet …")
+            or (plan.problem or "Kein Plan."))
+    elseif forgeView == "all" then
+        local manuals = RE.ManualCount and RE.ManualCount() or 0
+        forge.sub:SetText(manuals > 0
+            and string.format("%d Teile · %d von dir gesetzt", shown, manuals)
+            or  string.format("%d Teile · klick eines an, um selbst zu wählen", shown))
+    elseif shown == 0 then
         forge.sub:SetText("Nichts zu tun — es sitzt alles richtig.")
-    elseif plan.computing then
-        forge.sub:SetText(forgeWish and "Wird gerechnet — der Lauf startet gleich von selbst …"
-                                    or "Wird gerechnet …")
+    elseif offen == 0 then
+        forge.sub:SetText(WeintCodex.ColorText("green", "Alle " .. shown .. " Teile erledigt."))
+    elseif offen < shown then
+        forge.sub:SetText(string.format("%d von %d offen · %s", offen, shown, Coins(kosten)))
     else
-        forge.sub:SetText(plan.problem or "Kein Plan.")
+        forge.sub:SetText(string.format("%d Teile · %s", shown, Coins(kosten)))
     end
+
+    local top = FORGE_HDR + (inList and FORGE_BAR or 6) + shown * rowH
 
     forge.action:ClearAllPoints()
-    forge.action:SetPoint("TOPLEFT", forge, "TOPLEFT", 10,
-        -(FORGE_HDR + 6 + shown * FORGE_ROW + 8))
-    forge.action:SetShown(shown > 0 and (offen > 0 or forgeCo ~= nil))
+    forge.action:SetPoint("TOPLEFT", forge, "TOPLEFT", 10, -(top + 8))
+    -- Der Knopf gibt Gold aus. In den Auswahlansichten steht er deshalb
+    -- nicht da: dort wird gewaehlt, nicht ausgefuehrt.
+    forge.action:SetShown(inList and (offen > 0 or forgeCo ~= nil))
 
+    local hasAction = forge.action:IsShown()
     forge.hint:ClearAllPoints()
-    forge.hint:SetPoint("TOPLEFT",  forge, "TOPLEFT", 12,
-        -(FORGE_HDR + 6 + shown * FORGE_ROW + (shown > 0 and 48 or 8)))
+    forge.hint:SetPoint("TOPLEFT", forge, "TOPLEFT", 12, -(top + (hasAction and 50 or 8)))
     forge.hint:SetPoint("RIGHT", forge, "RIGHT", -12, 0)
-    forge.hint:SetText(shown > 0
+    forge.hint:SetText(inList and shown > 0
         and "Beta — die Vorschläge sind noch nicht verlässlich."
         or  "")
 
-    forge:SetHeight(FORGE_HDR + 6 + shown * FORGE_ROW
-        + (shown > 0 and 48 or 10) + (shown > 0 and 22 or 8))
+    forge:SetHeight(top + (hasAction and 50 or 10)
+        + (((forge.hint:GetText() or "") ~= "") and 22 or 6))
 
     lastDrawnState = forgeCo and RunState() or nil
 end
@@ -1235,6 +1789,12 @@ end
 
 function RF.HideForge()
     forgeWish = nil
+    -- Beim naechsten Oeffnen steht die Liste vorn und nicht die Auswahl von
+    -- vorgestern: das Fenster geht beim Umschmieder von selbst auf, und
+    -- dann will man sehen, was ansteht.
+    if forgeView == "pick" or forgeView == "favor" then
+        forgeView, forgePick = "plan", nil
+    end
     if forgeCo then StopRun("Abgebrochen.") end
     if forge then forge:Hide() end
 end
@@ -1427,6 +1987,41 @@ function RF.Dump()
     end
     print("  Gewichte: " .. (#gewichte > 0 and table.concat(gewichte, ", ")
         or WeintCodex.ColorText("warning", "keine")))
+
+    -- WER HAT DIESE GEWICHTE GESETZT? Ein Wunschwert staucht die uebrigen
+    -- Sekundaerwerte, und von aussen sieht eine gestauchte Gewichtung wie
+    -- ein Fehler in data/spec_profiles.lua aus. Dieselbe Ueberlegung wie bei
+    -- /wc sockel: was die Rechnung steuert, gehoert in ihre Diagnose.
+    local favor = WeintCodex.Charakter.GetFavor and WeintCodex.Charakter.GetFavor()
+    print("  Wunschwert: " .. (favor
+        and (WeintCodex.ColorText("gold", R.LABEL[favor] or favor)
+             .. WeintCodex.ColorText("textFaint",
+                "  ·  steht auf 100, die übrigen Sekundärwerte sind auf höchstens 80"
+                .. " gestaucht  ·  gilt auch für Steine und Verzauberungen"))
+        or WeintCodex.ColorText("textFaint", "keiner — das Spec-Profil entscheidet")))
+
+    -- UND WELCHE TEILE HAT DER SPIELER SELBST ENTSCHIEDEN? Ein von Hand
+    -- gesetzter Slot bekommt in ItemOptions genau EINE Moeglichkeit; von
+    -- aussen sieht das aus, als haette der Suchlauf sie gewaehlt.
+    local hand = {}
+    for _, row in ipairs(plan.rows) do
+        if row.manualInvalid then
+            hand[#hand + 1] = WeintCodex.ColorText("warning",
+                row.slotName .. " (Handauswahl passt nicht zum Teil)")
+        elseif row.manual == false then
+            hand[#hand + 1] = row.slotName .. " (gar nicht umschmieden)"
+        elseif row.manual then
+            hand[#hand + 1] = string.format("%s (%s → %s)", row.slotName,
+                R.SHORT[R.STATS[row.manual.src]] or "?",
+                R.SHORT[R.STATS[row.manual.dst]] or "?")
+        elseif row.locked then
+            hand[#hand + 1] = row.slotName .. " (gesperrt)"
+        end
+    end
+    print("  Von Hand: " .. (#hand > 0 and table.concat(hand, ", ")
+        or WeintCodex.ColorText("textFaint", "nichts — der Planer entscheidet überall"))
+        .. (#hand > 0 and WeintCodex.ColorText("textFaint",
+            "  ·  /wc umschmieden frei hebt alles auf") or ""))
 
     -- Umwandlungen: der haeufigste Grund fuer eine Empfehlung, die von
     -- aussen unsinnig aussieht ("wieso Waffenkunde auf einem Magier?").
@@ -1658,6 +2253,21 @@ function RF.Command(rest)
     end
     if rest == "fenster" then
         RF.ToggleForge()
+        return
+    end
+    -- DER RUECKWEG. Wer zehn Slots von Hand gesetzt hat und wieder von vorn
+    -- anfangen will, soll das nicht zehnmal anklicken muessen — dieselbe
+    -- Ueberlegung wie bei /wc alarm erneut.
+    if rest == "frei" or rest == "freigeben" then
+        local n = RE.ManualCount and RE.ManualCount() or 0
+        RE.ClearManual(nil)
+        for _, slotDef in ipairs(WeintCodex.Charakter.EquipSlots or {}) do
+            if RE.IsLocked(slotDef.id) then RE.SetLocked(slotDef.id, false) end
+        end
+        RF.RefreshForge()
+        if PageVisible() then RF.ShowPage() end
+        Say("Alle Handauswahlen und Sperren aufgehoben ("
+            .. n .. " von Hand gesetzt). Der Planer entscheidet wieder überall.")
         return
     end
 

@@ -2,6 +2,55 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [2.10.0.0] – 2026-09-05
+
+**Du bestimmst, welcher Wert auf ein Teil kommt.**
+Bisher hat der Planer entschieden, und der einzige Einwand war „dieses Teil
+in Ruhe lassen". Wer einem Guide folgt oder schlicht anders spielt, musste
+von Hand beim Umschmieder arbeiten — und beim nächsten Blick stand es
+wieder anders da.
+
+Im Fenster beim Umschmieder gibt es dafür jetzt den Reiter *Alle Teile*.
+Ein Klick auf ein Teil zeigt, was sich darauf verschieben lässt: die Werte,
+die deine Spezialisierung gewichtet, stehen oben, der Rest darunter. Deine
+Wahl bleibt stehen, bis du sie freigibst. *Alles umschmieden* führt sie mit
+aus, zusammen mit dem Rest des Plans.
+
+**Und ein Wunschwert für die ganze Ausrüstung.**
+Oben rechts im selben Fenster — oder auf *Charakter → Priorisierung*. Ein
+Wert rückt damit an die erste Stelle deiner Gewichtung. Pflichtgrenzen wie
+das Trefferkap gehen weiterhin vor.
+
+Er gilt auch für Sockelsteine und Verzauberungen. Das ist Absicht: es ist
+dieselbe Gewichtung, und zwei davon nebeneinander würden sich irgendwann
+widersprechen.
+
+**Wieder loswerden** lässt sich beides über *Alles freigeben* unter
+*Einstellungen → Umschmieden*, oder einzeln mit einem Klick auf die Zeile.
+
+### Neu
+- *Umschmieden*: pro Teil selbst wählen, welcher Wert wohin verschoben wird — im Fenster beim Umschmieder unter *Alle Teile*
+- Ein *Wunschwert* je Spezialisierung rückt einen Wert an die erste Stelle der Gewichtung
+- *Einstellungen → Umschmieden* zeigt, wie viele Teile du selbst gesetzt und wie viele du gesperrt hast
+
+### Geändert
+- Der Knopf *Alle Sperren lösen* heisst *Alles freigeben* und nimmt auch die Handauswahlen zurück
+- Die Umschmiede-Seite sagt an jeder Zeile, ob sie von dir gesetzt oder gesperrt ist; ein Klick gibt sie dem Planer zurück
+- Die Begründung im Feld rechts nennt, woher die Gewichte kommen: Wunschwert, eigene Gewichtung oder das Profil deiner Spezialisierung
+
+### Technisch
+- **Eine Handauswahl ist eine Eingabe in den Plan, kein Weg daran vorbei.** `ItemOptions` macht sie zur einzigen Möglichkeit dieses Slots; der Suchlauf plant um sie herum, die Seite zeigt sie, und der bestehende Lauf führt sie aus. Damit bleibt es bei **einem** Ausführungsweg samt seinem Warten auf die Bestätigung, seiner Kostenrechnung und seiner Fehlermeldung — ein zweiter daneben hätte all das nachbauen müssen. Nebenbei lässt sie sich dadurch auch fernab des Umschmieders setzen
+- `manual == false` („gar nicht umschmieden") ist eine eigene Aussage und von `nil` („keine Handauswahl") zu unterscheiden; `RE.SetManual` löscht eine bestehende Sperre, weil beide dasselbe meinen und die Sperre den Iststand festhielte
+- Eine Handauswahl, die zu dem Teil im Slot nicht passt, wird **ignoriert und an der Zeile gemeldet**, nicht stillschweigend gelöscht — Löschen wäre ein Schreiben mitten im Planen, und der Spieler sähe nie, dass seine Entscheidung weg ist
+- Die Handauswahl steht in `Signature()`. Ohne das gäbe `GetPlan` den zwischengespeicherten Plan zurück und die Wahl täte sichtbar nichts — derselbe Fehler, den die eigene Priorisierung schon einmal hatte
+- `RE.Choices(item)` ist die Regel des Clients an **einer** Stelle: jede Quelle, die der Gegenstand trägt, auf jedes Ziel, das er nicht trägt. `ItemOptions` rechnet darauf seine Beträge, das Fenster bietet dieselbe Liste an. Der Testlauf hält sie gegen `RE.ForgeIndex` in beide Richtungen — böten die beiden Verschiedenes an, liesse sich etwas wählen, für das es keine laufende Nummer gibt, oder schlimmer: die einer anderen Umschmiedung
+- Der Wunschwert ist eine **Gewichtsvorgabe** und liegt deshalb in derselben Kette, die „welches Gewicht gilt" beantwortet (`ApplyFavor` in `modules/charakter.lua`, letzte Schicht auch über einer eigenen Gewichtung). Ein Wunschwert nur fürs Umschmieden wäre eine zweite Gewichtung neben der ersten
+- **Warum 100 gegen 80 und nicht 100 gegen 99:** der Suchlauf nimmt eine Umschmiedung nur an, wenn sie über seiner Lohnschwelle liegt (`WORTH_RATING`). Ausgerechnet braucht der Wunschwert je nach bewegter Wertung 3–6 % Vorsprung, damit eine Umschmiedung zu ihm überhaupt darüber kommt; ein Punkt Vorsprung sieht in der Liste nach einer Entscheidung aus und bewirkt nichts. 20 % liegen sicher darüber und lassen die übrigen Werte erkennbar. Nur die umschmiedbaren Sekundärwerte werden gestaucht — ein Primärwert lässt sich nicht umschmieden und entscheidet in einem Sockel die Steinwahl mit
+- Ein Wert, den das Spec-Profil mit 0 führt, wird **nicht** nach vorn gerückt: das wäre eine Aussage über das Spiel, die dieses Addon nicht trifft. Die Oberfläche bietet ihn deshalb auch nicht an
+- Das Fenster hat vier Ansichten (Plan / Alle Teile / Auswahl / Wunschwert) statt Ausklapplisten: es ist 340 px breit, und eine Liste, die sich mitten darin aufklappt, schiebt alles darunter weg — beim Umschmieder kostet ein Fehlklick Gold. Während eines Laufs fallen die Auswahlansichten auf den Plan zurück, und die wirksamen Gewichte für die Sortierung kommen aus dem festgehaltenen `plan.ctx` statt aus `CapContext()`, das über die ganze Ausrüstung liefe
+- `/wc umschmieden frei` hebt alles auf; `/wc umschmieden prüfen` druckt Wunschwert und Handauswahlen mit aus — von aussen sieht ein von Hand gesetzter Slot aus, als hätte der Suchlauf ihn gewählt
+- `.github/tests/reforge_engine_test.lua` prüft die Handauswahl als Verhalten: sie steht im Plan, sie übersteuert den Suchlauf (mit Gegenprobe, dass er ohne sie etwas anderes wollte), die übrigen Teile werden weiter geplant, sie wirkt ohne erzwungenen Lauf, und sie ist wieder loszuwerden. `gem_plan_test.lua` rechnet den Vorsprung des Wunschwerts gegen die Lohnschwelle nach, mitsamt der Gegenprobe, dass ein Punkt Vorsprung nicht gereicht hätte
+
 ## [2.9.4.0] – 2026-09-05
 
 **Ein Sockel-Vorschlag bleibt jetzt stehen, wenn du ihm gefolgt bist.**
