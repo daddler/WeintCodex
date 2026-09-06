@@ -2,6 +2,55 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.0.0] – 2026-09-06
+
+**Die Einführung ist neu — und sie ist diesmal vollständig.**
+Zwischen 1.0 und 2.10 sind die Ausrüstungsberatung, der Gruppencheck,
+der Ausrüstungs-Alarm, der Rotationshelfer, die Einkaufsliste und die
+Einstellungsseite dazugekommen. Der Rundgang beim ersten Login sprach
+von keinem davon. Wer ihn gesehen hatte, kannte danach ein Addon, das es
+so nicht mehr gibt — und bekam ihn auch nie wieder zu Gesicht.
+
+Der neue Rundgang hat 22 Seiten in fünf Kapiteln: *Erste Schritte*,
+*Deine Ausrüstung*, *Im Raid*, *Für die Gilde*, *Zum Schluss*. Jede
+Seite sagt, was der Bereich kann, worauf du klickst und welcher
+Slash-Befehl dazugehört. Unten links steht von Anfang an *Später* — mit
+`/wc tour` holst du ihn jederzeit zurück.
+
+Du bekommst ihn einmal, auch wenn du das Addon seit Jahren benutzt.
+
+**Der Wunschwert beim Umschmieder war nicht zu finden.**
+Er stand als blosser Text am rechten Rand des Fensters: klein,
+gedämpft, ohne Fläche und ohne Rand. Dass man ihn anklicken kann,
+verriet nur der Farbwechsel beim Überfahren — und darüber fährt nur, wer
+schon vermutet, dass dort etwas ist.
+
+Er ist jetzt ein Feld mit Aufschrift, Rahmen und einem Pfeil: *Wunschwert
+› keiner*. Ist einer gesetzt, steht sein Name darin, in Bernstein.
+
+**Und eine Bitte zu den Sockelsteinen.**
+Die Steinempfehlung ist der Teil des Addons, an dem am häufigsten etwas
+daneben liegt. Auf *Charakter → Sockel* steht deshalb im Feld rechts, was
+in eine Meldung gehört — und dass sie wirklich hilft. Ohne Rückmeldung
+fällt kein einziger dieser Fälle auf.
+
+### Neu
+- Die Einführung deckt alle Bereiche ab, in Kapiteln, mit den Befehlen dazu (`/wc tour`)
+- Sie erscheint einmalig auch für alle, die das Addon schon lange benutzen
+- *Charakter → Sockel* bittet im Feld rechts um Rückmeldung und nennt, was hineingehört
+
+### Geändert
+- Der *Wunschwert* im Umschmieder-Fenster ist ein sichtbares Bedienelement statt einer Textzeile
+- Der Knopf unter *Einstellungen → Fenster & Ansicht* heisst *Einführung erneut ansehen* und sagt, was darin steht
+- Die Einführung duzt, wie der Rest des Addons
+
+### Technisch
+- `core/onboarding.lua`: `TOUR_STEPS` vollständig neu, 22 Seiten mit `chapter`; die Kopfzeile nennt Kapitel und Schritt, die Fusszeile trägt einen Ghost-Button zum Abbrechen. `TOUR_EDITION` (3) steht neben `lastSeenVersion` in `SavedData.onboarding` und entscheidet, ob die Tour oder das Changelog-Popup läuft — nicht jede Version schreibt die Tour um, und die meisten sollen weiterhin das kurze Popup zeigen. Vermerkt wird die Fassung beim **Zeigen** und nicht beim Durchklicken bis zur letzten Seite, sonst käme sie bei jedem Anmelden wieder
+- Die Texte tragen echte Umlaute statt der bisherigen Umschrift („Prueft eure …“) und benutzen `WeintCodex.ColorText` für alles, worauf man klicken oder was man tippen kann — dieselbe Regel wie in `data/changelog.lua`
+- `modules/reforge.lua`: `forge.favor` ist ein Button mit Fläche, Rahmen, Eckmasken, Chevron und einer `Eyebrow`-Aufschrift darüber. `Paint(hovered)` ist die eine Stelle, an der gesetzt/leer und überfahren/ruhend dieselbe Fläche färben; die Breite bleibt fest, damit der Klickpunkt nicht mit dem Inhalt wandert. `FORGE_BAR` steigt von 40 auf 54 für die Aufschrift
+- `core/ui.lua`: `DrawBorder` gibt seine vier Kanten als Tabelle zurück. Additiv — jeder bestehende Aufrufer ignoriert den Rückgabewert; wer einen Rahmen umfärbt, hatte bisher keinen Zugriff darauf
+- `modules/charakter.lua`: der Feedback-Block hängt an `gemExtras` und nicht in `Rationale()`, das sich drei Seiten teilen. Nur die Sockelseite trägt ihn — auf jede Seite geschrieben wäre er Zierrat
+
 ## [2.10.0.0] – 2026-09-05
 
 **Du bestimmst, welcher Wert auf ein Teil kommt.**

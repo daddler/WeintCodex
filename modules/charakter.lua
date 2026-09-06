@@ -5489,6 +5489,40 @@ function ShowGems()
         gemExtras[#gemExtras + 1] = { type = "button", label = "Zum Umschmieden",
                                       onClick = WeintCodex.Reforge.ShowPage }
     end
+
+    --------------------------------------------------
+    -- DIE BITTE UM RUECKMELDUNG STEHT NUR HIER.
+    --
+    -- Die Steinempfehlung ist der Teil dieses Addons, an dem am haeufigsten
+    -- etwas daneben liegt, und die Ursachen sind fast immer Daten und nicht
+    -- Code: ein Gewicht im Spec-Profil, eine kuratierte Steinliste, ein
+    -- Sonderfall bei Sockelbonus oder Cap. Keine dieser Sorten faellt von
+    -- hier aus auf — ein falscher Vorschlag sieht von aussen genauso aus
+    -- wie ein richtiger, ueber den man sich wundert.
+    --
+    -- Sie steht deshalb NEBEN der Begruendung und nicht in ihr: wer hier
+    -- liest, hat gerade den Verdacht, dass etwas nicht stimmt, und das ist
+    -- der einzige Moment, in dem jemand eine Rueckmeldung schreibt.
+    -- Genannt wird dabei, WAS in eine brauchbare Meldung gehoert — sonst
+    -- kommt "die Sockel sind falsch" an, und damit ist nichts anzufangen.
+    --
+    -- Und sie steht nur auf DIESER Seite. Auf jede Seite geschrieben waere
+    -- sie Zierrat, den niemand mehr liest.
+    --------------------------------------------------
+    gemExtras[#gemExtras + 1] = { type = "divider" }
+    gemExtras[#gemExtras + 1] = { type = "header", text = "Passt das nicht?" }
+    gemExtras[#gemExtras + 1] = { type = "text", size = 10, color = "textMuted",
+        text = "Die Steinempfehlung ist noch nicht überall verlässlich. Wenn"
+            .. " dir hier etwas seltsam vorkommt, sag es bitte im Discord der"
+            .. " Gilde – ohne Rückmeldung fällt kein einziger dieser Fälle"
+            .. " auf." }
+    gemExtras[#gemExtras + 1] = { type = "text", size = 9, color = "textDim",
+        text = "In die Meldung gehören: deine Spezialisierung, der"
+            .. " Ausrüstungsplatz, welcher Stein vorgeschlagen wurde und"
+            .. " welchen du erwartet hättest. Dazu die Ausgabe von"
+            .. " /wc sockel – sie enthält alles, was diese Seite gelesen und"
+            .. " gerechnet hat." }
+
     ShowScoreInspector(scan.gems.counts, gemExtras)
 
     -- Klarstellung: Farbangaben beziehen sich auf den Sockelplatz

@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.0.0",
+        date    = "06.09.2026",
+        notes   = {
+            "Die |cffD4A24AEinfuehrung|r ist neu und deckt zum ersten Mal alles ab - 22 Seiten in fuenf Kapiteln, mit den Befehlen dazu. Du bekommst sie einmal, auch wenn du das Addon schon lange benutzt.",
+            "Jederzeit wieder da mit |cffD4A24A/wc tour|r oder unter Einstellungen -> Fenster & Ansicht. Abbrechen geht auf jeder Seite unten links.",
+            "Beim Umschmieder war der |cffD4A24AWunschwert|r kaum zu sehen und sah nicht anklickbar aus. Er ist jetzt ein richtiges Feld mit Aufschrift und Pfeil, oben rechts im Fenster.",
+            "Auf |cffD4A24ACharakter -> Sockel|r steht rechts eine Bitte: die Steinempfehlung ist noch nicht ueberall verlaesslich. Wenn dir etwas seltsam vorkommt, sag es bitte im Discord.",
+            "Was in so eine Meldung gehoert, steht dort auch - Spezialisierung, Ausruestungsplatz, erwarteter Stein und die Ausgabe von |cffD4A24A/wc sockel|r.",
+        },
+    },
+    {
         version = "2.10.0.0",
         date    = "05.09.2026",
         notes   = {
