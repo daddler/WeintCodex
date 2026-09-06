@@ -590,6 +590,67 @@ do
         if not ok then fails = fails + 1 end
     end
 
+    --== DIE JAGD AUF EIN KAP MUSS EIN ENDE HABEN ==========================
+    --
+    -- GEMELDET: "das Umschmieden ist immer noch zu teuer im Gegensatz zu
+    -- ReforgeLite". Nachgestellt ist es genau hier. Ein Pflicht-Kap
+    -- schlaegt jede Punktzahl, also bewegt der Planer dafuer beliebig
+    -- viele Teile - und wenn seine Itemwerte danebenliegen, landet der
+    -- Charakter danach NICHT am Kap, der naechste Plan sieht wieder eine
+    -- Luecke und bewegt das naechste Teil. Jede Runde kostet den vollen
+    -- Satz Gebuehren.
+    --
+    -- Mit 40 Wertung Abweichung je Teil wurden daraus offline NEUN Runden
+    -- und 21 Umschmiedungen statt einer Runde und zwoelf. Eine groessere
+    -- Toleranz loest das nicht (nachgemessen ueber CAP_SLACK 40 bis 170
+    -- gegen Abweichungen von 40 bis 120: jede haelt unter ihrem eigenen
+    -- Wert und keine darueber) - gebremst wird deshalb ueber den
+    -- FORTSCHRITT: kommt der Plan dem Kap nach einem Lauf nicht naeher,
+    -- hoert er auf, dafuer Gebuehren auszugeben.
+    --
+    -- Geprueft wird mit einer Abweichung, die deutlich ueber CAP_SLACK
+    -- liegt. Ohne die Bremse faellt diese Zeile durch.
+    local function converge2(name, hitStart, withCap, amp, maxRounds, maxForges)
+        setup(GEAR, W, {}, { [6] = hitStart, [9] = 2000, [18] = 1800,
+                             [26] = 1900, [24] = 400 })
+        for i in ipairs(GEAR) do
+            ITEMS[i].skew = amp == 0 and 0 or (((i * 7) % (2 * amp + 1)) - amp)
+        end
+        recap(withCap)
+        if RE.ForgetChase then RE.ForgetChase() end
+
+        local rounds, forges = 0, 0
+        for _ = 1, 14 do
+            RE.Invalidate(); RE.ForgetLinks(); recap(withCap)
+            local plan = RE.GetPlan(true)
+            if not plan.ok then
+                print("FEHLER  " .. name .. ": " .. tostring(plan.problem))
+                fails = fails + 1
+                return
+            end
+            if plan.changes == 0 then break end
+            rounds = rounds + 1
+            forges = forges + applyPlan(plan)
+            -- Das Spiel: der Lauf ist durch, also wird vermerkt, was noch
+            -- fehlt (im Spiel macht das modules/reforge.lua nach einem
+            -- sauberen Lauf).
+            RE.Invalidate(); RE.ForgetLinks(); recap(withCap)
+            local after = RE.GetPlan(true)
+            if after.ok and RE.NoteChase then
+                RE.NoteChase(after.capGaps, after.gearSig)
+            end
+        end
+
+        local ok = rounds <= maxRounds and forges <= maxForges
+        print(string.format("%-40s %d Runde(n), %2d Umschmiedungen   %s",
+            name, rounds, forges, ok and "ok" or "ABWEICHUNG"))
+        if not ok then fails = fails + 1 end
+    end
+
+    converge2("Kap-Jagd endet (Abweichung 40)", 1550, true, 40, 2, 14)
+    converge2("Kap-Jagd endet (Abweichung 80)", 1550, true, 80, 2, 14)
+    if RE.ForgetChase then RE.ForgetChase() end
+
     -- Ohne Abweichung muss es trivialerweise stehen.
     converge("Fixpunkt ohne Kap",              2600, false, false, 1, 12)
     converge("Fixpunkt mit Kap",               1550, true,  false, 1, 12)

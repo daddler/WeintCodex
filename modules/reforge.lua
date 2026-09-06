@@ -386,6 +386,32 @@ local function BuildInspector(plan)
         end
     end
 
+    -- EINE GRENZE, DIE WIR NICHT NAEHER HERANBEKOMMEN, WIRD GESAGT.
+    --
+    -- Der Planer hoert auf, ein Pflicht-Kap zu jagen, wenn ein Lauf es
+    -- nicht naeher gebracht hat (siehe ChaseStore() drueben). Das ist
+    -- richtig - jede weitere Runde kostet Gebuehr fuer nichts -, aber
+    -- ohne diesen Satz sieht es aus wie ein Planer, der das Kap einfach
+    -- vergessen hat. Und der naechste Schritt gehoert dazu: es gibt einen
+    -- Rueckweg, und der heisst nicht "SavedData aufraeumen".
+    local stalled = {}
+    for _, label in pairs(plan.capStalled or {}) do
+        stalled[#stalled + 1] = label
+    end
+    table.sort(stalled)
+    if #stalled > 0 then
+        blocks[#blocks + 1] = { type = "divider" }
+        blocks[#blocks + 1] = { type = "header", text = "Nicht weiter verfolgt" }
+        blocks[#blocks + 1] = { type = "text", size = 10, color = "textMuted",
+            text = table.concat(stalled, ", ") .. ": ein Lauf hat diese Grenze"
+                .. " nicht näher gebracht. Der Planer schmiedet dafür nichts"
+                .. " mehr um – jede weitere Runde wäre Gebühr für nichts." }
+        blocks[#blocks + 1] = { type = "text", size = 9, color = "textDim",
+            text = "Meist fehlt schlicht die Ausrüstung dafür. Mit einem neuen"
+                .. " Teil versucht er es von selbst wieder; sofort erneut"
+                .. " versuchen: /wc umschmieden frei" }
+    end
+
     -- WARUM DIESER PLAN? Dieselben Bloecke wie auf der Sockel- und der
     -- Verzauberungsseite, aus derselben Quelle (WeintCodex.Charakter.
     -- Rationale). Drei Seiten, ein Text: eine eigene Fassung hier waere
@@ -1905,12 +1931,31 @@ RE.OnPlanReady(function()
     if expectSettled then
         expectSettled = false
         local plan = RE.GetPlan()
-        if plan.ok and (plan.changes or 0) > 0 then
-            Say(WeintCodex.ColorText("warning", "Der Plan verlangt nach diesem Lauf"
-                .. " noch " .. plan.changes .. " weitere Änderung(en). ")
-                .. "Das sollte nicht sein — jede davon kostet erneut Gebühr."
-                .. " Bitte |cffD4A24A/wc umschmieden pruefen|r ausführen und die"
-                .. " Ausgabe melden.")
+        if plan.ok then
+            -- WAS NACH DIESEM LAUF NOCH FEHLT, WIRD VERMERKT.
+            --
+            -- Erst hier ist die Frage beantwortbar: der Lauf ist durch,
+            -- der Client hat die neuen Werte gemeldet, und was jetzt noch
+            -- am Pflicht-Kap fehlt, hat dieser Versuch nicht geschafft.
+            -- Kommt der naechste Plan dem Kap nicht naeher, hoert der
+            -- Planer auf, dafuer Gebuehren auszugeben (siehe
+            -- ChaseStore() in modules/reforge_engine.lua).
+            --
+            -- Vermerkt wird NUR nach einem Lauf, den das Addon selbst
+            -- gefahren hat. Ein Plan, den niemand angeklickt hat, ist kein
+            -- Versuch - ihn mitzuzaehlen hiesse zu bremsen, bevor
+            -- ueberhaupt jemand Gold ausgegeben hat.
+            if RE.NoteChase then
+                RE.NoteChase(plan.capGaps, plan.gearSig)
+            end
+
+            if (plan.changes or 0) > 0 then
+                Say(WeintCodex.ColorText("warning", "Der Plan verlangt nach diesem Lauf"
+                    .. " noch " .. plan.changes .. " weitere Änderung(en). ")
+                    .. "Das sollte nicht sein — jede davon kostet erneut Gebühr."
+                    .. " Bitte |cffD4A24A/wc umschmieden pruefen|r ausführen und die"
+                    .. " Ausgabe melden.")
+            end
         end
     end
 
@@ -2120,6 +2165,35 @@ function RF.Dump()
                "  (darüber hinaus gehende Ziele zählen nur linear)"))
     end
 
+    -- DIE KAP-BREMSE. Von aussen sieht ein Kap, das der Planer nicht mehr
+    -- verfolgt, genauso aus wie eines, das er vergessen hat - und das ist
+    -- der Unterschied zwischen "richtig" und "kaputt".
+    local chase = WeintCodex.SavedData and WeintCodex.SavedData.reforge
+                  and WeintCodex.SavedData.reforge.chase
+    if chase and chase.signature then
+        local parts = {}
+        for key, gap in pairs(chase.gaps or {}) do
+            parts[#parts + 1] = string.format("%s %s", R.SHORT[key] or key, Rating(gap))
+        end
+        table.sort(parts)
+        print(string.format("  Letzter Lauf, danach noch offen: %s  %s",
+            #parts > 0 and table.concat(parts, ", ") or "nichts",
+            WeintCodex.ColorText("textFaint",
+                (chase.signature == (plan.gearSig or "")) and "(gilt für diese Ausrüstung)"
+                    or "(andere Ausrüstung — die Bremse greift nicht)")))
+    end
+    local stalledNames = {}
+    for _, label in pairs(plan.capStalled or {}) do
+        stalledNames[#stalledNames + 1] = label
+    end
+    if #stalledNames > 0 then
+        table.sort(stalledNames)
+        print("  " .. WeintCodex.ColorText("warning",
+            "Nicht weiter verfolgt: " .. table.concat(stalledNames, ", "))
+            .. WeintCodex.ColorText("textFaint",
+               "  ·  /wc umschmieden frei setzt die Bremse zurück"))
+    end
+
     for _, key in ipairs(R.STATS) do
         local goal = plan.ctx.target[key]
         local live = plan.ctx.live[key] or 0
@@ -2327,6 +2401,11 @@ function RF.Command(rest)
         for _, slotDef in ipairs(WeintCodex.Charakter.EquipSlots or {}) do
             if RE.IsLocked(slotDef.id) then RE.SetLocked(slotDef.id, false) end
         end
+        -- "Alles freigeben" heisst alles: auch die Bremse, die nach einem
+        -- erfolglosen Versuch aufgehoert hat, ein Kap zu jagen. Wer sie
+        -- nur ueber die SavedData wieder loswuerde, haette keinen Rueckweg.
+        if RE.ForgetChase then RE.ForgetChase() end
+        RE.Invalidate()
         RF.RefreshForge()
         if PageVisible() then RF.ShowPage() end
         Say("Alle Handauswahlen und Sperren aufgehoben ("

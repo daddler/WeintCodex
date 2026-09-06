@@ -57,8 +57,33 @@ vorgeschlagen, und nie ein drittes. An der Zeile steht jetzt, das
 wievielte es ist (*Schlangenauge 1 von 2*), und im Feld rechts, wie viele
 der Plan insgesamt vergibt.
 
+**Das Umschmieden war zu teuer — und zwar am Trefferkap.**
+Ein Pflicht-Kap geht dem Planer über alles, und das ist richtig: unter dem
+Trefferkap gehen Schläge daneben. Es hatte aber eine Folge, die es nicht
+haben darf — er hat dafür beliebig viele Teile bewegt, beliebig oft.
+
+Denn er trifft nicht immer. Was ein Teil nach dem Umschmieden wirklich
+trägt, kennt er nur ungefähr. Landest du danach knapp unter dem Kap, sieht
+der nächste Plan wieder eine Lücke, schmiedet das nächste Teil um, landet
+wieder daneben — und jede Runde kostet die volle Gebühr. Nachgestellt kamen
+so **neun Durchläufe und 21 Umschmiedungen** heraus statt einem Durchlauf
+und zwölf.
+
+Ab sofort merkt sich der Planer, wie weit er nach einem Lauf noch vom Kap
+entfernt war. Kommt er beim nächsten Mal nicht näher heran, hört er auf,
+dafür Gold auszugeben, und sagt es: *Nicht weiter verfolgt*. Meist fehlt
+schlicht die Ausrüstung dafür. Mit einem neuen Teil versucht er es von
+selbst wieder; sofort erneut versuchen geht mit
+*/wc umschmieden frei*.
+
+**Und die Tour sagt jetzt, was ein Schalter bringt und was er kostet.**
+Bei jeder Einstellung steht, was du davon hast, wenn sie an ist, was
+wegfällt, wenn sie aus ist — und dass du es jederzeit wieder ändern kannst,
+ohne dass dabei etwas verloren geht.
+
 ### Neu
 - Die Einführung deckt alle Bereiche ab, in Kapiteln, mit den Befehlen dazu (`/wc tour`)
+- Sie sagt bei jeder Einstellung, was das Einschalten bringt, was das Ausschalten kostet und dass sich beides jederzeit ändern lässt
 - Sie erscheint einmalig auch für alle, die das Addon schon lange benutzen
 - *Charakter → Sockel* bittet im Feld rechts um Rückmeldung und nennt, was hineingehört
 - Als Juwelier steht im Feld rechts, wie viele deiner zwei Schlangenaugen der Plan vergibt
@@ -69,10 +94,17 @@ der Plan insgesamt vergibt.
 - Die Einführung duzt, wie der Rest des Addons
 
 ### Behoben
+- *Umschmieden* jagte ein Trefferkap ohne Ende: kam der Plan nicht näher heran, schmiedete er trotzdem weiter um — Runde für Runde, jede mit voller Gebühr
 - Der Plan schlug mehr Schlangenaugen vor, als Juwelenschleifen erlaubt — gezählt wurde je Ausrüstungsteil statt je Sockel
 - Seit 2.9.3.0 wurde umgekehrt gar keines mehr vorgeschlagen, weil es in jeder Steinliste an zweiter Stelle steht
 
 ### Technisch
+- `modules/reforge_engine.lua`: ein Pflicht-Kap steht in `CapMisses` lexikografisch **vor** der Bewertung, also kann der Bonus fürs Sobleiben es nie aufwiegen — der Planer bewegt dafür beliebig viele Teile. Nach einem Lauf hält `RE.NoteChase` den verbliebenen Abstand je Pflicht-Kap fest (in den SavedData, damit ein `/reload` die Jagd nicht von vorn beginnen lässt); ist er beim nächsten Plan nicht um mindestens `CAP_SLACK` kleiner, setzt `ChaseStalled` dessen `require` auf `false`. Das Kap zählt weiter zur Bewertung, es schlägt sie nur nicht mehr
+- Die Kennung dafür ist eine **Ausrüstungs**-Kennung (`GearSignature`: welche Teile, mit welcher Aufwertungsstufe) und nicht `Signature()`: der Umschmiedewert steht im Item-Link und die Kampfwertungen ändern sich nach jedem Lauf, eine Kennung daraus wäre nach genau einem Lauf ungültig und die Bremse träte nie in Kraft. Ein neues Teil verwirft den Merker — es ist eine neue Gelegenheit
+- Vermerkt wird **nur nach einem Lauf, den das Addon selbst gefahren hat**. Ein Plan, den niemand angeklickt hat, ist kein Versuch; ihn mitzuzählen hiesse zu bremsen, bevor überhaupt jemand Gold ausgegeben hat
+- **Eine grössere Toleranz löst das nicht**, und das ist nachgemessen: über `CAP_SLACK` 40/60/85/120/170 gegen Abweichungen von 40 bis 120 Wertung je Teil hält jede Toleranz unter ihrem eigenen Wert und keine darüber. Der Fehler ist nach oben nicht begrenzt, die Toleranz schon — über ihr fängt sie an, ein echtes Kap zu verfehlen. Gebremst wird deshalb über den Fortschritt, dieselbe Regel wie beim Einladungslauf in `modules/calendar.lua`
+- `.github/tests/reforge_engine_test.lua` stellt es nach: mit 40 Wertung Abweichung je Teil meldet der Lauf ohne Bremse 9 Runden und 21 Umschmiedungen, mit ihr 1 Runde und 12
+- `.github/tests/tour_test.lua` ist neu: Vollständigkeit der Tour, zusammenhängende Kapitel, jeder Bereich des Addons erwähnt, und die Einstellungsseite nennt beide Richtungen samt Umkehrbarkeit
 - `modules/charakter.lua`: das Schlangenaugen-Kontingent wird in `Run()` **je Sockel** abgezählt statt in `PlanItem` einmal je Gegenstand. Jeder der beiden Strategiedurchläufe zählt sein eigenes ab (nur die Gewinnerin verbraucht wirklich), und `ctx.jcLeft` wird bei 0 geklemmt — es stand vorher bei −1. `ctx.jcLimit`/`jcUsed`/`jcLeft` sind drei Zahlen, weil die Begründung an der Zeile die erste und die dritte braucht und der Suchlauf die zweite
 - `BestCandidate` behandelt ein Schlangenauge in der kuratierten Liste als **bessere Stufe desselben Steins**, nicht als schlechteren Rang: die Liste entscheidet weiterhin, welcher Wert in den Sockel gehört, und die Berufsstufe wird nur genommen, wenn sie den Listenplatz auch schlägt (am Cap ist sie 0 wert und der gewöhnliche Stein bleibt stehen)
 - Die Zuteilung folgt der Reihenfolge der Ausrüstungsplätze — die ersten Sockel, an denen ein Schlangenauge etwas bringt, bekommen sie. Das ist eine Näherung und keine Optimierung über den ganzen Charakter; bei gleichem Wert ist sie ohne Bedeutung, bei verschiedenen Farben kann sie danebenliegen

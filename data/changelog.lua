@@ -16,6 +16,7 @@ WeintCodex_ChangelogData = {
             "Auf |cffD4A24ACharakter -> Sockel|r steht rechts eine Bitte: die Steinempfehlung ist noch nicht ueberall verlaesslich. Wenn dir etwas seltsam vorkommt, sag es bitte im Discord.",
             "Was in so eine Meldung gehoert, steht dort auch - Spezialisierung, Ausruestungsplatz, erwarteter Stein und die Ausgabe von |cffD4A24A/wc sockel|r.",
             "|cffD4A24ABerufssteine|r: als Juwelier bekommst du deine zwei Schlangenaugen vorgeschlagen - und nie ein drittes. Vorher wurden manchmal drei empfohlen, zuletzt gar keines mehr.",
+            "|cffD4A24AUmschmieden|r wurde teuer, wenn das Trefferkap knapp nicht aufging: der Planer schmiedete Runde um Runde weiter um. Jetzt hoert er auf, wenn er nicht naeher herankommt, und sagt es.",
         },
     },
     {

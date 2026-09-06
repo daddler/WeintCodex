@@ -177,8 +177,11 @@ local TOUR_STEPS = {
         .. "Kalender-Invite deinen echten Charakternamen kennt und nicht "
         .. "nur deinen Discord-Namen.\n\n"
         .. "Auf einem Zweitcharakter, auf dem du keine Ratschläge willst, "
-        .. "fragt WeintCodex einmal nach und hält sich danach heraus. Die "
-        .. "Frage holst du mit " .. A("/wc hilfe") .. " zurück." },
+        .. "fragt WeintCodex einmal nach und hält sich danach heraus. Sagst "
+        .. "du dort Nein, bleibt alles erhalten — es meldet sich nur nicht "
+        .. "mehr von selbst. Die Frage holst du mit " .. A("/wc hilfe")
+        .. " zurück, und derselbe Schalter steht unter "
+        .. A("Einstellungen → Fenster & Ansicht") .. "." },
 
     { chapter = "Deine Ausrüstung", icon = ICON .. "Trade_Engraving",
       title = "Verzauberungen",
@@ -275,7 +278,13 @@ local TOUR_STEPS = {
         .. "Ein Klick auf eine Zeile der Seite " .. E("sperrt") .. " ein "
         .. "Teil, wenn es aus einem Grund so bleiben soll, den die Rechnung "
         .. "nicht kennt. " .. A("/wc umschmieden frei") .. " nimmt alle "
-        .. "Sperren und Handauswahlen wieder zurück." },
+        .. "Sperren und Handauswahlen wieder zurück.\n\n"
+        .. "Ob du es einschaltest, ist eine echte Abwägung: eingeschaltet "
+        .. "bekommst du einen fertigen Plan und einen Knopf, der ihn "
+        .. "ausführt. Ausgeschaltet bleibt alles beim Alten — kein Reiter, "
+        .. "kein Fenster, keine Kosten. Umschalten kannst du es jederzeit "
+        .. "unter " .. A("Einstellungen → Umschmieden") .. "; dabei geht "
+        .. "nichts verloren." },
 
     { chapter = "Deine Ausrüstung", icon = ICON .. "INV_Misc_Book_11",
       title = "Priorisierung — deine Gewichtung",
@@ -336,10 +345,15 @@ local TOUR_STEPS = {
         .. "selbst auf und fasst zusammen, welche Steine und "
         .. "Verzauberungen du brauchst. Ein Klick auf eine Zeile sucht sie "
         .. "im Auktionshaus.\n\n"
+        .. "Beides lässt sich abschalten, und beides ist eine Abwägung: "
+        .. "ohne Alarm merkst du eine Lücke erst, wenn du selbst auf die "
+        .. "Charakterseite schaust; ohne Einkaufsliste musst du dir vor "
+        .. "dem Auktionshaus selbst merken, was fehlt. Die Schalter stehen "
+        .. "unter " .. A("Einstellungen") .. " und lassen sich jederzeit "
+        .. "wieder umlegen.\n\n"
         .. A("/wc alarm") .. " zeigt alle Schalter des Alarms, "
         .. A("/wc einkauf") .. " öffnet die Liste auch fernab des "
-        .. "Auktionshauses. Beides steht auch unter " .. A("Einstellungen")
-        .. "." },
+        .. "Auktionshauses." },
 
     --------------------------------------------------
     -- IM RAID
@@ -457,6 +471,10 @@ local TOUR_STEPS = {
         .. "nicht.\n\n"
         .. "Für Tank-Spezialisierungen gibt es bewusst " .. E("keine")
         .. " Liste. Die falsche Rotation wäre schlechter als gar keine.\n\n"
+        .. "Dass es an der Puppe von selbst aufgeht, ist ein Schalter "
+        .. "unter " .. A("Einstellungen → Rotationshelfer") .. ". Aus "
+        .. "bleibt es weg, bis du es rufst — verloren geht dabei nichts, "
+        .. "auch deine Übungstage nicht.\n\n"
         .. A("/wc training check") .. " prüft, ob alle Zauber deiner Spec "
         .. "erkannt werden." },
 
@@ -513,22 +531,39 @@ local TOUR_STEPS = {
     --------------------------------------------------
 
     { chapter = "Zum Schluss", icon = ICON .. "INV_Misc_Wrench_01",
-      title = "Einstellungen",
+      title = "Einstellungen — was an und was aus?",
       body =
-        "Unter " .. A("Einstellungen") .. " steht jede Option des Addons "
-        .. "als Schalter — in sechs Reitern: Fenster & Ansicht, "
-        .. "Ausrüstungs-Alarm, Rotationshelfer, Umschmieden, Diagnose, "
-        .. "Zugriff & Daten.\n\n"
-        .. "Dort schaltest du auch den Umschmiede-Planer ein, stellst den "
-        .. "Signalton des Alarms um, blendest das Minikarten-Symbol aus "
-        .. "und entscheidest, ob das Fenster auf ESC zugeht und ob es über "
-        .. "allen anderen liegt.\n\n"
+        "Unter " .. A("Einstellungen") .. " steht jede Option als Schalter, "
+        .. "in sechs Reitern. " .. E("Nichts davon ist endgültig") .. " — "
+        .. "jeder Schalter lässt sich dort jederzeit wieder umlegen, und "
+        .. "kein einziger löscht dabei etwas.\n\n"
+        .. E("Von sich aus helfen") .. " (Fenster & Ansicht): an bekommst "
+        .. "du den Ausrüstungs-Alarm, die Einkaufsliste am Auktionshaus, "
+        .. "den Plan beim Umschmieder und den Rotationshelfer an der "
+        .. "Puppe. Aus sagt WeintCodex auf diesem Charakter von sich aus "
+        .. "gar nichts mehr — " .. A("/wc") .. " öffnet es weiterhin "
+        .. "vollständig, und alles, was du selbst aufrufst, funktioniert "
+        .. "unverändert. Gut für Zweitcharaktere.\n\n"
+        .. E("Ausrüstungs-Alarm") .. ": an siehst du eine fehlende "
+        .. "Verzauberung oder einen leeren Sockel, bevor es im Raid "
+        .. "auffällt. Aus bleibt es still — die Lücke steht dann nur noch "
+        .. "auf der Charakterseite, wo man sie suchen muss. Der Signalton "
+        .. "ist ein eigener Schalter daneben.\n\n"
+        .. E("Umschmieden") .. " (Beta): an kommt der Reiter "
+        .. A("Charakter → Umschmieden") .. " dazu und das Fenster beim "
+        .. "Umschmieder. Aus ist er nicht da — deshalb ist er ab Werk aus: "
+        .. "das Werkzeug gibt Gold aus, und seine Vorschläge sind noch "
+        .. "nicht überall verlässlich.\n\n"
+        .. E("Rotationshelfer") .. ": an geht das Fenster an einer "
+        .. "Trainingspuppe von selbst auf. Aus nur noch über "
+        .. A("/wc training") .. ".\n\n"
+        .. E("Einkaufsliste") .. ": an fasst sie am Auktionshaus zusammen, "
+        .. "was dir fehlt. Aus musst du selbst wissen, wonach du suchst.\n\n"
+        .. E("Minikarten-Symbol") .. ": aus verschwindet nur das Symbol, "
+        .. "nicht das Addon — " .. A("/wc") .. " bleibt.\n\n"
         .. "Jeder Schalter nennt in seinem Tooltip den passenden "
-        .. "Slash-Befehl. Die Befehle bleiben alle bestehen — im Raid ist "
-        .. "der Befehl der schnellere Weg —, aber keiner ist mehr die "
-        .. "einzige Bedienung.\n\n"
-        .. "Läuft etwas nicht wie erwartet, gibt es zu fast jedem Bereich "
-        .. "einen Befehl, der jede Zwischenzahl in den Chat schreibt: "
+        .. "Slash-Befehl. Und wenn etwas nicht stimmt, schreibt zu fast "
+        .. "jedem Bereich ein Befehl jede Zwischenzahl in den Chat: "
         .. A("/wc sockel") .. ", " .. A("/wc vz") .. ", "
         .. A("/wc tempo") .. ", " .. A("/wc umschmieden prüfen") .. ", "
         .. A("/wc kalender") .. ", " .. A("/wc einkauf prüfen") .. ", "
