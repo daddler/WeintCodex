@@ -15,6 +15,7 @@ WeintCodex_ChangelogData = {
             "Beim Umschmieder war der |cffD4A24AWunschwert|r kaum zu sehen und sah nicht anklickbar aus. Er ist jetzt ein richtiges Feld mit Aufschrift und Pfeil, oben rechts im Fenster.",
             "Auf |cffD4A24ACharakter -> Sockel|r steht rechts eine Bitte: die Steinempfehlung ist noch nicht ueberall verlaesslich. Wenn dir etwas seltsam vorkommt, sag es bitte im Discord.",
             "Was in so eine Meldung gehoert, steht dort auch - Spezialisierung, Ausruestungsplatz, erwarteter Stein und die Ausgabe von |cffD4A24A/wc sockel|r.",
+            "|cffD4A24ABerufssteine|r: als Juwelier bekommst du deine zwei Schlangenaugen vorgeschlagen - und nie ein drittes. Vorher wurden manchmal drei empfohlen, zuletzt gar keines mehr.",
         },
     },
     {

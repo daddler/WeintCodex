@@ -2494,11 +2494,46 @@ local function BestCandidate(list, socketColor, mustMatch, allowJC, weights, hea
     end
 
     -- Die Liste zuerst, in ihrer Reihenfolge.
+    local pickId, pickValue
     for i = 1, (curated or 0) do
         local id = list[i]
         local value = id and Usable(id)
-        if value and value > 0 then return id, value, true end
+        if value and value > 0 then pickId, pickValue = id, value; break end
     end
+
+    -- EIN SCHLANGENAUGE IST KEIN SCHLECHTERER RANG, SONDERN EINE BESSERE
+    -- STUFE DESSELBEN STEINS.
+    --
+    -- In allen 64 Eintraegen der Spec-Profile steht das Schlangenauge an
+    -- zweiter Stelle seiner Farbliste, hinter dem gewoehnlichen Stein
+    -- desselben Werts. Als Rangfolge gelesen heisst das "der gewoehnliche
+    -- ist besser" - und genau so hat es 2.9.3.0 gelesen, seit die Liste
+    -- eine Rangfolge IST. Ergebnis: seither bekam kein Juwelier mehr ein
+    -- einziges Schlangenauge vorgeschlagen, weil der erste Eintrag immer
+    -- ueber 0 liegt und der zweite nie erreicht wird. Lautlos, denn eine
+    -- Empfehlung, die fehlt, sieht aus wie eine, die es nicht gibt.
+    --
+    -- Gemeint war die zweite Stelle aber nie als "schlechter": sie ist der
+    -- Rueckfall fuer alle OHNE den Beruf. Die Schlangenaugen sind in MoP
+    -- durchweg die doppelte Stufe (320 statt 160 Primaer, 480 statt 320
+    -- Sekundaer) bei gleicher Farbe - da gibt es nichts abzuwaegen.
+    --
+    -- Also entscheidet die Liste weiterhin, WELCHER Wert in den Sockel
+    -- gehoert; ob es die Berufsstufe davon wird, entscheidet die Wertung.
+    -- Sie wird nur genommen, wenn sie den Listenplatz auch wirklich
+    -- schlaegt - am Trefferkap ist ein Schlangenauge 0 wert, und dann
+    -- bleibt der gewoehnliche Stein stehen.
+    if pickId and allowJC and not IsJcGem(pickId) then
+        for i = 1, (curated or 0) do
+            local id = list[i]
+            if id and IsJcGem(id) then
+                local value = Usable(id)
+                if value and value > pickValue then pickId, pickValue = id, value end
+            end
+        end
+    end
+
+    if pickId then return pickId, pickValue, true end
 
     local bestId, bestValue = nil, -1
     for _, id in ipairs(list) do
@@ -2533,7 +2568,7 @@ end
 -- schlimmer als gar keiner.
 --------------------------------------------------
 
-local function ExplainGem(id, socket, room, weights, plan, ctx, fromList)
+local function ExplainGem(id, socket, room, weights, plan, ctx, fromList, jcNumber)
     if socket.color == "meta" then
         return "Meta-Sockel — hier entscheidet der Proc-Effekt, nicht die Wertung."
     end
@@ -2597,8 +2632,20 @@ local function ExplainGem(id, socket, room, weights, plan, ctx, fromList)
 
     -- (e) Schlangenaugen sind kontingentiert; ohne diesen Hinweis sieht die
     -- Empfehlung fuer jeden ohne Juwelenschleifen nach einem Fehler aus.
+    --
+    -- Und die ZAHL gehoert dazu. "Begrenzte Zahl" nennt keinen naechsten
+    -- Schritt - wer zwei Steine gesetzt hat und einen dritten vorgeschlagen
+    -- bekommt, sucht danach den Fehler bei sich. "2 von 2" beantwortet
+    -- dagegen von selbst, warum an der naechsten Zeile keines mehr steht.
     if IsJcGem(id) then
-        parts[#parts + 1] = "Schlangenauge — nur mit Juwelenschleifen, begrenzte Zahl"
+        local limit = ctx and ctx.jcLimit or 0
+        if jcNumber and limit > 0 then
+            parts[#parts + 1] = string.format(
+                "Schlangenauge %d von %d — mehr erlaubt Juwelenschleifen nicht",
+                jcNumber, limit)
+        else
+            parts[#parts + 1] = "Schlangenauge — nur mit Juwelenschleifen, begrenzte Zahl"
+        end
     end
 
     if #parts == 0 then return nil end
@@ -2682,10 +2729,29 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     -- Beide Strategien durchrechnen. Der Spielraum wird dabei NICHT
     -- verbraucht — das passiert erst unten für die Gewinnerin, sonst
     -- bezahlte die zweite Variante für die erste.
+    -- DAS SCHLANGENAUGEN-KONTINGENT GILT JE SOCKEL, NICHT JE GEGENSTAND.
+    --
+    -- Bis 2.10.0.0 stand `ctx.allowJC` fuer den ganzen Gegenstand fest und
+    -- wurde erst NACH ihm nachgezogen. Ein Teil mit zwei Sockeln konnte
+    -- damit zwei Schlangenaugen bekommen, auch wenn nur noch eines uebrig
+    -- war — und `ctx.jcLeft` lief ins Minus, ohne dass es irgendwo auffiel.
+    --
+    -- Gemeldet wurde genau das: "ich habe zwei berufsspezifische Steine
+    -- angelegt, aber mir wird empfohlen noch zwei anzulegen, geht aber
+    -- nicht, sind nur zwei moeglich". Auf dem Bildschirm des Melders standen
+    -- drei Schlangenaugen im Plan (Kopf ein Sockel, Schultern zwei), also
+    -- eines mehr, als MoP ueberhaupt zulaesst. Eine Empfehlung, der man
+    -- nicht folgen KANN, ist schlimmer als eine, die nur daneben liegt: sie
+    -- laesst den Spieler suchen, was er falsch macht.
+    --
+    -- Jeder Durchlauf zaehlt deshalb sein eigenes Kontingent ab — die beiden
+    -- Strategien duerfen sich nicht gegenseitig etwas wegnehmen, denn nur
+    -- eine von beiden wird am Ende wirklich verbraucht.
     local function Run(mustMatch)
         local room  = {}
         for stat, v in pairs(live) do room[stat] = v end
         local picks, values, rooms, listed, total = {}, {}, {}, {}, 0
+        local jcIndex, jcLeft, jcTaken = {}, (ctx.jcLeft or 0), 0
         for i, socket in ipairs(sockets) do
             local snapshot = {}
             for stat, v in pairs(room) do snapshot[stat] = v end
@@ -2704,7 +2770,8 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
                 -- Welche Liste hier die kuratierte ist, haengt an der
                 -- Strategie (siehe CandidateList).
                 id, value, fromList = BestCandidate(cands, socket.color, needMatch,
-                                          ctx.allowJC, weights, room, curated)
+                                          ctx.allowJC and jcLeft > 0,
+                                          weights, room, curated)
                 if not id and needMatch then
                     -- Kein farblich passender Kandidat im Topf: dieser Sockel
                     -- kann den Bonus nicht halten, die Strategie scheitert.
@@ -2714,10 +2781,20 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
 
             picks[i], values[i], listed[i] = id, value, fromList or false
             total = total + value
+            if id and IsJcGem(id) then
+                jcLeft  = jcLeft - 1
+                jcTaken = jcTaken + 1
+                -- Die laufende Nummer ueber den ganzen Charakter, damit die
+                -- Begruendung an der Zeile "1 von 2" sagen kann statt nur
+                -- "begrenzte Zahl". Ohne die Zahl steht dort eine Warnung,
+                -- die keinen naechsten Schritt nennt.
+                jcIndex[i] = (ctx.jcUsed or 0) + jcTaken
+            end
             if id then ConsumeHeadroom(SM.GemStats(id), room) end
         end
         return { gems = picks, value = values, room = rooms,
-                 listed = listed, total = total }
+                 listed = listed, total = total,
+                 jcIndex = jcIndex, jcTaken = jcTaken }
     end
 
     local ignore = Run(false)
@@ -2746,6 +2823,7 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     plan.value    = winner.value
     plan.room     = winner.room
     plan.listed   = winner.listed or {}
+    plan.jcIndex  = winner.jcIndex or {}
     plan.total    = winner.total
     plan.altTotal = loser and loser.total or nil
 
@@ -2755,7 +2833,7 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
     plan.why = {}
     for i, socket in ipairs(sockets) do
         plan.why[i] = ExplainGem(plan.gems[i], socket, plan.room[i], weights, plan, ctx,
-                                 plan.listed[i])
+                                 plan.listed[i], plan.jcIndex[i])
     end
 
     -- Erst jetzt den echten Spielraum verbrauchen: das ist der Plan, den wir
@@ -2770,12 +2848,16 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
         ConsumeHeadroom({ [bonus.stat] = bonus.value }, live)
     end
 
-    -- Schlangenaugen-Kontingent mitzählen (Grenze gilt charakterweit).
+    -- Schlangenaugen-Kontingent mitzaehlen (Grenze gilt charakterweit).
+    -- Gezaehlt wird, was die GEWINNERIN verbraucht - die unterlegene
+    -- Strategie hat nur gerechnet, angelegt wird sie nie. Und der Rest wird
+    -- bei 0 geklemmt: eine negative Zahl waere ein Kontingent, das sich
+    -- niemand erklaeren kann, und sie stand bis 2.10.0.0 tatsaechlich dort.
     if ctx.allowJC then
-        for _, id in ipairs(plan.gems) do
-            if id and IsJcGem(id) then ctx.jcLeft = (ctx.jcLeft or 0) - 1 end
-        end
-        if (ctx.jcLeft or 0) <= 0 then ctx.allowJC = false end
+        local taken = winner.jcTaken or 0
+        ctx.jcUsed = (ctx.jcUsed or 0) + taken
+        ctx.jcLeft = math.max(0, (ctx.jcLeft or 0) - taken)
+        if ctx.jcLeft <= 0 then ctx.allowJC = false end
     end
 
     return plan
@@ -3620,10 +3702,19 @@ local function ScanCharacter()
         headroom = headroom,
         capInfo  = capInfo,
         allowJC  = false,
+        -- jcLimit ist die Grenze (fuer den Text "N von 2"), jcLeft der Rest
+        -- und jcUsed die laufende Nummer. Drei Zahlen, weil die Begruendung
+        -- an der Zeile die erste und die dritte braucht und der Suchlauf die
+        -- zweite - eine davon aus den anderen zu rechnen waere dieselbe
+        -- Doppelung, an der die Sockelbewertung schon einmal auseinander-
+        -- gelaufen ist.
+        jcLimit  = 0,
         jcLeft   = 0,
+        jcUsed   = 0,
     }
     if HasJewelcrafting() then
-        planCtx.jcLeft  = JewelcrafterGemLimit()
+        planCtx.jcLimit = JewelcrafterGemLimit()
+        planCtx.jcLeft  = planCtx.jcLimit
         planCtx.allowJC = planCtx.jcLeft > 0
     end
 
@@ -3938,6 +4029,15 @@ local function ScanCharacter()
 
     scan.enchants.counts = CountRows(scan.enchants.rows)
     scan.gems.counts     = CountRows(scan.gems.rows)
+
+    -- WIEVIELE SCHLANGENAUGEN VERGIBT DIESER PLAN?
+    -- Die Zahl steht sonst nirgends. Wer zwei gesetzt hat und die Liste
+    -- nach einem dritten absucht, findet keinen - und weiss nicht, ob das
+    -- Absicht ist. Getragen wird sie vom Planungskontext, also von genau
+    -- der Rechnung, die sie vergeben hat; sie hier nachzuzaehlen waere eine
+    -- zweite Herleitung derselben Zahl.
+    scan.gems.jcLimit = planCtx.jcLimit or 0
+    scan.gems.jcUsed  = planCtx.jcUsed or 0
 
     local eC, gC = scan.enchants.counts, scan.gems.counts
     local total  = eC.total + gC.total
@@ -4503,7 +4603,9 @@ function WeintCodex.Charakter.DumpSockets()
     local ctx = {
         pool = pool, headroom = headroom,
         allowJC = jc and JewelcrafterGemLimit() > 0 or false,
+        jcLimit = jc and JewelcrafterGemLimit() or 0,
         jcLeft  = jc and JewelcrafterGemLimit() or 0,
+        jcUsed  = 0,
     }
 
     for _, slotDef in ipairs(EQUIP_SLOTS) do
@@ -4583,10 +4685,23 @@ function WeintCodex.Charakter.DumpSockets()
                         plan.value and plan.value[i] or 0,
                         (plan.listed and plan.listed[i]) and "aus der Profilliste"
                                                           or "nach Wertung"))
+                    -- Die laufende Nummer des Kontingents. Ohne sie ist ein
+                    -- drittes Schlangenauge von einem zweiten nicht zu
+                    -- unterscheiden - und genau daran lag der gemeldete Fall.
+                    local n = plan.jcIndex and plan.jcIndex[i]
+                    if n then
+                        print(string.format(
+                            "        |cffD4A24ASchlangenauge %d von %d|r"
+                            .. " |cff4A4A52(Rest danach: %d)|r",
+                            n, ctx.jcLimit or 0, ctx.jcLeft or 0))
+                    end
                 end
             end
         end
     end
+
+    print(string.format("  |cff4A4A52Schlangenaugen im Plan: %d von %d|r",
+        ctx.jcUsed or 0, ctx.jcLimit or 0))
 end
 
 
@@ -5509,6 +5624,31 @@ function ShowGems()
     -- Und sie steht nur auf DIESER Seite. Auf jede Seite geschrieben waere
     -- sie Zierrat, den niemand mehr liest.
     --------------------------------------------------
+    --------------------------------------------------
+    -- DAS SCHLANGENAUGEN-KONTINGENT, ALS ZAHL.
+    --
+    -- MoP erlaubt zwei, und die Grenze gilt fuer den ganzen Charakter.
+    -- Ohne diese Zeile ist "warum steht an den anderen Sockeln keines mehr"
+    -- von einem Fehler nicht zu unterscheiden - genau so wurde es gemeldet.
+    -- Sie steht nur da, wenn der Beruf ueberhaupt vorhanden ist: fuer alle
+    -- anderen waere sie eine Auskunft ueber etwas, das sie nicht haben.
+    --------------------------------------------------
+    if (scan.gems.jcLimit or 0) > 0 then
+        gemExtras[#gemExtras + 1] = { type = "divider" }
+        gemExtras[#gemExtras + 1] = { type = "rows", rows = {
+            { label = "Schlangenaugen",
+              value = string.format("%d von %d",
+                  scan.gems.jcUsed or 0, scan.gems.jcLimit),
+              valueColor = ((scan.gems.jcUsed or 0) >= scan.gems.jcLimit)
+                  and "gold" or "textNormal" },
+        }}
+        gemExtras[#gemExtras + 1] = { type = "text", size = 9, color = "textDim",
+            text = "Juwelenschleifen erlaubt in Mists of Pandaria zwei davon"
+                .. " am ganzen Charakter. Der Plan vergibt sie an die Sockel,"
+                .. " an denen sie am meisten bringen – an den übrigen steht"
+                .. " deshalb ein gewöhnlicher Stein." }
+    end
+
     gemExtras[#gemExtras + 1] = { type = "divider" }
     gemExtras[#gemExtras + 1] = { type = "header", text = "Passt das nicht?" }
     gemExtras[#gemExtras + 1] = { type = "text", size = 10, color = "textMuted",

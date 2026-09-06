@@ -34,17 +34,50 @@ daneben liegt. Auf *Charakter → Sockel* steht deshalb im Feld rechts, was
 in eine Meldung gehört — und dass sie wirklich hilft. Ohne Rückmeldung
 fällt kein einziger dieser Fälle auf.
 
+**Berufssteine: erst zu viele, dann gar keine.**
+Gemeldet wurde: „ich habe zwei berufsspezifische Steine angelegt, aber mir
+wird empfohlen noch zwei anzulegen — geht aber nicht, sind nur zwei
+möglich." Das stimmte. Der Plan vergab drei Schlangenaugen, wo Mists of
+Pandaria zwei erlaubt.
+
+Der Grund: gezählt wurde je Ausrüstungsteil statt je Sockel. Ein Teil mit
+zwei Sockeln konnte damit zwei davon bekommen, auch wenn nur noch eines
+übrig war.
+
+Beim Nachrechnen kam ein zweiter Fehler heraus, der genau das Gegenteil
+tat: seit der letzten Änderung an der Steinliste bekam **niemand** mehr ein
+Schlangenauge vorgeschlagen. In jedem Spec-Profil steht es an zweiter
+Stelle hinter dem gewöhnlichen Stein — als Rangfolge gelesen heißt das „der
+gewöhnliche ist besser", und der ist es nicht: das Schlangenauge ist
+dieselbe Farbe in doppelter Stufe. Gemeint war die zweite Stelle als
+Rückfall für alle ohne den Beruf.
+
+Beides ist behoben. Als Juwelier bekommst du deine zwei Schlangenaugen
+vorgeschlagen, und nie ein drittes. An der Zeile steht jetzt, das
+wievielte es ist (*Schlangenauge 1 von 2*), und im Feld rechts, wie viele
+der Plan insgesamt vergibt.
+
 ### Neu
 - Die Einführung deckt alle Bereiche ab, in Kapiteln, mit den Befehlen dazu (`/wc tour`)
 - Sie erscheint einmalig auch für alle, die das Addon schon lange benutzen
 - *Charakter → Sockel* bittet im Feld rechts um Rückmeldung und nennt, was hineingehört
+- Als Juwelier steht im Feld rechts, wie viele deiner zwei Schlangenaugen der Plan vergibt
 
 ### Geändert
 - Der *Wunschwert* im Umschmieder-Fenster ist ein sichtbares Bedienelement statt einer Textzeile
 - Der Knopf unter *Einstellungen → Fenster & Ansicht* heisst *Einführung erneut ansehen* und sagt, was darin steht
 - Die Einführung duzt, wie der Rest des Addons
 
+### Behoben
+- Der Plan schlug mehr Schlangenaugen vor, als Juwelenschleifen erlaubt — gezählt wurde je Ausrüstungsteil statt je Sockel
+- Seit 2.9.3.0 wurde umgekehrt gar keines mehr vorgeschlagen, weil es in jeder Steinliste an zweiter Stelle steht
+
 ### Technisch
+- `modules/charakter.lua`: das Schlangenaugen-Kontingent wird in `Run()` **je Sockel** abgezählt statt in `PlanItem` einmal je Gegenstand. Jeder der beiden Strategiedurchläufe zählt sein eigenes ab (nur die Gewinnerin verbraucht wirklich), und `ctx.jcLeft` wird bei 0 geklemmt — es stand vorher bei −1. `ctx.jcLimit`/`jcUsed`/`jcLeft` sind drei Zahlen, weil die Begründung an der Zeile die erste und die dritte braucht und der Suchlauf die zweite
+- `BestCandidate` behandelt ein Schlangenauge in der kuratierten Liste als **bessere Stufe desselben Steins**, nicht als schlechteren Rang: die Liste entscheidet weiterhin, welcher Wert in den Sockel gehört, und die Berufsstufe wird nur genommen, wenn sie den Listenplatz auch schlägt (am Cap ist sie 0 wert und der gewöhnliche Stein bleibt stehen)
+- Die Zuteilung folgt der Reihenfolge der Ausrüstungsplätze — die ersten Sockel, an denen ein Schlangenauge etwas bringt, bekommen sie. Das ist eine Näherung und keine Optimierung über den ganzen Charakter; bei gleichem Wert ist sie ohne Bedeutung, bei verschiedenen Farben kann sie danebenliegen
+- `.github/tests/gem_plan_test.lua` prüft beide Hälften als **Verhalten**: mehrere Gegenstände nacheinander mit demselben Kontext planen und zählen. Mit der alten Rechnung meldet der Lauf „3 von 2" und ein Kontingent von −1; ohne die zweite Hälfte wäre „nie mehr als zwei" mit null trivial erfüllt
+- `/wc sockel` druckt je Sockel die laufende Nummer samt Rest und am Ende die Summe
 - `core/onboarding.lua`: `TOUR_STEPS` vollständig neu, 22 Seiten mit `chapter`; die Kopfzeile nennt Kapitel und Schritt, die Fusszeile trägt einen Ghost-Button zum Abbrechen. `TOUR_EDITION` (3) steht neben `lastSeenVersion` in `SavedData.onboarding` und entscheidet, ob die Tour oder das Changelog-Popup läuft — nicht jede Version schreibt die Tour um, und die meisten sollen weiterhin das kurze Popup zeigen. Vermerkt wird die Fassung beim **Zeigen** und nicht beim Durchklicken bis zur letzten Seite, sonst käme sie bei jedem Anmelden wieder
 - Die Texte tragen echte Umlaute statt der bisherigen Umschrift („Prueft eure …“) und benutzen `WeintCodex.ColorText` für alles, worauf man klicken oder was man tippen kann — dieselbe Regel wie in `data/changelog.lua`
 - `modules/reforge.lua`: `forge.favor` ist ein Button mit Fläche, Rahmen, Eckmasken, Chevron und einer `Eyebrow`-Aufschrift darüber. `Paint(hovered)` ist die eine Stelle, an der gesetzt/leer und überfahren/ruhend dieselbe Fläche färben; die Breite bleibt fest, damit der Klickpunkt nicht mit dem Inhalt wandert. `FORGE_BAR` steigt von 40 auf 54 für die Aufschrift
