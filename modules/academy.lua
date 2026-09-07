@@ -450,8 +450,28 @@ local function DrawPageHeader(frame, titleText)
     local sub = head.Sub
     if state then
         local parts = {}
-        if state.encounter then parts[#parts + 1] = state.encounter end
-        if state.pull      then parts[#parts + 1] = "Pull " .. tostring(state.pull) end
+
+        -- Welcher Kampf war das? Der Satz kommt seit 3.0.0.0 fertig
+        -- aus der Companion und traegt zwei Angaben mit, die hier
+        -- vorher fehlten: die Schwierigkeit (derselbe Boss heroisch
+        -- und normal sind zwei verschiedene Ansprueche) und den
+        -- Ausgang (ein Wipe bei 80 % erklaert eine schwache
+        -- Cooldown-Wertung von selbst). Selbst zusammengesetzt wurde
+        -- er hier bis dahin aus Boss und Pull-Nummer - eine zweite
+        -- Fassung derselben Auskunft, und die laeuft irgendwann
+        -- anders aus als die drueben.
+        --
+        -- Der alte Weg bleibt als Rueckfall stehen: eine aeltere
+        -- Companion schickt das Feld nicht, und dann ist "Horridon ·
+        -- Pull 12" immer noch besser als eine leere Zeile.
+        local meta = state.encounterText
+        if type(meta) == "string" and meta ~= "" then
+            parts[#parts + 1] = meta
+        else
+            if state.encounter then parts[#parts + 1] = state.encounter end
+            if state.pull      then parts[#parts + 1] = "Pull " .. tostring(state.pull) end
+        end
+
         if state.capturedAt then
             parts[#parts + 1] = "Stand: " .. date("%d.%m.%Y %H:%M", state.capturedAt)
         end
@@ -740,8 +760,15 @@ function WeintCodex.Academy.ShowOverview()
         end
 
         local prog = Text(frame, 10, "TOPLEFT", frame, "TOPLEFT", 20, y)
+
+        -- "0 von 0 Lektionen erledigt" ist eine Zahl, die nichts sagt,
+        -- und von einem Fehler nicht zu unterscheiden. Ohne Lektionen
+        -- steht deshalb da, dass es noch keine gibt - dieselbe Regel
+        -- wie drueben auf der Academy-Seite der Companion.
         prog:SetText(WeintCodex.ColorText("textMuted",
-            string.format("%d von %d Lektionen erledigt", done, total)))
+            total > 0
+                and string.format("%d von %d Lektionen erledigt", done, total)
+                or "Noch keine Lektionen fuer diesen Charakter"))
 
         local curve  = Curve()
         local blocks = {

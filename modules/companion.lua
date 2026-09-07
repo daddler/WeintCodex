@@ -497,7 +497,7 @@ end
 --                                     encounter, roles = {...} }, ... } }
 --
 -- academy_state    { character, encounter, pull, source, capturedAt,
---                    hasActor,
+--                    encounterText, hasActor,
 --                    actor   = { name, class, spec, role },
 --                    ratings = { { category, stars, detail, metric, at }, ... },
 --                    plan    = { "<lessonId>", ... },
@@ -521,6 +521,14 @@ end
 --                  2.8.0 und sie sind additiv: eine aeltere Companion
 --                  schickt sie nicht, und dann sagt die Seite dazu
 --                  nichts, statt etwas zu behaupten.
+--
+--                  `encounterText` kam mit 3.0.0 dazu: der fertige Satz
+--                  ueber den ausgewerteten Kampf (Boss, Schwierigkeit,
+--                  Pull, Ausgang, Durchschnittsnote). Die Seite baute
+--                  ihn bis dahin selbst aus `encounter` und `pull` -
+--                  und kannte damit weder die Schwierigkeit noch den
+--                  Ausgang, obwohl beides drueben vorliegt. Ebenfalls
+--                  additiv; ohne das Feld bleibt es beim alten Weg.
 --
 --                  KEINES davon wird hier nachgerechnet. Die Kurve, die
 --                  Begruendung des Plans, der Grund fuer eine leere

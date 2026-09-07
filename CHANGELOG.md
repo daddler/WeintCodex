@@ -2,6 +2,44 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.0.0] – 2026-09-07
+
+**Die Academy sagt jetzt, welchen Kampf sie bewertet.**
+Über den Sternen stand bisher der Bossname und die Pull-Nummer. Was
+gefehlt hat, sind die zwei Angaben, die eine Bewertung überhaupt
+einordnen: die Schwierigkeit und der Ausgang. Derselbe Boss heroisch
+und normal sind zwei verschiedene Ansprüche, und ein Wipe bei 80 %
+erklärt eine schwache Cooldown-Wertung von selbst. Beides steht dort
+jetzt.
+
+**„0 von 0 Lektionen erledigt" ist weg.**
+Diese Zeile stand da, solange für den Charakter noch kein Lernpfad
+entstanden war. Sie war rechnerisch richtig und sah aus wie ein
+Fehler. Jetzt steht dort, dass es noch keine Lektionen gibt.
+
+**Ein vergangener Kampf ist in WeintCompanion wiederzufinden.**
+Das Archiv waren zwei Ausklapplisten: zwanzig gleich aussehende
+Berichte in der einen, sechzig Pulls in der anderen, ohne Ordnung
+ausser der des Abends. Über *Log wählen* öffnet sich jetzt ein
+Fenster mit den Raidabenden links und den Pulls rechts, nach Boss
+gebündelt — mit Suchfeld, einem Filter für Kills und der Uhrzeit an
+jedem Pull. Der beste Versuch eines Bosses ist markiert.
+
+Die Zeile darüber sagt ausserdem, welcher Pull gerade **geladen** ist.
+Bisher zeigte sie, was ausgewählt war — nach einem fehlgeschlagenen
+Abruf also etwas, das man gar nicht vor sich hatte.
+
+### Neu
+- Die Kopfzeile der Academy nennt Boss, Schwierigkeit, Pull, Ausgang und die Durchschnittsnote
+
+### Geändert
+- Ohne Lektionen steht in der Fortschrittszeile, dass es noch keine gibt, statt „0 von 0"
+
+### Technisch
+- `academy_state` trägt zusätzlich `encounterText`, den fertig formulierten Satz über den ausgewerteten Kampf. Er entsteht drüben in `gui/widgets/tv/encounter_meta.py` und wird hier **nicht** nachgebaut: `DrawPageHeader` setzte ihn bis 2.10.0.0 selbst aus `encounter` und `pull` zusammen, also eine zweite Fassung derselben Auskunft — und die läuft irgendwann anders aus als die drüben. Additiv; fehlt das Feld (ältere Companion), bleibt es beim bisherigen Weg
+- `outcome_text()` kennt drei Antworten und nicht zwei: solange gekämpft wird, ist der Ausgang **offen**. Ihn aus der laufenden Bossleiste als Wipe auszugeben wäre eine Behauptung über einen Kampf, der noch läuft — in einer Wiedergabe viermal je Sekunde eine andere
+- Die Durchschnittsnote fällt weg, wenn kein Bereich bewertet ist. „Ø 0,0/5" wäre dort die schlechteste Note statt „keine Daten" — dieselbe Verwechslung, gegen die `stars == 0` geschrieben ist
+
 ## [2.10.0.0] – 2026-09-05
 
 **Du bestimmst, welcher Wert auf ein Teil kommt.**
