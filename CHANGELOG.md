@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.0.1] – 2026-09-07
+
+Diese Fassung ändert nichts, was du im Spiel siehst.
+
+### Technisch
+
+Die Projektdokumentation für Claude Code wurde neu strukturiert: `CLAUDE.md` ist jetzt ein kompakter Router (Identität, Rolle im Ökosystem, kritische Invarianten, Aufgabenrouting), Detailwissen zu einzelnen Systemen liegt themenbezogen unter `docs/`. Keine Codeänderung; Cross-Repo-Verträge mit WeintCompanion/WeintCodex Bot verweisen auf die autoritativen Dateien in `../WeintCompanion/docs/`.
+
 ## [3.0.0.0] – 2026-09-07
 
 **Die Einführung ist neu — und sie ist diesmal vollständig.**

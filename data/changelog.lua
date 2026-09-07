@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.0.1",
+        date    = "07.09.2026",
+        notes   = {
+            "Diese Fassung aendert nichts, was du im Spiel siehst - aufgeraeumt wurde nur, wie dieses Projekt intern arbeitet.",
+        },
+    },
+    {
         version = "3.0.0.0",
         date    = "07.09.2026",
         notes   = {
