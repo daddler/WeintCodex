@@ -10,10 +10,11 @@ WeintCodex_ChangelogData = {
         version = "3.0.0.0",
         date    = "07.09.2026",
         notes   = {
-            "|cffD4A24AAcademy|r: die Kopfzeile sagt jetzt, welcher Kampf da bewertet wird - Boss, Schwierigkeit, Pull und wie er ausging. Bisher stand dort nur der Bossname.",
-            "Ohne Lektionen stand |cffD4A24A0 von 0 Lektionen erledigt|r da. Das sah aus wie ein Fehler und ist jetzt ein Satz, der es sagt.",
-            "In WeintCompanion findest du vergangene Kaempfe ueber |cffD4A24ALog waehlen|r - nach Raidabend und Boss sortiert, mit Suche und einem Filter fuer Kills.",
-            "Der beste Versuch eines Bosses ist dort markiert. Wer den einen Wipe wiederfinden will, ueber den gesprochen wurde, muss nicht mehr durch sechzig Zeilen scrollen.",
+            "Die |cffD4A24AEinfuehrung|r ist neu und deckt zum ersten Mal alles ab - 22 Seiten in fuenf Kapiteln. Du bekommst sie einmal, auch wenn du das Addon schon lange benutzt; jederzeit wieder mit |cffD4A24A/wc tour|r.",
+            "|cffD4A24ABerufssteine|r: als Juwelier bekommst du deine zwei Schlangenaugen vorgeschlagen - und nie ein drittes. Vorher wurden manchmal drei empfohlen, zuletzt gar keines mehr.",
+            "|cffD4A24AUmschmieden|r wurde teuer, wenn das Trefferkap knapp nicht aufging: der Planer schmiedete Runde um Runde weiter um. Jetzt hoert er auf, wenn er nicht naeher herankommt, und sagt es.",
+            "Beim Umschmieder war der |cffD4A24AWunschwert|r kaum zu sehen. Er ist jetzt ein richtiges Feld mit Aufschrift und Pfeil, oben rechts im Fenster.",
+            "|cffD4A24AAcademy|r: die Kopfzeile sagt jetzt, welchen Kampf sie bewertet - Boss, Schwierigkeit, Pull und wie er ausging. In WeintCompanion findest du vergangene Kaempfe ueber |cffD4A24ALog waehlen|r.",
         },
     },
     {

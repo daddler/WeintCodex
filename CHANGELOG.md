@@ -4,6 +4,83 @@ Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lo
 
 ## [3.0.0.0] – 2026-09-07
 
+**Die Einführung ist neu — und sie ist diesmal vollständig.**
+Zwischen 1.0 und 2.10 sind die Ausrüstungsberatung, der Gruppencheck,
+der Ausrüstungs-Alarm, der Rotationshelfer, die Einkaufsliste und die
+Einstellungsseite dazugekommen. Der Rundgang beim ersten Login sprach
+von keinem davon. Wer ihn gesehen hatte, kannte danach ein Addon, das es
+so nicht mehr gibt — und bekam ihn auch nie wieder zu Gesicht.
+
+Der neue Rundgang hat 22 Seiten in fünf Kapiteln: *Erste Schritte*,
+*Deine Ausrüstung*, *Im Raid*, *Für die Gilde*, *Zum Schluss*. Jede
+Seite sagt, was der Bereich kann, worauf du klickst und welcher
+Slash-Befehl dazugehört. Unten links steht von Anfang an *Später* — mit
+`/wc tour` holst du ihn jederzeit zurück.
+
+Du bekommst ihn einmal, auch wenn du das Addon seit Jahren benutzt.
+
+**Der Wunschwert beim Umschmieder war nicht zu finden.**
+Er stand als blosser Text am rechten Rand des Fensters: klein,
+gedämpft, ohne Fläche und ohne Rand. Dass man ihn anklicken kann,
+verriet nur der Farbwechsel beim Überfahren — und darüber fährt nur, wer
+schon vermutet, dass dort etwas ist.
+
+Er ist jetzt ein Feld mit Aufschrift, Rahmen und einem Pfeil: *Wunschwert
+› keiner*. Ist einer gesetzt, steht sein Name darin, in Bernstein.
+
+**Und eine Bitte zu den Sockelsteinen.**
+Die Steinempfehlung ist der Teil des Addons, an dem am häufigsten etwas
+daneben liegt. Auf *Charakter → Sockel* steht deshalb im Feld rechts, was
+in eine Meldung gehört — und dass sie wirklich hilft. Ohne Rückmeldung
+fällt kein einziger dieser Fälle auf.
+
+**Berufssteine: erst zu viele, dann gar keine.**
+Gemeldet wurde: „ich habe zwei berufsspezifische Steine angelegt, aber mir
+wird empfohlen noch zwei anzulegen — geht aber nicht, sind nur zwei
+möglich." Das stimmte. Der Plan vergab drei Schlangenaugen, wo Mists of
+Pandaria zwei erlaubt.
+
+Der Grund: gezählt wurde je Ausrüstungsteil statt je Sockel. Ein Teil mit
+zwei Sockeln konnte damit zwei davon bekommen, auch wenn nur noch eines
+übrig war.
+
+Beim Nachrechnen kam ein zweiter Fehler heraus, der genau das Gegenteil
+tat: seit der letzten Änderung an der Steinliste bekam **niemand** mehr ein
+Schlangenauge vorgeschlagen. In jedem Spec-Profil steht es an zweiter
+Stelle hinter dem gewöhnlichen Stein — als Rangfolge gelesen heißt das „der
+gewöhnliche ist besser", und der ist es nicht: das Schlangenauge ist
+dieselbe Farbe in doppelter Stufe. Gemeint war die zweite Stelle als
+Rückfall für alle ohne den Beruf.
+
+Beides ist behoben. Als Juwelier bekommst du deine zwei Schlangenaugen
+vorgeschlagen, und nie ein drittes. An der Zeile steht jetzt, das
+wievielte es ist (*Schlangenauge 1 von 2*), und im Feld rechts, wie viele
+der Plan insgesamt vergibt.
+
+**Das Umschmieden war zu teuer — und zwar am Trefferkap.**
+Ein Pflicht-Kap geht dem Planer über alles, und das ist richtig: unter dem
+Trefferkap gehen Schläge daneben. Es hatte aber eine Folge, die es nicht
+haben darf — er hat dafür beliebig viele Teile bewegt, beliebig oft.
+
+Denn er trifft nicht immer. Was ein Teil nach dem Umschmieden wirklich
+trägt, kennt er nur ungefähr. Landest du danach knapp unter dem Kap, sieht
+der nächste Plan wieder eine Lücke, schmiedet das nächste Teil um, landet
+wieder daneben — und jede Runde kostet die volle Gebühr. Nachgestellt kamen
+so **neun Durchläufe und 21 Umschmiedungen** heraus statt einem Durchlauf
+und zwölf.
+
+Ab sofort merkt sich der Planer, wie weit er nach einem Lauf noch vom Kap
+entfernt war. Kommt er beim nächsten Mal nicht näher heran, hört er auf,
+dafür Gold auszugeben, und sagt es: *Nicht weiter verfolgt*. Meist fehlt
+schlicht die Ausrüstung dafür. Mit einem neuen Teil versucht er es von
+selbst wieder; sofort erneut versuchen geht mit
+*/wc umschmieden frei*.
+
+**Und die Tour sagt jetzt, was ein Schalter bringt und was er kostet.**
+Bei jeder Einstellung steht, was du davon hast, wenn sie an ist, was
+wegfällt, wenn sie aus ist — und dass du es jederzeit wieder ändern kannst,
+ohne dass dabei etwas verloren geht.
+
 **Die Academy sagt jetzt, welchen Kampf sie bewertet.**
 Über den Sternen stand bisher der Bossname und die Pull-Nummer. Was
 gefehlt hat, sind die zwei Angaben, die eine Bewertung überhaupt
@@ -30,12 +107,41 @@ Bisher zeigte sie, was ausgewählt war — nach einem fehlgeschlagenen
 Abruf also etwas, das man gar nicht vor sich hatte.
 
 ### Neu
+- Die Einführung deckt alle Bereiche ab, in Kapiteln, mit den Befehlen dazu (`/wc tour`)
+- Sie sagt bei jeder Einstellung, was das Einschalten bringt, was das Ausschalten kostet und dass sich beides jederzeit ändern lässt
+- Sie erscheint einmalig auch für alle, die das Addon schon lange benutzen
+- *Charakter → Sockel* bittet im Feld rechts um Rückmeldung und nennt, was hineingehört
+- Als Juwelier steht im Feld rechts, wie viele deiner zwei Schlangenaugen der Plan vergibt
 - Die Kopfzeile der Academy nennt Boss, Schwierigkeit, Pull, Ausgang und die Durchschnittsnote
 
 ### Geändert
+- Der *Wunschwert* im Umschmieder-Fenster ist ein sichtbares Bedienelement statt einer Textzeile
+- Der Knopf unter *Einstellungen → Fenster & Ansicht* heisst *Einführung erneut ansehen* und sagt, was darin steht
+- Die Einführung duzt, wie der Rest des Addons
 - Ohne Lektionen steht in der Fortschrittszeile, dass es noch keine gibt, statt „0 von 0"
 
+### Behoben
+- *Umschmieden* jagte ein Trefferkap ohne Ende: kam der Plan nicht näher heran, schmiedete er trotzdem weiter um — Runde für Runde, jede mit voller Gebühr
+- Der Plan schlug mehr Schlangenaugen vor, als Juwelenschleifen erlaubt — gezählt wurde je Ausrüstungsteil statt je Sockel
+- Seit 2.9.3.0 wurde umgekehrt gar keines mehr vorgeschlagen, weil es in jeder Steinliste an zweiter Stelle steht
+
 ### Technisch
+- `modules/reforge_engine.lua`: ein Pflicht-Kap steht in `CapMisses` lexikografisch **vor** der Bewertung, also kann der Bonus fürs Sobleiben es nie aufwiegen — der Planer bewegt dafür beliebig viele Teile. Nach einem Lauf hält `RE.NoteChase` den verbliebenen Abstand je Pflicht-Kap fest (in den SavedData, damit ein `/reload` die Jagd nicht von vorn beginnen lässt); ist er beim nächsten Plan nicht um mindestens `CAP_SLACK` kleiner, setzt `ChaseStalled` dessen `require` auf `false`. Das Kap zählt weiter zur Bewertung, es schlägt sie nur nicht mehr
+- Die Kennung dafür ist eine **Ausrüstungs**-Kennung (`GearSignature`: welche Teile, mit welcher Aufwertungsstufe) und nicht `Signature()`: der Umschmiedewert steht im Item-Link und die Kampfwertungen ändern sich nach jedem Lauf, eine Kennung daraus wäre nach genau einem Lauf ungültig und die Bremse träte nie in Kraft. Ein neues Teil verwirft den Merker — es ist eine neue Gelegenheit
+- Vermerkt wird **nur nach einem Lauf, den das Addon selbst gefahren hat**. Ein Plan, den niemand angeklickt hat, ist kein Versuch; ihn mitzuzählen hiesse zu bremsen, bevor überhaupt jemand Gold ausgegeben hat
+- **Eine grössere Toleranz löst das nicht**, und das ist nachgemessen: über `CAP_SLACK` 40/60/85/120/170 gegen Abweichungen von 40 bis 120 Wertung je Teil hält jede Toleranz unter ihrem eigenen Wert und keine darüber. Der Fehler ist nach oben nicht begrenzt, die Toleranz schon — über ihr fängt sie an, ein echtes Kap zu verfehlen. Gebremst wird deshalb über den Fortschritt, dieselbe Regel wie beim Einladungslauf in `modules/calendar.lua`
+- `.github/tests/reforge_engine_test.lua` stellt es nach: mit 40 Wertung Abweichung je Teil meldet der Lauf ohne Bremse 9 Runden und 21 Umschmiedungen, mit ihr 1 Runde und 12
+- `.github/tests/tour_test.lua` ist neu: Vollständigkeit der Tour, zusammenhängende Kapitel, jeder Bereich des Addons erwähnt, und die Einstellungsseite nennt beide Richtungen samt Umkehrbarkeit
+- `modules/charakter.lua`: das Schlangenaugen-Kontingent wird in `Run()` **je Sockel** abgezählt statt in `PlanItem` einmal je Gegenstand. Jeder der beiden Strategiedurchläufe zählt sein eigenes ab (nur die Gewinnerin verbraucht wirklich), und `ctx.jcLeft` wird bei 0 geklemmt — es stand vorher bei −1. `ctx.jcLimit`/`jcUsed`/`jcLeft` sind drei Zahlen, weil die Begründung an der Zeile die erste und die dritte braucht und der Suchlauf die zweite
+- `BestCandidate` behandelt ein Schlangenauge in der kuratierten Liste als **bessere Stufe desselben Steins**, nicht als schlechteren Rang: die Liste entscheidet weiterhin, welcher Wert in den Sockel gehört, und die Berufsstufe wird nur genommen, wenn sie den Listenplatz auch schlägt (am Cap ist sie 0 wert und der gewöhnliche Stein bleibt stehen)
+- Die Zuteilung folgt der Reihenfolge der Ausrüstungsplätze — die ersten Sockel, an denen ein Schlangenauge etwas bringt, bekommen sie. Das ist eine Näherung und keine Optimierung über den ganzen Charakter; bei gleichem Wert ist sie ohne Bedeutung, bei verschiedenen Farben kann sie danebenliegen
+- `.github/tests/gem_plan_test.lua` prüft beide Hälften als **Verhalten**: mehrere Gegenstände nacheinander mit demselben Kontext planen und zählen. Mit der alten Rechnung meldet der Lauf „3 von 2" und ein Kontingent von −1; ohne die zweite Hälfte wäre „nie mehr als zwei" mit null trivial erfüllt
+- `/wc sockel` druckt je Sockel die laufende Nummer samt Rest und am Ende die Summe
+- `core/onboarding.lua`: `TOUR_STEPS` vollständig neu, 22 Seiten mit `chapter`; die Kopfzeile nennt Kapitel und Schritt, die Fusszeile trägt einen Ghost-Button zum Abbrechen. `TOUR_EDITION` (3) steht neben `lastSeenVersion` in `SavedData.onboarding` und entscheidet, ob die Tour oder das Changelog-Popup läuft — nicht jede Version schreibt die Tour um, und die meisten sollen weiterhin das kurze Popup zeigen. Vermerkt wird die Fassung beim **Zeigen** und nicht beim Durchklicken bis zur letzten Seite, sonst käme sie bei jedem Anmelden wieder
+- Die Texte tragen echte Umlaute statt der bisherigen Umschrift („Prueft eure …“) und benutzen `WeintCodex.ColorText` für alles, worauf man klicken oder was man tippen kann — dieselbe Regel wie in `data/changelog.lua`
+- `modules/reforge.lua`: `forge.favor` ist ein Button mit Fläche, Rahmen, Eckmasken, Chevron und einer `Eyebrow`-Aufschrift darüber. `Paint(hovered)` ist die eine Stelle, an der gesetzt/leer und überfahren/ruhend dieselbe Fläche färben; die Breite bleibt fest, damit der Klickpunkt nicht mit dem Inhalt wandert. `FORGE_BAR` steigt von 40 auf 54 für die Aufschrift
+- `core/ui.lua`: `DrawBorder` gibt seine vier Kanten als Tabelle zurück. Additiv — jeder bestehende Aufrufer ignoriert den Rückgabewert; wer einen Rahmen umfärbt, hatte bisher keinen Zugriff darauf
+- `modules/charakter.lua`: der Feedback-Block hängt an `gemExtras` und nicht in `Rationale()`, das sich drei Seiten teilen. Nur die Sockelseite trägt ihn — auf jede Seite geschrieben wäre er Zierrat
 - `academy_state` trägt zusätzlich `encounterText`, den fertig formulierten Satz über den ausgewerteten Kampf. Er entsteht drüben in `gui/widgets/tv/encounter_meta.py` und wird hier **nicht** nachgebaut: `DrawPageHeader` setzte ihn bis 2.10.0.0 selbst aus `encounter` und `pull` zusammen, also eine zweite Fassung derselben Auskunft — und die läuft irgendwann anders aus als die drüben. Additiv; fehlt das Feld (ältere Companion), bleibt es beim bisherigen Weg
 - `outcome_text()` kennt drei Antworten und nicht zwei: solange gekämpft wird, ist der Ausgang **offen**. Ihn aus der laufenden Bossleiste als Wipe auszugeben wäre eine Behauptung über einen Kampf, der noch läuft — in einer Wiedergabe viermal je Sekunde eine andere
 - Die Durchschnittsnote fällt weg, wenn kein Bereich bewertet ist. „Ø 0,0/5" wäre dort die schlechteste Note statt „keine Daten" — dieselbe Verwechslung, gegen die `stars == 0` geschrieben ist

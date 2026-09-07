@@ -367,11 +367,15 @@ local function ViewWindow(y)
     })
 
     y = Spacer(y, 8)
-    y = Group(y, "Einführung")
+    y = Group(y, "Einführung",
+        "Der Rundgang durch alle Bereiche des Addons — in Kapiteln, mit den"
+        .. " Slash-Befehlen dazu. Er ist mit 3.0 vollständig neu und deckt"
+        .. " auch Sockel, Caps, Umschmieden, Simmen und den Rotationshelfer"
+        .. " ab, von denen die alte Fassung nichts wusste.")
 
     y = Buttons(y, {
-        { text = "Feature-Tour erneut ansehen",
-          tooltip = "Dieselbe Tour wie beim allerersten Login (/wc tour).",
+        { text = "Einführung erneut ansehen",
+          tooltip = "Der vollständige Rundgang, wie beim ersten Login (/wc tour).",
           onClick = function()
               if WeintCodex.Onboarding and WeintCodex.Onboarding.ShowTour then
                   WeintCodex.Onboarding.ShowTour()

@@ -184,6 +184,10 @@ end
 -- waechst mit dem Frame mit. Wichtig, weil mehrere Aufrufer (Chip, Danger-
 -- Button) ihre Breite erst NACH dem Rahmen aus der Textbreite bestimmen - mit
 -- Groessen aus der Bauzeit waeren die Kanten dort 0 breit.
+-- Gibt die vier Kanten als Tabelle zurueck. Fast jeder Aufrufer ignoriert
+-- das; wer einen Rahmen umfaerbt (ein Feld, das gesetzt/leer oder
+-- ueberfahren/ruhend anzeigt), braucht sie und hat sonst keinen Zugriff
+-- darauf - der Rahmen ist sonst nirgends greifbar.
 local function DrawBorder(f, r, g, b, a, thick)
     thick = thick or 1
     local function T(p1, p2, w, h)
@@ -195,10 +199,12 @@ local function DrawBorder(f, r, g, b, a, thick)
         if h then t:SetHeight(h) end
         return t
     end
-    T("TOPLEFT",    "TOPRIGHT",    nil,   thick)
-    T("BOTTOMLEFT", "BOTTOMRIGHT", nil,   thick)
-    T("TOPLEFT",    "BOTTOMLEFT",  thick, nil)
-    T("TOPRIGHT",   "BOTTOMRIGHT", thick, nil)
+    return {
+        T("TOPLEFT",    "TOPRIGHT",    nil,   thick),
+        T("BOTTOMLEFT", "BOTTOMRIGHT", nil,   thick),
+        T("TOPLEFT",    "BOTTOMLEFT",  thick, nil),
+        T("TOPRIGHT",   "BOTTOMRIGHT", thick, nil),
+    }
 end
 
 local function DrawHLine(parent, r, g, b, a, offsetY, layer)

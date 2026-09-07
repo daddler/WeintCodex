@@ -985,6 +985,95 @@ RE.ItemOptions = ItemOptions
 -- Ab wann eine Grenze als erreicht gilt (Wertung).
 local CAP_SLACK = 40
 
+--------------------------------------------------
+-- DIE JAGD AUF EIN KAP MUSS EIN ENDE HABEN.
+--
+-- Ein Pflicht-Kap schlaegt jede Punktzahl (CapMisses steht in `Better` und
+-- in `Polish` VOR der Bewertung), und das ist richtig: unter dem
+-- Trefferkap gehen Schlaege daneben. Es hat aber eine Folge, die es nicht
+-- haben darf — der Planer bewegt dafuer beliebig viele Teile, beliebig
+-- oft, ohne dass ihn irgendetwas bremst.
+--
+-- Und er trifft nicht immer. Seine Itemwerte kennt er nur so genau, wie
+-- die Aufwertungsstufe hochgerechnet und der Buff-Faktor herausgerechnet
+-- ist. Liegt er je Teil daneben, landet der Charakter nach dem Lauf NICHT
+-- am Kap, der naechste Plan sieht wieder eine Luecke, bewegt das naechste
+-- Teil, landet wieder daneben - und jede Runde kostet den vollen Satz
+-- Gebuehren. Offline nachgestellt: bei 40 Wertung Abweichung je Teil
+-- werden aus 1 Runde / 12 Umschmiedungen NEUN Runden / 21 Umschmiedungen.
+-- Genau das ist "zu teuer im Vergleich zu ReforgeLite": dort stimmen die
+-- Zahlen auf den Punkt, und ein zweiter Lauf sagt "nichts zu tun".
+--
+-- EINE GROESSERE TOLERANZ LOEST DAS NICHT. Nachgemessen ueber
+-- CAP_SLACK 40/60/85/120/170 gegen Abweichungen von 40 bis 120: jede
+-- Toleranz haelt, solange der Fehler kleiner ist als sie, und keine haelt
+-- darueber. Der Fehler ist aber nicht nach oben begrenzt, die Toleranz
+-- schon - ueber ihr faengt sie an, ein echtes Kap zu verfehlen.
+--
+-- GEBREMST WIRD DESHALB UEBER DEN FORTSCHRITT, NICHT UEBER EINE ZAHL.
+-- Dieselbe Regel wie beim Einladungslauf in modules/calendar.lua: wer auf
+-- eine Frist wartet, macht aus "noch nicht fertig" eine Tatsachen-
+-- behauptung; wer auf Fortschritt wartet, hoert auf, wenn keiner mehr
+-- kommt. Nach einem Lauf wird der verbliebene Abstand je Pflicht-Kap
+-- vermerkt. Ist er beim naechsten Plan nicht um mindestens CAP_SLACK
+-- kleiner geworden, gilt das Kap fuer diesen Charakter als NICHT NAEHER
+-- ERREICHBAR: es zaehlt weiter zur Bewertung, aber es schlaegt sie nicht
+-- mehr - und damit gewinnt der Bonus fuers Sobleiben.
+--
+-- Der Merker liegt in den SavedData und nicht in einer Laufzeitvariablen:
+-- ein /reload mitten im Raid darf die Jagd nicht von vorn beginnen lassen.
+-- Er wird verworfen, sobald sich die Ausruestung aendert - ein neues Teil
+-- ist eine neue Gelegenheit, und die soll der Planer bekommen.
+--------------------------------------------------
+
+-- WELCHE Teile getragen werden - nicht, wie sie umgeschmiedet sind. Der
+-- Umschmiedewert steht im Item-Link und aendert sich nach jedem Lauf; eine
+-- Kennung daraus waere nach genau einem Lauf ungueltig, und die Bremse
+-- traete nie in Kraft. Die Aufwertungsstufe gehoert dazu, weil sie die
+-- Werte bewegt, um die es hier geht.
+local function GearSignature(items)
+    local parts = {}
+    for _, item in ipairs(items or {}) do
+        parts[#parts + 1] = tostring(item.slot) .. ":" .. tostring(item.itemId)
+            .. ":" .. tostring(item.upgrade or 0)
+    end
+    return table.concat(parts, "|")
+end
+
+local function ChaseStore()
+    local sd = WeintCodex.SavedData
+    if not sd then return nil end
+    sd.reforge = sd.reforge or {}
+    sd.reforge.chase = sd.reforge.chase or {}
+    return sd.reforge.chase
+end
+
+-- Was nach einem Lauf noch fehlt, festhalten. Aufgerufen aus
+-- modules/reforge.lua, wenn ein Lauf durch ist.
+function RE.NoteChase(gaps, signature)
+    local store = ChaseStore()
+    if not store then return end
+    store.signature = signature
+    store.gaps = gaps or {}
+end
+
+function RE.ForgetChase()
+    local store = ChaseStore()
+    if store then store.signature, store.gaps = nil, nil end
+end
+
+-- Gilt dieses Kap als "naeher kommen wir nicht"?
+-- Nur wenn der Merker zu DIESER Ausruestung gehoert und der Abstand seit
+-- dem letzten Versuch nicht kleiner geworden ist.
+local function ChaseStalled(statKey, gap, signature)
+    local store = ChaseStore()
+    if not (store and store.gaps and store.signature) then return false end
+    if store.signature ~= signature then return false end
+    local last = store.gaps[statKey]
+    if type(last) ~= "number" then return false end
+    return gap >= last - CAP_SLACK
+end
+
 -- Was eine Umschmiedung mindestens bringen muss, in Wertung des
 -- hoechstgewichteten Werts.
 local WORTH_RATING = 10
@@ -1101,14 +1190,26 @@ local function BuildContext(scan, items)
     --------------------------------------------------
     local target, order = {}, {}
 
+    local gearSig = GearSignature(items)
+
     for _, cap in ipairs((scan and scan.caps) or {}) do
         if R.INDEX[cap.stat] and not target[cap.stat] then
+            local gap = max(0, cap.underRating or 0)
+
+            -- SCHON VERSUCHT UND NICHT NAEHER GEKOMMEN? Dann schlaegt
+            -- dieses Kap die Bewertung nicht mehr. Es zaehlt weiter (die
+            -- Wertung dorthin ist ja nicht wertlos geworden), aber es
+            -- rechtfertigt keine weitere Runde Gebuehren mehr - siehe den
+            -- Block ueber ChaseStore().
+            local stalled = gap > CAP_SLACK and ChaseStalled(cap.stat, gap, gearSig)
+
             target[cap.stat] = {
                 rating  = max(0, (live[cap.stat] or 0)
                           + (cap.underRating or 0) - (cap.overRating or 0)),
                 label   = cap.label or R.LABEL[cap.stat],
                 kind    = "cap",
-                require = true,
+                require = not stalled,
+                stalled = stalled or nil,
             }
             order[#order + 1] = cap.stat
         end
@@ -1144,6 +1245,7 @@ local function BuildContext(scan, items)
         worth       = topWeight * WORTH_RATING,
         target      = target,
         targetOrder = order,
+        gearSig     = gearSig,
         live        = live,
         baseline    = baseline,
         typ         = typ,
@@ -1897,6 +1999,19 @@ local function BuildPlan(signature)
     -- scoreBefore, und die beiden muessen dasselbe messen.
     local scoreAfter = Score(ctx, afterTotals)
 
+    -- WAS NACH DIESEM PLAN AN DEN PFLICHT-KAPS NOCH FEHLT.
+    -- Der Lauf vermerkt es, wenn er durch ist (RE.NoteChase); der naechste
+    -- Plan haelt seinen eigenen Abstand dagegen und hoert auf zu jagen,
+    -- wenn er nicht kleiner geworden ist. Siehe den Block ueber
+    -- ChaseStore().
+    local capGaps, capStalled = {}, {}
+    for key, goal in pairs(ctx.target) do
+        if goal.kind == "cap" then
+            capGaps[key] = max(0, goal.rating - (afterTotals[key] or 0))
+            if goal.stalled then capStalled[key] = goal.label or R.LABEL[key] end
+        end
+    end
+
     local rows, changes, cost = {}, 0, 0
     for i, item in ipairs(items) do
         local option = item.options[choice[i]]
@@ -2017,6 +2132,9 @@ local function BuildPlan(signature)
         scoreBefore = scoreBefore,
         scoreAfter  = scoreAfter,
         capMisses   = CapMisses(ctx, afterTotals),
+        capGaps     = capGaps,
+        capStalled  = capStalled,
+        gearSig     = ctx.gearSig,
         changes     = changes,
         cost        = cost,
         profileKey  = scan.profileKey,

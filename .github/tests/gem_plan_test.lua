@@ -531,6 +531,141 @@ do
           "ein Punkt haette gereicht")
 end
 
+--== 8) DAS SCHLANGENAUGEN-KONTINGENT ========================================
+--
+-- GEMELDETER FALL (Magier, 08/2026): "ich habe zwei berufsspezifische Steine
+-- angelegt aber mir wird empfohlen noch zwei anzulegen, geht aber nicht sind
+-- nur zwei moeglich". Auf dem Bildschirm standen DREI Schlangenaugen im Plan
+-- (Kopf ein roter Sockel, Schultern zwei) - eines mehr, als MoP zulaesst.
+--
+-- Ursache: `ctx.allowJC` stand fuer den ganzen GEGENSTAND fest und wurde
+-- erst danach nachgezogen. Ein Teil mit zwei Sockeln konnte damit zwei
+-- Schlangenaugen bekommen, auch wenn nur noch eines uebrig war; `ctx.jcLeft`
+-- lief ins Minus, ohne dass es irgendwo auffiel.
+--
+-- Geprueft wird deshalb VERHALTEN und keine Punktzahl: mehrere Gegenstaende
+-- nacheinander mit demselben Kontext planen und die Schlangenaugen im
+-- Ergebnis zaehlen. Mit der alten Rechnung faellt dieser Block durch.
+do
+    local specKey = "MAGE_ARCANE"
+    local profile = WeintCodex_SpecProfiles[specKey]
+
+    -- Ein Profil, das ueberhaupt ein Schlangenauge fuehrt - sonst prueft
+    -- dieser Block nichts. Gesucht wird eines, nicht angenommen.
+    local function ProfileWithJc()
+        for key, prof in pairs(WeintCodex_SpecProfiles) do
+            for _, list in pairs(prof.bestGems or {}) do
+                if type(list) == "table" then
+                    for _, id in ipairs(list) do
+                        local gem = WeintCodex_Gems[id]
+                        if gem and gem.jcOnly then return key, prof end
+                    end
+                end
+            end
+        end
+    end
+
+    local jcKey, jcProfile = ProfileWithJc()
+    Check("Es gibt ein Spec-Profil mit Schlangenauge (sonst prueft das hier nichts)",
+          jcProfile ~= nil, "keines gefunden")
+
+    if jcProfile then
+        specKey, profile = jcKey, jcProfile
+
+        local LIMIT = 2
+        local ctx = {
+            pool     = CH.GemPool(profile, specKey),
+            headroom = {},
+            allowJC  = true,
+            jcLimit  = LIMIT,
+            jcLeft   = LIMIT,
+            jcUsed   = 0,
+        }
+
+        -- Die Ausruestung des gemeldeten Falls: ein Teil mit einem Sockel,
+        -- danach eines mit zwei. Genau in dieser Reihenfolge lief das
+        -- Kontingent ueber.
+        local items = {
+            { { color = "rot" } },
+            { { color = "rot" }, { color = "rot" } },
+            { { color = "rot" }, { color = "rot" }, { color = "rot" } },
+        }
+
+        local total = 0
+        for _, sockets in ipairs(items) do
+            local plan = CH.PlanItem(sockets, nil, nil, profile, ctx)
+            for _, id in ipairs(plan.gems or {}) do
+                local gem = id and WeintCodex_Gems[id]
+                if gem and gem.jcOnly then total = total + 1 end
+            end
+        end
+
+        Check("Nie mehr Schlangenaugen im Plan, als der Beruf erlaubt",
+              total <= LIMIT, string.format("%d von %d", total, LIMIT))
+
+        -- Und das Kontingent selbst bleibt eine Zahl, die man lesen kann.
+        Check("Das Kontingent laeuft nicht ins Minus",
+              (ctx.jcLeft or 0) >= 0, tostring(ctx.jcLeft))
+
+        Check("Verbraucht und Rest ergeben zusammen die Grenze",
+              (ctx.jcUsed or 0) + (ctx.jcLeft or 0) == LIMIT,
+              string.format("%d + %d", ctx.jcUsed or 0, ctx.jcLeft or 0))
+
+        -- Ohne den Beruf taucht ueberhaupt keines auf - das war schon vorher
+        -- so und darf beim Umbau nicht verloren gehen.
+        local plain = {
+            pool = CH.GemPool(profile, specKey), headroom = {},
+            allowJC = false, jcLimit = 0, jcLeft = 0, jcUsed = 0,
+        }
+        local none = 0
+        for _, sockets in ipairs(items) do
+            local plan = CH.PlanItem(sockets, nil, nil, profile, plain)
+            for _, id in ipairs(plan.gems or {}) do
+                local gem = id and WeintCodex_Gems[id]
+                if gem and gem.jcOnly then none = none + 1 end
+            end
+        end
+        Check("Ohne Juwelenschleifen wird keines vorgeschlagen",
+              none == 0, tostring(none))
+
+        -- UND DIE ANDERE HAELFTE DESSELBEN FEHLERS.
+        --
+        -- In allen 64 Profileintraegen steht das Schlangenauge an ZWEITER
+        -- Stelle seiner Farbliste. Seit 2.9.3.0 ist die Liste eine
+        -- Rangfolge, also gewann immer der erste Eintrag - und damit bekam
+        -- kein Juwelier mehr ein einziges Schlangenauge vorgeschlagen.
+        -- Lautlos: eine Empfehlung, die fehlt, sieht aus wie eine, die es
+        -- nicht gibt. Ohne diese Zeile misst der Block darueber nichts
+        -- ("nie mehr als zwei" ist mit null trivial erfuellt).
+        local fresh = {
+            pool = CH.GemPool(profile, specKey), headroom = {},
+            allowJC = true, jcLimit = LIMIT, jcLeft = LIMIT, jcUsed = 0,
+        }
+        local used = 0
+        for _, sockets in ipairs(items) do
+            local plan = CH.PlanItem(sockets, nil, nil, profile, fresh)
+            for _, id in ipairs(plan.gems or {}) do
+                local gem = id and WeintCodex_Gems[id]
+                if gem and gem.jcOnly then used = used + 1 end
+            end
+        end
+        Check("Mit Juwelenschleifen wird das Kontingent auch ausgeschoepft",
+              used == LIMIT, string.format("%d von %d", used, LIMIT))
+
+        -- Und die Begruendung nennt die Zahl. "Begrenzte Zahl" nennt keinen
+        -- naechsten Schritt; "1 von 2" beantwortet von selbst, warum an der
+        -- naechsten Zeile keines mehr steht.
+        local ctxN = {
+            pool = CH.GemPool(profile, specKey), headroom = {},
+            allowJC = true, jcLimit = LIMIT, jcLeft = LIMIT, jcUsed = 0,
+        }
+        local first = CH.PlanItem({ { color = "rot" } }, nil, nil, profile, ctxN)
+        local why = (first.why or {})[1] or ""
+        Check("Die Begruendung nennt die laufende Nummer",
+              why:find("1 von " .. LIMIT, 1, true) ~= nil, why)
+    end
+end
+
 print("")
 if fails == 0 then
     print("Alle Pruefungen bestanden.")

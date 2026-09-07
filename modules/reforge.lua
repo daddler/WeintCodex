@@ -386,6 +386,32 @@ local function BuildInspector(plan)
         end
     end
 
+    -- EINE GRENZE, DIE WIR NICHT NAEHER HERANBEKOMMEN, WIRD GESAGT.
+    --
+    -- Der Planer hoert auf, ein Pflicht-Kap zu jagen, wenn ein Lauf es
+    -- nicht naeher gebracht hat (siehe ChaseStore() drueben). Das ist
+    -- richtig - jede weitere Runde kostet Gebuehr fuer nichts -, aber
+    -- ohne diesen Satz sieht es aus wie ein Planer, der das Kap einfach
+    -- vergessen hat. Und der naechste Schritt gehoert dazu: es gibt einen
+    -- Rueckweg, und der heisst nicht "SavedData aufraeumen".
+    local stalled = {}
+    for _, label in pairs(plan.capStalled or {}) do
+        stalled[#stalled + 1] = label
+    end
+    table.sort(stalled)
+    if #stalled > 0 then
+        blocks[#blocks + 1] = { type = "divider" }
+        blocks[#blocks + 1] = { type = "header", text = "Nicht weiter verfolgt" }
+        blocks[#blocks + 1] = { type = "text", size = 10, color = "textMuted",
+            text = table.concat(stalled, ", ") .. ": ein Lauf hat diese Grenze"
+                .. " nicht näher gebracht. Der Planer schmiedet dafür nichts"
+                .. " mehr um – jede weitere Runde wäre Gebühr für nichts." }
+        blocks[#blocks + 1] = { type = "text", size = 9, color = "textDim",
+            text = "Meist fehlt schlicht die Ausrüstung dafür. Mit einem neuen"
+                .. " Teil versucht er es von selbst wieder; sofort erneut"
+                .. " versuchen: /wc umschmieden frei" }
+    end
+
     -- WARUM DIESER PLAN? Dieselben Bloecke wie auf der Sockel- und der
     -- Verzauberungsseite, aus derselben Quelle (WeintCodex.Charakter.
     -- Rationale). Drei Seiten, ein Text: eine eigene Fassung hier waere
@@ -630,7 +656,10 @@ RF.runLog            = {}     -- was der letzte Lauf geschickt und gesehen hat
 local FORGE_W    = 340
 local FORGE_HDR  = 42
 local FORGE_ROW  = 30
-local FORGE_BAR  = 40   -- Ansichtsleiste (das Segmented Control ist 38 hoch)
+-- Ansichtsleiste: 38 fuer das Segmented Control plus 14 fuer die Aufschrift
+-- ueber dem Wunschwert-Feld. Ohne sie stuende dort seit 2.10.0.0 nur der
+-- gewaehlte Wert, und wofuer das Feld da ist, verschwaende mit seinem Inhalt.
+local FORGE_BAR  = 54
 local FORGE_PICK = 22   -- Zeilenhoehe der Auswahllisten
 
 --------------------------------------------------
@@ -1142,38 +1171,96 @@ function BuildForge()
     })
     -- Die Hoehe kommt vom Segmented Control selbst (38 px, Segmente 30):
     -- sie hier zu stauchen liesse die Segmente oben und unten herausragen.
-    forge.tabs:SetPoint("LEFT", forge.bar, "LEFT", 0, 0)
+    forge.tabs:SetPoint("BOTTOMLEFT", forge.bar, "BOTTOMLEFT", 0, 0)
 
+    --------------------------------------------------
+    -- WUNSCHWERT
+    --
+    -- Bis 2.10.0.0 stand hier ein blosser Text am rechten Rand: mono 10,
+    -- gedaempft, ohne Flaeche und ohne Rand, und das Einzige, was ihn von
+    -- einer Auskunft trennte, war der Farbwechsel beim Ueberfahren. Genau
+    -- so wurde er gemeldet — man sieht ihn kaum und man haelt ihn nicht
+    -- fuer anklickbar. Ein Bedienelement, das man erst durch Ueberfahren
+    -- als solches erkennt, hat man nie gefunden: man faehrt nur ueber das,
+    -- wovon man schon annimmt, dass dort etwas ist.
+    --
+    -- Es ist jetzt ein Feld wie jedes andere: Flaeche, Rand, runde Ecken,
+    -- eine Beschriftung darueber und ein Chevron als Zeichen dafuer, dass
+    -- es weitergeht. Ist ein Wunschwert gesetzt, traegt es Bernstein —
+    -- dieselbe Farbe, in der die betroffenen Zeilen der Liste stehen.
+    --------------------------------------------------
     forge.favor = CreateFrame("Button", nil, forge.bar)
-    forge.favor:SetHeight(FORGE_BAR - 10)
-    forge.favor:SetPoint("RIGHT", forge.bar, "RIGHT", -2, 0)
+    forge.favor:SetSize(132, 30)
+    forge.favor:SetPoint("BOTTOMRIGHT", forge.bar, "BOTTOMRIGHT", -2, 4)
+
+    forge.favor.bg = forge.favor:CreateTexture(nil, "BACKGROUND")
+    forge.favor.bg:SetAllPoints(forge.favor)
+    forge.favor.bg:SetColorTexture(C.surface1[1], C.surface1[2], C.surface1[3], 1.0)
+    forge.favor.edge = DrawBorder(forge.favor,
+        C.border[1], C.border[2], C.border[3], 1.0, 1)
+    WeintCodex.CutCorners(forge.favor, 6, "bgDark")
+
+    -- Die Aufschrift steht UEBER dem Feld und nicht darin: im Feld steht
+    -- der gewaehlte Wert, und der wechselt. Wofuer das Feld ueberhaupt da
+    -- ist, darf nicht mit seinem Inhalt verschwinden. Sie haengt am Feld
+    -- selbst und nicht an der Leiste, sonst bliebe sie stehen, wenn
+    -- RefreshForge das Feld in den Auswahlansichten ausblendet.
+    forge.favor.caption = WeintCodex.Eyebrow(forge.favor, "Wunschwert",
+        { color = "textFaint", size = 8 })
+    forge.favor.caption:SetPoint("BOTTOMLEFT", forge.favor, "TOPLEFT", 1, 3)
+
+    forge.favor.chevron = forge.favor:CreateFontString(nil, "OVERLAY")
+    forge.favor.chevron:SetFont(F.mono, 10, "")
+    forge.favor.chevron:SetPoint("RIGHT", forge.favor, "RIGHT", -7, 0)
+    forge.favor.chevron:SetTextColor(unpack(C.textMuted))
+    forge.favor.chevron:SetText("\226\128\186")   -- einfaches Chevron ›
+
     forge.favor.label = forge.favor:CreateFontString(nil, "OVERLAY")
-    forge.favor.label:SetFont(F.mono, 10, "")
-    forge.favor.label:SetPoint("RIGHT", forge.favor, "RIGHT", 0, 0)
-    forge.favor.label:SetJustifyH("RIGHT")
-    forge.favor.label:SetTextColor(unpack(C.textMuted))
+    forge.favor.label:SetFont(F.sansSemi, 11, "")
+    forge.favor.label:SetPoint("LEFT",  forge.favor, "LEFT", 9, 0)
+    forge.favor.label:SetPoint("RIGHT", forge.favor.chevron, "LEFT", -4, 0)
+    forge.favor.label:SetJustifyH("LEFT")
+    forge.favor.label:SetWordWrap(false)
+    forge.favor.label:SetTextColor(unpack(C.textNormal))
+
+    -- Ein Aufruf statt drei verstreuter Farbsetzungen: gesetzt/leer und
+    -- ueberfahren/ruhend sind zwei Fragen, und beide faerben dasselbe Feld.
+    function forge.favor:Paint(hovered)
+        local set = self._favorKey ~= nil
+        local tone = set and C.accent or C.border
+        local alpha = hovered and 1.0 or (set and 0.85 or 0.7)
+        for _, tex in ipairs(self.edge or {}) do
+            tex:SetColorTexture(tone[1], tone[2], tone[3], alpha)
+        end
+        -- Die Flaeche bleibt deckend: die Eckmasken aus core/ui.lua sind
+        -- es auch, und eine halbdurchsichtige Flaeche dahinter liesse die
+        -- vier Ecken heller stehen als den Rest.
+        self.label:SetTextColor(unpack(
+            set and C.accentBright or (hovered and C.textBright or C.textNormal)))
+        self.chevron:SetTextColor(unpack(hovered and C.textNormal or C.textMuted))
+    end
+
     forge.favor:SetScript("OnClick", function()
         forgeBack, forgeView = forgeView, "favor"
         RF.RefreshForge()
     end)
     forge.favor:SetScript("OnEnter", function(self)
-        -- Ein reiner Text sieht nicht nach Bedienung aus. Der Wechsel beim
-        -- Ueberfahren ist das Einzige, was ihn von einer Auskunft trennt.
-        self.label:SetTextColor(unpack(C.textBright))
+        self:Paint(true)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Wunschwert", 1, 1, 1)
-        GameTooltip:AddLine("Rückt einen Wert an die erste Stelle deiner"
-            .. " Gewichtung. Deine Pflichtgrenzen gehen weiterhin vor.",
+        GameTooltip:AddLine("Klick hier, um einen Wert an die erste Stelle"
+            .. " deiner Gewichtung zu rücken. Deine Pflichtgrenzen wie das"
+            .. " Trefferkap gehen weiterhin vor.",
             0.66, 0.66, 0.69, true)
         GameTooltip:AddLine("Gilt auch für Steine und Verzauberungen —"
             .. " es ist dieselbe Gewichtung.", 0.83, 0.64, 0.29, true)
         GameTooltip:Show()
     end)
     forge.favor:SetScript("OnLeave", function(self)
-        self.label:SetTextColor(unpack(C.textMuted))
+        self:Paint(false)
         GameTooltip:Hide()
     end)
-
+    forge.favor:Paint(false)
     forge.list = CreateFrame("Frame", nil, forge)
     forge.list:SetPoint("TOPLEFT",  forge, "TOPLEFT",  10, -(FORGE_HDR + FORGE_BAR))
     forge.list:SetPoint("TOPRIGHT", forge, "TOPRIGHT", -10, -(FORGE_HDR + FORGE_BAR))
@@ -1700,10 +1787,12 @@ function RF.RefreshForge()
     if inList and not forgeCo then
         local favor = WeintCodex.Charakter and WeintCodex.Charakter.GetFavor
                       and WeintCodex.Charakter.GetFavor() or nil
-        forge.favor.label:SetText(favor
-            and ("Wunsch: " .. WeintCodex.ColorText("gold", R.SHORT[favor] or favor))
-            or  "|cff4A4A52Wunschwert wählen|r")
-        forge.favor:SetWidth(math.max(60, forge.favor.label:GetStringWidth() + 4))
+        -- Die Breite bleibt fest. Ein Feld, das mit seinem Inhalt die
+        -- Groesse wechselt, wandert unter der Aufschrift darueber weg —
+        -- und der Klickpunkt liegt bei jedem Aufbau woanders.
+        forge.favor._favorKey = favor
+        forge.favor.label:SetText(favor and (R.SHORT[favor] or favor) or "keiner")
+        forge.favor:Paint(forge.favor:IsMouseOver())
     end
     if inList then
         forge.tabs:Select(forgeView == "all" and 2 or 1)
@@ -1842,12 +1931,31 @@ RE.OnPlanReady(function()
     if expectSettled then
         expectSettled = false
         local plan = RE.GetPlan()
-        if plan.ok and (plan.changes or 0) > 0 then
-            Say(WeintCodex.ColorText("warning", "Der Plan verlangt nach diesem Lauf"
-                .. " noch " .. plan.changes .. " weitere Änderung(en). ")
-                .. "Das sollte nicht sein — jede davon kostet erneut Gebühr."
-                .. " Bitte |cffD4A24A/wc umschmieden pruefen|r ausführen und die"
-                .. " Ausgabe melden.")
+        if plan.ok then
+            -- WAS NACH DIESEM LAUF NOCH FEHLT, WIRD VERMERKT.
+            --
+            -- Erst hier ist die Frage beantwortbar: der Lauf ist durch,
+            -- der Client hat die neuen Werte gemeldet, und was jetzt noch
+            -- am Pflicht-Kap fehlt, hat dieser Versuch nicht geschafft.
+            -- Kommt der naechste Plan dem Kap nicht naeher, hoert der
+            -- Planer auf, dafuer Gebuehren auszugeben (siehe
+            -- ChaseStore() in modules/reforge_engine.lua).
+            --
+            -- Vermerkt wird NUR nach einem Lauf, den das Addon selbst
+            -- gefahren hat. Ein Plan, den niemand angeklickt hat, ist kein
+            -- Versuch - ihn mitzuzaehlen hiesse zu bremsen, bevor
+            -- ueberhaupt jemand Gold ausgegeben hat.
+            if RE.NoteChase then
+                RE.NoteChase(plan.capGaps, plan.gearSig)
+            end
+
+            if (plan.changes or 0) > 0 then
+                Say(WeintCodex.ColorText("warning", "Der Plan verlangt nach diesem Lauf"
+                    .. " noch " .. plan.changes .. " weitere Änderung(en). ")
+                    .. "Das sollte nicht sein — jede davon kostet erneut Gebühr."
+                    .. " Bitte |cffD4A24A/wc umschmieden pruefen|r ausführen und die"
+                    .. " Ausgabe melden.")
+            end
         end
     end
 
@@ -2057,6 +2165,35 @@ function RF.Dump()
                "  (darüber hinaus gehende Ziele zählen nur linear)"))
     end
 
+    -- DIE KAP-BREMSE. Von aussen sieht ein Kap, das der Planer nicht mehr
+    -- verfolgt, genauso aus wie eines, das er vergessen hat - und das ist
+    -- der Unterschied zwischen "richtig" und "kaputt".
+    local chase = WeintCodex.SavedData and WeintCodex.SavedData.reforge
+                  and WeintCodex.SavedData.reforge.chase
+    if chase and chase.signature then
+        local parts = {}
+        for key, gap in pairs(chase.gaps or {}) do
+            parts[#parts + 1] = string.format("%s %s", R.SHORT[key] or key, Rating(gap))
+        end
+        table.sort(parts)
+        print(string.format("  Letzter Lauf, danach noch offen: %s  %s",
+            #parts > 0 and table.concat(parts, ", ") or "nichts",
+            WeintCodex.ColorText("textFaint",
+                (chase.signature == (plan.gearSig or "")) and "(gilt für diese Ausrüstung)"
+                    or "(andere Ausrüstung — die Bremse greift nicht)")))
+    end
+    local stalledNames = {}
+    for _, label in pairs(plan.capStalled or {}) do
+        stalledNames[#stalledNames + 1] = label
+    end
+    if #stalledNames > 0 then
+        table.sort(stalledNames)
+        print("  " .. WeintCodex.ColorText("warning",
+            "Nicht weiter verfolgt: " .. table.concat(stalledNames, ", "))
+            .. WeintCodex.ColorText("textFaint",
+               "  ·  /wc umschmieden frei setzt die Bremse zurück"))
+    end
+
     for _, key in ipairs(R.STATS) do
         local goal = plan.ctx.target[key]
         local live = plan.ctx.live[key] or 0
@@ -2264,6 +2401,11 @@ function RF.Command(rest)
         for _, slotDef in ipairs(WeintCodex.Charakter.EquipSlots or {}) do
             if RE.IsLocked(slotDef.id) then RE.SetLocked(slotDef.id, false) end
         end
+        -- "Alles freigeben" heisst alles: auch die Bremse, die nach einem
+        -- erfolglosen Versuch aufgehoert hat, ein Kap zu jagen. Wer sie
+        -- nur ueber die SavedData wieder loswuerde, haette keinen Rueckweg.
+        if RE.ForgetChase then RE.ForgetChase() end
+        RE.Invalidate()
         RF.RefreshForge()
         if PageVisible() then RF.ShowPage() end
         Say("Alle Handauswahlen und Sperren aufgehoben ("
