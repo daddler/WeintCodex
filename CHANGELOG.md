@@ -2,6 +2,59 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.3.1] – 2026-09-08
+
+**Steine, die dein Sim-Ergebnis tauschen will, standen trotzdem als
+„Optimal" da.** Und weil eine Zeile mit dem Status *Optimal* keinen
+Vorschlag anzeigt, war auch nicht zu sehen, welcher Stein hineingehört —
+das Ziel kam an, sichtbar änderte sich nichts. Wo dein Sim etwas anderes
+sagt, gilt jetzt dein Sim.
+
+Im Bestätigungsfenster überlappten sich außerdem Zeilen, sobald ein
+Platz mehrere Steine hat. Es ist jetzt breiter, und jede Zeile bekommt
+so viel Platz, wie ihr Text braucht.
+
+### Technisch
+
+**Root Cause.** `EvaluateGem` (`modules/charakter.lua`) bewertet den
+angelegten Stein gegen `plan.value[index]` und erklärt ihn ab **90 %**
+der Wertung des empfohlenen Steins zu `optimal`. Für einen Sockel, zu
+dem der Zielzustand etwas sagt, ist das die **zweite Antwort auf eine
+Frage, die eine hat** — und zwar in die teure Richtung: die Sockelzeile
+sagt *Optimal*, das Sim-Ziel sagt *tausch den Stein*, und die
+Empfehlungsspalte blendet sich bei `status == "optimal"` selbst aus
+(`row.recId and row.status ~= "optimal"`). Zwei Steine derselben Farbe
+mit ähnlicher Wertung (Krit gegen Meisterschaft, die Aragonit-Schliffe
+im gemeldeten Fall) liegen regelmäßig über dieser Schwelle — im Test
+sind es 92 %.
+
+Stammt die Empfehlung für den Sockel aus dem Sim (`plan.listed[index] ==
+"sim"`), endet die Wertungsrechnung deshalb nicht mehr bei `optimal`,
+sondern bei `ok` samt Grund („Dein Sim-Ergebnis sieht hier *X* vor …").
+Die Prozentzahl bleibt daneben stehen: sie sagt, **wie teuer** der
+Unterschied ist, nicht **ob** er besteht.
+
+Zwei Fälle bleiben ausdrücklich `optimal`, weil sie nicht nachgerechnet,
+sondern **erkannt** sind: dieselbe Gem-ID, und dieselben Werte unter
+anderer ID (`SM.MatchAgainstList` — ein wertgleicher Schliff *ist* der
+Zielstein, siehe die Umbenennungen in `data/gems.lua`). Ohne Sim-Ziel
+bleibt die Wertungsrechnung unverändert; der Fix nimmt die eigene
+Rechnung nicht mit.
+
+`EvaluateGem` ist jetzt als `WeintCodex.Charakter.EvaluateGem`
+erreichbar — ohne diesen Zugang ließe sich nur prüfen, *was* empfohlen
+wird, nicht ob die Zeile daneben dasselbe sagt. Genau da liefen sie
+auseinander. `.github/tests/targetgear_test.lua` pinnt beide Richtungen
+(mit Ziel nie `optimal`, ohne Ziel weiterhin `optimal`).
+
+**Fenster-Layout.** Die Zeilen hatten eine feste Höhe von 34 px, während
+ihr Text umbricht — drei Steinnamen schoben die nächste Zeile darüber.
+Die Höhe wird jetzt nach dem Füllen aus `GetStringHeight()` bestimmt und
+die Gesamthöhe des Bildlauffelds aus den tatsächlichen Zeilenhöhen (zu
+klein gesetzt hätte es die letzten Plätze abgeschnitten). Das Fenster
+ist 900×600 statt 720×540, damit Fußzeile und Knöpfe nicht mehr
+ineinanderlaufen.
+
 ## [3.0.3.0] – 2026-09-08
 
 **Eine eingefügte Zielausrüstung wird erst gezeigt, dann übernommen.**

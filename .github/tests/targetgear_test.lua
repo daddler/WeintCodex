@@ -199,6 +199,65 @@ do
 end
 
 --==========================================================================
+-- 1b) UND DAS URTEIL SAGT DASSELBE WIE DIE EMPFEHLUNG
+--==========================================================================
+-- DER GEMELDETE FALL. Der Zielzustand kam an, das Fenster zeigte
+-- "Kunstvoller Aragonit -> Schneidender Aragonit" - und auf der
+-- Sockelseite stand daneben weiter "Optimal", weshalb die Empfehlung
+-- gar nicht erst angezeigt wurde (die Zeile blendet sie bei "optimal"
+-- aus). Ursache: unter dem ID-Vergleich stand eine WERTUNGSRECHNUNG,
+-- die einen anderen Stein ab 90 % der Wertung fuer gleichwertig
+-- erklaerte - die zweite Antwort auf eine Frage, die der Sim bereits
+-- beantwortet hatte.
+--
+-- Zwei Steine derselben Farbe mit aehnlicher Wertung sind der Normalfall
+-- (Krit gegen Meisterschaft), nicht die Ausnahme. Genau deshalb faellt
+-- es ohne diesen Lauf niemandem auf.
+
+do
+    local CH_Eval = CH.EvaluateGem
+    Check("EvaluateGem ist fuer den Testlauf erreichbar", CH_Eval ~= nil)
+
+    Ziel({ { slot = 5, itemId = 86918, gems = { GELB } } })
+
+    local plan = Plan(Sockets("gelb"),
+                      { specKey = "DRUID_FERAL", slotId = 5, itemId = 86918 })
+    local profile = WeintCodex_SpecProfiles.DRUID_FERAL
+
+    Check("der Sockel folgt dem Ziel", plan.gems[1] == GELB and plan.listed[1] == "sim",
+          Name(plan.gems[1]) .. "/" .. tostring(plan.listed[1]))
+
+    -- Derselbe Stein: bleibt selbstverstaendlich optimal.
+    local gleich = CH_Eval(GELB, { color = "gelb", index = 1 }, 1, profile, plan, {})
+    Check("der Zielstein selbst ist optimal", gleich == "optimal", tostring(gleich))
+
+    -- EIN ANDERER Stein derselben Farbe, nach den Profilgewichten dicht
+    -- dran - frueher "optimal", jetzt eine Empfehlung mit Grund.
+    local anders, pct, _, _, grund =
+        CH_Eval(KRIT, { color = "gelb", index = 1 }, 1, profile, plan, {})
+    Check("ein ANDERER Stein ist bei einem Sim-Ziel NIE 'optimal'",
+          anders ~= "optimal", tostring(anders) .. " (" .. tostring(pct) .. "%)")
+    Check("und die Zeile sagt, dass der Sim etwas anderes will",
+          grund and grund:find("Sim-Ergebnis", 1, true) ~= nil, tostring(grund))
+    Check("die Prozentzahl bleibt als Groesse des Unterschieds stehen",
+          type(pct) == "number", tostring(pct))
+
+    -- OHNE Sim-Ziel bleibt die Wertungsrechnung, was sie war: ein
+    -- gleichwertiger Stein ist dort weiterhin optimal. Der Fix darf die
+    -- eigene Rechnung nicht mitnehmen.
+    Reset()
+    local eigen = Plan(Sockets("gelb"),
+                       { specKey = "DRUID_FERAL", slotId = 5, itemId = 86918 })
+    Check("ohne Ziel rechnet der Sockel wieder selbst",
+          eigen.listed[1] ~= "sim", tostring(eigen.listed[1]))
+
+    local ohneZiel = CH_Eval(eigen.gems[1], { color = "gelb", index = 1 }, 1,
+                             profile, eigen, {})
+    Check("und dort ist der empfohlene Stein weiterhin optimal",
+          ohneZiel == "optimal", tostring(ohneZiel))
+end
+
+--==========================================================================
 -- 2) DIESELBE STEIN-ID MEHRFACH - kein Zusammenfassen, kein Verrutschen
 --==========================================================================
 

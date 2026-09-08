@@ -803,7 +803,7 @@ local function BuildConfirmFrame()
     local parent = WeintCodex.MainFrame
 
     local f = WeintCodex.CreateSurface(parent, {
-        width = 720, height = 540, tone = "plain", radius = 14,
+        width = 900, height = 600, tone = "plain", radius = 14,
         backdrop = "bgDark",
     })
     f:SetPoint("CENTER", parent, "CENTER", 0, 0)
@@ -823,13 +823,13 @@ local function BuildConfirmFrame()
 
     local herkunft = WeintCodex.Label(f, "", { color = "textMuted", size = 13 })
     herkunft:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
-    herkunft:SetWidth(660)
+    herkunft:SetWidth(840)
     herkunft:SetJustifyH("LEFT")
     f._herkunft = herkunft
 
     local summe = WeintCodex.Label(f, "", { color = "textNormal", size = 13 })
     summe:SetPoint("TOPLEFT", herkunft, "BOTTOMLEFT", 0, -6)
-    summe:SetWidth(660)
+    summe:SetWidth(840)
     summe:SetJustifyH("LEFT")
     f._summe = summe
 
@@ -837,17 +837,17 @@ local function BuildConfirmFrame()
     -- meistens "0" sagt, liest nach zwei Malen niemand mehr.
     local warnung = WeintCodex.Label(f, "", { color = "danger", size = 13 })
     warnung:SetPoint("TOPLEFT", summe, "BOTTOMLEFT", 0, -4)
-    warnung:SetWidth(660)
+    warnung:SetWidth(840)
     warnung:SetJustifyH("LEFT")
     f._warnung = warnung
 
     local listBg = WeintCodex.CreateSurface(f, {
-        width = 672, height = 300, tone = "flat", surface = "surface1",
+        width = 852, height = 350, tone = "flat", surface = "surface1",
         radius = 10, backdrop = "cardTop",
     })
     listBg:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -152)
 
-    local scroll, inner = WeintCodex.CreateScrollArea(listBg, 4, -6, 664, 288, true)
+    local scroll, inner = WeintCodex.CreateScrollArea(listBg, 4, -6, 844, 338, true)
     f._inner = inner
     f._scroll = scroll
     f._rows = {}
@@ -857,7 +857,7 @@ local function BuildConfirmFrame()
         .. " Umschmieden geht ueber |cffD4A24AAlles umschmieden|r beim Umschmieder.",
         { color = "textDim", size = 12 })
     fuss:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 24, 26)
-    fuss:SetWidth(420)
+    fuss:SetWidth(430)
     fuss:SetJustifyH("LEFT")
 
     local ok = WeintCodex.CreateButton(f, {
@@ -897,7 +897,7 @@ local function ConfirmRow(f, index)
 
     local prev = f._rows[index - 1]
     local row = CreateFrame("Frame", nil, f._inner)
-    row:SetSize(650, 34)
+    row:SetSize(830, 34)
     if prev then
         row:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -2)
     else
@@ -913,13 +913,13 @@ local function ConfirmRow(f, index)
     row.oben = row:CreateFontString(nil, "OVERLAY")
     row.oben:SetFont(F.sans, 12, "")
     row.oben:SetPoint("TOPLEFT", row, "TOPLEFT", 96, -1)
-    row.oben:SetWidth(548)
+    row.oben:SetWidth(724)
     row.oben:SetJustifyH("LEFT")
 
     row.unten = row:CreateFontString(nil, "OVERLAY")
     row.unten:SetFont(F.sans, 11, "")
-    row.unten:SetPoint("TOPLEFT", row, "TOPLEFT", 96, -17)
-    row.unten:SetWidth(548)
+    row.unten:SetPoint("TOPLEFT", row.oben, "BOTTOMLEFT", 0, -2)
+    row.unten:SetWidth(724)
     row.unten:SetJustifyH("LEFT")
     row.unten:SetTextColor(unpack(C.textDim))
 
@@ -1002,11 +1002,26 @@ function TG.ShowConfirm(entry, onConfirm)
                 .. (r.reforgeChanged and "|cffE8C96D" or "|cff6B6B74")
                 .. r.reforgeSollText .. "|r")
         end
+        -- DIE HOEHE STEHT ERST FEST, WENN DER TEXT DRIN IST. Drei
+        -- Steinnamen wie "Finsterer Bergkristall, Kunstvoller Aragonit"
+        -- brechen um; mit fester Zeilenhoehe schiebt sich die naechste
+        -- Zeile darueber - genau so gemeldet und im Bild zu sehen.
+        local hoch = (row.oben:GetStringHeight() or 12)
+        if row.unten:GetText() ~= "" then
+            hoch = hoch + (row.unten:GetStringHeight() or 11) + 2
+        end
+        row:SetHeight(math.max(hoch + 8, 30))
         row:Show()
     end
 
     for i = used + 1, #f._rows do f._rows[i]:Hide() end
-    f._inner:SetHeight(math.max(288, used * 36 + 10))
+
+    -- Die Zeilen haengen aneinander, also ergibt sich die Gesamthoehe
+    -- erst aus ihnen. Zu klein gesetzt, schneidet das Bildlauffeld die
+    -- letzten Plaetze ab, ohne dass es jemand merkt.
+    local gesamt = 10
+    for i = 1, used do gesamt = gesamt + f._rows[i]:GetHeight() + 2 end
+    f._inner:SetHeight(math.max(338, gesamt))
     f._scroll:SetVerticalScroll(0)
 
     f:Show()

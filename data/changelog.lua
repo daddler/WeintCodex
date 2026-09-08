@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.3.1",
+        date    = "08.09.2026",
+        notes   = {
+            "|cffD4A24ASteine, die dein Sim-Ergebnis tauschen will|r, standen auf der Sockelseite trotzdem als |cff7CC06EOptimal|r - und der Vorschlag, welcher Stein hineingehoert, wurde dadurch gar nicht erst angezeigt. Grund: WeintCodex hat den angelegten Stein noch einmal nach eigenen Gewichten nachgerechnet und ihn ab 90 Prozent fuer gleichwertig erklaert. Wo dein Sim etwas anderes sagt, gilt jetzt dein Sim.",
+            "Im Bestaetigungsfenster ueberlappten sich Zeilen, sobald ein Platz mehrere Steine hat. Es ist jetzt breiter, und jede Zeile bekommt so viel Platz, wie ihr Text braucht.",
+        },
+    },
+    {
         version = "3.0.3.0",
         date    = "08.09.2026",
         notes   = {

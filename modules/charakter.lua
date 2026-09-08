@@ -3118,6 +3118,23 @@ local function EvaluateGem(gemId, socket, index, profile, plan, ctx)
     local weights = profile and profile.statWeights
     local room    = plan.room and plan.room[index]
     local best    = plan.value and plan.value[index]
+
+    -- STAMMT DIE EMPFEHLUNG AUS DEM SIM, IST DIE FRAGE SCHON BEANTWORTET.
+    --
+    -- Darunter steht die Wertungsrechnung: "bringt 94 % des empfohlenen
+    -- Steins" => optimal. Fuer einen Sockel, zu dem der Sim etwas sagt,
+    -- ist das die ZWEITE Antwort auf eine Frage, die eine hat - und
+    -- ausgerechnet die teure Richtung: die Zeile sagt dann "Optimal",
+    -- der Zielzustand sagt "tausch den Stein", und die Empfehlung wird
+    -- gar nicht erst angezeigt (`row.status ~= "optimal"` weiter unten).
+    -- Genau so gemeldet: das Ziel kam an, sichtbar aenderte sich nichts.
+    --
+    -- Zwei Faelle bleiben ausdruecklich "optimal", weil sie NICHT
+    -- nachgerechnet, sondern erkannt sind: dieselbe ID (oben), und
+    -- dieselben Werte unter anderer ID (Werteabgleich darueber) - ein
+    -- wertgleicher Schliff IST der Zielstein.
+    local fromSim = plan.listed and plan.listed[index] == "sim"
+
     if weights and myStats and best and best > 0 then
         local myScore = GemValue(myStats, weights, room)
         local pct = math.floor((myScore / best) * 100 + 0.5)
@@ -3139,6 +3156,17 @@ local function EvaluateGem(gemId, socket, index, profile, plan, ctx)
                 StatShort(dead), BlockedReason(dead, ctx and ctx.capInfo))
         elseif pct < 90 then
             reason = string.format("Bringt %d %% der Wertung des empfohlenen Steins.", pct)
+        end
+
+        if fromSim then
+            -- Kein "Optimal" und keine Wertungsschwelle: der Sim hat sich
+            -- fuer einen anderen Stein entschieden, und das ist die
+            -- Auskunft. Die Prozentzahl bleibt daneben stehen - sie sagt,
+            -- wie teuer der Unterschied ist, nicht ob er besteht.
+            return "ok", pct, false, nil, string.format(
+                "Dein Sim-Ergebnis sieht hier %s vor. Deiner bringt nach"
+                .. " unserer Wertung %d %% davon — entschieden hat der Sim.",
+                GetGemDisplayName(recId) or ("Stein " .. tostring(recId)), pct)
         end
 
         if pct >= 90 then return Rank("optimal", pct, false, nil, reason) end
@@ -4507,6 +4535,13 @@ end
 -- Umschmiede-Planer seit 2.7.5.0 gibt.
 WeintCodex.Charakter.PlanningHeadroom    = PlanningHeadroom
 WeintCodex.Charakter.EquippedSocketRating = EquippedSocketRating
+
+-- UND WAS DAS URTEIL UEBER DEN ANGELEGTEN STEIN DARAUS MACHT. Ohne
+-- diesen Zugang liesse sich nur pruefen, WAS empfohlen wird, nicht ob
+-- die Zeile daneben dasselbe sagt - und genau da liefen sie einmal
+-- auseinander: der Zielzustand wollte einen anderen Stein, das Urteil
+-- sagte "Optimal", und damit blieb die Empfehlung unsichtbar.
+WeintCodex.Charakter.EvaluateGem         = EvaluateGem
 
 -- Zwischenspeicher (Verzauberungsnamen, Tooltip-Scans, erkannter Beruf)
 -- verwerfen. Wer Scan() aufruft, nachdem sich Ausrüstung, Spec oder Beruf
