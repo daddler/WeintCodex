@@ -4075,6 +4075,12 @@ local function ScanCharacter()
                         recReason  = plan.why and plan.why[socketIndex] or nil,
                         plan       = plan,
                         recId      = plan.gems and plan.gems[socketIndex] or nil,
+                        -- KOMMT DIE EMPFEHLUNG FUER DIESEN SOCKEL AUS DEM
+                        -- SIM? Die Einkaufsliste und das Sockelfenster
+                        -- brauchen genau diese Unterscheidung, und zwar
+                        -- als Feld der Zeile: sie sollen nicht in `plan`
+                        -- graben und schon gar nicht selbst rechnen.
+                        fromSim    = (plan.listed and plan.listed[socketIndex] == "sim") or nil,
                         socketsKnown = socketsKnown,
                         socketSource = socketSource,
                     }

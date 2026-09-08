@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.1.0.0",
+        date    = "08.09.2026",
+        notes   = {
+            "|cffD4A24ANeu am Sockelfenster:|r Sobald du ein angelegtes Teil sockelst, steht daneben Sockel fuer Sockel, welcher Stein hineingehoert - aus deinem Sim-Ergebnis, sonst aus dem Spec-Profil. Fahr mit der Maus darueber, dann siehst du die Werte des Steins. Einsetzen musst du ihn selbst, das kann dir kein Addon abnehmen.",
+            "Die |cffD4A24AEinkaufsliste|r am Auktionshaus kennt jetzt auch die Steine, die dein Sim-Ergebnis tauschen will. Bisher standen dort nur leere Sockel und klar falsche Steine - ein Zielzustand liess sich damit nirgends einkaufen.",
+            "Beides laesst sich in den |cffD4A24AEinstellungen|r abschalten (oder mit |cffD4A24A/wc sockelfenster aus|r).",
+        },
+    },
+    {
         version = "3.0.3.1",
         date    = "08.09.2026",
         notes   = {

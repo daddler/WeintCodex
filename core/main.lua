@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "3.0.3.1"
+WeintCodex.Version = "3.1.0.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -198,6 +198,17 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if verb == "einkauf" or verb == "einkaufsliste" or verb == "shopping" then
         if WeintCodex.ShoppingList and WeintCodex.ShoppingList.Command then
             WeintCodex.ShoppingList.Command(rest)
+        end
+        return
+    end
+
+    -- Die Anzeige neben dem Sockelfenster: welcher Stein in welchen
+    -- Sockel gehoert, waehrend die Maske offen ist (modules/socketing.lua).
+    --   /wc sockelfenster            Zustand und gemerkter Platz
+    --   /wc sockelfenster an|aus     ein-/ausschalten
+    if verb == "sockelfenster" or verb == "sockelhilfe" then
+        if WeintCodex.Socketing and WeintCodex.Socketing.Command then
+            WeintCodex.Socketing.Command(rest)
         end
         return
     end

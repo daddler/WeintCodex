@@ -113,7 +113,7 @@ Companion-visible text).
 | Rotationshelfer, ingame WeintTV/Academy, "wer bin ich" | `docs/systems/rotation-trainer.md` + `../WeintCompanion/docs/academy-and-practice-bridge.md` |
 | Sim-Gewichte (wowsims/QE Live), Umschmiede-Export | `docs/systems/stat-weights-qelive.md` + `../WeintCompanion/docs/stat-weights-bridge.md` + `../WeintCompanion/docs/wowsims-exporter-bridge.md` |
 | Onboarding-Tour, Update-Changelog-Popup | `docs/systems/onboarding-changelog.md` |
-| Einkaufsliste, Opt-in-Frage, Einstellungsseite, Fensterverhalten | `docs/systems/ui-notes-shoppinglist-optin.md` |
+| Einkaufsliste, Anzeige am Sockelfenster, Opt-in-Frage, Einstellungsseite, Fensterverhalten | `docs/systems/ui-notes-shoppinglist-optin.md` |
 | WCIMPORT-Import (`/wc import`, Bot-Slash-Commands) | `docs/systems/wcimport-sync.md` + `../WeintCompanion/docs/wcimport-protocol.md` |
 | Raid-Anmeldeliste, Kalender-Invite, `source`/`status`/`lineup` | `../WeintCompanion/docs/wcimport-protocol.md` |
 | Charakterzuordnung (`/weintcharakter`), WeintAdmin-Backup | `../WeintCompanion/docs/character-links-and-admin-bridge.md` |

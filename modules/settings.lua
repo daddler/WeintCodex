@@ -347,6 +347,25 @@ local function ViewWindow(y)
     })
 
     y = Spacer(y, 8)
+    y = Group(y, "Sockeln")
+
+    y = Toggle(y, {
+        label = "Am Sockelfenster zeigen, was hineingehört",
+        description = "Sobald du ein angelegtes Teil sockelst, steht daneben Sockel"
+            .. " für Sockel der Zielstein — aus deinem Sim-Ergebnis, sonst aus dem"
+            .. " Spec-Profil. Einsetzen musst du ihn selbst. (/wc sockelfenster)",
+        get = function()
+            return WeintCodex.Socketing and WeintCodex.Socketing.GetOption
+                and WeintCodex.Socketing.GetOption("enabled")
+        end,
+        set = function(on)
+            if WeintCodex.Socketing and WeintCodex.Socketing.SetOption then
+                WeintCodex.Socketing.SetOption("enabled", on)
+            end
+        end,
+    })
+
+    y = Spacer(y, 8)
     y = Group(y, "Bossnotizen")
 
     -- Derselbe Speicher wie der Umschalter in der Kopfzeile des Notizfeldes

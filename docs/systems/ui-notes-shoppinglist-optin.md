@@ -40,6 +40,17 @@ Stein mit dem Urteil *falsch* oder *über Cap*, eine fehlende Verzauberung.
 Ein Stein mit dem Urteil *ok* steht auf der Sockelseite. Zeilen ohne
 Basisdaten (`socketsKnown == false`) kommen nicht drauf.
 
+**Mit einer Ausnahme seit 3.1.0.0: was der Sim tauschen will.** Ein *ok*
+ist eine Abwägung — das gilt für **unsere** Wertung. Nennt der Zielzustand
+für diesen Sockel einen anderen Stein, ist nichts mehr abzuwägen: die
+Entscheidung ist auf dem Desktop gefallen, und was fehlt, ist der Stein.
+Seit 3.0.3.1 ist genau das der Status solcher Sockel (`ok`, nicht mehr
+`optimal` — siehe `docs/systems/gearing.md`), also käme ohne diese
+Ausnahme ein Zielzustand an, den man nirgends einkaufen kann. Die Zeile
+erkennt es an `row.fromSim`; `optimal` bleibt draußen (der Zielstein
+steckt schon drin, per ID oder als wertgleicher Schliff), `neutral`
+ebenfalls.
+
 **Und sie sucht selbst** — der Klick ist das Hardware-Ereignis. **Findet
 der Client die Felder nicht, sagt die Zeile das** und nennt den Namen.
 Für Verzauberungen wird der Name aus `data/enchants.lua` gesucht (in MoP
@@ -61,6 +72,50 @@ heissen).
   hat jetzt einen ab Werk, wie das Umschmieder-Fenster.
 
 `/wc einkauf prüfen` ist der Diagnosebefehl.
+
+## Am Sockelfenster (`modules/socketing.lua`, seit 3.1.0.0)
+
+Dieselbe Überlegung wie bei der Einkaufsliste, einen Schritt später:
+**die Auskunft gehört an den Ort, an dem gehandelt wird.** Wer vor der
+offenen Sockelmaske steht, weiß bei drei Sockeln in einem Teil nicht mehr
+auswendig, welcher der beiden ähnlich heißenden Schliffe wohin gehört —
+das ist keine Nachlässigkeit, sondern normal.
+
+**Sie rechnet nichts.** Gelesen wird `WeintCodex.Charakter.Scan()`;
+dargestellt werden die Zeilen des gerade offenen Platzes, sortiert nach
+`socket.index`. Die Reihenfolge ist die ganze Aussage — dieselbe Regel wie
+im Zielzustand selbst.
+
+**Welches Teil offen ist, sagt das Spiel, nicht ein Namensvergleich.**
+`GetSocketItemInfo()` gibt Name, Symbol und Qualität heraus, aber nicht
+den Ausrüstungsplatz; über den Namen zu suchen ginge dort schief, wo es
+schiefgehen muss (Ring 1 und Ring 2 können dasselbe Teil sein). Die Frage
+wird deshalb dort beantwortet, wo sie entsteht: `SocketInventoryItem(slot)`
+und `SocketContainerItem(...)` werden mit `hooksecurefunc` mitgehört — die
+erste merkt sich den Platz, die zweite löscht ihn (ein Teil aus der Tasche
+ist nicht angelegt, dazu sagt der Scan nichts).
+
+**Gegenprobe statt Vertrauen:** vor jeder Anzeige wird der Name aus
+`GetSocketItemInfo()` gegen das Teil in genau diesem Platz gehalten.
+Stimmen sie nicht überein, bleibt das Fenster leer — eine Empfehlung für
+das falsche Teil wäre schlimmer als keine. Dieselbe Linie gilt für
+fehlende Basisdaten: dann steht dort *„noch nicht geladen"* und nicht
+*„keine Empfehlung"*.
+
+**Einmal rechnen je geöffnetem Teil.** `SOCKET_INFO_UPDATE` feuert bei
+jedem Stein, den man in die Maske legt; ein voller Ausrüstungsscan je
+Ereignis wäre an der teuersten Stelle die häufigste Rechnung. Das Ergebnis
+wird gemerkt und bei `SOCKET_INFO_CLOSE` bzw. `PLAYER_EQUIPMENT_CHANGED`
+verworfen. Das Panel entsteht erst beim ersten Ereignis:
+`ItemSocketingFrame` gehört zu `Blizzard_ItemSocketingUI` und wird
+nachgeladen.
+
+**Einsetzen kann das Addon nicht** — das ist eine geschützte Handlung des
+Spielers. Die Zeile zeigt den Stein und seinen Tooltip; hineinziehen muss
+man ihn selbst, und die Fußzeile sagt das auch.
+
+`/wc sockelfenster` zeigt den Zustand samt gemerktem und bestätigtem
+Platz, `/wc sockelfenster an|aus` schaltet um (auch in den Einstellungen).
 
 ## Einstellungen (`modules/settings.lua`)
 

@@ -2,6 +2,69 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.1.0.0] – 2026-09-08
+
+**Neu: die Steinempfehlung steht jetzt dort, wo du sie brauchst.**
+
+Sobald du ein angelegtes Teil sockelst, steht neben dem Sockelfenster
+Sockel für Sockel, welcher Stein hineingehört — aus deinem Sim-Ergebnis,
+sonst aus dem Spec-Profil. Fahr mit der Maus darüber, dann siehst du die
+Werte des Steins. Einsetzen musst du ihn selbst; das kann dir kein Addon
+abnehmen.
+
+Die **Einkaufsliste** am Auktionshaus kennt außerdem die Steine, die dein
+Sim-Ergebnis tauschen will. Bisher standen dort nur leere Sockel und klar
+falsche Steine — ein Zielzustand ließ sich damit nirgends einkaufen.
+
+Beides lässt sich in den Einstellungen abschalten (oder mit
+`/wc sockelfenster aus`).
+
+### Technisch
+
+**Einkaufsliste.** `SL.Build()` nahm `missing`, `wrong` und `overcap`;
+ein `ok` galt bewusst als Abwägung und nicht als Mangel. Für die eigene
+Wertung stimmt das — seit 3.0.3.1 ist ein Stein, den der Sim tauschen
+will, aber genau dieses `ok`. Nennt der Sim einen anderen Stein, ist
+nichts mehr abzuwägen: die Entscheidung ist gefallen, und was fehlt, ist
+der Stein. Neue Bedingung deshalb `row.fromSim and status ~= "optimal"
+and status ~= "neutral"` — `optimal` bleibt draußen (der Zielstein steckt
+schon drin, per ID oder als wertgleicher Schliff), `neutral` ebenfalls
+(eine Aussage über den Cache, nicht über die Rüstung).
+
+`scan.gems.rows` trägt dafür ein neues Feld `fromSim`
+(`modules/charakter.lua`) — die Einkaufsliste und das Sockelfenster
+sollen weder in `plan` graben noch selbst rechnen.
+
+**Sockelfenster** (`modules/socketing.lua`, neu). Rechnet nichts: liest
+`WeintCodex.Charakter.Scan()` und stellt die Zeilen des gerade offenen
+Platzes dar. Zwei Dinge daran sind nicht Geschmack:
+
+- **Der Platz kommt vom Spiel, nicht aus einem Namensvergleich.**
+  `GetSocketItemInfo()` gibt den Ausrüstungsplatz nicht heraus, und über
+  den Namen zu suchen ginge dort schief, wo es schiefgehen muss: Ring 1
+  und Ring 2 können dasselbe Teil sein. Stattdessen werden
+  `SocketInventoryItem(slot)` und `SocketContainerItem(...)` mit
+  `hooksecurefunc` mitgehört — die erste merkt sich den Platz, die zweite
+  löscht ihn (ein Teil aus der Tasche ist nicht angelegt, dazu sagt der
+  Scan nichts).
+- **Gegenprobe vor jeder Anzeige.** Der gemerkte Platz wird über den
+  Namen aus `GetSocketItemInfo()` gegen das Teil in genau diesem Platz
+  gehalten; stimmen sie nicht überein, bleibt das Fenster leer. Eine
+  Empfehlung für das falsche Teil wäre schlimmer als keine.
+
+`SOCKET_INFO_UPDATE` feuert bei jedem Stein, den man in die Maske legt —
+der Scan wird deshalb je geöffnetem Teil einmal gemacht und gemerkt, und
+bei `PLAYER_EQUIPMENT_CHANGED` bzw. `SOCKET_INFO_CLOSE` verworfen. Das
+Panel entsteht erst beim ersten Ereignis: `ItemSocketingFrame` gehört zu
+`Blizzard_ItemSocketingUI` und wird nachgeladen.
+
+`.github/tests/socketing_test.lua` (neu) pinnt beide Seiten: dass ein
+Sim-Tausch auf die Einkaufsliste kommt und ein bereits passender Stein
+nicht, dass `ok` ohne Sim-Ziel weiterhin kein Einkauf ist, und dass die
+Zeilen des Sockelfensters nach **Sockelposition** sortiert
+herauskommen — ein verschobener Stein sieht aus wie eine Empfehlung und
+ist keine.
+
 ## [3.0.3.1] – 2026-09-08
 
 **Steine, die dein Sim-Ergebnis tauschen will, standen trotzdem als

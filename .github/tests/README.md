@@ -217,3 +217,27 @@ wäre der Rückfall in genau den Zustand, wegen dem es das Fenster gibt.
 ```bash
 lua5.1 .github/tests/sync_test.lua .
 ```
+
+## Einkaufsliste und Sockelfenster
+
+`socketing_test.lua` prüft die beiden Orte, an denen die Steinempfehlung
+gebraucht wird statt nur angezeigt: das Auktionshaus
+(`modules/shoppinglist.lua`) und das Sockelfenster
+(`modules/socketing.lua`). Beide **rechnen nichts** — sie lesen
+`WeintCodex.Charakter.Scan()`. Genau deshalb fällt es dort nicht auf, wenn
+sie das Falsche lesen: die Liste bleibt einfach leer, das Fenster sagt
+einfach nichts, und beides sieht aus wie „es gibt nichts zu tun".
+
+Festgehalten sind zwei Regeln. **Was der Sim tauschen will, gehört auf die
+Einkaufsliste** — ein Stein mit dem Urteil *ok* ist sonst eine Abwägung
+und kein Mangel, aber wo der Zielzustand einen anderen Stein nennt, ist
+nichts mehr abzuwägen (ein bereits passender bleibt draußen, ohne
+Sim-Ziel bleibt *ok* weiterhin kein Einkauf, und ohne geladene
+Basisdaten wird gar nichts behauptet). Und **am Sockelfenster zählt die
+Position**: die Zeilen kommen nach Sockelnummer sortiert heraus, nicht in
+der Reihenfolge des Scans — ein verschobener Stein sieht aus wie eine
+Empfehlung und ist keine.
+
+```bash
+lua5.1 .github/tests/socketing_test.lua .
+```

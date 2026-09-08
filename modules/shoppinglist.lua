@@ -96,11 +96,26 @@ function SL.Build()
     local items, byGem = {}, {}
 
     -- STEINE: leerer Sockel oder ein Stein, der nachweislich falsch sitzt.
+    --
+    -- UND SEIT 3.1.0.0: WAS DEIN SIM-ERGEBNIS TAUSCHEN WILL.
+    --
+    -- Ein Stein mit dem Urteil "ok" ist sonst eine Abwaegung und kein
+    -- Mangel (siehe Kopf) - das gilt fuer UNSERE Wertung. Nennt der Sim
+    -- fuer diesen Sockel einen anderen Stein, ist nichts mehr abzuwaegen:
+    -- die Entscheidung ist gefallen, und was fehlt, ist der Stein. Genau
+    -- dafuer geht man ins Auktionshaus.
+    --
+    -- "optimal" bleibt draussen, auch aus dem Sim: dort steckt der
+    -- Zielstein bereits (gleiche ID) oder ein wertgleicher Schliff
+    -- davon - beides ist kein Einkauf. "neutral" ebenfalls, das ist eine
+    -- Aussage ueber unseren Cache und nicht ueber die Ruestung.
     for _, row in ipairs((scan.gems and scan.gems.rows) or {}) do
         local wanted = row.recId
         local buy = (row.status == "missing")
                  or (row.status == "wrong")
                  or (row.status == "overcap")
+                 or (row.fromSim and row.status ~= "optimal"
+                                 and row.status ~= "neutral")
         -- Ohne Basisdaten wird nichts behauptet (dieselbe Regel wie
         -- ueberall): eine Zeile, die der Client noch nicht lesen konnte,
         -- ist keine Einkaufsempfehlung.
