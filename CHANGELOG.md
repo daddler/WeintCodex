@@ -2,6 +2,44 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.2.2] – 2026-09-08
+
+Beim Import einer Zielausrüstung aus WeintCompanion erscheinen
+vorübergehend zusätzliche Meldungen im Chat. Das hilft uns, einen
+gemeldeten Einzelfall zu untersuchen, und verändert den Import selbst
+nicht.
+
+### Technisch
+
+**Korrektur zur Analyse von 3.0.2.1.** Dort wurde vermutet, dass der
+gemeldete Fehler ("kein einziger Ausruestungsplatz" bei einem gültigen
+Companion-String) an einer veralteten Addon-Installation liegt, gestützt
+auf einen vermeintlichen Encoding-Unterschied ("ü" vs. ASCII) in der
+Fehlermeldung. Screenshots aus dem tatsächlich laufenden Client
+widerlegen das: die dort gezeigte Version (3.0.2.0) und der
+Fehlertext sind Byte für Byte identisch mit diesem Repository — die
+"ü"-Schreibweise stammte offenbar nur aus der handschriftlichen
+Fehlerbeschreibung, nicht aus dem echten Client.
+
+Damit steht ein echter Widerspruch: eine eigenständige `lua5.1`-Prüfung
+von `TG.ParseTransfer` (`modules/targetgear.lua`) gegen exakt den
+gemeldeten String liefert korrekt alle 15 Items/21 Gems/11 Umschmiedungen
+(siehe Regressionstest in `.github/tests/targetgear_test.lua`), während
+derselbe Code im echten Spiel denselben String ablehnt. Die Parser-Logik
+selbst ist also nachweislich korrekt — der Unterschied muss zwischen dem
+Kopieren aus WeintCompanion und der Ankunft in `TG.ParseTransfer`
+entstehen (Zwischenablage, `EditBox:GetText()`, oder ein WoW-spezifisches
+Verhalten, das sich außerhalb des Spiels nicht nachstellen lässt).
+
+Um das ohne weiteres Rätselraten zu klären, statt den Parser blind
+umzubauen, protokollieren `modules/sync.lua` (vor dem Aufruf von
+`TG.ParseTransfer`) und `modules/targetgear.lua` (`TG.ParseTransfer`
+selbst: alle sechs Felder, sowie Rohzeile/Slot/ItemID je Datensatz) jetzt
+mit `[WeintCodex DEBUG]` markierte Chat-Ausgaben. Sobald der Fehler im
+Spiel erneut auftritt, zeigt der Chat-Verlauf exakt, an welcher Stelle
+der String vom erwarteten Inhalt abweicht. Diese Ausgaben sind bewusst
+temporär und werden nach der Ursachenklärung wieder entfernt.
+
 ## [3.0.2.1] – 2026-09-08
 
 Diese Fassung ändert nichts, was du im Spiel siehst. Der Import deines

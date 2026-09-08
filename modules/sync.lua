@@ -468,6 +468,13 @@ local function ProcessImport(rawStr)
             return false, "Zielausruestungen kann diese Addon-Fassung nicht lesen."
         end
 
+        -- TEMPORAeR (DEBUG): zur Ursachensuche des gemeldeten
+        -- "kein einziger Ausruestungsplatz"-Fehlers. Nach Klaerung
+        -- wieder entfernen - siehe CHANGELOG.md 3.0.2.2.
+        print("|cffD4A24A[WeintCodex DEBUG]|r typeTag:", tostring(typeTag))
+        print("|cffD4A24A[WeintCodex DEBUG]|r payload length:", tostring(#payload))
+        print("|cffD4A24A[WeintCodex DEBUG]|r payload:", tostring(payload))
+
         local entry, problem = TG.ParseTransfer(payload)
         if not entry then
             return false, problem or "Der String liess sich nicht lesen."

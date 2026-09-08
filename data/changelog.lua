@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.2.2",
+        date    = "08.09.2026",
+        notes   = {
+            "Beim Import einer Zielausruestung aus WeintCompanion erscheinen vorruebergehend zusaetzliche Meldungen im Chat. Das hilft uns, einen gemeldeten Einzelfall zu untersuchen, und veraendert den Import selbst nicht.",
+        },
+    },
+    {
         version = "3.0.2.1",
         date    = "08.09.2026",
         notes   = {
