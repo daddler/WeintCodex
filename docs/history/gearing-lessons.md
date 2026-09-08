@@ -61,9 +61,38 @@ statlose DB-Einträge fielen fälschlich in den schwächsten Rang).
 `.github/tests/enchant_scan_test.lua` ist der Offline-Wächter dagegen.
 Details: `../systems/gearing.md`, Abschnitt „Werteabgleich".
 
+## Verzauberungs-IDs: der Namensabgleich hat den Widerspruch zugedeckt
+
+**3.0.0.2** — gemeldet am Verstärker-Schamanen (Stiefel: *Verschwimmen*
+mit der Marke „ID 4428 abweichend"; Handschuhe: *Waffenkunde* empfohlen,
+wo *Meisterschaft* hingehört). Der Abgleich der ganzen Tabelle gegen die
+MoP-Spieldaten fand sieben falsche Einträge — drei davon haben
+Empfehlungen für alle 39 Profile verdreht (Stiefel, Handschuhe, Umhang).
+
+Zwei Lehren, die über diesen Fall hinausreichen:
+
+1. **Zwei IDs mit demselben Namen im selben Slot waren nie „die Regel",
+   sondern immer ein Symptom.** Alle vier so beschriebenen Paare
+   (4422/4424, 4423/4892, 4430/4433, 4432/4434) waren falsch zugeordnete
+   IDs. Weil beide Einträge denselben *Namen* trugen, hat der
+   Namensabgleich in `ResolveEnchant` den Widerspruch abgefangen — die
+   Anzeige stimmte, und genau deshalb ist keiner der drei Fehler je als
+   „ID abweichend" aufgefallen. Sichtbar wurden sie nur an der
+   Empfehlung: die Liste führte zweimal dasselbe und liess dafür eine
+   echte Verzauberung weg. Seit 3.0.0.2 prüft
+   `.github/tests/gem_plan_test.lua` auf Doppeleinträge je Slot.
+2. **Ein einzelner Nutzerbericht belegt eine ID, widerlegt aber keine.**
+   Aus „Handschuhe mit Meisterschaft tragen die 4430" wurde 2.0.1.0 der
+   Eintrag 4430 = Meisterschaft — und der spätere Bericht (4433 =
+   Meisterschaft, 2.6.0.3) wurde daneben als *zweite* ID eingetragen,
+   statt den ersten in Frage zu stellen. Wo zwei Berichte sich
+   widersprechen, braucht es eine dritte, vollständige Quelle; für
+   Verzauberungen ist das die Verzauberungstabelle der Spieldaten (siehe
+   Kopf von `data/enchants.lua`).
+
 ## Warum diese Datei existiert
 
-Die Lehre aus allen drei Ketten ist dieselbe: **zwei unabhängige
+Die Lehre aus den ersten drei Ketten ist dieselbe: **zwei unabhängige
 Rechnungen für dieselbe Frage laufen irgendwann auseinander.** Jede
 Fehlerklasse oben endete mit derselben Abhilfe — eine einzige Stelle, die
 alle Aufrufer teilen (`PlanItem`, `RE.Value`, `RankEnchantCandidate`).

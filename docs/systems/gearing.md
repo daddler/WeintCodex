@@ -970,15 +970,19 @@ client, the table is hand-maintained (several entries still carry `verify
 expansion. One wrong line there was enough for the addon to claim a
 defect that did not exist.
 
-Wo die Verzauberungs-ID selbst nicht zu belegen ist, steht der Eintrag
-unter der **Itemnummer** der Verzauberungsformel (`74715` Stiefel-Tempo,
-`74711` Umhang-Ausdauer, seit 2.6.0.3 `74719` Handschuh-Tempo). Erkannt
-wird er dann über Slot + Werte bzw. den Namen, nie über die Nummer — und
-ohne ihn hätte die betroffene Spec gar keine Empfehlung mehr, was
-schlechter ist als eine unbelegte ID. Umgekehrt gilt: **zwei IDs für
-dieselbe Verzauberung sind dort die Regel, nicht die Ausnahme** (4422/4424
-Umhang, 4432/4434 und 4433/4430 Hände); in die Empfehlungslisten kommt nur
-eine davon, den Rest fängt der Werteabgleich als *werte-identisch* ab.
+Bis 3.0.0.2 stand ein Eintrag, dessen Verzauberungs-ID nicht zu belegen
+war, unter der **Itemnummer** der Verzauberungsformel (`74715`
+Stiefel-Tempo, `74711` Umhang-Ausdauer, `74719` Handschuh-Tempo), und
+mehrere Verzauberungen standen unter zwei IDs. Beides ist seit dem
+ID-Abgleich vom 08.09.2026 weg: **jede Verzauberung steht genau einmal,
+unter ihrer echten Verzauberungs-ID** (Kopf von `data/enchants.lua` nennt
+Quelle und die sieben korrigierten Einträge). Die vier
+"zwei-IDs-dieselbe-Verzauberung"-Paare waren allesamt falsch zugeordnete
+IDs — und weil beide Einträge denselben *Namen* trugen, hat der
+Namensabgleich den Widerspruch zugedeckt, statt ihn zu zeigen. Die
+Empfehlungslisten führten dadurch zweimal dasselbe und liessen dafür eine
+echte Verzauberung weg. Ein Doppeleintrag je Slot ist deshalb jetzt ein
+Testfall (`.github/tests/gem_plan_test.lua`), keine Regel mehr.
 
 `WeintCodex.StatMatch` asks a third question that needs no table of ours:
 **which stats does the thing actually grant, and are they the same ones

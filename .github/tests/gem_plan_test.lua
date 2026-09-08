@@ -250,13 +250,63 @@ end
 
 --== 8) Handschuhe: Meisterschaft, nicht Waffenkunde ========================
 -- Bis 2.9.2.0 stand unter "Haende" NUR die Ueberragende Waffenkunde - ein
--- korrekt verzauberter Handschuh wurde damit als Mangel gemeldet.
+-- korrekt verzauberter Handschuh wurde damit als Mangel gemeldet. Beim
+-- Wildheitsdruiden war das damals repariert, bei fuenf weiteren Profilen
+-- nicht; gemeldet wurde es am Verstaerker-Schamanen (09/2026).
+--
+-- GEPRUEFT WIRD DER NAME, NICHT DIE NUMMER. Genau daran haengt der zweite
+-- Teil desselben Berichts: die 4430 war in data/enchants.lua als
+-- Meisterschaft eingetragen und ist in Wahrheit das Handschuh-Tempo. Eine
+-- Pruefung auf "list[1] == 4430" haette dazu weiter "ok" gesagt.
+local function EnchantName(id)
+    local e = id and WeintCodex_Enchants[id]
+    return e and e.name or ("Unbekannt (" .. tostring(id) .. ")")
+end
+
+for _, spec in ipairs({ "DRUID_FERAL", "SHAMAN_ENHANCEMENT",
+                        "ROGUE_ASSASSINATION" }) do
+    local list = WeintCodex_SpecProfiles[spec].bestEnchants["Hände"]
+    Check(spec .. " / Handschuhe: Meisterschaft steht vorn",
+          EnchantName(list[1]) == "Überragende Meisterschaft",
+          EnchantName(list[1]))
+    local hatWaffenkunde = false
+    for _, id in ipairs(list) do
+        if EnchantName(id) == "Überragende Waffenkunde" then hatWaffenkunde = true end
+    end
+    Check("... die Waffenkunde bleibt vertretbar", hatWaffenkunde, nil)
+end
+
+-- Fernkaempfer koennen Waffenkunde nicht nutzen (kein Nahkampf, kein
+-- Parieren/Ausweichen des Ziels) - eine Empfehlung, die sie trotzdem
+-- nennt, schickt den Jaeger fuer nichts zum Verzauberer.
+for _, spec in ipairs({ "HUNTER_BEASTMASTERY", "HUNTER_MARKSMANSHIP",
+                        "HUNTER_SURVIVAL" }) do
+    local ok = true
+    for _, id in ipairs(WeintCodex_SpecProfiles[spec].bestEnchants["Hände"] or {}) do
+        if EnchantName(id) == "Überragende Waffenkunde" then ok = false end
+    end
+    Check(spec .. " / Handschuhe: keine Waffenkunde", ok, nil)
+end
+
+--== 8b) Jede Verzauberung genau einmal je Slot =============================
+-- Zwei IDs mit demselben Namen im selben Slot waren in dieser Datei jahrelang
+-- "die Regel" - und jedes Mal war es in Wahrheit eine falsch zugeordnete ID
+-- (4422/4424 Umhang, 4430/4433 Haende, 4425/4428 Fuesse). Der Preis war
+-- immer derselbe: die Empfehlungsliste fuehrte zweimal dasselbe und liess
+-- dafuer etwas anderes weg.
 do
-    local list = WeintCodex_SpecProfiles.DRUID_FERAL.bestEnchants["Hände"]
-    Check("Wildheit / Handschuhe: Meisterschaft steht vorn",
-          list[1] == 4430, tostring(list[1]))
-    Check("... die Waffenkunde bleibt vertretbar",
-          list[2] == 4431, tostring(list[2]))
+    local gesehen, doppelt = {}, {}
+    for id, e in pairs(WeintCodex_Enchants) do
+        if e.slot and e.name then
+            local key = e.slot .. "|" .. e.name
+            if gesehen[key] then
+                doppelt[#doppelt + 1] = key .. " (" .. gesehen[key] .. " + " .. id .. ")"
+            end
+            gesehen[key] = id
+        end
+    end
+    Check("Kein Slot fuehrt dieselbe Verzauberung zweimal",
+          #doppelt == 0, table.concat(doppelt, ", "))
 end
 
 --== 9) Der gemeldete Meuchelschurke (09/2026) ==============================

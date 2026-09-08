@@ -20,6 +20,17 @@
 -- ab da mit dem (siehe ResolveEnchant in modules/charakter.lua). Die
 -- Namen hier werden für EMPFEHLUNGEN genutzt.
 --
+-- ID-ABGLEICH (08.09.2026): Jede ID, jeder Wert und jede Slot-Zuordnung
+-- dieser Datei ist einmal gegen die MoP-Spieldaten gehalten worden
+-- (Verzauberungstabelle der MoP-Simulation wowsims/mop,
+-- assets/database/db.json: Verzauberungs-ID -> Formel-Gegenstand ->
+-- Zauber -> Werte). Sieben Einträge waren falsch, darunter drei, die
+-- Empfehlungen für 39 Profile verdreht haben - jeder davon steht unten
+-- mit Begründung. Was seither hier steht, ist an zwei unabhängigen
+-- Quellen belegt: der Spieldatenbank und (wo vorhanden) dem Live-Tooltip.
+-- ES BLEIBT EINE UNGEPRÜFTE SPALTE: der DEUTSCHE NAME. Er steht in
+-- keiner dieser Quellen, und genau darauf zeigt "verify = true" jetzt.
+--
 -- DATENPFLEGE: In-game "/wc vz" eingeben — das druckt für jedes
 -- angelegte Teil die Verzauberungs-ID + den offiziellen Namen und
 -- markiert Abweichungen zur Datenbank. Damit lassen sich Einträge
@@ -73,7 +84,10 @@ WeintCodex_Enchants = {
 
     [4699] = { name = "Fürst von Schmetternichs Todeszielfernrohr", slot = "Waffe" },  -- bestätigt (Lord Blastington's Scope of Doom)
     [4700] = { name = "Spiegelzielfernrohr",                            slot = "Waffe", verify = true },
-    [4099] = { name = "Zielfernrohr (älteres Modell)",                  slot = "Waffe", verify = true },
+    -- 4099 ist laut Spieldaten die Cata-Waffenverzauberung "Bergsturz"
+    -- (Landslide), kein Zielfernrohr. Sie steht weiter hier, damit eine
+    -- alte Waffe nicht als "Unbekannt (ID 4099)" dasteht.
+    [4099] = { name = "Bergsturz",                                       slot = "Waffe", verify = true },
     [4166] = { name = "Scharfes Zielfernrohr (älteres Modell)",         slot = "Waffe", verify = true },
 
     --------------------------------------------------
@@ -107,24 +121,30 @@ WeintCodex_Enchants = {
     -- UMHANG
     --------------------------------------------------
 
-    [4421] = { name = "Präzision",                            slot = "Umhang", stats = { hit = 180 } },  -- WoWHead: "Formel: Umhang - Präzision" (item 84568)
-    [4422] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },  -- WoWHead: "Enchant Cloak - Superior Critical Strike" (spell 104404)
-    -- 4423 fehlte bisher komplett (zeigte "Unbekannt (ID 4423)" im Charakter-Fenster).
-    -- Lückenlos zwischen 4422 (Umhang-Krit) und 4424 (Umhang-Krit-Duplikat) einsortiert;
-    -- passt zur "Enchant Cloak - Superior Intellect" (spell 104403, Formel-Item 84569) aus
-    -- derselben 5.2-Formel-Reihe (Präzision/Krit/Intellekt). ID per /wc vz in-game bestätigen.
-    [4423] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 }, verify = true },
-    -- Übersetzungsfehler behoben (User-Bericht per In-Game-Tooltip): 4424
-    -- ist keine ältere/andere Verzauberung, sondern derselbe Enchant wie
-    -- 4422 ("Überragende kritische Trefferwertung") — die frühere Vermutung
-    -- eines veralteten Cata-Duplikats war falsch. Name korrigiert, damit der
-    -- Namensabgleich in charakter.lua ihn als optimal erkennt.
-    [4424] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },
-    [4892] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 } },
-    -- HINWEIS: Schlüssel = Wowhead-Item-ID (74711), nicht die Link-Enchant-ID.
-    -- Für die Bewertung reicht der Name-Abgleich (Tooltip "Verzaubert: Großer
-    -- Schutz"); echte Enchant-ID bei Bedarf per /wc vz bestätigen.
-    [74711] = { name = "Großer Schutz",                      slot = "Umhang", stats = { stamina = 200 }, verify = true },  -- Tank (Umhang-Ausdauer)
+    -- KORRIGIERT 08.09.2026 (Abgleich gegen die Spieldaten, siehe Kopf):
+    -- 4422 stand hier ein zweites Mal als Krit-Verzauberung. Sie ist es
+    -- nicht. 4422 ist der AUSDAUER-Umhang ("Großer Schutz",
+    -- Formel-Gegenstand 74711, Zauber 104401) - also genau die
+    -- Verzauberung, die bis dahin ein paar Zeilen tiefer unter ihrer
+    -- Gegenstandsnummer stand. Krit hat genau eine ID: 4424.
+    --
+    -- Zu sehen war der Fehler nicht, weil beide Einträge denselben Namen
+    -- trugen und der Namensabgleich sie deshalb gleichsetzte. In den
+    -- Empfehlungslisten stand dadurch aber bei acht Specs die
+    -- Ausdauer-ID an der Stelle, an der "Krit zuerst" gemeint war.
+    --
+    -- 4892 ist NICHT eine zweite Intelligenz-Verzauberung, sondern die
+    -- Schneiderei-Stickerei "Lichtweberstickerei" (Rang 3, Zauber
+    -- 125481). Sie gibt keine festen Werte, sondern procct Intelligenz -
+    -- deshalb steht sie ohne stats hier, wie die Waffen-Procs oben, und
+    -- wird über ihren Namen erkannt. Als feste "+180 Intelligenz"
+    -- eingetragen war sie für jeden Nicht-Schneider die falsche
+    -- Empfehlung; die Zauberer-Profile führen jetzt 4423 zuerst.
+    [4421] = { name = "Präzision",                            slot = "Umhang", stats = { hit = 180 } },        -- Gegenstand 74710
+    [4422] = { name = "Großer Schutz",                        slot = "Umhang", stats = { stamina = 200 } },    -- Gegenstand 74711 (Tank)
+    [4423] = { name = "Überragende Intelligenz",              slot = "Umhang", stats = { intellect = 180 }, verify = true },  -- Gegenstand 74712
+    [4424] = { name = "Überragende kritische Trefferwertung", slot = "Umhang", stats = { crit = 180 } },       -- Gegenstand 74713
+    [4892] = { name = "Lichtweberstickerei",                  slot = "Umhang", verify = true },                -- Schneiderei-Proc (Zauber 125481)
 
     --------------------------------------------------
     -- HANDGELENKE
@@ -148,44 +168,33 @@ WeintCodex_Enchants = {
     -- HÄNDE
     --------------------------------------------------
 
-    -- IDs 4430/4432 am Live-Client korrigiert (zwei unabhängige
-    -- Nutzerberichte, jeweils per Item-Tooltip):
-    --   * Handschuhe mit "Überragender Meisterschaft" tragen im Item-Link
-    --     die ID 4430 (der Eintrag stand deshalb bis 2.0.1.0 fälschlich
-    --     als "Großes Tempo" unter FÜSSE weiter unten).
-    --   * Handschuhe mit "+170 Stärke" tragen die ID 4432 — die stand hier
-    --     als Meisterschaft, weshalb jede korrekt mit Stärke verzauberte
-    --     Hand die Marke "(ID 4432 abweichend)" bekam.
-    -- 4434 bleibt als zweite Stärke-ID stehen (gleicher Name, gleiche
-    -- Werte — wie 4422/4424 beim Umhang): fällt sie irgendwo auf, wird sie
-    -- richtig aufgelöst statt als unbekannt gemeldet.
+    -- KORRIGIERT 08.09.2026 (Abgleich gegen die Spieldaten, siehe Kopf).
+    -- Die vier MoP-Handschuhverzauberungen liegen lückenlos auf
+    -- 4430-4433, jede genau einmal:
+    --   4430 Großes Tempo              (Gegenstand 74719, Zauber 104416)
+    --   4431 Überragende Waffenkunde   (Gegenstand 74720, Zauber 104417)
+    --   4432 Erstklassige Stärke       (Gegenstand 74721, Zauber 104419)
+    --   4433 Überragende Meisterschaft (Gegenstand 74722, Zauber 104420)
     --
-    -- 4433 ebenso, seit 2.6.0.3: gemeldet am Heiligpriester, dessen
-    -- Handschuhe im Item-Link die 4433 tragen und im Tooltip "+170
-    -- Meisterschaft" zeigen. Hier stand Tempo — abgeleitet aus der
-    -- WoWHead-Itemnummer 74719 und nie am Client geprüft, während für
-    -- 4430 = Meisterschaft ein Tooltip vorlag. Die Folge war genau die
-    -- Marke, die 2.0.1.0 für 4432 beseitigt hat: eine korrekt
-    -- verzauberte Hand las "(ID 4433 abweichend – /wc vz)".
+    -- Hier stand 4430 als Meisterschaft, abgeleitet aus einem alten
+    -- Nutzerbericht; die Tempo-Handschuhe lagen deshalb ersatzweise unter
+    -- ihrer Gegenstandsnummer 74719. Beides zusammen hiess: die
+    -- Empfehlungslisten führten für 13 Tempo-Specs ZWEIMAL DIESELBE
+    -- Verzauberung und für die Meisterschafts-Specs (Heilig-Paladin,
+    -- Blut-Todesritter, Priester, Verstärker) gar keine Meisterschaft -
+    -- was dort "Meisterschaft" hiess, war Tempo.
     --
-    -- Zwei IDs, dieselbe Verzauberung — das ist in dieser Datei die
-    -- Regel und nicht die Ausnahme (4422/4424 Umhang, 4432/4434 Hände).
-    -- Die ID der TEMPO-Handschuhe ist damit am Client unbekannt; sie
-    -- steht deshalb unter ihrer Itemnummer weiter unten, so wie schon
-    -- 74715 (Stiefel-Tempo) und 74711 (Umhang-Ausdauer).
-    [4430] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },
-    [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },
-    [4432] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },
-    [4433] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },  -- Live-Tooltip (Heiligpriester), zweite Meisterschafts-ID neben 4430
-    [4434] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 }, verify = true },
-    -- Handschuh-Tempo: Schlüssel = Itemnummer (74719, "Handschuhe -
-    -- Großes Tempo"), weil die Verzauberungs-ID dazu nicht belegt ist.
-    -- Ohne diesen Eintrag stünde für die Tempo-Specs keine Empfehlung
-    -- mehr da, und wer richtig auf Tempo verzaubert hat, bekäme seine
-    -- Werte gegen eine Meisterschaftsempfehlung gehalten - also einen
-    -- Mangel gemeldet, den es nicht gibt. Erkannt wird er über Slot +
-    -- Werte bzw. den Namen, nicht über die Nummer.
-    [74719] = { name = "Großes Tempo",             slot = "Hände", stats = { haste = 170 }, verify = true },
+    -- Der Bericht vom Heiligpriester (2.6.0.3), dessen Handschuhe die
+    -- 4433 trugen und "+170 Meisterschaft" zeigten, war also richtig und
+    -- vollständig; der ältere Bericht dagegen ist damit widerlegt. Zwei
+    -- IDs für dieselbe Verzauberung gibt es an dieser Stelle nicht.
+    --
+    -- 4434 stand hier als zweite Stärke-ID. Auch das war falsch: 4434 ist
+    -- die Nebenhand-Intelligenz und steht jetzt in ihrem eigenen Block.
+    [4430] = { name = "Großes Tempo",              slot = "Hände", stats = { haste = 170 } },      -- Gegenstand 74719
+    [4431] = { name = "Überragende Waffenkunde",   slot = "Hände", stats = { expertise = 170 } },  -- Gegenstand 74720
+    [4432] = { name = "Erstklassige Stärke",       slot = "Hände", stats = { strength = 170 } },   -- Gegenstand 74721 (Live-Tooltip)
+    [4433] = { name = "Überragende Meisterschaft", slot = "Hände", stats = { mastery = 170 } },    -- Gegenstand 74722 (Live-Tooltip)
 
     --------------------------------------------------
     -- BEINE (Lederverarbeitung / Schneiderei)
@@ -215,37 +224,33 @@ WeintCodex_Enchants = {
     -- FÜSSE
     --------------------------------------------------
 
-    [4425] = { name = "Verschwimmen",                  slot = "Füße", stats = { agility = 140 } },  -- WoWHead: "Stiefel - Verschwimmen" (item 74717, Blurred Speed)
-    -- Korrigiert (User-Bericht per In-Game-Tooltip, Item "Sporen des
-    -- Wolfsreiters"/105033): 4426 stand bisher fälschlich als
-    -- "Pandarenschritt" (Meisterschaft). Der Live-Link des Items trägt
-    -- diese ID tatsächlich für eine mit "Großes Tempo" (Haste) verzauberte
-    -- Stiefel - selbes Tempo-Tier wie 74715. Bestätigt auch durch bereits
-    -- bestehende Empfehlungslisten in spec_profiles.lua, die 4426 an
-    -- mehreren Stellen bereits als Tempo-Alternative zu 74715 führten.
-    [4426] = { name = "Großes Tempo",                  slot = "Füße", stats = { haste = 175 }, verify = true },
-    [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
-    -- "Pandarenpfoten" (Meisterschaft + geringe Bewegungsgeschwindigkeit).
-    -- WERT KORRIGIERT (2.3.0.2): stand hier bis dahin mit 175 Meisterschaft
-    -- und damit auf demselben Niveau wie das Tempo-Enchant. Die Verzauberung
-    -- gibt 140 — bestätigt am deutschen Gegenstand 74718 ("Stiefel -
-    -- Pandarenpfoten … erhöht Bewegungstempo geringfügig und
-    -- Meisterschaftswertung um 140"). Die falsche Zahl war keine Kosmetik:
-    -- sie liess 140 Meisterschaft gegen 175 Tempo wie einen Gleichstand
-    -- aussehen und steht damit hinter den Stiefel-Empfehlungen in
-    -- data/spec_profiles.lua.
-    [4429] = { name = "Pandarenpfoten",                slot = "Füße", stats = { mastery = 140 } },
-    -- Boots-Tempo (bestätigt via Nutzer/Wowhead), selber Effekt wie 4426.
-    -- Schlüssel = Item-ID (74715); Bewertung über Name-Abgleich
-    -- ("Verzaubert: Großes Tempo").
-    [74715] = { name = "Großes Tempo",                 slot = "Füße", stats = { haste = 175 }, verify = true },
-    -- HINWEIS: 4430 stand hier bis 2.0.1.0 als zweite Hände-Tempo-ID und
-    -- steht jetzt im HÄNDE-Block als "Überragende Meisterschaft" — der
-    -- Nutzerbericht, der schon damals dagegen sprach (Handschuhe mit
-    -- Meisterschaft trugen diese ID), ist inzwischen die belastbarere
-    -- Angabe. Laut WoWHead gibt es in MoP nur 4 Stiefel-Verzauberungen
-    -- (Präzision/Treffer, Tempo, Verschwimmen, Pandarenpfoten) - kein
-    -- separates reines "Beweglichkeit"-Enchant für Füße.
+    -- KORRIGIERT 08.09.2026. Anlass war ein Nutzerbericht am
+    -- Verstärker-Schamanen: richtig verzauberte Stiefel lasen
+    -- "Verschwimmen (ID 4428 abweichend – /wc vz)". Der Abgleich gegen
+    -- die Spieldaten (siehe Kopf) sagt, warum - MoP hat genau vier
+    -- Stiefelverzauberungen, und sie liegen lückenlos auf 4426-4429:
+    --   4426 Großes Tempo    (Gegenstand 74715, Zauber 104407)
+    --   4427 Große Präzision (Gegenstand 74716, Zauber 104408)
+    --   4428 Verschwimmen    (Gegenstand 74717, Zauber 104409)
+    --   4429 Pandarenpfoten  (Gegenstand 74718, Zauber 104414)
+    --
+    -- Hier stand die Präzision auf der 4428 und Verschwimmen auf einer
+    -- 4425, die es in MoP nicht gibt. Beide Fehler zusammen hiessen:
+    -- jeder mit "Verschwimmen" verzauberte Stiefel trug die Marke
+    -- "(ID abweichend)", und in den Empfehlungslisten stand für die
+    -- Beweglichkeits-Specs die Präzision da, wo die Pandarenpfoten
+    -- gemeint waren (die Kommentare dort rechneten seit jeher mit
+    -- Meisterschaft).
+    --
+    -- Der Wert der Pandarenpfoten bleibt, wie er seit 2.3.0.2 ist: 140
+    -- Meisterschaft, bestätigt am deutschen Gegenstand 74718 und jetzt
+    -- ein zweites Mal an den Spieldaten. 175 wären ein Gleichstand mit
+    -- dem Tempo-Enchant gewesen - und genau davon hängen die
+    -- Stiefel-Empfehlungen in data/spec_profiles.lua ab.
+    [4426] = { name = "Großes Tempo",    slot = "Füße", stats = { haste = 175 } },    -- Gegenstand 74715 (Live-Tooltip: Sporen des Wolfsreiters/105033)
+    [4427] = { name = "Große Präzision", slot = "Füße", stats = { hit = 175 }, verify = true },  -- Gegenstand 74716
+    [4428] = { name = "Verschwimmen",    slot = "Füße", stats = { agility = 140 } },  -- Gegenstand 74717 (Live-Tooltip: Nutzerbericht 08.09.2026)
+    [4429] = { name = "Pandarenpfoten",  slot = "Füße", stats = { mastery = 140 } },  -- Gegenstand 74718
 
     --------------------------------------------------
     -- NEBENHAND (Schild UND Beihand-Gegenstand)
@@ -261,16 +266,14 @@ WeintCodex_Enchants = {
     -- gibt es nicht - die alten WotLK/Cata-Formeln sind wertlos und
     -- deshalb hier bewusst nicht hinterlegt.
     --
-    -- SCHLÜSSEL: Fuer diese beiden ist die Link-Enchant-ID noch nicht
-    -- bestätigt; hinterlegt sind die Gegenstands-IDs der Verzauberungs-
-    -- rolle (74729 bzw. 89737), analog zu 74711/74715 weiter oben. Die
-    -- Bewertung läuft ohnehin über den Tooltip-/Namensabgleich in
-    -- ResolveEnchant, ein ID-Irrtum verfälscht die Anzeige also nicht.
-    -- Per "/wc vz" die echten IDs ermitteln und hier eintragen.
+    -- SCHLÜSSEL: seit dem Abgleich vom 08.09.2026 stehen beide unter
+    -- ihrer echten Verzauberungs-ID statt unter der Nummer der
+    -- Verzauberungsrolle. 4434 stand bis dahin fälschlich als zweite
+    -- Stärke-ID im HÄNDE-Block.
     --------------------------------------------------
 
-    [74729] = { name = "Mächtige Intelligenz", slot = "Nebenhand", stats = { intellect = 165 }, verify = true },
-    [89737] = { name = "Großes Parieren",      slot = "Nebenhand", stats = { parry = 170 },    verify = true, nurSchild = true },
+    [4434] = { name = "Mächtige Intelligenz", slot = "Nebenhand", stats = { intellect = 165 }, verify = true },  -- Gegenstand 74729
+    [4993] = { name = "Großes Parieren",      slot = "Nebenhand", stats = { parry = 170 },     verify = true, nurSchild = true },  -- Gegenstand 89737
 
     --------------------------------------------------
     -- RINGE (Verzauberkunst-exklusiv)
@@ -281,16 +284,17 @@ WeintCodex_Enchants = {
     -- sonst hätten Nicht-Verzauberer dauerhaft zwei "fehlende"
     -- Verzauberungen im Check.
     --
-    -- SCHLÜSSEL: wie oben Platzhalter-IDs (Formel-Gegenstände
-    -- 84575-84578), bis die Link-Enchant-IDs per "/wc vz" bestätigt
-    -- sind. Zauber-IDs zur Kontrolle: 103461 Beweglichkeit,
-    -- 103462 Intelligenz, 103463 Ausdauer.
+    -- SCHLÜSSEL: seit dem Abgleich vom 08.09.2026 die echten
+    -- Verzauberungs-IDs statt der Formel-Gegenstände 84575-84578.
+    -- Die Stärke fällt dabei aus der Reihe: 4359/4360/4361 liegen
+    -- beieinander, die Stärke sitzt auf 4807. Genau deshalb taugt
+    -- Weiterzählen hier nicht.
     --------------------------------------------------
 
-    [84575] = { name = "Große Beweglichkeit", slot = "Ring", stats = { agility  = 160 }, verify = true },
-    [84576] = { name = "Große Intelligenz",   slot = "Ring", stats = { intellect = 160 }, verify = true },
-    [84577] = { name = "Große Ausdauer",      slot = "Ring", stats = { stamina  = 240 }, verify = true },
-    [84578] = { name = "Große Stärke",        slot = "Ring", stats = { strength = 160 }, verify = true },
+    [4359] = { name = "Große Beweglichkeit", slot = "Ring", stats = { agility   = 160 }, verify = true },  -- Gegenstand 84575, Zauber 103461
+    [4360] = { name = "Große Intelligenz",   slot = "Ring", stats = { intellect = 160 }, verify = true },  -- Gegenstand 84576, Zauber 103462
+    [4361] = { name = "Große Ausdauer",      slot = "Ring", stats = { stamina   = 240 }, verify = true },  -- Gegenstand 84577, Zauber 103463
+    [4807] = { name = "Große Stärke",        slot = "Ring", stats = { strength  = 160 }, verify = true },  -- Gegenstand 84578, Zauber 103465
 
 }
 

@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.0.2",
+        date    = "08.09.2026",
+        notes   = {
+            "Verzauberungen: mehrere Eintraege der Verzauberungsliste waren falsch. Wer richtig verzaubert war, bekam trotzdem |cffFFBB22(ID abweichend)|r zu lesen oder eine Empfehlung, die laengst auf dem Teil lag.",
+            "|cffD4A24AStiefel|r: |cffD4A24AVerschwimmen|r wird jetzt erkannt. Empfohlen wird es zusammen mit den Pandarenpfoten - die Praezision bleibt vertretbar, solange dein Trefferkap offen ist.",
+            "|cffD4A24AHandschuhe|r: was hier |cffD4A24AMeisterschaft|r hiess, war in Wahrheit das Tempo. Heilig-Paladin, Blut-Todesritter, Priester, Verstaerker-Schamane, Schurke und Wildheitsdruide bekommen jetzt wirklich die Meisterschaft.",
+            "|cffD4A24AJaeger|r wurden auf Waffenkunde geschickt, die im Fernkampf nichts tut. Dort steht jetzt Tempo.",
+            "|cffD4A24AUmhang|r: die Krit-Verzauberung stand unter der Nummer der Ausdauer-Verzauberung. Zauberer bekommen ausserdem die Intelligenz empfohlen statt der Stickerei, die nur Schneider anlegen koennen.",
+        },
+    },
+    {
         version = "3.0.0.1",
         date    = "07.09.2026",
         notes   = {

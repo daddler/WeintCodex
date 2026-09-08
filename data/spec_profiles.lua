@@ -203,12 +203,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },       -- Tanzender Stahl / Elementarkraft
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
+            Umhang       = { 4424, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.580 / Tempo 7.350 — Lauftempo entscheidet (so auch die Guides)
-            Ring         = { 84578 },
+            ["Füße"]     = { 4429, 4426, 4427 },  -- Meist. 6.580 / Tempo 7.350 — Lauftempo entscheidet (so auch die Guides); Präzision bis zum Trefferkap
+            Ring         = { 4807 },
         },
         -- Krit ist der beste Sekundärstat -> überall Glatter Goldberyll.
         -- Sockelboni matchen, wenn sie sich lohnen: Rot -> Gravierter
@@ -247,12 +247,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
+            Umhang       = { 4424, 4421 },       -- Krit zuerst, dann Präzision (Treffer)
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.440 / Tempo 7.700 — Lauftempo entscheidet (so auch die Guides)
-            Ring         = { 84578 },
+            ["Füße"]     = { 4429, 4426, 4427 },  -- Meist. 6.440 / Tempo 7.700 — Lauftempo entscheidet (so auch die Guides); Präzision bis zum Trefferkap
+            Ring         = { 4807 },
         },
         -- Krit ist der beste Sekundärstat, aber NICHT wertvoller als Stärke:
         -- 320 Krit ≈ 160 Stärke. Deshalb Hybridsteine, sobald ein Sockel-
@@ -296,15 +296,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },        -- Tanzender Stahl (Fallback: Koloss)
-            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
+            Nebenhand    = { 4993 },             -- Schild: Großes Parieren
             Schultern    = { 4805 },
             Brust        = { 4420, 4419 },        -- Defensiv: Überragende Ausdauer
-            Umhang       = { 74711 },             -- Großer Schutz (+200 Ausdauer)
+            Umhang       = { 4422 },             -- Großer Schutz (+200 Ausdauer)
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
-            ["Hände"]    = { 4430, 4431 },        -- Defensiv: Überragende Meisterschaft
+            ["Hände"]    = { 4433, 4431 },        -- Defensiv: Überragende Meisterschaft
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
             ["Füße"]     = { 4429 },  -- Meist. 10.080 / Tempo 2.625 — die andere ist wirklich falsch
-            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
+            Ring         = { 4807, 4361 },      -- Stärke, alternativ Ausdauer
         },
         -- Defensiv (Ausdauer-Fokus): Gediegener Chrysokoll überall.
         -- Sockelboni matchen, wenn lohnend: Rot -> Kunzit des Verteidigers,
@@ -351,15 +351,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4430, 74719 },  -- Meist. 12.750 / Tempo 7.650
+            ["Hände"]    = { 4433, 4430 },  -- Meist. 12.750 / Tempo 7.650
             Beine        = { 4826, 4825 },        -- Großer perlmuttfarbener Zauberfaden (Willenskraft)
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 10.500 / Tempo 7.875
-            Ring         = { 84576 },
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 10.500 / Tempo 7.875
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95345, 76888 },         -- Mutiger (legendär) / Belebender
@@ -386,15 +386,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4446, 4445 },        -- Flussgesang (River's Song)
-            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
+            Nebenhand    = { 4993 },             -- Schild: Großes Parieren
             Schultern    = { 4805 },
             Brust        = { 4420, 4419 },        -- Überragende Ausdauer
-            Umhang       = { 74711 },             -- Großer Schutz
+            Umhang       = { 4422 },             -- Großer Schutz
             Handgelenke  = { 4411, 4415 },        -- Meisterschaft
-            ["Hände"]    = { 4430, 74719, 4431 },  -- Meist. 13.600 / Tempo 11.050
+            ["Hände"]    = { 4433, 4430, 4431 },  -- Meist. 13.600 / Tempo 11.050
             Beine        = { 4824 },              -- Eisenschuppenbeinrüstung
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.200 / Tempo 11.375 — Lauftempo entscheidet
-            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 11.200 / Tempo 11.375 — Lauftempo entscheidet
+            Ring         = { 4807, 4361 },      -- Stärke, alternativ Ausdauer
         },
         -- Control-Tank: Waffenkunde-Hardcap (15%) + Treffer zuerst, dann
         -- Meisterschaft/Ausdauer. Sockelboni (Waffk./Treffer/Tempo/Ausdauer) matchen.
@@ -425,12 +425,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },       -- Präzision (Treffer), dann Krit
+            Umhang       = { 4421, 4424 },       -- Präzision (Treffer), dann Krit
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4432, 74719 },
+            ["Hände"]    = { 4432, 4430 },
             Beine        = { 4823 },
-            ["Füße"]     = { 74715, 4426, 4429, 4428 },  -- Meist. 11.200 / Tempo 15.750
-            Ring         = { 84578 },
+            ["Füße"]     = { 4426, 4429, 4427 },  -- Meist. 11.200 / Tempo 15.750; Präzision bis zum Trefferkap
+            Ring         = { 4807 },
         },
         -- Tempo bis 50% Gesamt-Tempo, danach Meisterschaft. Sockelboni
         -- lohnen fast immer (starke Tempo-/Meister-Hybride je Farbe).
@@ -471,12 +471,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4699, 4700, 4443 },  -- Zielfernrohre!
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4424, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            ["Hände"]    = { 4430, 4433 },          -- Tempo vor Meisterschaft (Fernkampf: keine Waffenkunde)
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 8.400
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 8.400; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -517,12 +517,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4699, 4700, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4424, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            ["Hände"]    = { 4430, 4433 },          -- Tempo vor Meisterschaft (Fernkampf: keine Waffenkunde)
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.700
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 7.700; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -560,12 +560,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4699, 4700, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4424, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            ["Hände"]    = { 4430, 4433 },          -- Tempo vor Meisterschaft (Fernkampf: keine Waffenkunde)
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.000
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 7.000; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -602,12 +602,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
+            Umhang       = { 4421, 4424 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            ["Hände"]    = { 4433, 4430, 4431 },    -- Meisterschaft; Waffenkunde nur bis zum Kap
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 10.500
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 10.500; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -643,12 +643,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
+            Umhang       = { 4421, 4424 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            ["Hände"]    = { 4430, 4433, 4431 },    -- Tempo vor Meisterschaft; Waffenkunde bis zum Kap
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 9.100
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 9.100; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -677,12 +677,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
+            Umhang       = { 4421, 4424 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            ["Hände"]    = { 4430, 4433, 4431 },    -- Tempo vor Meisterschaft; Waffenkunde bis zum Kap
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 8.400
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 8.400; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -715,15 +715,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4430, 74719 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer perlmuttfarbener Zauberfaden (Willenskraft)
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 9.100 / Tempo 6.125
-            Ring         = { 84576 },
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 9.100 / Tempo 6.125
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95345, 76888 },
@@ -747,15 +747,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 4430, 74719 },
+            ["Hände"]    = { 4433, 4430 },
             Beine        = { 4826, 4825 },        -- Großer perlmuttfarbener Zauberfaden (Willenskraft)
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 8.400 / Tempo 6.125
-            Ring         = { 84576 },
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 8.400 / Tempo 6.125
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95345, 76888 },
@@ -781,15 +781,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 8.680 / Tempo 15.750
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 8.680 / Tempo 15.750
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -824,12 +824,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 3368, 3847 },        -- Gefallener Kreuzfahrer / Steinhautgargoyle
             Schultern    = { 4803 },              -- Große Inschrift des Tigerzahns
             Brust        = { 4419, 4420 },
-            Umhang       = { 4422, 4421 },        -- Überragender kritischer Trefferwert
+            Umhang       = { 4424, 4421 },        -- Überragender kritischer Trefferwert
             Handgelenke  = { 4411, 4415 },
-            ["Hände"]    = { 4430, 4431 },  -- Meist. 15.300 / Tempo 7.650
+            ["Hände"]    = { 4433, 4431 },  -- Meist. 15.300 / Tempo 7.650
             Beine        = { 4823, 4824 },        -- Zornbalgbeinrüstung
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 12.600 / Tempo 7.875
-            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 12.600 / Tempo 7.875
+            Ring         = { 4807, 4361 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 95344, 76895 },
@@ -858,12 +858,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 3368, 3370 },        -- Fallen Crusader / Razorice (bei Dual-Wield)
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },
+            Umhang       = { 4421, 4424 },
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4432, 74719 },
+            ["Hände"]    = { 4432, 4430 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 11.900 / Tempo 7.875
-            Ring         = { 84578 },
+            ["Füße"]     = { 4429, 4426, 4427 },  -- Meist. 11.900 / Tempo 7.875; Präzision bis zum Trefferkap
+            Ring         = { 4807 },
         },
         bestGems = {
             meta      = { 95346, 76886 },
@@ -892,12 +892,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 3368 },
             Schultern    = { 4803 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },
+            Umhang       = { 4421, 4424 },
             Handgelenke  = { 4415 },
-            ["Hände"]    = { 4432, 74719 },
+            ["Hände"]    = { 4432, 4430 },
             Beine        = { 4823 },
-            ["Füße"]     = { 74715, 4426, 4428 },  -- Meist. 5.600 / Tempo 11.375 — die andere ist wirklich falsch
-            Ring         = { 84578 },
+            ["Füße"]     = { 4426, 4427 },  -- Meist. 5.600 / Tempo 11.375 — die andere ist wirklich falsch. Präzision bis zum Trefferkap
+            Ring         = { 4807 },
         },
         -- Ab ~ilvl 540 lohnt sich Krit mehr als reine Stärke-Sockelung.
         bestGems = {
@@ -928,15 +928,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.900 / Tempo 13.125 — Lauftempo entscheidet
-            Ring         = { 84576 },
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 11.900 / Tempo 13.125 — Lauftempo entscheidet
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -965,12 +965,23 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4424, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            -- GEMELDET 08.09.2026 an diesem Profil: hier stand NUR die
+            -- Waffenkunde (4431) - dieselbe Lücke, die beim
+            -- Wildheitsdruiden schon in 2.9.3.0 zu war. Waffenkunde ist
+            -- über 7,5 % wertlos und lässt sich, anders als eine
+            -- Verzauberung, jederzeit umschmieden; die Meisterschaft
+            -- (13.260) ist die Empfehlung der Guides, das Tempo (11.560)
+            -- bleibt vertretbar. Alle drei stehen in der Liste, vorn
+            -- steht die Meisterschaft.
+            ["Hände"]    = { 4433, 4430, 4431 },    -- Meist. 13.260 / Tempo 11.560; Waffenkunde bis zum Kap
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 10.920
-            Ring         = { 84575 },
+            -- Zweite Hälfte desselben Berichts: die Stiefel lasen
+            -- "Verschwimmen (ID 4428 abweichend)". Die ID war richtig,
+            -- unsere Zuordnung nicht - siehe FÜSSE in data/enchants.lua.
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 10.920; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -994,15 +1005,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },        -- Großes Tempo
+            ["Hände"]    = { 4430, 4433 },        -- Großes Tempo
             Beine        = { 4826, 4825 },        -- Großer perlmuttfarbener Zauberfaden (Willenskraft)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 7.700 / Tempo 14.875
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 7.700 / Tempo 14.875
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95345, 76888 },
@@ -1032,15 +1043,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.900 / Tempo 13.125 — Lauftempo entscheidet
-            Ring         = { 84576 },
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 11.900 / Tempo 13.125 — Lauftempo entscheidet
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1066,15 +1077,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 8.400 / Tempo 12.250
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 8.400 / Tempo 12.250
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1100,15 +1111,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 74715, 4426 },  -- Meist. 7.000 / Tempo 14.000 — die andere ist wirklich falsch
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426 },  -- Meist. 7.000 / Tempo 14.000 — die andere ist wirklich falsch
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1138,15 +1149,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 10.500 / Tempo 14.875
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 10.500 / Tempo 14.875
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1172,15 +1183,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 10.500 / Tempo 14.350 — Guides nennen Pandarenpfoten (Tempo zählt nur am Breakpoint), beide gültig
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 10.500 / Tempo 14.350 — Guides nennen Pandarenpfoten (Tempo zählt nur am Breakpoint), beide gültig
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1206,15 +1217,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 4429, 74715, 4426 },  -- Meist. 11.900 / Tempo 12.250 — Lauftempo entscheidet
-            Ring         = { 84576 },
+            ["Füße"]     = { 4429, 4426 },  -- Meist. 11.900 / Tempo 12.250 — Lauftempo entscheidet
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1249,10 +1260,10 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431, 74719 },
+            ["Hände"]    = { 4431, 4433, 4430 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4429, 4425, 74715, 4426, 4428 },  -- Bewegl. 11.900 / Meist. 12.600 / Tempo 7.000
-            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
+            ["Füße"]     = { 4429, 4428, 4426, 4427 },  -- Bewegl. 11.900 / Meist. 12.600 / Tempo 7.000; Präzision bis zum Trefferkap
+            Ring         = { 4359, 4361 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 95344, 76895 },
@@ -1276,15 +1287,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },  -- Tempo 12.240 / Meist. 5.950
+            ["Hände"]    = { 4430, 4433 },  -- Tempo 12.240 / Meist. 5.950
             Beine        = { 4826, 4825 },        -- Großer perlmuttfarbener Zauberfaden (Willenskraft)
-            ["Füße"]     = { 74715, 4426 },  -- Meist. 4.900 / Tempo 12.600 — die andere ist wirklich falsch
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426 },  -- Meist. 4.900 / Tempo 12.600 — die andere ist wirklich falsch
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95345, 76888 },
@@ -1320,12 +1331,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4424, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.700
-            Ring         = { 84575 },
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 7.700; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -1355,15 +1366,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },
+            ["Hände"]    = { 4430, 4433 },
             Beine        = { 4825, 4826 },        -- Großer himmelblauer Zauberfaden (Krit)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 8.400 / Tempo 14.350
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 8.400 / Tempo 14.350
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95347, 76885 },
@@ -1407,7 +1418,7 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804 },
             Brust        = { 4419 },
-            Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
+            Umhang       = { 4421, 4424 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
             -- HANDSCHUHE: Überragende Meisterschaft, nicht Waffenkunde.
             -- Bis 2.9.3.0 stand hier NUR die Waffenkunde (4431) — damit
@@ -1417,14 +1428,16 @@ WeintCodex_SpecProfiles = {
             -- die Meisterschaft ist die Empfehlung der Guides und in den
             -- Raiddaten die mit Abstand häufigste. Beide bleiben in der
             -- Liste: unter dem Kap ist die Waffenkunde vertretbar.
-            ["Hände"]    = { 4430, 4431 },
+            ["Hände"]    = { 4433, 4430, 4431 },
             Beine        = { 4822 },
-            -- Verschwimmen (140 Bewegl. + Lauftempo) vor Großer Präzision
-            -- (175 Treffer, nur solange das Kap offen ist). Der Kommentar
-            -- hier nannte bis 2.9.3.0 eine "Meisterschaft", die in keinem
-            -- der beiden Einträge steht.
-            ["Füße"]     = { 4425, 4428 },
-            Ring         = { 84575 },
+            -- Verschwimmen (140 Bewegl. + Lauftempo) vor Pandarenpfoten
+            -- (140 Meist. + Lauftempo) und Großer Präzision (175 Treffer,
+            -- nur solange das Kap offen ist). Bis 3.0.0.2 nannte der
+            -- Kommentar hier eine "Meisterschaft", die in keinem der
+            -- Einträge stand - sie stand nicht darin, weil die
+            -- Pandarenpfoten unter der falschen ID gesucht wurden.
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 14.000 / Meist. 7.000; Präzision bis zum Trefferkap
+            Ring         = { 4359 },
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -1460,10 +1473,10 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419, 4420 },
             Umhang       = { 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431, 74719 },
+            ["Hände"]    = { 4431, 4430 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4425, 4429, 4428 },  -- Bewegl. 7.700 / Meist. 2.100
-            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 7.700 / Meist. 2.100; Präzision bis zum Trefferkap
+            Ring         = { 4359, 4361 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 95344, 76895 },
@@ -1487,15 +1500,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4442, 4441 },
-            Nebenhand    = { 74729 },             -- Schild/Beihand: Mächtige Intelligenz
+            Nebenhand    = { 4434 },             -- Schild/Beihand: Mächtige Intelligenz
             Schultern    = { 4806 },
             Brust        = { 4419 },
-            Umhang       = { 4892 },
+            Umhang       = { 4423, 4892 },
             Handgelenke  = { 4414 },
-            ["Hände"]    = { 74719, 4430 },  -- Tempo 14.450 / Meist. 11.900 — wie bei den Stiefeln
+            ["Hände"]    = { 4430, 4433 },  -- Tempo 14.450 / Meist. 11.900 — wie bei den Stiefeln
             Beine        = { 4826, 4825 },        -- Großer perlmuttfarbener Zauberfaden (Willenskraft)
-            ["Füße"]     = { 74715, 4426, 4429 },  -- Meist. 9.800 / Tempo 14.875
-            Ring         = { 84576 },
+            ["Füße"]     = { 4426, 4429 },  -- Meist. 9.800 / Tempo 14.875
+            Ring         = { 4360 },
         },
         bestGems = {
             meta      = { 95345, 76888 },
@@ -1528,15 +1541,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },
-            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
+            Nebenhand    = { 4993 },             -- Schild: Großes Parieren
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },       -- Offensiv: Krit
+            Umhang       = { 4424, 4421 },       -- Offensiv: Krit
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4432 },
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.720 / Tempo 7.000 — Lauftempo entscheidet
-            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
+            ["Füße"]     = { 4429, 4426, 4427 },  -- Meist. 6.720 / Tempo 7.000 — Lauftempo entscheidet; Präzision bis zum Trefferkap
+            Ring         = { 4807, 4361 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
         -- matchen, wenn sie sich lohnen (Rot -> Listiger Aragonit).
@@ -1565,15 +1578,15 @@ WeintCodex_SpecProfiles = {
         },
         bestEnchants = {
             Waffe        = { 4444, 4445 },
-            Nebenhand    = { 89737 },             -- Schild: Großes Parieren
+            Nebenhand    = { 4993 },             -- Schild: Großes Parieren
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
             Umhang       = { 4421 },
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4432 },        -- Offensiv: Überragende Waffenkunde
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 74715, 4426, 4428 },  -- Meist. 6.300 / Tempo 15.750 — die andere ist wirklich falsch
-            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
+            ["Füße"]     = { 4426, 4427 },  -- Meist. 6.300 / Tempo 15.750 — die andere ist wirklich falsch. Präzision bis zum Trefferkap
+            Ring         = { 4807, 4361 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Waffenkunde-Hardcap + Treffer, dann Tempo/Krit (Rache-DPS).
         bestGems = {
@@ -1605,12 +1618,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 3368, 3847 },
             Schultern    = { 4803, 4805 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },        -- Überragender kritischer Trefferwert
+            Umhang       = { 4424, 4421 },        -- Überragender kritischer Trefferwert
             Handgelenke  = { 4411, 4415 },
-            ["Hände"]    = { 74719, 4431 },        -- Großes Tempo
+            ["Hände"]    = { 4430, 4431 },        -- Großes Tempo
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 74715, 4426 },  -- Meist. 2.800 / Tempo 13.125 — die andere ist wirklich falsch
-            Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
+            ["Füße"]     = { 4426 },  -- Meist. 2.800 / Tempo 13.125 — die andere ist wirklich falsch
+            Ring         = { 4807, 4361 },      -- Stärke, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 95346, 76886 },
@@ -1641,12 +1654,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804, 4805 },
             Brust        = { 4419 },
-            Umhang       = { 4422, 4421 },
+            Umhang       = { 4424, 4421 },
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 74719, 4431 },
+            ["Hände"]    = { 4430, 4431 },
             Beine        = { 4822, 4824 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 12.600 / Meist. 4.900
-            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 12.600 / Meist. 4.900; Präzision bis zum Trefferkap
+            Ring         = { 4359, 4361 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -1675,12 +1688,12 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4804, 4805 },
             Brust        = { 4420, 4419 },        -- Überragende Ausdauer
-            Umhang       = { 74711 },             -- Großer Schutz
+            Umhang       = { 4422 },             -- Großer Schutz
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 74719, 4431 },
+            ["Hände"]    = { 4430, 4431 },
             Beine        = { 4822, 4824 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 8.400 / Meist. 2.100
-            Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
+            ["Füße"]     = { 4428, 4429, 4427 },  -- Bewegl. 8.400 / Meist. 2.100; Präzision bis zum Trefferkap
+            Ring         = { 4359, 4361 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
             meta      = { 95346, 76884 },
@@ -1736,10 +1749,14 @@ WeintCodex_SpecProfiles = {
 --      Lauftempo und Tempo-Breakpoints, und beides kennt dieses Modell
 --      nicht.
 --
--- Mehrfach vergebene IDs derselben Verzauberung (74715/4426 "Großes
--- Tempo", 4422/4424, 4423/4892, 4432/4434) zählen als ein Eintrag —
--- sonst meldete der Wächter eine Lücke, wo dieselbe Verzauberung unter
--- ihrer anderen ID längst gelistet ist.
+-- Sollte eine Verzauberung je unter zwei IDs stehen, zählt sie als EIN
+-- Eintrag — sonst meldete der Wächter eine Lücke, wo dieselbe
+-- Verzauberung unter ihrer anderen ID längst gelistet ist. Seit dem
+-- ID-Abgleich vom 08.09.2026 gibt es diese Doppelungen nicht mehr: jede
+-- der vier "zwei IDs, dieselbe Verzauberung"-Behauptungen war in
+-- Wahrheit eine falsch zugeordnete ID (siehe Kopf von data/enchants.lua).
+-- Der Abgleich nach NAMEN bleibt trotzdem stehen — er kostet nichts und
+-- fängt den nächsten Irrtum dieser Art ab.
 --------------------------------------------------
 
 local COMPARABLE_STATS = { mastery = true, haste = true, crit = true }
@@ -1792,8 +1809,8 @@ function WeintCodex_ValidateEnchantWeights()
                         if e and e.name then listed[e.name] = true end
                     end
 
-                    -- Und dieselbe Verzauberung nur einmal melden: "Großes
-                    -- Tempo" steht unter 74715 UND 4426 in der Tabelle.
+                    -- Und dieselbe Verzauberung nur einmal melden, falls
+                    -- sie je wieder unter zwei IDs stehen sollte.
                     local reported = {}
 
                     for id, entry in pairs(enchants) do

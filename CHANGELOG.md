@@ -2,6 +2,105 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.0.2] – 2026-09-08
+
+**Gemeldet am Verstärker-Schamanen: zwei Verzauberungen, beide richtig angelegt, beide falsch beurteilt.**
+Auf den Stiefeln stand *Verschwimmen* — und daneben die Marke
+*(ID 4428 abweichend – /wc vz)*. Auf den Handschuhen empfahl das Addon
+*Überragende Waffenkunde*, wo die *Überragende Meisterschaft* hingehört.
+
+Beides ging auf dieselbe Ursache zurück: die Nummern, unter denen dieses
+Addon die Verzauberungen führt, waren an mehreren Stellen falsch
+zugeordnet. Sie lassen sich am Spielclient nicht auflösen und sind
+deshalb von Hand gepflegt worden — mit Wowhead-Itemnummern als Notbehelf
+und mit „zwei Nummern für dieselbe Verzauberung" als vermeintlicher
+Regel. Jede dieser Nummern ist jetzt einmal gegen die Spieldaten gehalten
+worden. Sieben Einträge waren falsch, und drei davon haben Empfehlungen
+für alle 39 Spezialisierungen verdreht:
+
+- **Stiefel.** *Verschwimmen* stand unter einer Nummer, die es in Mists
+  of Pandaria gar nicht gibt; auf ihrer echten Nummer stand die
+  *Große Präzision*. Wer *Verschwimmen* trug, bekam deshalb die Marke
+  *(ID abweichend)* an einen korrekt verzauberten Stiefel geheftet. Und
+  in den Empfehlungslisten der Beweglichkeits-Spezialisierungen stand die
+  Präzision an der Stelle, an der die *Pandarenpfoten* gemeint waren —
+  die Notiz daneben rechnete seit jeher mit Meisterschaft.
+- **Handschuhe.** Was hier *Überragende Meisterschaft* hiess, ist in
+  Wahrheit *Großes Tempo*. Damit stand in dreizehn Tempo-Listen zweimal
+  dieselbe Verzauberung, und die Meisterschafts-Spezialisierungen
+  (Heilig-Paladin, Blut-Todesritter, Disziplin- und Heilig-Priester,
+  Verstärker-Schamane, Schurken, Wildheitsdruide) bekamen gar keine
+  Meisterschaft empfohlen — was dort so hiess, war Tempo.
+- **Umhang.** Die Krit-Verzauberung stand ein zweites Mal unter der
+  Nummer der Ausdauer-Verzauberung. Acht Listen führten damit die
+  Ausdauer, wo *Krit zuerst* gemeint war.
+
+Dazu drei Empfehlungen, die schon vorher niemandem geholfen haben:
+
+- **Jäger** bekamen *Überragende Waffenkunde* auf die Handschuhe
+  empfohlen. Waffenkunde wirkt nur im Nahkampf; für einen Jäger ist sie
+  nichts wert — die Notiz zu seinen Sockelsteinen sagte das seit Monaten,
+  die Verzauberungsliste nicht. Dort steht jetzt Tempo, dahinter
+  Meisterschaft.
+- **Schurken und der Verstärker-Schamane** hatten *Überragende
+  Waffenkunde* als einzige Handschuh-Empfehlung. Sie bleibt vertretbar,
+  solange das Waffenkunde-Kap offen ist, steht aber nicht mehr vorn.
+  Beim Wildheitsdruiden war genau das schon in 2.9.3.0 repariert worden.
+- **Zauberer und Heiler** bekamen als Umhang-Empfehlung die
+  Schneider-Stickerei *Lichtweberstickerei* — die nur anlegen kann, wer
+  selbst Schneider ist. Sie stand ausserdem mit festen Werten in der
+  Tabelle, die sie gar nicht gibt (sie procct). Vorn steht jetzt die
+  *Überragende Intelligenz*, die Stickerei bleibt als Alternative.
+
+Nachzuverzaubern ist deswegen nichts, was vorher richtig war. Wer der
+alten Handschuh-Empfehlung gefolgt ist, trägt Tempo statt Meisterschaft —
+ob sich der Wechsel lohnt, sagt die Liste im Charakterfenster.
+
+### Technisch
+
+`data/enchants.lua` ist einmal vollständig gegen die MoP-Spieldaten
+abgeglichen worden (Verzauberungstabelle der MoP-Simulation `wowsims/mop`,
+`assets/database/db.json`: Verzauberungs-ID → Formel-Gegenstand → Zauber →
+Werte). Korrigiert:
+
+| ID | stand hier | ist in Wahrheit |
+|---|---|---|
+| `4422` | Umhang, Krit 180 (Dublette zu 4424) | Umhang, Ausdauer 200 (*Großer Schutz*, Formel 74711) |
+| `4425` | Füße, *Verschwimmen* | existiert in MoP nicht — entfernt |
+| `4428` | Füße, *Große Präzision* (Treffer 175) | Füße, *Verschwimmen* (Bewegl. 140, Formel 74717) |
+| — | fehlte | `4427` Füße, *Große Präzision* (Treffer 175, Formel 74716) |
+| `4430` | Hände, Meisterschaft 170 | Hände, Tempo 170 (Formel 74719) |
+| `4434` | Hände, Stärke 170 (Dublette zu 4432) | Nebenhand, Intelligenz 165 (Formel 74729) |
+| `4892` | Umhang, Intelligenz 180 (Dublette zu 4423) | *Lichtweberstickerei* Rang 3, Proc ohne feste Werte |
+| `4099` | Waffe, „Zielfernrohr (älteres Modell)" | *Bergsturz* (Cata-Waffenverzauberung) |
+
+Die Platzhalter-Einträge unter Itemnummern sind damit weg: Ringe
+(`84575-84578` → `4359`/`4360`/`4361`/`4807`), Nebenhand (`74729` →
+`4434`, `89737` → `4993`), Stiefel-Tempo (`74715` → `4426`),
+Handschuh-Tempo (`74719` → `4430`), Umhang-Ausdauer (`74711` → `4422`).
+**Jede Verzauberung steht jetzt genau einmal, unter ihrer echten
+Verzauberungs-ID.** Die vier „zwei IDs, dieselbe Verzauberung"-Paare, die
+`docs/systems/gearing.md` bis hierher als Regel beschrieb, waren allesamt
+falsch zugeordnete IDs — und weil beide Einträge denselben *Namen*
+trugen, hat der Namensabgleich in `ResolveEnchant` den Widerspruch
+zugedeckt statt ihn zu zeigen. Genau deshalb ist keiner dieser drei
+Fehler je als „ID abweichend" aufgefallen, sondern nur als eine
+Empfehlung, die nicht stimmte.
+
+`data/spec_profiles.lua`: alle 39 Profile auf die richtigen IDs gezogen
+(167 Zeilen), Reihenfolge und Umfang der Listen unverändert übernommen —
+ausser dort, wo die Korrektur eine echte Lücke aufgedeckt hat (Jäger,
+Schurken, Verstärker, Braumeister, Wildheit: Meisterschaft bzw. Tempo
+ergänzt; Zauberer: Intelligenz vor die Stickerei). `WeintCodex_ValidateSpecData()`
+und `WeintCodex_ValidateEnchantWeights()` melden danach null — vorher
+stand dort eine Lücke beim Wildheitsdruiden.
+
+`.github/tests/gem_plan_test.lua` prüft die Handschuh-Empfehlung jetzt
+über den **Namen** statt über die Nummer (die alte Prüfung `list[1] ==
+4430` hätte zur falschen Nummer weiter „ok" gesagt), deckt Verstärker,
+Meuchelschurke und die drei Jäger mit ab und schlägt neu an, wenn ein
+Slot dieselbe Verzauberung zweimal führt.
+
 ## [3.0.0.1] – 2026-09-07
 
 Diese Fassung ändert nichts, was du im Spiel siehst.
