@@ -2,6 +2,28 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.2.1] – 2026-09-08
+
+Diese Fassung ändert nichts, was du im Spiel siehst. Der Import deines
+Sim-Ergebnisses aus WeintCompanion ist zusätzlich abgesichert, damit ein
+gültiger Export nie fälschlich als leer gemeldet wird.
+
+### Technisch
+
+Ein gemeldeter Fall (`WCIMPORT:TG:...` mit 15 Teilen, 21 Steinen, 11
+Umschmiedungen) wurde als Regressionstest in
+`.github/tests/targetgear_test.lua` aufgenommen und läuft dort exakt so
+durch, wie er gemeldet wurde — `TG.ParseTransfer` selbst erkennt ihn
+bereits korrekt (typeTag, alle 15 Items, alle 21 Gems, alle 11
+Umschmiedungen, spec/character/source/id/created). Die im Bugreport
+gezeigte Fehlermeldung enthielt außerdem ein „ü" (`Ausrüstungsplatz`),
+während `modules/targetgear.lua` an dieser Stelle durchgehend ASCII
+schreibt (`Ausruestungsplatz`) — dieser Text existiert in der Git-Historie
+dieses Moduls nirgends. Das spricht für ein veraltetes/abweichendes
+Addon-Verzeichnis auf dem betroffenen Client statt für einen Fehler in
+diesem Parser; an `modules/targetgear.lua` und `modules/sync.lua` wurde
+deshalb nichts geändert.
+
 ## [3.0.2.0] – 2026-09-08
 
 **Deine Sockelsteine und Umschmiedungen kommen jetzt direkt aus dem Sim.**

@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.2.1",
+        date    = "08.09.2026",
+        notes   = {
+            "Diese Fassung aendert nichts, was du im Spiel siehst. Der Import deines Sim-Ergebnisses aus WeintCompanion ist zusaetzlich abgesichert, damit ein gueltiger Export nie faelschlich als leer gemeldet wird.",
+        },
+    },
+    {
         version = "3.0.2.0",
         date    = "08.09.2026",
         notes   = {

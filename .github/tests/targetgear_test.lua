@@ -423,6 +423,114 @@ do
 end
 
 --==========================================================================
+-- 9b) REGRESSION: der reale Companion-Transferstring aus dem Bugreport
+--==========================================================================
+-- Ein Spieler meldete "In dem String steht kein einziger Ausruestungsplatz"
+-- fuer einen String, den der Companion nachweislich richtig erzeugt hatte
+-- (15 Items, 21 Steine, 11 Umschmiedungen). Dieser Testfall haelt exakt
+-- jenen String fest - Wort fuer Wort aus dem Bugreport kopiert - damit ein
+-- gueltiger Companion-Export nie wieder mit dieser Meldung abgewiesen wird.
+-- (Die Ursache lag nicht in diesem Parser: siehe die Root-Cause-Notiz im
+-- Pull Request. Dieser Test belegt lediglich, dass der Parser selbst
+-- korrekt bleibt.)
+
+do
+    local rawStr = "WCIMPORT:TG:DEATHKNIGHT_BLOOD:bf8435f694a1:1788872681:Njiah:wowsims_json:"
+        .. "1|99190|95344-76695|0|0,"
+        .. "2|103916||136|0,"
+        .. "3|103748|76673-76673|136|4803,"
+        .. "15|102250|76695|156|4424,"
+        .. "5|99188|76695-76695-76690|157|4419,"
+        .. "9|103742|76695|161|4415,"
+        .. "10|99189|76695-76690-76695|157|4433,"
+        .. "6|103933|76695-76673-76695|0|0,"
+        .. "7|99039|76673-76683|121|4823,"
+        .. "8|103744|76695|140|4426,"
+        .. "11|103894|76690|125|0,"
+        .. "12|105285|76673|136|0,"
+        .. "13|102306||0|0,"
+        .. "14|102296||0|0,"
+        .. "16|103869|76683|143|3368"
+
+    -- Exakt der Weg, den modules/sync.lua ProcessImport() nimmt.
+    local typeTag, payload = rawStr:match("^WCIMPORT:([^:]+):(.+)$")
+    Check("der Umschlag liefert den Typ TG", typeTag == "TG", tostring(typeTag))
+
+    local entry, problem = TG.ParseTransfer(payload)
+
+    Check("ein gueltiger Companion-String wird NIE mit "
+          .. "'kein einziger Ausruestungsplatz' abgewiesen",
+          not (problem and problem:find("Ausruestungsplatz", 1, true)),
+          tostring(problem))
+
+    Check("der reale Bugreport-String wird angenommen", entry ~= nil,
+          tostring(problem))
+
+    if entry then
+        Check("spec = DEATHKNIGHT_BLOOD", entry.spec == "DEATHKNIGHT_BLOOD",
+              tostring(entry.spec))
+        Check("character = Njiah", entry.character == "Njiah",
+              tostring(entry.character))
+        Check("source = wowsims_json", entry.source == "wowsims_json",
+              tostring(entry.source))
+        Check("id = bf8435f694a1", entry.id == "bf8435f694a1",
+              tostring(entry.id))
+        Check("created = 1788872681", entry.created == 1788872681,
+              tostring(entry.created))
+
+        Check("15 Ausruestungsteile", #entry.items == 15,
+              tostring(#entry.items))
+
+        local gemCount, reforgeCount = 0, 0
+        for _, it in ipairs(entry.items) do
+            gemCount = gemCount + #it.gems
+            if (it.reforge or 0) ~= 0 then reforgeCount = reforgeCount + 1 end
+        end
+        Check("21 Sockelsteine insgesamt", gemCount == 21, tostring(gemCount))
+        Check("11 Umschmiedungen insgesamt", reforgeCount == 11,
+              tostring(reforgeCount))
+
+        -- Slot-/Item-/Gem-/Reforge-/Enchant-Zuordnung stichprobenartig,
+        -- inklusive des ersten Datensatzes aus dem Bugreport.
+        local BY_SLOT = {}
+        for _, it in ipairs(entry.items) do BY_SLOT[it.slot] = it end
+
+        local first = BY_SLOT[1]
+        Check("Slot 1: itemId 99190", first and first.itemId == 99190,
+              tostring(first and first.itemId))
+        Check("Slot 1: Gems {95344, 76695}",
+              first and #first.gems == 2 and first.gems[1] == 95344
+              and first.gems[2] == 76695,
+              first and table.concat(first.gems, "-") or "?")
+        Check("Slot 1: reforge 0, enchant 0",
+              first and first.reforge == 0 and first.enchant == 0,
+              first and (tostring(first.reforge) .. "/" .. tostring(first.enchant)) or "?")
+
+        local slot5 = BY_SLOT[5]
+        Check("Slot 5: alle drei Gems bleiben erhalten (76695-76695-76690)",
+              slot5 and #slot5.gems == 3 and slot5.gems[1] == 76695
+              and slot5.gems[2] == 76695 and slot5.gems[3] == 76690,
+              slot5 and table.concat(slot5.gems, "-") or "?")
+        Check("Slot 5: reforge 157, enchant 4419",
+              slot5 and slot5.reforge == 157 and slot5.enchant == 4419,
+              slot5 and (tostring(slot5.reforge) .. "/" .. tostring(slot5.enchant)) or "?")
+
+        local slot2 = BY_SLOT[2]
+        Check("Slot 2: kein Sockel, Umschmiedung ohne Verzauberung (136/0)",
+              slot2 and #slot2.gems == 0 and slot2.reforge == 136
+              and slot2.enchant == 0,
+              slot2 and (tostring(slot2.reforge) .. "/" .. tostring(slot2.enchant)) or "?")
+
+        local slot16 = BY_SLOT[16]
+        Check("Slot 16: itemId 103869, Gem 76683, reforge 143, enchant 3368",
+              slot16 and slot16.itemId == 103869 and #slot16.gems == 1
+              and slot16.gems[1] == 76683 and slot16.reforge == 143
+              and slot16.enchant == 3368,
+              slot16 and slot16.itemId or "?")
+    end
+end
+
+--==========================================================================
 -- 10) WAS NICHT ANGENOMMEN WIRD
 --==========================================================================
 
