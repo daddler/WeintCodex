@@ -2,6 +2,58 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.2.3] – 2026-09-08
+
+Der Import einer Zielausrüstung aus WeintCompanion schlug manchmal mit
+"kein einziger Ausrüstungsplatz" fehl, obwohl der String von der
+Companion aus richtig war. Ursache war eine Eigenheit des Spiels beim
+Einfügen von Text in das Import-Feld — das ist jetzt behoben.
+
+### Technisch
+
+**Root Cause, jetzt zweifelsfrei belegt.** Das DEBUG-Log aus 3.0.2.2
+zeigte an einem realen Fall: `payload length: 493` statt der erwarteten
+433 Zeichen, und für alle 15 Datensätze durchweg `parts: 9` statt 5 sowie
+`itemId: nil`. Das Delta (493 − 433 = 60) entspricht exakt der Anzahl
+echter `|`-Feldtrenner im Original (15 Zeilen × 4 Trenner). Das Spiel
+verdoppelt beim Einfügen von Text in eine `EditBox` (Strg+V ebenso wie
+Tippen) jedes wörtliche `|` zu `||` — die eingebaute Schreibweise für
+EIN Pipe-Zeichen, damit ein einzelnes `|` nicht als Beginn eines
+Farb-/Texturcodes gelesen wird. Der Chat-Ausdruck des DEBUG-Logs selbst
+zeigte dabei täuschend einfache Pipes, weil die Chat-Anzeige `||` beim
+Rendern wieder zu einem sichtbaren `|` zusammenzieht — sichtbar wurde die
+Verdopplung erst an den berechneten Werten (`#parts`, `itemId`), nicht am
+gedruckten Text. Jedes `WCIMPORT`-Format trennt seine Felder mit `|`,
+also fiel dadurch bei `TG.ParseTransfer` (`modules/targetgear.lua`) jedes
+zweite Feld leer aus (`itemId` immer `nil`) und kein einziger Datensatz
+wurde übernommen.
+
+**Fix.** `modules/sync.lua` bekommt `WeintCodex.Sync.UndoEditBoxPipeEscape()`
+— macht die Verdopplung mit `text:gsub("||", "|")` rückgängig, korrekt
+auch für einen ursprünglich schon leeren Feld (`||` wird zu `||||`
+verdoppelt und wieder zu `||` zurückgeführt, nicht zu `|`). Angewendet
+wird sie **ausschließlich** an der einen Stelle, an der `editBox:GetText()`
+gelesen wird (`ShowImportDialog`, Import-Knopf) — nicht in
+`WeintCodex.Sync.QuickImport`/`ProcessImport` selbst, weil dieselbe
+Funktion auch von der automatischen SavedVariables-Brücke
+(`modules/companion.lua`, `INBOX_HANDLERS.raid_import`) aufgerufen wird,
+deren Payload nie durch eine EditBox läuft und ein dort absichtlich
+leeres Feld sonst fälschlich mit dem Nachbarfeld verschmolzen würde.
+`modules/targetgear.lua` und die übrige Parser-Logik bleiben unverändert
+— sie waren, wie in 3.0.2.1/3.0.2.2 belegt, nie das Problem.
+
+Die temporäre DEBUG-Diagnostik aus 3.0.2.2 (`modules/sync.lua`,
+`modules/targetgear.lua`) wurde wie angekündigt wieder entfernt, jetzt,
+da die Ursache geklärt ist.
+
+Neuer Testlauf `.github/tests/sync_test.lua`: prüft
+`UndoEditBoxPipeEscape` isoliert (inklusive des Grenzfalls eines
+absichtlich leeren Feldes), simuliert den realen Bugreport-String exakt
+so verdoppelt, wie das DEBUG-Log es belegt hat (einmal ohne Korrektur —
+derselbe Fehler wie gemeldet — einmal mit, danach 15 Ausrüstungsteile,
+21 Sockelsteine, 11 Umschmiedungen über `TG.SetFor`), und stellt sicher,
+dass der ungeschützte SavedVariables-Weg unangetastet bleibt.
+
 ## [3.0.2.2] – 2026-09-08
 
 Beim Import einer Zielausrüstung aus WeintCompanion erscheinen

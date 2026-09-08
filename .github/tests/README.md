@@ -173,3 +173,31 @@ für einen fremden Charakter.
 ```bash
 lua5.1 .github/tests/targetgear_test.lua .
 ```
+
+## Der Import-Weg über die EditBox
+
+`sync_test.lua` prüft `modules/sync.lua`, insbesondere den Weg, den ein
+per Zwischenablage eingefügter `WCIMPORT:`-String tatsächlich nimmt. Ein
+gemeldeter Fall zeigte: ein von WeintCompanion nachweislich korrekt
+erzeugter Zielausrüstungs-String wurde auf der Import-Seite mit "kein
+einziger Ausrüstungsplatz" abgewiesen, obwohl `TG.ParseTransfer` denselben
+String isoliert einwandfrei liest. Ein DEBUG-Log im Spiel klärte die
+Ursache: das Spiel verdoppelt beim Einfügen von Text in eine EditBox
+(Strg+V ebenso wie Tippen) jedes wörtliche "|" zu "||" — die eingebaute
+Schreibweise für EIN Pipe-Zeichen, damit ein einzelnes "|" nicht als
+Beginn eines Farbcodes gelesen wird. Jede Zeile des `WCIMPORT`-Formats
+trennt ihre Felder mit "|"; ohne Gegenmaßnahme fällt dadurch jedes zweite
+Feld leer aus.
+
+`WeintCodex.Sync.UndoEditBoxPipeEscape()` macht das direkt beim Auslesen
+der EditBox rückgängig. Geprüft wird die Umkehrfunktion für sich (auch der
+Grenzfall eines absichtlich leeren Feldes, das schon vor der Verdopplung
+"||" lautete), der reale Bugreport-String — Zeichen für Zeichen so
+verdoppelt, wie das DEBUG-Log es belegt hat — einmal ohne und einmal mit
+Korrektur, und dass der von der SavedVariables-Brücke gelieferte Weg
+(`companion.lua` → `QuickImport`, nie durch eine EditBox gelaufen)
+unangetastet bleibt.
+
+```bash
+lua5.1 .github/tests/sync_test.lua .
+```

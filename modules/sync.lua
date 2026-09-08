@@ -305,6 +305,30 @@ local function ParseWAImport(payload)
 end
 
 --------------------------------------------------
+-- EditBox-Escape rueckgaengig machen
+--
+-- Das Spiel verdoppelt jedes woertliche "|" beim Einfuegen von Text in
+-- eine EditBox (Strg+V ebenso wie Tippen): "||" ist die eingebaute
+-- Schreibweise fuer EIN woertliches Pipe-Zeichen, weil ein einzelnes
+-- "|" sonst als Beginn eines Farb-/Texturcodes gelesen werden koennte.
+-- Jedes WCIMPORT-Format trennt seine Felder mit "|" - ohne dieses
+-- Rueckgaengigmachen kommt bei TG.ParseTransfer() & Co. ein Payload an,
+-- in dem jeder Feldtrenner doppelt steht (bestaetigt per DEBUG-Log an
+-- einem gemeldeten Fall: 15 Datensaetze, durchweg 9 statt 5 Teile je
+-- Zeile, ItemID immer nil - siehe CHANGELOG.md 3.0.2.3).
+--
+-- Betrifft NUR das manuelle Einfuegen hier auf der Import-Seite. Die
+-- automatische Zustellung ueber die SavedVariables-Bruecke
+-- (modules/companion.lua, INBOX_HANDLERS.raid_import -> QuickImport)
+-- geht nie durch eine EditBox und darf NICHT hierdurch laufen - sonst
+-- wuerde ein dort absichtlich leeres Feld ("|...||...|") faelschlich
+-- mit dem Feld daneben verschmolzen.
+function WeintCodex.Sync.UndoEditBoxPipeEscape(text)
+    if type(text) ~= "string" then return text end
+    return (text:gsub("||", "|"))
+end
+
+--------------------------------------------------
 -- Import verarbeiten
 --------------------------------------------------
 
@@ -467,13 +491,6 @@ local function ProcessImport(rawStr)
         if not (TG and TG.ParseTransfer) then
             return false, "Zielausruestungen kann diese Addon-Fassung nicht lesen."
         end
-
-        -- TEMPORAeR (DEBUG): zur Ursachensuche des gemeldeten
-        -- "kein einziger Ausruestungsplatz"-Fehlers. Nach Klaerung
-        -- wieder entfernen - siehe CHANGELOG.md 3.0.2.2.
-        print("|cffD4A24A[WeintCodex DEBUG]|r typeTag:", tostring(typeTag))
-        print("|cffD4A24A[WeintCodex DEBUG]|r payload length:", tostring(#payload))
-        print("|cffD4A24A[WeintCodex DEBUG]|r payload:", tostring(payload))
 
         local entry, problem = TG.ParseTransfer(payload)
         if not entry then
@@ -755,6 +772,7 @@ function WeintCodex.Sync.ShowImportDialog()
     -- Import button logic
     importBtn:SetScript("OnClick", function()
         local raw = editBox:GetText()
+        raw = WeintCodex.Sync.UndoEditBoxPipeEscape(raw)
         raw = raw:match("^%s*(.-)%s*$")
         if raw == "" then
             f.StatusText:SetText("|cffff6666" .. WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-NotReady", 14) .. " Bitte einen Import-String einfügen.|r")

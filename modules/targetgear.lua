@@ -444,23 +444,10 @@ end
 function TG.ParseTransfer(payload)
     if type(payload) ~= "string" then return nil, "Leerer Import-String." end
 
-    -- TEMPORAeR (DEBUG): zur Ursachensuche des gemeldeten
-    -- "kein einziger Ausruestungsplatz"-Fehlers. Nach Klaerung wieder
-    -- entfernen - siehe CHANGELOG.md 3.0.2.2.
-    print("|cffD4A24A[WeintCodex DEBUG]|r TG.ParseTransfer payload length:", tostring(#payload))
-
     local fields = {}
     for part in (payload .. ":"):gmatch("([^:]*):") do
         fields[#fields + 1] = part
     end
-
-    print("|cffD4A24A[WeintCodex DEBUG]|r field 1 (spec):", tostring(fields[1]))
-    print("|cffD4A24A[WeintCodex DEBUG]|r field 2 (id):", tostring(fields[2]))
-    print("|cffD4A24A[WeintCodex DEBUG]|r field 3 (created):", tostring(fields[3]))
-    print("|cffD4A24A[WeintCodex DEBUG]|r field 4 (character):", tostring(fields[4]))
-    print("|cffD4A24A[WeintCodex DEBUG]|r field 5 (source):", tostring(fields[5]))
-    print("|cffD4A24A[WeintCodex DEBUG]|r field 6 (rows):", tostring(fields[6]))
-    print("|cffD4A24A[WeintCodex DEBUG]|r Anzahl fields:", tostring(#fields))
 
     local spec = tostring(fields[1] or ""):gsub("%s+", ""):upper()
     if spec == "" then
@@ -473,7 +460,6 @@ function TG.ParseTransfer(payload)
 
     for row in (rows .. ","):gmatch("([^,]*),") do
         local trimmed = row:match("^%s*(.-)%s*$")
-        print("|cffD4A24A[WeintCodex DEBUG]|r row:", tostring(row), " trimmed:", tostring(trimmed))
         if trimmed ~= "" then
             local parts = {}
             for part in (trimmed .. "|"):gmatch("([^|]*)|") do
@@ -481,8 +467,6 @@ function TG.ParseTransfer(payload)
             end
             local slot   = tonumber(parts[1])
             local itemId = tonumber(parts[2])
-            print("|cffD4A24A[WeintCodex DEBUG]|r   parts:", tostring(#parts),
-                  " slot:", tostring(slot), " itemId:", tostring(itemId))
             if slot and itemId then
                 -- DIE LEEREN FELDER MUESSEN MITZAEHLEN. "76895--76639"
                 -- ist ein leerer MITTLERER Sockel; wuerde er

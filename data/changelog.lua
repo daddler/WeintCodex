@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.2.3",
+        date    = "08.09.2026",
+        notes   = {
+            "Der Import einer Zielausruestung aus WeintCompanion schlug manchmal mit 'kein einziger Ausruestungsplatz' fehl, obwohl der String von der Companion aus richtig war. Ursache war eine Eigenheit des Spiels beim Einfuegen von Text in das Import-Feld - das ist jetzt behoben.",
+        },
+    },
+    {
         version = "3.0.2.2",
         date    = "08.09.2026",
         notes   = {
