@@ -37,12 +37,19 @@
 -- Ein Zielzustand gilt fuer GENAU DIE AUSRUESTUNG, mit der gesimmt wurde.
 -- Deshalb wird je Platz die Gegenstandsnummer verglichen: steckt dort
 -- inzwischen ein anderes Teil, sagt das Ziel ueber diesen Platz nichts,
--- und die eigene Rechnung uebernimmt wieder. Das ist der Grund, aus dem
--- ein Ziel nicht wie eine Gewichtung erst bestaetigt werden muss: es kann
--- seinen Zusammenhang nicht ueberleben, sondern faellt von selbst weg,
--- sobald er nicht mehr gilt. Jede Zeile, die aus dem Ziel stammt, SAGT
--- das ausserdem (siehe ExplainGem drueben) - ohne diesen Satz waere eine
--- geaenderte Empfehlung von einem Fehler nicht zu unterscheiden.
+-- und die eigene Rechnung uebernimmt wieder. Es kann seinen Zusammenhang
+-- also nicht ueberleben, sondern faellt von selbst weg, sobald er nicht
+-- mehr gilt. Jede Zeile, die aus dem Ziel stammt, SAGT das ausserdem
+-- (siehe ExplainGem drueben) - ohne diesen Satz waere eine geaenderte
+-- Empfehlung von einem Fehler nicht zu unterscheiden.
+--
+-- SEIT 3.0.3.0 WIRD DER EINGEFUEGTE STRING TROTZDEM ERST GEZEIGT.
+-- Nicht, weil zu klaeren waere, ob der Spieler das WILL - das hat er auf
+-- dem Desktop entschieden -, sondern weil er sonst nicht sieht, WAS
+-- eintrifft: welche Plaetze wegen eines getauschten Teils gar nicht
+-- gelten, und dass Steine von Hand eingesetzt werden muessen. Siehe
+-- TG.ShowConfirm ganz unten. Die Zustellung ueber die Addon-Bruecke
+-- (Login/`/reload`) fragt weiterhin nicht.
 --
 -- ZUGEORDNET WIRD UEBER PLATZ UND POSITION, NIE UEBER EINEN NAMEN.
 --
@@ -536,17 +543,141 @@ local function GemName(id)
     return "ID " .. id
 end
 
+local function PairText(pair)
+    local R = WeintCodex_Reforge
+    if not (R and R.SHORT and R.STATS) then return "?" end
+    if not pair then return "keine" end
+    return (R.SHORT[R.STATS[pair.src]] or "?") .. " -> "
+        .. (R.SHORT[R.STATS[pair.dst]] or "?")
+end
+
 local function ReforgeText(reforgeId)
     local R = WeintCodex_Reforge
     if not (R and R.BY_ID) then return "?" end
     if not reforgeId or reforgeId == 0 then return "keine" end
     local pair = R.PAIRS[R.BY_ID[reforgeId] or -1]
     if not pair then return "unbekannt (" .. reforgeId .. ")" end
-    return (R.SHORT[R.STATS[pair.src]] or "?") .. " -> "
-        .. (R.SHORT[R.STATS[pair.dst]] or "?")
+    return PairText(pair)
 end
 
 TG.ReforgeText = ReforgeText
+
+--------------------------------------------------
+-- ANGELEGT GEGEN ZIEL - EINMAL GERECHNET
+--------------------------------------------------
+-- Diese Frage stellen ZWEI Stellen: `/wc ziel` als Textausgabe und das
+-- Bestaetigungsfenster vor dem Uebernehmen. Zwei Fassungen davon waeren
+-- zwei Gelegenheiten auseinanderzulaufen - und ausgerechnet hier faellt
+-- das niemandem auf, weil beide plausibel aussehen. Also: eine
+-- Rechnung, zwei Darstellungen.
+--
+-- Rein lesend. Der Eintrag muss NICHT abgelegt sein - das
+-- Bestaetigungsfenster vergleicht ihn, bevor er gilt.
+--
+-- ERWARTET DEN BEREINIGTEN EINTRAG (aus TG.CleanEntry oder TG.SetFor),
+-- dessen `items` nach SLOTNUMMER indiziert sind. Das rohe Ergebnis von
+-- TG.ParseTransfer ist eine fortlaufende Liste und passt hier nicht.
+--
+-- Je Platz einer von drei Zustaenden:
+--   "ok"    das Ziel gilt hier
+--   "stale" ein anderer Gegenstand steckt im Platz (Ziel greift nicht)
+--   "none"  das Ziel sagt zu diesem Platz nichts
+--------------------------------------------------
+
+function TG.Compare(entry)
+    local rows, ok, stale, none = {}, 0, 0, 0
+    if type(entry) ~= "table" or type(entry.items) ~= "table" then
+        return { rows = rows, ok = 0, stale = 0, none = 0 }
+    end
+
+    local CH = WeintCodex.Charakter
+    local RE = WeintCodex.ReforgeEngine
+
+    for slot = 1, 18 do
+        local name = SLOT_NAMES[slot]
+        local link = name and GetInventoryItemLink
+            and GetInventoryItemLink("player", slot)
+        local item = entry.items[slot]
+
+        if name and (link or item) then
+            local equippedId, equippedGems
+            if link and CH and CH.ParseItemLinkForDiagnostics then
+                equippedId, equippedGems = CH.ParseItemLinkForDiagnostics(link)
+            end
+
+            local row = {
+                slot = slot, name = name,
+                targetItemId = item and item.itemId or nil,
+                equippedItemId = equippedId,
+            }
+
+            if not item then
+                row.state = "none"
+                none = none + 1
+            elseif equippedId and equippedId ~= item.itemId then
+                row.state = "stale"
+                stale = stale + 1
+            else
+                row.state = "ok"
+                ok = ok + 1
+
+                -- Bis 4, nicht bis `#gems`: ParseItemLink liefert eine
+                -- LUECKENHAFTE Tabelle (leere Sockel fehlen darin), und
+                -- `#` ist auf so einer nicht verlaesslich. Vier ist die
+                -- Zahl der Steinfelder im Item-Link.
+                local istIds, sollIds = {}, {}
+                local n = math.max(#(item.gems or {}), 4)
+                for i = 1, n do
+                    istIds[i]  = (equippedGems or {})[i] or 0
+                    sollIds[i] = (item.gems or {})[i] or 0
+                end
+                -- Hinten abschneiden, solange BEIDE Seiten leer sind: ein
+                -- Ring ohne Sockel soll nicht viermal "leer" sagen.
+                while #istIds > 0
+                      and istIds[#istIds] == 0 and sollIds[#sollIds] == 0 do
+                    table.remove(istIds)
+                    table.remove(sollIds)
+                end
+
+                local istText, sollText, changed = {}, {}, false
+                for i = 1, #istIds do
+                    istText[i]  = GemName(istIds[i])
+                    sollText[i] = GemName(sollIds[i])
+                    -- EINE 0 IM ZIEL IST KEINE AENDERUNG. Sie heisst
+                    -- "der Sim sagt zu diesem Sockel nichts" und nicht
+                    -- "nimm den Stein heraus" - dieselbe Linie wie in
+                    -- ParseTransfer und in PlanItem.
+                    if sollIds[i] ~= 0 and sollIds[i] ~= istIds[i] then
+                        changed = true
+                    end
+                end
+
+                row.gemIdsIst  = istIds
+                row.gemIdsSoll = sollIds
+                row.gemsIst    = istText
+                row.gemsSoll   = sollText
+                row.gemsChanged = changed
+
+                row.reforgeSoll     = item.reforge or 0
+                row.reforgeSollText = ReforgeText(item.reforge)
+
+                local current = RE and RE.CurrentPair and RE.CurrentPair(slot) or nil
+                row.reforgeIstText = PairText(current)
+
+                local R = WeintCodex_Reforge
+                local wanted = (item.reforge or 0) ~= 0 and R and R.BY_ID
+                    and R.PAIRS[R.BY_ID[item.reforge] or -1] or nil
+                row.reforgeChanged =
+                    (wanted and wanted.src or 0) ~= (current and current.src or 0)
+                    or (wanted and wanted.dst or 0) ~= (current and current.dst or 0)
+            end
+
+            rows[#rows + 1] = row
+        end
+    end
+
+    return { rows = rows, ok = ok, stale = stale, none = none }
+end
 
 function TG.Command(rest)
     local arg = tostring(rest or ""):lower():match("^%s*(%S*)")
@@ -612,47 +743,272 @@ function TG.Dump()
 
     Say("  Platz fuer Platz (angelegt gegen Ziel):")
 
-    for slot = 1, 18 do
-        local name = SLOT_NAMES[slot]
-        local link = name and GetInventoryItemLink and GetInventoryItemLink("player", slot)
-        local item = entry.items[slot]
-
-        if name and (link or item) then
-            local equippedId, equippedGems
-            if link and CH and CH.ParseItemLinkForDiagnostics then
-                equippedId, equippedGems = CH.ParseItemLinkForDiagnostics(link)
-            end
-
-            if not item then
-                Say(string.format("    %-12s |cff9A9AA5kein Ziel|r", name))
-            elseif equippedId and equippedId ~= item.itemId then
-                Say(string.format(
-                    "    %-12s |cffEF4444veraltet|r — Ziel %d, angelegt %d",
-                    name, item.itemId, equippedId))
-            else
-                -- Bis 4, nicht bis `#gems`: ParseItemLink liefert eine
-                -- LUECKENHAFTE Tabelle (leere Sockel fehlen darin), und
-                -- `#` ist auf so einer nicht verlaesslich. Vier ist die
-                -- Zahl der Steinfelder im Item-Link.
-                local ist, soll = {}, {}
-                local n = math.max(#(item.gems or {}), 4)
-                for i = 1, n do
-                    ist[#ist + 1]  = GemName((equippedGems or {})[i])
-                    soll[#soll + 1] = GemName((item.gems or {})[i])
-                end
-                -- Hinten abschneiden, solange BEIDE Seiten leer sind:
-                -- ein Ring ohne Sockel soll nicht viermal "leer" sagen.
-                while #ist > 0 and ist[#ist] == "leer" and soll[#soll] == "leer" do
-                    table.remove(ist)
-                    table.remove(soll)
-                end
-                Say(string.format("    %-12s Sockel: %s |cffD4A24A->|r %s",
-                    name,
-                    (#ist > 0 and table.concat(ist, ", ") or "-"),
-                    (#soll > 0 and table.concat(soll, ", ") or "-")))
-                Say(string.format("                 Umschmieden Ziel: %s",
-                    ReforgeText(item.reforge)))
-            end
+    for _, row in ipairs(TG.Compare(entry).rows) do
+        if row.state == "none" then
+            Say(string.format("    %-12s |cff9A9AA5kein Ziel|r", row.name))
+        elseif row.state == "stale" then
+            Say(string.format(
+                "    %-12s |cffEF4444veraltet|r — Ziel %d, angelegt %d",
+                row.name, row.targetItemId or 0, row.equippedItemId or 0))
+        else
+            Say(string.format("    %-12s Sockel: %s |cffD4A24A->|r %s",
+                row.name,
+                (#row.gemsIst > 0 and table.concat(row.gemsIst, ", ") or "-"),
+                (#row.gemsSoll > 0 and table.concat(row.gemsSoll, ", ") or "-")))
+            Say(string.format("                 Umschmieden: %s |cffD4A24A->|r %s",
+                row.reforgeIstText, row.reforgeSollText))
         end
     end
+end
+
+--------------------------------------------------
+-- DAS BESTAETIGUNGSFENSTER
+--------------------------------------------------
+-- Ein Zielzustand aendert Sockel- UND Umschmiede-Empfehlung fuer die
+-- halbe Ausruestung auf einen Schlag. Bis 3.0.2.3 geschah das
+-- stillschweigend beim Einfuegen des Strings - mit der Begruendung, dass
+-- der Spieler die Entscheidung ja schon auf dem Desktop getroffen hat.
+--
+-- DIESE BEGRUENDUNG WAR NUR HALB RICHTIG. Sie erklaert, warum nicht
+-- nachgefragt werden muss, ob er das WILL - nicht aber, woher er wissen
+-- soll, WAS eintrifft. Genau daran ist es aufgefallen: was der Sim
+-- vorsieht, welche Plaetze wegen eines getauschten Teils gar nicht
+-- gelten, und dass Steine von Hand eingesetzt werden muessen, stand
+-- nirgends. Ein Import, der "15 Plaetze" meldet und danach an sechs
+-- davon nichts tut, ist von einem kaputten Import nicht zu
+-- unterscheiden.
+--
+-- Das Fenster zeigt deshalb Platz fuer Platz, was gilt und was nicht -
+-- aus DERSELBEN Rechnung wie `/wc ziel` (TG.Compare) - und uebernimmt
+-- erst auf Klick. Abbrechen legt nichts ab.
+--
+-- Es entscheidet NICHT selbst: `onConfirm` gehoert dem Aufrufer
+-- (modules/sync.lua), damit es genau einen Weg gibt, auf dem ein Ziel
+-- abgelegt wird.
+--------------------------------------------------
+
+local confirmFrame = nil
+
+local function SpecLabel(spec)
+    local profiles = WeintCodex_SpecProfiles
+    if profiles and profiles[spec] and profiles[spec].name then
+        return profiles[spec].name
+    end
+    return spec or "?"
+end
+
+local function BuildConfirmFrame()
+    local C = WeintCodex.Colors
+    local F = WeintCodex.Fonts
+    local parent = WeintCodex.MainFrame
+
+    local f = WeintCodex.CreateSurface(parent, {
+        width = 720, height = 540, tone = "plain", radius = 14,
+        backdrop = "bgDark",
+    })
+    f:SetPoint("CENTER", parent, "CENTER", 0, 0)
+    f:SetFrameStrata("TOOLTIP")
+    f:EnableMouse(true)
+    f:Hide()
+
+    local eyebrow = WeintCodex.Eyebrow(f, "Zielausruestung aus dem Sim")
+    eyebrow:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -20)
+
+    local title = f:CreateFontString(nil, "OVERLAY")
+    title:SetFont(F.sansBold, 20, "")
+    title:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+    title:SetTextColor(unpack(C.textBright))
+    title:SetText("Das steht in deinem Sim-Ergebnis")
+    f._title = title
+
+    local herkunft = WeintCodex.Label(f, "", { color = "textMuted", size = 13 })
+    herkunft:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    herkunft:SetWidth(660)
+    herkunft:SetJustifyH("LEFT")
+    f._herkunft = herkunft
+
+    local summe = WeintCodex.Label(f, "", { color = "textNormal", size = 13 })
+    summe:SetPoint("TOPLEFT", herkunft, "BOTTOMLEFT", 0, -6)
+    summe:SetWidth(660)
+    summe:SetJustifyH("LEFT")
+    f._summe = summe
+
+    -- Die Warnzeile steht NICHT immer da: eine dauerhafte Warnung, die
+    -- meistens "0" sagt, liest nach zwei Malen niemand mehr.
+    local warnung = WeintCodex.Label(f, "", { color = "danger", size = 13 })
+    warnung:SetPoint("TOPLEFT", summe, "BOTTOMLEFT", 0, -4)
+    warnung:SetWidth(660)
+    warnung:SetJustifyH("LEFT")
+    f._warnung = warnung
+
+    local listBg = WeintCodex.CreateSurface(f, {
+        width = 672, height = 300, tone = "flat", surface = "surface1",
+        radius = 10, backdrop = "cardTop",
+    })
+    listBg:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -152)
+
+    local scroll, inner = WeintCodex.CreateScrollArea(listBg, 4, -6, 664, 288, true)
+    f._inner = inner
+    f._scroll = scroll
+    f._rows = {}
+
+    local fuss = WeintCodex.Label(f,
+        "Sockelsteine setzt du selbst ein - WeintCodex zeigt nur, welche."
+        .. " Umschmieden geht ueber |cffD4A24AAlles umschmieden|r beim Umschmieder.",
+        { color = "textDim", size = 12 })
+    fuss:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 24, 26)
+    fuss:SetWidth(420)
+    fuss:SetJustifyH("LEFT")
+
+    local ok = WeintCodex.CreateButton(f, {
+        text = "Uebernehmen", kind = "primary", width = 160,
+        backdrop = "cardBottom",
+        onClick = function()
+            local fn = f._onConfirm
+            f._onConfirm = nil
+            f:Hide()
+            if fn then fn() end
+        end,
+    })
+    ok:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -24, 20)
+    f._ok = ok
+
+    local abbruch = WeintCodex.CreateButton(f, {
+        text = "Abbrechen", kind = "secondary", width = 130,
+        backdrop = "cardBottom",
+        onClick = function()
+            f._onConfirm = nil
+            f:Hide()
+        end,
+    })
+    abbruch:SetPoint("BOTTOMRIGHT", ok, "BOTTOMLEFT", -10, 3)
+
+    return f
+end
+
+-- Eine Zeile des Bildlauffelds. Wiederverwendet statt neu erzeugt: das
+-- Fenster geht bei jedem Import erneut auf, und Frames lassen sich in
+-- WoW nicht wieder freigeben.
+local function ConfirmRow(f, index)
+    local C = WeintCodex.Colors
+    local F = WeintCodex.Fonts
+
+    if f._rows[index] then return f._rows[index] end
+
+    local prev = f._rows[index - 1]
+    local row = CreateFrame("Frame", nil, f._inner)
+    row:SetSize(650, 34)
+    if prev then
+        row:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -2)
+    else
+        row:SetPoint("TOPLEFT", f._inner, "TOPLEFT", 6, -4)
+    end
+
+    row.name = row:CreateFontString(nil, "OVERLAY")
+    row.name:SetFont(F.sansMedium, 12, "")
+    row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -1)
+    row.name:SetWidth(92)
+    row.name:SetJustifyH("LEFT")
+
+    row.oben = row:CreateFontString(nil, "OVERLAY")
+    row.oben:SetFont(F.sans, 12, "")
+    row.oben:SetPoint("TOPLEFT", row, "TOPLEFT", 96, -1)
+    row.oben:SetWidth(548)
+    row.oben:SetJustifyH("LEFT")
+
+    row.unten = row:CreateFontString(nil, "OVERLAY")
+    row.unten:SetFont(F.sans, 11, "")
+    row.unten:SetPoint("TOPLEFT", row, "TOPLEFT", 96, -17)
+    row.unten:SetWidth(548)
+    row.unten:SetJustifyH("LEFT")
+    row.unten:SetTextColor(unpack(C.textDim))
+
+    f._rows[index] = row
+    return row
+end
+
+-- Zeigt den Eintrag zur Bestaetigung. `onConfirm` laeuft NUR, wenn der
+-- Spieler "Uebernehmen" klickt.
+function TG.ShowConfirm(entry, onConfirm)
+    if type(entry) ~= "table" then return false end
+    if not (WeintCodex.MainFrame and WeintCodex.CreateSurface) then
+        -- Ohne Oberflaeche keine Rueckfrage: dann gilt der Eintrag wie
+        -- vor 3.0.3.0 sofort. Lieber uebernehmen als verlieren.
+        if onConfirm then onConfirm() end
+        return true
+    end
+
+    confirmFrame = confirmFrame or BuildConfirmFrame()
+    local f = confirmFrame
+    local C = WeintCodex.Colors
+
+    f._onConfirm = onConfirm
+
+    local wann = ""
+    if (tonumber(entry.created) or 0) > 0 and date then
+        wann = " · " .. date("%d.%m.%Y", entry.created)
+    end
+    f._herkunft:SetText(SpecLabel(entry.spec)
+        .. (entry.character ~= "" and (" · " .. entry.character) or "")
+        .. " · " .. (entry.source or "wowsims") .. wann)
+
+    local vergleich = TG.Compare(entry)
+
+    f._summe:SetText(string.format(
+        "|cffD4A24A%d|r Plaetze · |cffD4A24A%d|r Sockelsteine · |cffD4A24A%d|r Umschmiedungen",
+        entry.count or 0, entry.gemCount or 0, entry.reforgeCount or 0))
+
+    if vergleich.stale > 0 then
+        f._warnung:SetText(string.format(
+            "%d Platz/Plaetze gelten NICHT: dort steckt ein anderes Teil"
+            .. " als beim Simmen. Diese rechnet WeintCodex weiter selbst.",
+            vergleich.stale))
+        f._warnung:Show()
+    else
+        f._warnung:SetText("")
+        f._warnung:Hide()
+    end
+
+    -- Zeilen fuellen. Alte werden versteckt, nicht geloescht.
+    local used = 0
+    for _, r in ipairs(vergleich.rows) do
+        used = used + 1
+        local row = ConfirmRow(f, used)
+        row.name:SetText(r.name)
+
+        if r.state == "stale" then
+            row.name:SetTextColor(unpack(C.danger))
+            row.oben:SetText(string.format(
+                "|cffE56B6Bgilt nicht|r - Ziel %d, angelegt %d",
+                r.targetItemId or 0, r.equippedItemId or 0))
+            row.oben:SetTextColor(unpack(C.textMuted))
+            row.unten:SetText("dieser Platz rechnet weiter selbst")
+        elseif r.state == "none" then
+            row.name:SetTextColor(unpack(C.textDim))
+            row.oben:SetText("|cff6B6B74kein Ziel - rechnet weiter selbst|r")
+            row.oben:SetTextColor(unpack(C.textDim))
+            row.unten:SetText("")
+        else
+            row.name:SetTextColor(unpack(C.textNormal))
+            row.oben:SetText("Sockel: "
+                .. (#r.gemsIst > 0 and table.concat(r.gemsIst, ", ") or "-")
+                .. "  |cffD4A24A->|r  "
+                .. (r.gemsChanged and "|cffE8C96D" or "|cff6B6B74")
+                .. (#r.gemsSoll > 0 and table.concat(r.gemsSoll, ", ") or "-")
+                .. "|r")
+            row.oben:SetTextColor(unpack(C.textMuted))
+            row.unten:SetText("Umschmieden: " .. r.reforgeIstText
+                .. "  |cffD4A24A->|r  "
+                .. (r.reforgeChanged and "|cffE8C96D" or "|cff6B6B74")
+                .. r.reforgeSollText .. "|r")
+        end
+        row:Show()
+    end
+
+    for i = used + 1, #f._rows do f._rows[i]:Hide() end
+    f._inner:SetHeight(math.max(288, used * 36 + 10))
+    f._scroll:SetVerticalScroll(0)
+
+    f:Show()
+    return true
 end

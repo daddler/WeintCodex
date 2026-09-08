@@ -497,8 +497,13 @@ local function ProcessImport(rawStr)
             return false, problem or "Der String liess sich nicht lesen."
         end
 
-        local ok, why, clean = TG.Accept(entry)
-        if not ok then
+        -- GEPRUEFT WIRD VOR DEM FRAGEN, ABGELEGT WIRD ERST DANACH.
+        -- CleanEntry sagt schon hier, ob der Eintrag ueberhaupt taugt -
+        -- sonst stuende im Bestaetigungsfenster ein Zielzustand, den das
+        -- Uebernehmen danach ablehnt. Abgelegt wird er dadurch nicht:
+        -- das tut allein TG.Accept() im Rueckruf unten.
+        local clean, why = TG.CleanEntry(entry)
+        if not clean then
             return false, "Der Zielzustand wurde nicht uebernommen: "
                 .. (why or "unbekannter Grund") .. "."
         end
@@ -509,32 +514,65 @@ local function ProcessImport(rawStr)
             label = WeintCodex_SpecProfiles[entry.spec].name
         end
 
-        -- Der Plan des Umschmiede-Suchlaufs liegt zwischengespeichert;
-        -- ohne dieses Verwerfen bliebe er stehen, bis sich die
-        -- Ausruestung aendert - und das frisch eingefuegte Ergebnis
-        -- taete sichtbar nichts.
-        local RE = WeintCodex.ReforgeEngine
-        if RE and RE.Invalidate then RE.Invalidate() end
-        if WeintCodex.Charakter and WeintCodex.Charakter.ClearCache then
-            WeintCodex.Charakter.ClearCache()
+        local function Uebernehmen()
+            -- ABGELEGT WIRD DER ROHE EINTRAG, nicht `clean`: dessen
+            -- `items` sind nach Slotnummer indiziert und damit
+            -- lueckenhaft (ohne Platz 4 endet ipairs bei 3). TG.Accept
+            -- reinigt selbst - ein zweites Mal durch CleanEntry wuerde
+            -- die halbe Ausruestung verlieren.
+            local ok, warum, abgelegt = TG.Accept(entry)
+            if not ok then
+                print("|cffD4A24A[WeintCodex]|r |cffff6666Der Zielzustand"
+                    .. " wurde nicht uebernommen: "
+                    .. tostring(warum or "unbekannter Grund") .. ".|r")
+                return
+            end
+
+            -- Der Plan des Umschmiede-Suchlaufs liegt zwischengespeichert;
+            -- ohne dieses Verwerfen bliebe er stehen, bis sich die
+            -- Ausruestung aendert - und das frisch eingefuegte Ergebnis
+            -- taete sichtbar nichts.
+            local RE = WeintCodex.ReforgeEngine
+            if RE and RE.Invalidate then RE.Invalidate() end
+            if WeintCodex.Charakter and WeintCodex.Charakter.ClearCache then
+                WeintCodex.Charakter.ClearCache()
+            end
+
+            -- Direkt hinbringen, wie beim Import einer Gewichtung: die
+            -- Wirkung steht auf der Sockelseite, und ein Import, nach dem
+            -- man erst die richtige Unterseite sucht, ist der halbe Weg.
+            local nav = WeintCodex.Navigation
+            if nav and WeintCodex.Charakter and WeintCodex.Charakter.ShowGems then
+                if nav.GoToTab then nav.GoToTab("charakter")
+                elseif nav.SwitchTo then nav.SwitchTo("charakter") end
+                WeintCodex.Charakter.ShowGems()
+            end
+
+            print("|cffD4A24A[WeintCodex]|r |cff33D65EZielausruestung fuer "
+                .. label .. " uebernommen: "
+                .. (abgelegt and abgelegt.count or 0) .. " Plaetze, "
+                .. (abgelegt and abgelegt.gemCount or 0) .. " Steine, "
+                .. (abgelegt and abgelegt.reforgeCount or 0) .. " Umschmiedungen."
+                .. " Sockel und Umschmieden folgen ihr jetzt.|r")
         end
 
-        -- Direkt hinbringen, wie beim Import einer Gewichtung: die
-        -- Wirkung steht auf der Sockelseite, und ein Import, nach dem
-        -- man erst die richtige Unterseite sucht, ist der halbe Weg.
-        local nav = WeintCodex.Navigation
-        if nav and WeintCodex.Charakter and WeintCodex.Charakter.ShowGems then
-            if nav.GoToTab then nav.GoToTab("charakter")
-            elseif nav.SwitchTo then nav.SwitchTo("charakter") end
-            WeintCodex.Charakter.ShowGems()
+        -- ERST ZEIGEN, DANN UEBERNEHMEN. Ein Zielzustand aendert Sockel-
+        -- und Umschmiede-Empfehlung fuer die halbe Ausruestung auf einen
+        -- Schlag; welche Plaetze dabei gar nicht gelten (getauschtes
+        -- Teil), sieht man ohne das Fenster nirgends. Siehe den Kopf des
+        -- Fensters in modules/targetgear.lua.
+        if TG.ShowConfirm then
+            TG.ShowConfirm(clean, Uebernehmen)
+            return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14)
+                .. " Zielausruestung fuer " .. label .. " gelesen: "
+                .. clean.count .. " Plaetze, " .. clean.gemCount .. " Steine, "
+                .. clean.reforgeCount .. " Umschmiedungen."
+                .. " Im Fenster steht, was sich aendert - dort bestaetigen."
         end
 
+        Uebernehmen()
         return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14)
-            .. " Zielausruestung fuer " .. label .. " eingelesen: "
-            .. (clean and clean.count or 0) .. " Plaetze, "
-            .. (clean and clean.gemCount or 0) .. " Steine, "
-            .. (clean and clean.reforgeCount or 0) .. " Umschmiedungen."
-            .. " Sockel und Umschmieden folgen ihr jetzt."
+            .. " Zielausruestung fuer " .. label .. " uebernommen."
 
     -- WEAKAURAS
     elseif typeTag == "WA" then

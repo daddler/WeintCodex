@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.3.0",
+        date    = "08.09.2026",
+        notes   = {
+            "Wenn du eine |cffD4A24AZielausruestung|r aus WeintCompanion einfuegst, geht jetzt erst ein Fenster auf: es zeigt Platz fuer Platz, welche Steine und welche Umschmiedung der Sim vorsieht - und was sich gegenueber deinem jetzigen Stand aendert. Uebernommen wird erst auf deinen Klick.",
+            "Das Fenster nennt auch die Plaetze, die |cffE56B6Bnicht|r gelten: steckt dort inzwischen ein anderes Teil als beim Simmen, rechnet WeintCodex dort weiter selbst. Frueher sah man das nirgends - der Import meldete 15 Plaetze und tat an einigen sichtbar nichts.",
+            "Sockelsteine setzt du weiterhin selbst ein; WeintCodex zeigt nur, welche. Umschmieden laeuft wie bisher ueber |cffD4A24AAlles umschmieden|r beim Umschmieder.",
+        },
+    },
+    {
         version = "3.0.2.3",
         date    = "08.09.2026",
         notes   = {

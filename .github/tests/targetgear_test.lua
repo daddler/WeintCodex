@@ -556,6 +556,105 @@ do
 end
 
 --==========================================================================
+-- 10b) ANGELEGT GEGEN ZIEL (TG.Compare) - die Rechnung hinter `/wc ziel`
+--      UND hinter dem Bestaetigungsfenster
+--==========================================================================
+-- Zwei Darstellungen, EINE Rechnung. Was hier stimmt, stimmt in beiden -
+-- und ein Fehler hier faellt sonst nirgends auf, weil beide Ausgaben
+-- plausibel aussehen, egal was drinsteht.
+
+do
+    Reset()
+
+    -- Ein Client, der drei Plaetze traegt: Kopf und Brust wie gesimmt,
+    -- Handgelenke mit einem INZWISCHEN GETAUSCHTEN Teil.
+    local ANGELEGT = {
+        [1] = { id = 86920, gems = { META, ROT } },   -- wie im Ziel
+        [5] = { id = 86918, gems = { 0, 0, 0 } },     -- leer, Ziel fuellt
+        [9] = { id = 99999, gems = {} },              -- anderes Teil!
+    }
+    local alterLink = GetInventoryItemLink
+    GetInventoryItemLink = function(_, slot)
+        return ANGELEGT[slot] and ("link:" .. slot) or nil
+    end
+    local alterParse = CH.ParseItemLinkForDiagnostics
+    CH.ParseItemLinkForDiagnostics = function(link)
+        local slot = tonumber(tostring(link):match("^link:(%d+)$"))
+        local e = slot and ANGELEGT[slot]
+        if not e then return nil, nil end
+        return e.id, e.gems
+    end
+
+    local clean = TG.CleanEntry({
+        spec = "DRUID_FERAL", character = "Testchar", source = "wowsims_json",
+        items = {
+            { slot = 1, itemId = 86920, gems = { META, ROT }, reforge = 0 },
+            { slot = 5, itemId = 86918, gems = { ROT, BLAU, GELB }, reforge = 0 },
+            { slot = 9, itemId = 86000, gems = { ROT }, reforge = 0 },
+        },
+    })
+    Check("der Vergleichseintrag laesst sich bereinigen", clean ~= nil)
+
+    local v = TG.Compare(clean)
+    local BY = {}
+    for _, row in ipairs(v.rows) do BY[row.slot] = row end
+
+    Check("zwei Plaetze gelten, einer nicht",
+          v.ok == 2 and v.stale == 1, v.ok .. "/" .. v.stale)
+
+    Check("das getauschte Teil ist 'stale', mit beiden Nummern",
+          BY[9] and BY[9].state == "stale"
+          and BY[9].targetItemId == 86000 and BY[9].equippedItemId == 99999,
+          BY[9] and BY[9].state)
+
+    -- DAS IST DER PUNKT DES FENSTERS: was aendert sich ueberhaupt?
+    Check("gleiche Steine = keine Aenderung",
+          BY[1] and BY[1].state == "ok" and BY[1].gemsChanged == false,
+          BY[1] and tostring(BY[1].gemsChanged))
+
+    Check("leere Sockel gegen drei Zielsteine = Aenderung",
+          BY[5] and BY[5].gemsChanged == true,
+          BY[5] and tostring(BY[5].gemsChanged))
+
+    Check("die Zielsteine stehen als Namen in der Zeile",
+          BY[5] and BY[5].gemsSoll[1] == Name(ROT)
+          and BY[5].gemsSoll[3] == Name(GELB),
+          BY[5] and table.concat(BY[5].gemsSoll, ", "))
+
+    -- EINE 0 IM ZIEL IST KEINE AENDERUNG - sie heisst "dazu sagt der Sim
+    -- nichts", nicht "nimm den Stein heraus". Stuende sie als Aenderung
+    -- im Fenster, waere das eine Empfehlung in die teure Richtung.
+    local clean0 = TG.CleanEntry({
+        spec = "DRUID_FERAL", character = "Testchar",
+        items = { { slot = 1, itemId = 86920, gems = { 0, 0 }, reforge = 140 } },
+    })
+    local v0 = TG.Compare(clean0)
+    Check("eine 0 im Ziel zaehlt NICHT als Steinaenderung",
+          v0.rows[1] and v0.rows[1].gemsChanged == false,
+          v0.rows[1] and tostring(v0.rows[1].gemsChanged))
+
+    -- Ein Platz, den das Ziel gar nicht nennt, taucht als solcher auf -
+    -- sonst saehe das Fenster so aus, als sei er nicht vorhanden.
+    local cleanTeil = TG.CleanEntry({
+        spec = "DRUID_FERAL", character = "Testchar",
+        items = { { slot = 1, itemId = 86920, gems = { META }, reforge = 140 } },
+    })
+    local vTeil = TG.Compare(cleanTeil)
+    local hatNone = false
+    for _, row in ipairs(vTeil.rows) do
+        if row.slot == 5 and row.state == "none" then hatNone = true end
+    end
+    Check("ein Platz ohne Zieleintrag steht als 'kein Ziel' in der Liste",
+          hatNone and vTeil.none >= 1, tostring(vTeil.none))
+
+    Check("ein Eintrag ohne Items ergibt eine leere, aber gueltige Auskunft",
+          #TG.Compare({}).rows == 0)
+
+    GetInventoryItemLink = alterLink
+    CH.ParseItemLinkForDiagnostics = alterParse
+end
+
+--==========================================================================
 -- 11) DER SCHALTER, UND DER CHARAKTER
 --==========================================================================
 

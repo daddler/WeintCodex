@@ -170,6 +170,14 @@ hin und zurück samt der Null zwischen zwei Steinen, und die Grenzen: kein
 Ziel ohne Spezialisierung, keins ohne Stein und ohne Umschmiedung, keins
 für einen fremden Charakter.
 
+Dazu die Vergleichsrechnung `TG.Compare` („angelegt gegen Ziel"), die
+`/wc ziel` **und** das Bestätigungsfenster gemeinsam benutzen: ein
+inzwischen getauschtes Teil muss als *gilt nicht* herauskommen, gleiche
+Steine dürfen nicht als Änderung gezählt werden, und eine 0 im Ziel
+ebenfalls nicht — sie heißt „dazu sagt der Sim nichts" und nicht „nimm
+den Stein heraus". Stünde sie als Änderung im Fenster, wäre das eine
+Empfehlung in die teure Richtung.
+
 ```bash
 lua5.1 .github/tests/targetgear_test.lua .
 ```
@@ -197,6 +205,14 @@ verdoppelt, wie das DEBUG-Log es belegt hat — einmal ohne und einmal mit
 Korrektur, und dass der von der SavedVariables-Brücke gelieferte Weg
 (`companion.lua` → `QuickImport`, nie durch eine EditBox gelaufen)
 unangetastet bleibt.
+
+Seit 3.0.3.0 steht dort ausserdem der Vertrag des
+**Bestätigungsfensters**: eine eingefügte Zielausrüstung wird erst
+gezeigt und erst auf Klick übernommen. Geprüft wird nicht das Fenster
+(das braucht eine Oberfläche und damit das Spiel), sondern wer wann
+ablegt — vor der Bestätigung nichts, nach ihr alles, und ohne Fenster
+wie vor 3.0.3.0 sofort. Ein Import, der schon beim Einfügen ablegt,
+wäre der Rückfall in genau den Zustand, wegen dem es das Fenster gibt.
 
 ```bash
 lua5.1 .github/tests/sync_test.lua .

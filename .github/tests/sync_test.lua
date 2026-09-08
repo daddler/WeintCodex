@@ -127,6 +127,10 @@ local function Check(name, ok, detail)
     if not ok then fails = fails + 1 end
 end
 
+local function Reset()
+    WeintCodex.SavedData = {}
+end
+
 --==========================================================================
 -- 1) UndoEditBoxPipeEscape() fuer sich - die Umkehrfunktion allein
 --==========================================================================
@@ -247,6 +251,84 @@ do
           entry and entry.items[5] and #entry.items[5].gems == 0
           and entry.items[5].reforge == 140,
           entry and entry.items[5] and (#entry.items[5].gems .. "/" .. entry.items[5].reforge))
+end
+
+--==========================================================================
+-- 4) ERST FRAGEN, DANN ABLEGEN (seit 3.0.3.0)
+--==========================================================================
+-- Ein Zielzustand aendert Sockel- und Umschmiede-Empfehlung fuer die
+-- halbe Ausruestung auf einen Schlag. Bis 3.0.2.3 geschah das beim
+-- Einfuegen des Strings sofort und stillschweigend. Jetzt zeigt ein
+-- Fenster, was eintrifft, und der Import legt NICHTS ab, bevor der
+-- Spieler bestaetigt hat.
+--
+-- Geprueft wird der Vertrag, nicht das Fenster: ProcessImport reicht den
+-- geprueften Eintrag samt Rueckruf an TG.ShowConfirm - und ablegen tut
+-- allein der Rueckruf. Das Fenster selbst braucht eine Oberflaeche und
+-- gehoert damit ins Spiel, nicht in diesen Lauf.
+
+do
+    Reset()
+
+    local text = "WCIMPORT:TG:DRUID_FERAL:xyz789:1700000000:Njiah:wowsims_json:"
+        .. "5|86918|76692-76680|140|4420,"
+        .. "11|86946|76692|0|0"
+
+    local gesehen, rueckruf = nil, nil
+    local echtesShowConfirm = TG.ShowConfirm
+    TG.ShowConfirm = function(entry, onConfirm)
+        gesehen, rueckruf = entry, onConfirm
+        return true
+    end
+
+    TG.SetEnabled(true)
+    Sync.QuickImport(text)
+
+    Check("der Import fragt ueber TG.ShowConfirm nach", gesehen ~= nil)
+    Check("und reicht den GEPRUEFTEN Eintrag mit Zaehlung durch",
+          gesehen and gesehen.count == 2 and gesehen.gemCount == 3
+          and gesehen.reforgeCount == 1,
+          gesehen and (tostring(gesehen.count) .. "/" .. tostring(gesehen.gemCount)
+                       .. "/" .. tostring(gesehen.reforgeCount)))
+
+    -- DER KERN: solange niemand bestaetigt hat, ist NICHTS abgelegt.
+    Check("VOR der Bestaetigung ist nichts abgelegt",
+          TG.SetFor("DRUID_FERAL") == nil,
+          tostring(TG.SetFor("DRUID_FERAL")))
+
+    -- Abbrechen heisst: den Rueckruf nie aufrufen. Auch danach darf
+    -- nichts dastehen.
+    Reset()
+    Check("Abbrechen legt ebenfalls nichts ab",
+          TG.SetFor("DRUID_FERAL") == nil)
+
+    -- Und jetzt bestaetigen.
+    Sync.QuickImport(text)
+    rueckruf()
+
+    local entry = TG.SetFor("DRUID_FERAL")
+    Check("NACH der Bestaetigung steht das Ziel", entry ~= nil)
+    Check("mit beiden Plaetzen und allen drei Steinen",
+          entry and entry.count == 2 and entry.gemCount == 3,
+          entry and (tostring(entry.count) .. "/" .. tostring(entry.gemCount)))
+    Check("Slot 5 traegt beide Steine in ihrer Reihenfolge",
+          entry and entry.items[5] and entry.items[5].gems[1] == 76692
+          and entry.items[5].gems[2] == 76680,
+          entry and entry.items[5] and table.concat(entry.items[5].gems, "-"))
+    Check("und die Umschmiedung reist mit",
+          entry and entry.items[5] and entry.items[5].reforge == 140,
+          entry and entry.items[5] and entry.items[5].reforge)
+
+    -- OHNE Oberflaeche (Fenster nicht baubar) gilt weiter der alte Weg:
+    -- lieber sofort uebernehmen als den Import verlieren.
+    TG.ShowConfirm = nil
+    Reset()
+    TG.SetEnabled(true)
+    Sync.QuickImport(text)
+    Check("ohne Bestaetigungsfenster wird wie frueher sofort abgelegt",
+          TG.SetFor("DRUID_FERAL") ~= nil)
+
+    TG.ShowConfirm = echtesShowConfirm
 end
 
 print("")

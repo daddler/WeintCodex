@@ -196,7 +196,7 @@ wieder heraus* zu machen wäre der teure Irrtum in der falschen
 Richtung. Dieselbe Linie wie `headroom == nil`. Im Draht bleibt sie
 trotzdem stehen: dort hält sie die Position.
 
-### Warum das GILT und nicht erst bestätigt werden muss
+### Der eingefügte String wird gezeigt, bevor er gilt (seit 3.0.3.0)
 
 Eine Sim-**Gewichtung** wird hingelegt und wirkt erst auf Klick (siehe
 `docs/systems/stat-weights-qelive.md`), weil sie für *jede* Ausrüstung
@@ -204,17 +204,48 @@ gilt und damit ihren Zusammenhang überlebt: eine, die sich nach einem
 Login von selbst geändert hätte, wäre von einem Fehler nicht zu
 unterscheiden.
 
-Ein **Zielzustand** kann das nicht. Er wirkt nur dort, wo noch genau das
-Teil steckt, mit dem gesimmt wurde, und fällt von selbst weg, sobald das
-nicht mehr stimmt. Dazu kommen zwei Dinge, die die Bestätigungsfrage
-ersetzen: entschieden hat der Spieler bereits (auf dem Desktop, mit dem
-Knopf, der die Zustellung auslöst), und **jede betroffene Zeile sagt es**
-— „so steht es in deinem Sim-Ergebnis" an der Sockelzeile, „So steht es
-in deinem Sim-Ergebnis" an der Umschmiede-Zeile. `/wc sockel` nennt die
-Quelle je Sockel als eine von dreien: *AUS DEM SIM-ZIEL*, *aus der
-Profilliste*, *nach Wertung*. Die drei raten zu Verschiedenem, wenn
-etwas nicht stimmt — beim ersten sieht man im Sim nach, beim zweiten in
-`data/spec_profiles.lua`, beim dritten in den Gewichten.
+Bis 3.0.2.3 galt ein **Zielzustand** dagegen sofort, mit dieser
+Begründung: er wirkt nur dort, wo noch genau das Teil steckt, mit dem
+gesimmt wurde, entschieden hat der Spieler schon auf dem Desktop, und
+jede betroffene Zeile sagt, woher sie kommt.
+
+**Diese Begründung war nur halb richtig**, und der gemeldete Fall zeigt
+wo: sie erklärt, warum nicht gefragt werden muss, ob der Spieler das
+*will* — nicht aber, woher er wissen soll, **was** eintrifft. Ein
+Import, der „15 Plätze" meldet und danach an sechs davon sichtbar nichts
+tut (weil dort inzwischen ein anderes Teil steckt), ist von einem
+kaputten Import nicht zu unterscheiden. Genau so wurde er auch gemeldet.
+
+Der Weg über den **Import-Dialog** (`WCIMPORT:TG:` eingefügt) zeigt
+deshalb erst ein Fenster: Herkunft, Zählung, und Platz für Platz
+angelegt gegen Ziel — inklusive der Plätze, die *nicht* gelten, und dem
+Satz, dass Steine von Hand eingesetzt werden müssen. Abgelegt wird
+nichts, bis *Übernehmen* geklickt ist; *Abbrechen* lässt den
+bestehenden Stand unberührt.
+
+Zwei Dinge daran sind nicht Geschmack:
+
+- **Gefragt wird mit `TG.Compare()`, derselben Rechnung, die `/wc ziel`
+  ausgibt.** Zwei Fassungen von „angelegt gegen Ziel" wären zwei
+  Gelegenheiten auseinanderzulaufen, und ausgerechnet hier fiele das
+  niemandem auf: beide Ausgaben sähen plausibel aus, egal was drinsteht.
+- **Das Fenster entscheidet nicht selbst.** Es bekommt einen Rückruf und
+  ruft ihn auf Klick auf; abgelegt wird in `modules/sync.lua` über
+  `TG.Accept()`. Es gibt weiterhin genau **einen** Weg, auf dem ein Ziel
+  in die Ablage kommt.
+
+**Die Zustellung über die Addon-Brücke fragt weiterhin nicht** (Login
+bzw. `/reload`, `INBOX_HANDLERS.target_gear`). Dort hat der Spieler den
+Knopf gerade auf dem Desktop gedrückt, und ein Modal beim Einloggen
+wäre die falsche Stelle für eine Rückfrage.
+
+Unabhängig vom Weg gilt weiter: **jede betroffene Zeile sagt es** — „so
+steht es in deinem Sim-Ergebnis" an der Sockelzeile wie an der
+Umschmiede-Zeile. `/wc sockel` nennt die Quelle je Sockel als eine von
+dreien: *AUS DEM SIM-ZIEL*, *aus der Profilliste*, *nach Wertung*. Die
+drei raten zu Verschiedenem, wenn etwas nicht stimmt — beim ersten sieht
+man im Sim nach, beim zweiten in `data/spec_profiles.lua`, beim dritten
+in den Gewichten.
 
 ### Was das Addon über den Zielzustand NICHT weiss
 

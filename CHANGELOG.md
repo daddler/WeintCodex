@@ -2,6 +2,56 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.3.0] – 2026-09-08
+
+**Eine eingefügte Zielausrüstung wird erst gezeigt, dann übernommen.**
+Wenn du das Sim-Ergebnis aus WeintCompanion einfügst, geht jetzt ein
+Fenster auf: es zeigt Platz für Platz, welche Steine und welche
+Umschmiedung der Sim vorsieht — und was sich gegenüber deinem jetzigen
+Stand ändert. Übernommen wird erst auf deinen Klick, Abbrechen lässt
+alles wie es war.
+
+Das Fenster nennt auch die Plätze, die **nicht** gelten: steckt dort
+inzwischen ein anderes Teil als beim Simmen, rechnet WeintCodex dort
+weiter selbst. Vorher sah man das nirgends — der Import meldete
+„15 Plätze" und tat an einigen davon sichtbar nichts.
+
+Sockelsteine setzt du weiterhin selbst ein; WeintCodex zeigt nur,
+welche. Umschmieden läuft wie bisher über *Alles umschmieden* beim
+Umschmieder.
+
+### Technisch
+
+`TG.Compare(entry)` in `modules/targetgear.lua` ist neu und beantwortet
+„angelegt gegen Ziel" **einmal** für beide Darstellungen: `/wc ziel`
+(`TG.Dump`) gibt sie als Text aus, das neue Fenster (`TG.ShowConfirm`)
+als Liste. Zwei Fassungen davon wären zwei Gelegenheiten
+auseinanderzulaufen, und ausgerechnet hier fiele das niemandem auf —
+beide Ausgaben sähen plausibel aus, egal was drinsteht. `/wc ziel` zeigt
+dadurch zusätzlich den **Ist**-Zustand der Umschmiedung (über
+`RE.CurrentPair`), nicht mehr nur das Ziel.
+
+Eine 0 im Ziel zählt dabei ausdrücklich **nicht** als Änderung: sie
+heißt „der Sim sagt zu diesem Sockel nichts", nicht „nimm den Stein
+heraus" — dieselbe Linie wie in `ParseTransfer` und `PlanItem`.
+
+`modules/sync.lua` legt im `TG`-Zweig nichts mehr selbst ab: geprüft
+wird mit `TG.CleanEntry` (damit im Fenster kein Zielzustand steht, den
+das Übernehmen danach ablehnt), abgelegt wird allein im Rückruf über
+`TG.Accept` — mit dem **rohen** Eintrag, nicht mit dem bereinigten,
+dessen `items` nach Slotnummer indiziert und damit lückenhaft sind
+(ohne Platz 4 endet `ipairs` bei 3). Fehlt die Oberfläche, gilt der Weg
+von vorher: lieber sofort übernehmen als den Import verlieren.
+
+Die Zustellung über die Addon-Brücke (`INBOX_HANDLERS.target_gear`,
+Login/`/reload`) fragt weiterhin nicht — dort hat der Spieler den Knopf
+gerade auf dem Desktop gedrückt.
+
+`.github/tests/sync_test.lua` pinnt den neuen Vertrag (vor der
+Bestätigung ist nichts abgelegt, nach ihr alles, ohne Fenster wie
+früher sofort), `.github/tests/targetgear_test.lua` die Vergleichs-
+rechnung samt getauschtem Teil, unverändertem Sockel und der 0-Regel.
+
 ## [3.0.2.3] – 2026-09-08
 
 Der Import einer Zielausrüstung aus WeintCompanion schlug manchmal mit
