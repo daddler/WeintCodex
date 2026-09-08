@@ -68,6 +68,12 @@ reads/writes) or through a copy-pasted `WCIMPORT:` string.
   weight never overrides a curated gem/enchant list** — the list decides
   which item is recommended, the weight only scores it. Full rule:
   `docs/systems/gearing.md`.
+- **Where a wowsims target state exists, it decides — the addon does not
+  re-derive gems or reforges.** The curated lists and `statWeights` stay
+  as the **fallback**, per socket and per slot, never the other way
+  round. Rangfolge und Rückfälle: `docs/systems/gearing.md` (Abschnitt
+  *Der Zielzustand aus dem Sim*), Vertrag:
+  `../WeintCompanion/docs/target-gear-bridge.md`.
 - **Never write to a freshly created fallback table instead of
   `WeintCodex_SavedData`.** WoW only persists variables declared in the
   `.toc`; a silent fallback loses data with no error. Details:
@@ -96,6 +102,7 @@ Companion-visible text).
 | Task touches… | Read |
 |---|---|
 | Sockel, Verzauberungen, Umschmieden, Tempo-Schwellen, BiS, Steinempfehlung | `docs/systems/gearing.md` (the whole file — it's one interconnected system) |
+| Zielausrüstung aus dem Sim (`modules/targetgear.lua`, `/wc ziel`) | `docs/systems/gearing.md` (Abschnitt *Der Zielzustand aus dem Sim*) + `../WeintCompanion/docs/target-gear-bridge.md` |
 | "warum war das mal kaputt" bei Sockel/Umschmieden/Werteabgleich | `docs/history/gearing-lessons.md` |
 | UI-Struktur, Theme, `core/ui.lua`, Navigationsspalte, PageHead | `docs/architecture/overview.md` |
 | Companion-Sync allgemein (Inbox/Outbound-Nachrichten, `ProcessInbox`) | `docs/systems/companion-bridge.md` |

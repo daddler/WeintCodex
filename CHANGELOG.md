@@ -2,6 +2,53 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.0.2.0] – 2026-09-08
+
+**Deine Sockelsteine und Umschmiedungen kommen jetzt direkt aus dem Sim.**
+Bisher hat WeintCodex selbst ausgerechnet, welcher Stein in welchen
+Sockel gehört — auch dann, wenn du auf wowsims längst optimiert hattest.
+Das waren zwei Rechnungen für dieselbe Frage, und die zweite lag
+manchmal daneben.
+
+Wenn du im Sim fertig optimiert hast, kopierst du das Ergebnis dort
+unter *Export → Link* (oder *JSON*) und fügst es in WeintCompanion auf
+*Charakter → Simmen* in dasselbe Feld ein wie bisher die Gewichtung.
+Danach schlägt WeintCodex genau die Steine und Umschmiedungen vor, die
+im Sim stehen — und sagt an jeder Zeile, dass sie von dort kommen.
+
+Was der Sim zu einem Sockel nicht sagt, rechnet WeintCodex weiter selbst
+aus: ein Zusatzsockel, den du nach dem Simmen angebracht hast, ein Teil,
+das du inzwischen getauscht hast, ein Platz ohne Angabe. Es fällt immer
+nur der einzelne Sockel zurück, nie das ganze Teil.
+
+Deine eigene Auswahl beim Umschmieder geht weiterhin vor. Was du dort
+selbst gesetzt hast, fasst niemand an.
+
+**Neu: `/wc ziel`.** Zeigt Platz für Platz, was du trägst und was der
+Sim will, samt Umschmiedung. `/wc ziel aus` schaltet die Übernahme ab,
+falls dir ein Vorschlag komisch vorkommt, `/wc ziel an` wieder ein.
+Auf *Charakter → Sockel* steht an jeder Zeile, woher die Empfehlung
+stammt.
+
+Verzauberungen bleiben, wie sie waren.
+
+### Technisch
+
+Neues Modul `modules/targetgear.lua`: Ablage, Prüfung und Abfrage des
+Zielzustands je Spezialisierung, plus `/wc ziel`. `PlanItem`
+(`modules/charakter.lua`) bekommt einen Zweig vor MATCH/IGNORE — kein
+zweiter Planer daneben, es wechselt die Quelle der Empfehlung. Der
+Rückfall greift je Sockel, nicht je Gegenstand; eine 0 im Ziel heisst
+„keine Angabe" und nie „Sockel leer lassen". `ItemOptions`
+(`modules/reforge_engine.lua`) behandelt die Ziel-Umschmiedung wie eine
+Handauswahl (einzige Möglichkeit des Slots, ein Ausführungsweg); die
+Handauswahl selbst steht weiterhin davor. Die Plan-Kennung trägt die
+Ziel-Kennung mit, sonst bliebe der zwischengespeicherte Plan stehen.
+Zwei Zustellwege wie bei den Sim-Gewichten: Inbox-Nachricht
+`target_gear` und `WCIMPORT:TG:`. Vertrag:
+`../WeintCompanion/docs/target-gear-bridge.md`. Neuer Testlauf
+`.github/tests/targetgear_test.lua` (40 Prüfungen).
+
 ## [3.0.0.1] – 2026-09-07
 
 Diese Fassung ändert nichts, was du im Spiel siehst.

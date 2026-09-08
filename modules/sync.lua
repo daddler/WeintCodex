@@ -452,6 +452,66 @@ local function ProcessImport(rawStr)
             .. " Sim-Gewichtung fuer " .. label .. " eingelesen."
             .. " Sie steht in den Feldern - gespeichert wird erst auf deinen Klick."
 
+    -- ZIELAUSRUESTUNG AUS DEM SIM
+    --
+    -- Kein Eintrag in IMPORT_FEATURE, aus demselben Grund wie bei SW und
+    -- WA: ein Sim-Ergebnis gehoert dem eigenen Charakter und ist nichts
+    -- Gildeninternes.
+    --
+    -- Der Weg OHNE `/reload`. Die Zustellung ueber die Addon-Bruecke
+    -- kommt erst beim naechsten Laden an (WoW liest seine
+    -- SavedVariables zur Laufzeit nicht erneut) - wer gerade vor dem
+    -- Umschmieder steht, laedt nicht neu.
+    elseif typeTag == "TG" then
+        local TG = WeintCodex.TargetGear
+        if not (TG and TG.ParseTransfer) then
+            return false, "Zielausruestungen kann diese Addon-Fassung nicht lesen."
+        end
+
+        local entry, problem = TG.ParseTransfer(payload)
+        if not entry then
+            return false, problem or "Der String liess sich nicht lesen."
+        end
+
+        local ok, why, clean = TG.Accept(entry)
+        if not ok then
+            return false, "Der Zielzustand wurde nicht uebernommen: "
+                .. (why or "unbekannter Grund") .. "."
+        end
+
+        local label = entry.spec
+        if WeintCodex_SpecProfiles and WeintCodex_SpecProfiles[entry.spec]
+           and WeintCodex_SpecProfiles[entry.spec].name then
+            label = WeintCodex_SpecProfiles[entry.spec].name
+        end
+
+        -- Der Plan des Umschmiede-Suchlaufs liegt zwischengespeichert;
+        -- ohne dieses Verwerfen bliebe er stehen, bis sich die
+        -- Ausruestung aendert - und das frisch eingefuegte Ergebnis
+        -- taete sichtbar nichts.
+        local RE = WeintCodex.ReforgeEngine
+        if RE and RE.Invalidate then RE.Invalidate() end
+        if WeintCodex.Charakter and WeintCodex.Charakter.ClearCache then
+            WeintCodex.Charakter.ClearCache()
+        end
+
+        -- Direkt hinbringen, wie beim Import einer Gewichtung: die
+        -- Wirkung steht auf der Sockelseite, und ein Import, nach dem
+        -- man erst die richtige Unterseite sucht, ist der halbe Weg.
+        local nav = WeintCodex.Navigation
+        if nav and WeintCodex.Charakter and WeintCodex.Charakter.ShowGems then
+            if nav.GoToTab then nav.GoToTab("charakter")
+            elseif nav.SwitchTo then nav.SwitchTo("charakter") end
+            WeintCodex.Charakter.ShowGems()
+        end
+
+        return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14)
+            .. " Zielausruestung fuer " .. label .. " eingelesen: "
+            .. (clean and clean.count or 0) .. " Plaetze, "
+            .. (clean and clean.gemCount or 0) .. " Steine, "
+            .. (clean and clean.reforgeCount or 0) .. " Umschmiedungen."
+            .. " Sockel und Umschmieden folgen ihr jetzt."
+
     -- WEAKAURAS
     elseif typeTag == "WA" then
         local data  = ParseWAImport(payload)

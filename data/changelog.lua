@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.0.2.0",
+        date    = "08.09.2026",
+        notes   = {
+            "|cffD4A24ASockelsteine und Umschmieden|r folgen jetzt deinem Sim-Ergebnis, statt es noch einmal nachzurechnen. Im Sim optimieren, dort |cffD4A24AExport -> Link|r kopieren und in WeintCompanion auf |cffD4A24ACharakter -> Simmen|r einfuegen.",
+            "An jeder Zeile steht, woher die Empfehlung kommt. Sagt der Sim zu einem Sockel nichts, rechnet WeintCodex weiter selbst - dann faellt nur dieser eine Sockel zurueck, nie das ganze Teil.",
+            "Was du beim Umschmieder selbst gesetzt hast, geht weiterhin vor.",
+            "Neu: |cffD4A24A/wc ziel|r zeigt Platz fuer Platz, was du traegst und was der Sim will. |cffD4A24A/wc ziel aus|r schaltet die Uebernahme ab.",
+            "Verzauberungen bleiben, wie sie waren.",
+        },
+    },
+    {
         version = "3.0.0.1",
         date    = "07.09.2026",
         notes   = {

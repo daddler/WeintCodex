@@ -19,10 +19,19 @@ network:
   dispatches by `message.type`: `raid_import` carries a `WCIMPORT` string
   and goes to `WeintCodex.Sync.QuickImport` (see `wcimport-sync.md`), while
   `access_profile`, `academy_catalog`, `academy_state`, `weinttv_report`,
-  `weakaura_library` and (since 2.8.0.0) `stat_weights` carry **nested Lua
-  tables** and are stored in `WeintCodex.SavedData.access` / `.academy` /
-  `.weinttv` / `.weakAuraLibrary` / `.statWeights`. Each handler runs in
+  `weakaura_library`, (since 2.8.0.0) `stat_weights` and (since 3.0.2.0)
+  `target_gear` carry **nested Lua tables** and are stored in
+  `WeintCodex.SavedData.access` / `.academy` / `.weinttv` /
+  `.weakAuraLibrary` / `.statWeights` / `.targetGear`. Each handler runs in
   `pcall`, so one malformed message cannot strand the rest of the queue.
+
+  `stat_weights` and `target_gear` are the two that come from
+  **WeintCompanion itself** rather than from the bot — both are read out of
+  a wowsims run for one character. They differ in one deliberate way:
+  a weight set is *offered* and takes effect on a click, a target state
+  simply *applies* (it can only act where the very item it was simmed
+  with is still equipped, and every affected row names the sim as its
+  source). See `gearing.md`, section *Der Zielzustand aus dem Sim*.
   Full payload schemas: header comment of `modules/companion.lua` (and for
   `access_profile` in `core/access.lua`). Full cross-repo contracts for
   each of these live in `../../../WeintCompanion/docs/*.md` — see the

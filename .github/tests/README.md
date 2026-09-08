@@ -144,3 +144,32 @@ noch zieht.
 ```bash
 lua5.1 .github/tests/gem_plan_test.lua .
 ```
+
+## Zielausrüstung aus dem Sim
+
+`targetgear_test.lua` prüft `modules/targetgear.lua` und ihren Eingriff in
+`PlanItem`. Seit die Steinempfehlung dem Ergebnis von wowsims folgt, statt
+es nachzurechnen, hängt alles an zwei Fragen, die im Spiel niemand
+nachprüfen kann:
+
+**Landet der Stein im richtigen Sockel?** Die Reihenfolge ist die ganze
+Aussage — ein verschobener Stein sieht aus wie eine Empfehlung und ist
+keine. Geprüft werden mehrere Sockel an einem Teil, dieselbe Stein-ID
+mehrfach, der Meta-Sockel, eine Lücke mitten im Ziel und ein Zusatzsockel,
+den das Ziel gar nicht kennt (Gürtelschnalle nach dem Simmen angebracht).
+
+**Landet das Teil im richtigen Platz?** Ring 1 und Ring 2 können dasselbe
+Teil sein; zugeordnet wird über den Platz, nie über die Gegenstandsnummer
+allein. Dazu Haupt- gegen Nebenhand und der Fall, in dem inzwischen ein
+anderes Teil im Platz steckt — dann gilt das Ziel dort nicht, und der
+Grund muss nachlesbar sein.
+
+Dazu die vier Umschmiede-Fälle (eine Umschmiedung, ausdrücklich keine,
+kein Zieleintrag, ein unmöglicher Umschmiedewert), der Übertragungsstring
+hin und zurück samt der Null zwischen zwei Steinen, und die Grenzen: kein
+Ziel ohne Spezialisierung, keins ohne Stein und ohne Umschmiedung, keins
+für einen fremden Charakter.
+
+```bash
+lua5.1 .github/tests/targetgear_test.lua .
+```

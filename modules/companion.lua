@@ -790,6 +790,49 @@ INBOX_HANDLERS.stat_weights = function(payload)
 
 end
 
+--
+-- Die ZIELAUSRUESTUNG aus demselben Sim: welche Steine und welche
+-- Umschmiedung wowsims nach seinem Optimierungslauf fuer jeden Platz
+-- vorsieht (siehe modules/targetgear.lua).
+--
+-- ANDERS ALS BEI DEN GEWICHTEN WIRD SIE NICHT ERST ANGEBOTEN, und das
+-- ist kein Versehen. Eine Gewichtung gilt fuer jede Ausruestung und
+-- ueberlebt damit ihren Zusammenhang - eine, die sich nach einem Login
+-- von selbst geaendert hat, waere von einem Fehler nicht zu
+-- unterscheiden, und deshalb liegt sie auf `Priorisierung` bereit statt
+-- zu gelten. Ein Zielzustand kann das nicht: er wirkt nur dort, wo noch
+-- GENAU DAS Teil steckt, mit dem gesimmt wurde, und faellt von selbst
+-- weg, sobald das nicht mehr stimmt. Jede Zeile, die aus ihm stammt,
+-- sagt das ausserdem ("so steht es in deinem Sim-Ergebnis"), und
+-- entschieden hat der Spieler bereits - auf dem Desktop, mit dem Knopf,
+-- der diese Nachricht ausloest.
+--
+INBOX_HANDLERS.target_gear = function(payload)
+
+    if type(payload) ~= "table" then return end
+    if type(payload.sets) ~= "table" then return end
+
+    local TG = WeintCodex.TargetGear
+    if not (TG and TG.ReplaceAll) then return end
+
+    -- Zugestellt wird immer die ganze Liste; was nicht mehr dabei ist,
+    -- gibt es nicht mehr. Dieselbe Regel wie bei den Gewichten und der
+    -- WeakAura-Bibliothek.
+    local fresh = TG.ReplaceAll(payload.sets)
+
+    if fresh > 0 then
+        -- Einmal gesagt, mit dem Weg dorthin: eine Empfehlung, die sich
+        -- geaendert hat, ohne dass jemand davon weiss, ist die Sorte
+        -- Aenderung, die man fuer einen Fehler haelt.
+        print(WeintCodex.ColorText("gold", "[WeintCodex]")
+            .. " Zielausruestung aus dem Sim uebernommen"
+            .. (fresh > 1 and (" (" .. fresh .. " Spezialisierungen)") or "")
+            .. ". Sockel- und Umschmiede-Empfehlungen folgen ihr jetzt."
+            .. " |cff4A4A52/wc ziel|r zeigt sie Platz fuer Platz.")
+    end
+
+end
+
 local function Dispatch(message)
 
     local handler = INBOX_HANDLERS[message.type]

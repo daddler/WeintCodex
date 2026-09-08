@@ -84,6 +84,158 @@ equipped gem** it does not — an inflated secondary still leaves a correct
 gem reading "nur ok". `.github/tests/gem_plan_test.lua` pins the reported
 case, both causes separately, and the cap counter-check.
 
+## Der Zielzustand aus dem Sim (`modules/targetgear.lua`, seit 3.0.2.0)
+
+**Alles unter dieser Überschrift ist die Antwort auf eine Frage, die
+dieses Addon zweimal beantwortet hat.** Aus `statWeights` und den
+kuratierten Listen leitet es ab, welcher Stein in welchen Sockel gehört
+und was wohin umgeschmiedet wird — eine vollständige Optimierung neben
+der, die im Sim längst gelaufen ist. Die gemeldeten Fehlgriffe bei
+Steinen sind fast alle von dieser Sorte: nicht „die Rechnung ist
+falsch", sondern *es wird überhaupt gerechnet*. Die halbe Datei über
+dieser Zeile ist die Geschichte davon.
+
+Seit 3.0.2.0 gilt deshalb, wo ein Sim-Ergebnis vorliegt:
+
+> **wowsims trifft die Optimierungsentscheidung. WeintCodex
+> interpretiert sie, vergleicht sie mit dem Iststand und stellt sie
+> verständlich dar.**
+
+Der volle Wire-Vertrag (drei Gestalten, Feldbedeutungen, Zuordnung über
+`SLOT_IDS`, die 0-Regel) steht drüben und ist dort autoritativ:
+`../WeintCompanion/docs/target-gear-bridge.md`. Hier steht nur, was in
+*diesem* Repo daran hängt.
+
+### Die Rangfolge, und sie gilt in genau dieser Richtung
+
+```
+1. Handauswahl des Spielers   (nur Umschmieden, RE.SetManual)
+2. Zielzustand aus dem Sim    (modules/targetgear.lua)
+3. eigene Rechnung            (PlanItem / der Umschmiede-Suchlauf)
+```
+
+Die Handauswahl steht **vor** dem Sim, und das ist keine Inkonsequenz:
+wer im Umschmiede-Fenster „hier will ich Meisterschaft" gesagt hat, hat
+das *nach* dem Simmen gesagt und weiss an dieser Stelle mehr — dieselbe
+Begründung, aus der sie auch den Suchlauf schlägt. Bei den Sockeln gibt
+es keine Handauswahl; dort ist der Sim die oberste Instanz.
+
+**Verglichen wird nie, wer „besser" ist.** Ein Gewicht gegen ein
+Sim-Ergebnis zu stellen hiesse, dem Gewicht das letzte Wort zu geben —
+und die Gewichte sind der Grund, aus dem hier überhaupt jemals falsch
+geraten wurde (siehe der ganze Anfang dieser Datei).
+
+### Wo es eingreift — und wo ausdrücklich nicht
+
+- **`PlanItem` bekommt einen eigenen Zweig**, vor den beiden Strategien
+  MATCH und IGNORE. Liegt für **genau diesen** Gegenstand ein
+  Zielzustand vor, sind `plan.gems` die Zielsteine, `plan.listed[i]` ist
+  `"sim"`, und `plan.source` ist `"sim"`. Kein zweiter Planer daneben:
+  es wechselt die **Quelle** der Empfehlung, nicht die Stelle, an der
+  sie entsteht. Empfehlung, Steinurteil (`EvaluateGem`) und Bonuszeile
+  lesen weiterhin alle aus demselben `plan` und können sich deshalb
+  nach wie vor nicht widersprechen.
+- **Gerechnet wird trotzdem zweierlei**, und beides beschreibt die
+  Empfehlung, statt sie zu ändern: die **Wertung** je Stein
+  (`plan.value`, daran misst `EvaluateGem` den angelegten Stein — ohne
+  sie stünde überall „0 %") und der **Spielraum** (`plan.room`; die
+  nächsten Slots müssen mit dem rechnen, was der Sim hier schon
+  verbraucht).
+- **`plan.match` wird aus den Farben der Zielsteine abgelesen**, nicht
+  behauptet: hält der Zielzustand den Sockelbonus? Das ist eine Aussage
+  über den **vorgeschlagenen** Zustand; `plan.active` daneben bleibt
+  das, was der Client über den **angelegten** meldet. Ist eine
+  Steinfarbe unbekannt, bleibt `plan.match` `nil` — keine Aussage.
+  Sockelboni reisen nicht mit, weil sie im Ergebnis bereits *verrechnet*
+  sind: welche Steine der Sim gesetzt hat, sagt implizit, ob er den
+  Bonus halten wollte.
+- **`ItemOptions` im Umschmiede-Planer** macht die Ziel-Umschmiedung zur
+  **einzigen** Möglichkeit des Slots — genau wie eine Handauswahl. Sie
+  wird also nicht sofort ausgeführt: der Suchlauf plant um sie herum,
+  die Seite zeigt sie, und *Alles umschmieden* führt sie mit aus. Es
+  gibt weiterhin genau **einen** Ausführungsweg mit seiner
+  Kostenrechnung und seiner Fehlermeldung.
+- **Die Plan-Kennung trägt die Ziel-Kennung mit** (`PlanSignature`).
+  Ohne sie bliebe nach einer neuen Zustellung der Plan von vorher
+  stehen — die Ausrüstung hat sich ja nicht geändert —, und das frische
+  Sim-Ergebnis täte sichtbar nichts. Derselbe Fehler, den die eigene
+  Priorisierung und die Handauswahl schon hatten.
+- **Verzauberungen bleiben, wo sie sind.** Der Zielzustand trägt sie
+  mit, das Addon wertet sie **nicht** aus. Die bestehende
+  Verzauberungslogik funktioniert; sie zu ersetzen war nicht das
+  Problem, und ein Bereich, den man nicht braucht, wird nicht angefasst.
+
+### Der Rückfall ist per Sockel, nicht per Ausrüstung
+
+Zurück auf Stufe 3 fällt genau das, was Stufe 2 nicht abdeckt — **nie
+das ganze Teil wegen eines Sockels, nie die ganze Ausrüstung wegen
+eines Teils**:
+
+| Fall | Folge |
+|---|---|
+| Kein Zielzustand für diese Spec | alles wie bisher |
+| Ziel gehört einem anderen Charakter | gilt nicht, mit Begründung |
+| Anderer Gegenstand im Platz (veraltet) | dieser **Platz** rechnet selbst |
+| Ziel nennt diesen Platz nicht | dieser **Platz** rechnet selbst |
+| Ziel nennt weniger Sockel als das Teil (Gürtelschnalle) | dieser **Sockel** rechnet selbst |
+| 0 an dieser Sockelposition | dieser **Sockel** rechnet selbst |
+| Umschmiedung am Teil nicht zulässig | dieser **Platz** rechnet selbst, die Zeile sagt es |
+| `/wc ziel aus` | alles wie bisher |
+
+Der Rückfall für einen einzelnen Sockel stellt bewusst die
+**IGNORE**-Frage („was ist hier am stärksten") und nicht die
+MATCH-Frage: über den Sockelbonus hat der Sim bereits entschieden,
+indem er die übrigen Sockel gefüllt hat, und eine zweite Bonus-Abwägung
+für einen einzelnen Sockel widerspräche ihr.
+
+**Eine 0 im Ziel ist eine Lücke, keine Aussage.** Sie heisst „der Sim
+nennt für diesen Sockel keinen Stein" und ausdrücklich nicht „dieser
+Sockel soll leer bleiben" — sie entsteht auch dann, wenn im Sim schlicht
+nichts eingestellt war, und daraus eine Empfehlung *nimm deinen Stein
+wieder heraus* zu machen wäre der teure Irrtum in der falschen
+Richtung. Dieselbe Linie wie `headroom == nil`. Im Draht bleibt sie
+trotzdem stehen: dort hält sie die Position.
+
+### Warum das GILT und nicht erst bestätigt werden muss
+
+Eine Sim-**Gewichtung** wird hingelegt und wirkt erst auf Klick (siehe
+`docs/systems/stat-weights-qelive.md`), weil sie für *jede* Ausrüstung
+gilt und damit ihren Zusammenhang überlebt: eine, die sich nach einem
+Login von selbst geändert hätte, wäre von einem Fehler nicht zu
+unterscheiden.
+
+Ein **Zielzustand** kann das nicht. Er wirkt nur dort, wo noch genau das
+Teil steckt, mit dem gesimmt wurde, und fällt von selbst weg, sobald das
+nicht mehr stimmt. Dazu kommen zwei Dinge, die die Bestätigungsfrage
+ersetzen: entschieden hat der Spieler bereits (auf dem Desktop, mit dem
+Knopf, der die Zustellung auslöst), und **jede betroffene Zeile sagt es**
+— „so steht es in deinem Sim-Ergebnis" an der Sockelzeile, „So steht es
+in deinem Sim-Ergebnis" an der Umschmiede-Zeile. `/wc sockel` nennt die
+Quelle je Sockel als eine von dreien: *AUS DEM SIM-ZIEL*, *aus der
+Profilliste*, *nach Wertung*. Die drei raten zu Verschiedenem, wenn
+etwas nicht stimmt — beim ersten sieht man im Sim nach, beim zweiten in
+`data/spec_profiles.lua`, beim dritten in den Gewichten.
+
+### Was das Addon über den Zielzustand NICHT weiss
+
+**Ob im Sim wirklich ein Optimierungslauf lief.** Der Sim schreibt
+heraus, was gerade eingestellt ist; wer importiert und sofort
+exportiert, bekommt seinen Ausgangszustand zurück. Prüfen lässt sich
+das nur auf dem Desktop, neben der gemeldeten angelegten Ausrüstung —
+und dort geschieht es auch (`compare()` in `core/target_gear.py`
+drüben, die Seite sagt „Achtung: das ist Stück für Stück dasselbe, was
+du gerade trägst"). Im Spiel gibt es diese Auskunft nicht: hier ist ein
+Zielzustand ein Zielzustand.
+
+`/wc ziel` ist der Befehl dazu, aus demselben Grund wie `/wc sockel`
+und `/wc vz zeilen`: ein veraltetes Ziel, ein Ziel für den falschen
+Charakter, eine verschobene Sockelfolge und ein Sim, der es wirklich so
+wollte, sehen von aussen identisch aus. Er druckt, was geliefert wurde,
+für wen es gilt, und Platz für Platz den Iststand gegen das Ziel.
+`.github/tests/targetgear_test.lua` hält die Sockelreihenfolge, den
+Meta-Sockel, die Lücke, das veraltete Ziel, Ring 1 gegen Ring 2 und die
+vier Umschmiede-Fälle fest.
+
 ## Sockel: der Client liefert die Fakten, eine Rechnung entscheidet
 
 Everything about socket evaluation is downstream of one rule, learned the

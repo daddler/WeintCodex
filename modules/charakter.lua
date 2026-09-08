@@ -684,6 +684,15 @@ local function BaseItemString(link)
     return id and ("item:" .. id) or nil
 end
 
+-- Die blosse Gegenstandsnummer. Sie beantwortet EINE Frage: steckt in
+-- diesem Platz noch das Teil, mit dem gesimmt wurde (siehe
+-- modules/targetgear.lua)? Ueber denselben Ausdruck wie BaseItemString,
+-- damit nicht zwei Stellen den Item-Link verschieden zerlegen.
+local function ItemIdFromLink(link)
+    local id = link and (link:match("|Hitem:(%d+):") or link:match("^item:(%d+)"))
+    return id and tonumber(id) or nil
+end
+
 -- Sockelfolge des Grundgegenstands als Liste von Farben, oder nil, wenn der
 -- Tooltip (noch) nichts hergab. Rein lesend.
 local function SocketColorsFromTooltip(link)
@@ -2585,7 +2594,14 @@ local function ExplainGem(id, socket, room, weights, plan, ctx, fromList, jcNumb
     -- die Wertung ausgesucht — und dann ist die Wertung auch das, was man
     -- nachrechnen wuerde. Beides unter demselben Satz zu fuehren hiesse,
     -- eine Rechnung als Empfehlung auszugeben (und umgekehrt).
-    if fromList then
+    -- DREI QUELLEN, DREI SAETZE. "aus dem Sim", "aus der Liste" und
+    -- "nach Wertung" raten zu Verschiedenem, wenn etwas nicht stimmt:
+    -- beim ersten sieht man im Sim nach, beim zweiten in
+    -- data/spec_profiles.lua, beim dritten in den Gewichten. Ein Satz
+    -- fuer alle drei waere fuer zwei davon falsch.
+    if fromList == "sim" then
+        parts[#parts + 1] = "so steht es in deinem Sim-Ergebnis"
+    elseif fromList then
         parts[#parts + 1] = "erste Wahl deines Spec-Profils für diese Sockelfarbe"
     end
 
@@ -2623,7 +2639,18 @@ local function ExplainGem(id, socket, room, weights, plan, ctx, fromList, jcNumb
 
     -- (d) Die Sockelbonus-Entscheidung, in Worten statt in Zahlen.
     if IsColoredSocket(socket.color) and (plan.bonusText or plan.bonus) then
-        if plan.match then
+        if plan.source == "sim" then
+            -- Beim Sim-Ziel ist `plan.match` eine BESCHREIBUNG (halten
+            -- die Zielsteine den Bonus?) und keine Abwaegung, die wir
+            -- getroffen haetten. "wiegt weniger als" waere hier eine
+            -- Begruendung fuer eine Entscheidung, die woanders gefallen
+            -- ist - und nil heisst weiterhin "keine Aussage".
+            if plan.match == true then
+                parts[#parts + 1] = "die Zielsteine halten den Sockelbonus"
+            elseif plan.match == false then
+                parts[#parts + 1] = "der Sim nimmt den Sockelbonus dafür in Kauf"
+            end
+        elseif plan.match then
             parts[#parts + 1] = "Farbe passt und hält den Sockelbonus"
         else
             parts[#parts + 1] = "der Sockelbonus wiegt weniger als der stärkere Stein"
@@ -2683,7 +2710,7 @@ end
 --   bonus, bonusValue, bonusUnknown
 --------------------------------------------------
 
-local function PlanItem(sockets, bonus, bonusText, profile, ctx)
+local function PlanItem(sockets, bonus, bonusText, profile, ctx, itemRef)
     local plan = {
         gems = {}, value = {}, room = {},
         bonus = bonus, bonusText = bonusText,
@@ -2795,6 +2822,137 @@ local function PlanItem(sockets, bonus, bonusText, profile, ctx)
         return { gems = picks, value = values, room = rooms,
                  listed = listed, total = total,
                  jcIndex = jcIndex, jcTaken = jcTaken }
+    end
+
+    ----------------------------------------------------------------
+    -- DER SIM HAT DIE ABWAEGUNG SCHON GETROFFEN (seit 3.0.2)
+    --
+    -- Liegt fuer GENAU DIESEN Gegenstand ein Zielzustand aus wowsims
+    -- vor, ist die Frage "welcher Stein gehoert in diesen Sockel"
+    -- beantwortet - und zwar von einer Rechnung, die mehr weiss als
+    -- diese: sie kennt Procs, Sockelboni, Kappen und die Skalierung
+    -- der ganzen Ausruestung in einem Zug. Sie hier nachzurechnen
+    -- waere die zweite Antwort auf dieselbe Frage, und aus genau
+    -- dieser Doppelung stammt fast jede gemeldete Fehlempfehlung.
+    --
+    -- ES WIRD NICHT VERGLICHEN, WER "BESSER" IST. Ein Gewicht gegen
+    -- ein Sim-Ergebnis zu stellen hiesse, dem Gewicht das letzte Wort
+    -- zu geben - und die Gewichte sind der Grund, aus dem hier
+    -- ueberhaupt jemals falsch geraten wurde (siehe den Kopf von
+    -- docs/systems/gearing.md).
+    --
+    -- WAS TROTZDEM GERECHNET WIRD, und beides aus gutem Grund:
+    --   * die WERTUNG je Stein (`plan.value`) - daran misst
+    --     EvaluateGem den angelegten Stein, und ohne sie stuende
+    --     ueberall "0 %";
+    --   * der SPIELRAUM (`plan.room`) - die naechsten Slots muessen
+    --     mit dem rechnen, was der Sim hier schon verbraucht.
+    -- Beide aendern die EMPFEHLUNG nicht, sie beschreiben sie nur.
+    --
+    -- LUECKENHAFT HEISST TEILWEISE, NICHT GAR NICHT. Nennt das Ziel
+    -- einen Sockel nicht (Zusatzsockel nach dem Simmen angebracht),
+    -- faellt GENAU DIESER Sockel auf die eigene Rechnung zurueck -
+    -- der Rest bleibt beim Sim. Ein ganzes Teil wegzuwerfen, weil ein
+    -- Sockel fehlt, waere teurer als der Rueckfall.
+    ----------------------------------------------------------------
+    local TG = WeintCodex.TargetGear
+    if TG and TG.GemFor and itemRef and itemRef.specKey and itemRef.slotId then
+
+        local picks, offen, gaps = {}, 0, {}
+
+        for i, socket in ipairs(sockets) do
+            local wanted, why = TG.GemFor(
+                itemRef.specKey, itemRef.slotId, itemRef.itemId, socket.index or i)
+            if wanted == nil then
+                gaps[i] = why or "kein Ziel"
+            else
+                picks[i] = wanted
+                offen = offen + 1
+            end
+        end
+
+        if offen > 0 then
+
+            local room, values, rooms, listed = {}, {}, {}, {}
+            for stat, v in pairs(live) do room[stat] = v end
+
+            local total = 0
+
+            for i, socket in ipairs(sockets) do
+                local snapshot = {}
+                for stat, v in pairs(room) do snapshot[stat] = v end
+                rooms[i] = snapshot
+
+                if picks[i] == nil then
+                    -- Rueckfall NUR fuer diesen Sockel. Bewusst die
+                    -- IGNORE-Frage ("was ist hier am staerksten"):
+                    -- ueber den Sockelbonus hat der Sim bereits
+                    -- entschieden, indem er die uebrigen Sockel
+                    -- gefuellt hat - eine zweite Bonus-Abwaegung fuer
+                    -- einen einzelnen Sockel widerspraeche ihr.
+                    local cands, curated = CandidateList(profile, pool, socket.color, false)
+                    local id, value, fromList = BestCandidate(cands, socket.color, false,
+                        ctx.allowJC and (ctx.jcLeft or 0) > 0, weights, room, curated)
+                    picks[i], values[i], listed[i] = id, value or 0, fromList or false
+                else
+                    -- TG.GemFor liefert nie eine 0: ein Sockel, zu dem
+                    -- das Ziel nichts sagt, kommt als nil zurueck und
+                    -- landet im Zweig darueber. Siehe dort, warum eine
+                    -- leere Stelle im Ziel keine Empfehlung "nimm den
+                    -- Stein heraus" ergibt.
+                    values[i] = GemValue(SM.GemStats(picks[i]), weights, room)
+                    listed[i] = "sim"
+                end
+
+                total = total + (values[i] or 0)
+                if picks[i] then ConsumeHeadroom(SM.GemStats(picks[i]), room) end
+            end
+
+            plan.gems    = picks
+            plan.value   = values
+            plan.room    = rooms
+            plan.listed  = listed
+            plan.jcIndex = {}
+            plan.total   = total
+            plan.source  = "sim"
+            plan.targetGaps = gaps
+
+            -- HAELT DIESER PLAN DEN SOCKELBONUS? Gelesen aus den
+            -- Farben der Zielsteine, nicht behauptet: `plan.match` ist
+            -- unsere Aussage ueber den VORGESCHLAGENEN Zustand (der
+            -- angelegte steht als `plan.active` daneben und kommt vom
+            -- Client). Ein unbekannt gefaerbter Stein macht daraus
+            -- keine Behauptung - dann bleibt es bei nil.
+            if bonus ~= nil or plan.bonusUnknown then
+                local haelt = true
+                for i, socket in ipairs(sockets) do
+                    if IsColoredSocket(socket.color) then
+                        local fits = GemMatchesSocket(GemColor(picks[i]), socket.color)
+                        if fits ~= true then haelt = (fits == nil) and nil or false end
+                        if haelt == false then break end
+                    end
+                end
+                plan.match = haelt
+            end
+
+            -- Der echte Spielraum wird auch hier verbraucht: die
+            -- naechsten Gegenstaende sollen mit dem rechnen, was nach
+            -- diesem uebrig ist (dieselbe Regel wie unten).
+            for _, id in ipairs(plan.gems) do
+                if id then ConsumeHeadroom(SM.GemStats(id), live) end
+            end
+            if plan.match and bonus then
+                ConsumeHeadroom({ [bonus.stat] = bonus.value }, live)
+            end
+
+            plan.why = {}
+            for i, socket in ipairs(sockets) do
+                plan.why[i] = ExplainGem(plan.gems[i], socket, plan.room[i],
+                    weights, plan, ctx, plan.listed[i], nil)
+            end
+
+            return plan
+        end
     end
 
     local ignore = Run(false)
@@ -3846,7 +4004,16 @@ local function ScanCharacter()
                 -- Den Gegenstand einmal durchrechnen: Empfehlung,
                 -- Steinurteil und Bonuszeile lesen danach alle aus `plan`.
                 local bonus, bonusText = entry.bonus, entry.bonusText
-                local plan = PlanItem(sockets, bonus, bonusText, profile, planCtx)
+                -- WELCHES TEIL DAS IST, gehoert in die Planung: nur so
+                -- kann PlanItem nachsehen, ob der Sim fuer GENAU DIESEN
+                -- Platz und GENAU DIESEN Gegenstand etwas gesagt hat.
+                -- Ueber den Platz und nicht ueber den Namen - Ring 1 und
+                -- Ring 2 koennen dasselbe Teil sein.
+                local plan = PlanItem(sockets, bonus, bonusText, profile, planCtx, {
+                    specKey = profileKey,
+                    slotId  = slotDef.id,
+                    itemId  = ItemIdFromLink(link),
+                })
                 plan.active = entry.bonusActive
 
                 for socketIndex, socket in ipairs(sockets) do
@@ -4311,6 +4478,28 @@ WeintCodex.Charakter.ResolveEnchant    = ResolveEnchant
 WeintCodex.Charakter.PlanItem          = PlanItem
 WeintCodex.Charakter.GemPool           = GemPool
 
+-- WELCHE SPEZIALISIERUNG GERADE GILT - eine Antwort, nicht zwei.
+--
+-- modules/targetgear.lua und modules/reforge_engine.lua brauchen den
+-- Profilschluessel, um das Sim-Ziel zuzuordnen. Ihn dort noch einmal aus
+-- Klasse und Spec-Index zu bilden waere genau die Doppelung, an der die
+-- Sockelbewertung schon einmal auseinandergelaufen ist - und die
+-- Sonderfaelle (Tank-Haltung, fehlender Spec-Index) stehen alle in
+-- GetCurrentSpecProfile.
+function WeintCodex.Charakter.CurrentProfileKey()
+    local _, profileKey = GetCurrentSpecProfile()
+    return profileKey
+end
+
+-- Fuer `/wc ziel`: Gegenstandsnummer und Steine eines Item-Links, so wie
+-- der Rest dieser Datei sie liest. Ohne diesen Zugang muesste die
+-- Diagnose den Link selbst zerlegen - und eine Diagnose, die anders
+-- liest als die Rechnung, erklaert die falsche Sache.
+function WeintCodex.Charakter.ParseItemLinkForDiagnostics(link)
+    local _, gems = ParseItemLink(link)
+    return ItemIdFromLink(link), gems
+end
+
 -- UND MIT WELCHEM SPIELRAUM. Dass eine Empfehlung stehenbleibt, wenn man
 -- ihr gefolgt ist, haengt an dieser Rechnung und nicht an PlanItem (siehe
 -- PlanningHeadroom). Der Testlauf plant deshalb, wendet den Plan wie das
@@ -4656,7 +4845,11 @@ function WeintCodex.Charakter.DumpSockets()
                 end
 
                 local before = FormatHeadroom(ctx.headroom)
-                local plan = PlanItem(sockets, bonus, bonusText, profile, ctx)
+                local plan = PlanItem(sockets, bonus, bonusText, profile, ctx, {
+                    specKey = profileKey,
+                    slotId  = slotDef.id,
+                    itemId  = ItemIdFromLink(link),
+                })
                 print(string.format("   Plan: %s  |cff4A4A52(matchen %s, ignorieren %s; Bonus %s)|r",
                     plan.match and "|cff22C55EFarben matchen|r"
                                or "|cffFFBB22Bonus ignorieren|r",
@@ -4683,8 +4876,9 @@ function WeintCodex.Charakter.DumpSockets()
                             or "|cffff5555leer|r",
                         recId and GetGemDisplayName(recId) or "-",
                         plan.value and plan.value[i] or 0,
-                        (plan.listed and plan.listed[i]) and "aus der Profilliste"
-                                                          or "nach Wertung"))
+                        (plan.listed and plan.listed[i] == "sim") and "AUS DEM SIM-ZIEL"
+                            or (plan.listed and plan.listed[i]) and "aus der Profilliste"
+                            or "nach Wertung"))
                     -- Die laufende Nummer des Kontingents. Ohne sie ist ein
                     -- drittes Schlangenauge von einem zweiten nicht zu
                     -- unterscheiden - und genau daran lag der gemeldete Fall.

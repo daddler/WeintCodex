@@ -547,6 +547,38 @@ local function ScanSlot(slotDef)
         manual   = RE.GetManual(slotDef.id),
     }
 
+    --------------------------------------------------
+    -- UND WAS DER SIM FUER DIESEN PLATZ VORSIEHT (seit 3.0.2)
+    --
+    -- Gelesen wird es hier und nicht im Suchlauf, aus demselben Grund
+    -- wie `manual` und `locked` daneben: was fuer einen Slot gilt,
+    -- gehoert an den Slot. `ItemOptions` entscheidet danach, was daraus
+    -- folgt - und in welcher Rangfolge (siehe dort).
+    --
+    -- Ueber PLATZ und GEGENSTANDSNUMMER, nie ueber den Namen: Ring 1
+    -- und Ring 2 koennen dasselbe Teil sein, und ein Ziel gilt nur
+    -- fuer die Ausruestung, mit der gesimmt wurde.
+    --
+    -- Drei Rueckgaben, drei Bedeutungen:
+    --   src, dst  der Sim will genau diese Umschmiedung
+    --   false     der Sim will hier GAR NICHT umschmieden
+    --   nil       das Ziel sagt zu diesem Platz nichts
+    --------------------------------------------------
+    local TG = WeintCodex.TargetGear
+    if TG and TG.ReforgeFor then
+        local specKey = WeintCodex.Charakter
+            and WeintCodex.Charakter.CurrentProfileKey
+            and WeintCodex.Charakter.CurrentProfileKey()
+        if specKey then
+            local src, dst = TG.ReforgeFor(specKey, slotDef.id, itemId)
+            if src == false then
+                entry.simTarget = false
+            elseif src and dst then
+                entry.simTarget = { src = src, dst = dst }
+            end
+        end
+    end
+
     local fromLink = itemId and ReforgeStatsOf(link)
     if not (name and fromLink) then
         -- Ohne Grunddaten wird nichts behauptet. Der Client liefert sie
@@ -912,6 +944,47 @@ local function ItemOptions(item, mult, conv)
         -- mitten im Planen, und der Spieler saehe nie, dass seine
         -- Entscheidung verschwunden ist — die Zeile sagt es ihm stattdessen.
         item.manualInvalid = true
+    end
+
+    ----------------------------------------------------------------
+    -- DANN DER SIM. Er steht HINTER der Handauswahl und VOR dem
+    -- Suchlauf, und beide Grenzen sind Absicht:
+    --
+    --   * Hinter der Handauswahl, weil die spaeter faellt. Wer im
+    --     Umschmiede-Fenster "hier will ich Meisterschaft" gesagt hat,
+    --     hat das nach dem Simmen gesagt und weiss an dieser Stelle
+    --     mehr als jede Rechnung - dieselbe Begruendung, aus der die
+    --     Handauswahl auch den Suchlauf schlaegt.
+    --   * Vor dem Suchlauf, weil der Sim dieselbe Frage bereits
+    --     beantwortet hat, und zwar mit mehr Wissen: er kennt Procs,
+    --     die Skalierung der ganzen Ausruestung und seine eigenen
+    --     Kappen. Ihn nachzurechnen und dann "besser" zu waehlen waere
+    --     die zweite Antwort auf eine Frage, die eine hat.
+    --
+    -- WIE DIE HANDAUSWAHL WIRD ER ZUR EINZIGEN MOEGLICHKEIT DES SLOTS,
+    -- nicht sofort ausgefuehrt: der Suchlauf plant um ihn herum, die
+    -- Seite zeigt ihn, und "Alles umschmieden" fuehrt ihn mit aus. Es
+    -- gibt weiterhin genau EINEN Ausfuehrungsweg.
+    --
+    -- Ist die Umschmiedung fuer das Teil nicht zulaessig, wird sie
+    -- IGNORIERT statt erzwungen - dann rechnet der Suchlauf, und die
+    -- Zeile sagt es (`simInvalid`).
+    if item.simTarget ~= nil and not item.problem and item.manual == nil then
+        if item.simTarget == false then
+            item.simSource = true
+            return options                      -- der Sim: hier nichts
+        end
+        local t = item.simTarget
+        if RE.ChoiceAllowed(item, t.src, t.dst) then
+            options[1] = {
+                src = t.src, dst = t.dst,
+                raw = floor((item.stats[R.STATS[t.src]] or 0) * R.COEFF),
+                delta = DeltaOf(item, t.src, t.dst, mult, conv),
+            }
+            item.simSource = true
+            return options
+        end
+        item.simInvalid = true
     end
 
     if item.problem or item.noSecondary or item.locked then
@@ -1918,6 +1991,24 @@ local function Signature()
     for _, key in ipairs(R.STATS) do
         parts[#parts + 1] = floor(LiveRating(key, "melee") / 100)
     end
+
+    -- UND DAS SIM-ZIEL. Dieselbe Regel, dieselbe Lehre: was den Suchlauf
+    -- steuert, muss in seiner Kennung stehen. Ohne diese Zeile bliebe
+    -- nach einer neuen Zustellung aus der Companion der Plan von vorher
+    -- stehen - die Ausruestung hat sich ja nicht geaendert -, und das
+    -- frische Sim-Ergebnis taete sichtbar nichts. Genau der Fehler, den
+    -- die eigene Priorisierung und die Handauswahl schon hatten.
+    --
+    -- Die Kennung des Ziels reicht: sie haengt am INHALT (siehe
+    -- core/target_gear.py drueben), ein geaendertes Ziel ist also eine
+    -- andere Zeichenkette und ein gleiches dieselbe.
+    local TG = WeintCodex.TargetGear
+    if TG and TG.SetFor then
+        local entry = TG.SetFor(ctx and ctx.profileKey)
+        parts[#parts + 1] = "sim" .. ((entry and entry.id ~= "" and entry.id)
+                                      or (entry and "?" ) or "-")
+    end
+
     return table.concat(parts, "|")
 end
 
@@ -2036,6 +2127,8 @@ local function BuildPlan(signature)
             locked      = item.locked,
             manual      = item.manual,
             manualInvalid = item.manualInvalid,
+            simSource   = item.simSource,
+            simInvalid  = item.simInvalid,
             problem     = item.problem,
             warning     = item.warning,
             noSecondary = item.noSecondary,
@@ -2056,6 +2149,13 @@ local function BuildPlan(signature)
                 -- waere schlicht falsch: entschieden hat sie niemand.
                 row.reason, row.reasonTone =
                     "Von dir gesetzt — der Planer lässt dieses Teil in Ruhe.", "gold"
+            elseif item.simSource then
+                -- AUS DEM SIM IST EBENFALLS EIN ANDERER GRUND. ReasonFor()
+                -- erzaehlt die Abwaegung DIESES Suchlaufs; hier hat sie
+                -- niemand gefuehrt, und ein geliehener Grund waere von
+                -- einem echten nicht zu unterscheiden.
+                row.reason, row.reasonTone =
+                    "So steht es in deinem Sim-Ergebnis.", "gold"
             else
                 row.reason, row.reasonTone = ReasonFor(ctx, option, beforeTotals)
             end
@@ -2067,6 +2167,9 @@ local function BuildPlan(signature)
             if item.manual == false then
                 row.reason, row.reasonTone =
                     "Von dir gesetzt: hier soll nicht umgeschmiedet werden.", "gold"
+            elseif item.simSource then
+                row.reason, row.reasonTone =
+                    "Dein Sim-Ergebnis schmiedet hier nichts um.", "gold"
             elseif item.locked then
                 row.reason, row.reasonTone =
                     "Von dir gesperrt — bleibt, wie es ist.", "gold"
@@ -2092,6 +2195,19 @@ local function BuildPlan(signature)
         -- Umschmiedung gar nicht zulaesst, plant der Suchlauf wieder selbst
         -- — und ohne diesen Satz stuende da eine Empfehlung, von der der
         -- Spieler annimmt, er haette sie ueberstimmt.
+        -- EIN VERWORFENES SIM-ZIEL GENAUSO. Es gilt fuer die
+        -- Ausruestung, mit der gesimmt wurde; passt die Umschmiedung
+        -- nicht zu dem Teil, das hier liegt, rechnet der Suchlauf
+        -- wieder selbst - und ohne diesen Satz stuende dort eine
+        -- Empfehlung, von der der Spieler annimmt, sie komme aus dem
+        -- Sim.
+        if item.simInvalid then
+            row.reason, row.reasonTone =
+                "Dein Sim-Ergebnis nennt für diesen Platz eine Umschmiedung,"
+                .. " die das angelegte Teil nicht zulässt — deshalb rechnet"
+                .. " der Planer hier selbst.", "warning"
+        end
+
         if item.manualInvalid then
             row.reason, row.reasonTone =
                 "Deine Handauswahl passt nicht zu dem Teil, das hier liegt —"

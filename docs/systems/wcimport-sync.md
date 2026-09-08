@@ -32,3 +32,29 @@ Seit 2.8.0.0 gibt es einen sechsten Typ, und er ist der einzige, der
 wird von WeintCompanion erzeugt (siehe `stat-weights-qelive.md`).
 Er steht aus demselben Grund wie `WA` nicht in `IMPORT_FEATURE`, und sein
 Parser liegt in `modules/statweights.lua`, nicht hier.
+
+
+## Zwei Typen kommen NICHT vom Bot
+
+`SW` (Sim-Gewichte) und `TG` (Zielausrüstung) baut **WeintCompanion**
+selbst aus einem Sim-Ergebnis. Beide sind der Weg **ohne** `/reload`:
+dieselben Angaben reisen auch über die Addon-Brücke, die aber erst beim
+nächsten Laden gelesen wird — und wer im Raid oder vor dem Umschmieder
+steht, lädt nicht neu.
+
+Beide stehen deshalb **nicht** in `IMPORT_FEATURE`: ein Sim-Ergebnis
+gehört dem eigenen Charakter und ist nichts Gildeninternes, gleiche
+Entscheidung wie bei `WA`.
+
+Und beide werden **nicht in dieser Datei zerlegt**, sondern in dem
+Modul, dem sie gehören (`SW.ParseTransfer` in `modules/statweights.lua`,
+`TG.ParseTransfer` in `modules/targetgear.lua`). Das Zerlegen einer
+fremden Zeichenkette ist die Sorte Rechnung, die der Testlauf ohne Spiel
+prüfen können muss; `sync.lua` nimmt nur den Umschlag ab und bringt den
+Spieler auf die Seite, auf der die Wirkung steht.
+
+`TG` trägt als einziger Typ ein **viertes** Trennzeichen: die Steine
+eines Gegenstands hängen mit `-` aneinander, weil `:`, `,` und `|` schon
+vergeben sind. Sie sind Ziffern, ein Bindestrich kann darin nicht
+vorkommen. Voller Vertrag:
+`../../../WeintCompanion/docs/target-gear-bridge.md`.

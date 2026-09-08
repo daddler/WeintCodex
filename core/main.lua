@@ -1,5 +1,5 @@
 WeintCodex = WeintCodex or {}
-WeintCodex.Version = "3.0.0.1"
+WeintCodex.Version = "3.0.2.0"
 
 SLASH_WEINTCODEX1 = "/wc"
 SLASH_WEINTCODEX2 = "/weintcodex"
@@ -171,6 +171,21 @@ SlashCmdList["WEINTCODEX"] = function(msg)
     if cmd == "sockel" or cmd == "sockets" then
         if WeintCodex.Charakter and WeintCodex.Charakter.DumpSockets then
             WeintCodex.Charakter.DumpSockets()
+        end
+        return
+    end
+
+    -- Zielausruestung aus dem Sim: was hat die Companion geliefert, gilt es
+    -- fuer diesen Charakter, und was folgt daraus je Platz? Eigener Befehl
+    -- neben /wc sockel aus demselben Grund, aus dem es den gibt: ein
+    -- veraltetes Ziel, ein Ziel fuer den falschen Charakter und ein Sim,
+    -- der es wirklich so wollte, sehen von aussen identisch aus.
+    --   /wc ziel          alles zeigen
+    --   /wc ziel aus/an   die Uebernahme ab- bzw. einschalten
+    --   /wc ziel weg      alle Zielausruestungen verwerfen
+    if verb == "ziel" or verb == "zielgear" or verb == "target" then
+        if WeintCodex.TargetGear and WeintCodex.TargetGear.Command then
+            WeintCodex.TargetGear.Command(rest)
         end
         return
     end
