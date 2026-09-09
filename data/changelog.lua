@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.1.1.0",
+        date    = "09.09.2026",
+        notes   = {
+            "|cffD4A24ADie Anzeige am Sockelfenster kam meistens gar nicht.|r Sie erschien nur, wenn du die Sockel aus dem Charakterfenster heraus geoeffnet hast. Der uebliche Weg - Stein anklicken, dann das Teil - blieb stumm. Jetzt findet WeintCodex das Teil selbst.",
+            "Steht ausnahmsweise doch nichts da, sagt das Fenster jetzt |cffD4A24Awarum|r: das Teil ist nicht angelegt, oder du traegst es zweimal und das Spiel verraet nicht, welches offen ist.",
+            "Jede Zeile nennt zusaetzlich die |cffD4A24ASockelfarbe|r - Sockel abzaehlen musst du nicht mehr.",
+            "Beim Simmen steht jetzt dabei, dass im Sim das |cffD4A24AZahnrad|r neben Suggest Reforges und |cffD4A24AInclude gems|r noetig sind. Ohne den Haken rechnet der Sim nur Umschmiedungen, und deine Steine bleiben, wie sie sind.",
+        },
+    },
+    {
         version = "3.1.0.0",
         date    = "08.09.2026",
         notes   = {

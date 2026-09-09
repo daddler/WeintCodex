@@ -86,21 +86,53 @@ dargestellt werden die Zeilen des gerade offenen Platzes, sortiert nach
 `socket.index`. Die Reihenfolge ist die ganze Aussage — dieselbe Regel wie
 im Zielzustand selbst.
 
-**Welches Teil offen ist, sagt das Spiel, nicht ein Namensvergleich.**
+**Welches Teil offen ist, sagt zuerst das Spiel.**
 `GetSocketItemInfo()` gibt Name, Symbol und Qualität heraus, aber nicht
-den Ausrüstungsplatz; über den Namen zu suchen ginge dort schief, wo es
-schiefgehen muss (Ring 1 und Ring 2 können dasselbe Teil sein). Die Frage
-wird deshalb dort beantwortet, wo sie entsteht: `SocketInventoryItem(slot)`
-und `SocketContainerItem(...)` werden mit `hooksecurefunc` mitgehört — die
-erste merkt sich den Platz, die zweite löscht ihn (ein Teil aus der Tasche
-ist nicht angelegt, dazu sagt der Scan nichts).
+den Ausrüstungsplatz. `SocketInventoryItem(slot)` und
+`SocketContainerItem(...)` werden deshalb mit `hooksecurefunc` mitgehört —
+die erste merkt sich Platz **und Herkunft**, die zweite merkt „Tasche".
 
-**Gegenprobe statt Vertrauen:** vor jeder Anzeige wird der Name aus
-`GetSocketItemInfo()` gegen das Teil in genau diesem Platz gehalten.
-Stimmen sie nicht überein, bleibt das Fenster leer — eine Empfehlung für
-das falsche Teil wäre schlimmer als keine. Dieselbe Linie gilt für
-fehlende Basisdaten: dann steht dort *„noch nicht geladen"* und nicht
-*„keine Empfehlung"*.
+**Der Haken fängt aber nicht alle Wege** (Ursache der Meldung „es kommt
+kein Fenster", behoben in 3.1.1.0). Er fängt genau die zwei, die durch Lua
+führen. Der Weg, den fast jeder geht — Stein aufnehmen, auf das Teil
+klicken —, führt nicht durch Lua: der Client öffnet das Fenster selbst,
+`SocketInventoryItem` wird nie gerufen. 3.1.0.0 hat daraufhin gar nichts
+angezeigt.
+
+**Rückfall über das Teil selbst, aber ohne zu raten.** Der ursprüngliche
+Einwand bleibt gültig (Ring 1 und Ring 2 können dasselbe Teil sein), also
+wird gezählt statt gesucht:
+
+| Fund | Ergebnis |
+|---|---|
+| genau ein angelegter Platz mit diesem Namen | der ist es |
+| mehrere | über die Steine unterscheiden, die **jetzt** im Fenster stecken (`GetExistingSocketLink`) — und nur, wenn genau einer passt |
+| immer noch mehrere | `mehrdeutig`, keine Wahl |
+| keiner | `tasche` |
+
+Die Steine im Fenster sind dabei ausdrücklich **nur** ein
+Unterscheidungsmerkmal, nie eine Grundlage: während man die Maske füllt,
+ändert sich diese Liste, das angelegte Teil aber erst beim Klick auf
+*Sockeln*.
+
+**Die Herkunft ist kein Beiwerk.** Meldet der Haken „Tasche", wird gar
+nicht erst gesucht — sonst bekäme ein Ring im Beutel die Empfehlung des
+gleichnamigen angelegten Rings.
+
+**Gegenprobe statt Vertrauen:** ein gemerkter Platz gilt nur, wenn der
+Name aus `GetSocketItemInfo()` zu dem Teil passt, das dort steckt. Sonst
+zählt er nicht — eine Empfehlung für das falsche Teil wäre schlimmer als
+keine.
+
+**Ein leeres Fenster begründet sich.** In den Fällen `tasche` und
+`mehrdeutig` steht statt der Empfehlung ein Satz, warum hier nichts steht.
+Das ist keine Ausrede, sondern dieselbe Linie wie `stars == 0`: eine
+Anzeige, die im Zweifel gar nicht erscheint, ist von einer kaputten nicht
+zu unterscheiden — genau der Weg, auf dem 3.1.0.0 als „geht nicht"
+zurückkam. Dieselbe Linie gilt für fehlende Basisdaten: dann steht dort
+*„noch nicht geladen"* und nicht *„keine Empfehlung"*. `/wc sockelfenster`
+nennt Haken und Ermittlung getrennt, damit sich die beiden Wege
+auseinanderhalten lassen.
 
 **Einmal rechnen je geöffnetem Teil.** `SOCKET_INFO_UPDATE` feuert bei
 jedem Stein, den man in die Maske legt; ein voller Ausrüstungsscan je
@@ -108,7 +140,14 @@ Ereignis wäre an der teuersten Stelle die häufigste Rechnung. Das Ergebnis
 wird gemerkt und bei `SOCKET_INFO_CLOSE` bzw. `PLAYER_EQUIPMENT_CHANGED`
 verworfen. Das Panel entsteht erst beim ersten Ereignis:
 `ItemSocketingFrame` gehört zu `Blizzard_ItemSocketingUI` und wird
-nachgeladen.
+nachgeladen — ist es beim allerersten Sockeln noch nicht da, versucht
+`Refresh()` es einmal 0,2 s später erneut, statt ausgerechnet die erste
+Sockelung stumm zu lassen.
+
+**Die Sockelfarbe steht in jeder Zeile** (`SocketColorLabel` aus
+`modules/charakter.lua`, keine zweite Tabelle). Im Fenster liegen die
+Sockel nebeneinander und unterscheiden sich nur an ihrer Farbe; „Sockel 2"
+allein zwingt zum Abzählen, und dabei verzählt man sich.
 
 **Einsetzen kann das Addon nicht** — das ist eine geschützte Handlung des
 Spielers. Die Zeile zeigt den Stein und seinen Tooltip; hineinziehen muss

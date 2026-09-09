@@ -7546,6 +7546,11 @@ function ShowPriorisierung()
             .. " dabei herauskommt, kommt hier ganz hinein – dieselbe, die"
             .. " auch ReforgeLite liest." },
         { type = "text", size = 9, color = "textFaint", text =
+            "Sollen auch die Sockelsteine mitgerechnet werden: im Sim vorher"
+            .. " auf das |cffD4A24AZahnrad|r neben Suggest Reforges und"
+            .. " |cffD4A24AInclude gems|r anhaken. Ohne den Haken bleiben"
+            .. " deine Steine, wie sie sind." },
+        { type = "text", size = 9, color = "textFaint", text =
             "Genauso gelesen wird jedes Paar aus Wertname und Zahl —"
             .. " Beweglichkeit 1,00 · CritRating=0.55 · eine Zeile je Wert."
             .. " Die Felder links werden gefüllt, gespeichert wird erst auf"

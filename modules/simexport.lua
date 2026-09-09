@@ -588,7 +588,11 @@ function SE.ShowPage()
         .. "einmal neu laden, damit dein Stand auf der Festplatte steht.\n"
         .. WeintCodex.ColorText("gold", "2.") .. " In der Companion unter "
         .. "Simmen den Knopf drücken: der Sim öffnet sich mit deiner "
-        .. "Ausrüstung, dort genügt Suggest Reforges.\n"
+        .. "Ausrüstung. Dort erst auf das Zahnrad neben "
+        .. WeintCodex.ColorText("textNormal", "Suggest Reforges") .. " und "
+        .. WeintCodex.ColorText("textNormal", "Include gems") .. " anhaken —"
+        .. " ohne den Haken rechnet der Sim nur die Umschmiedungen und lässt"
+        .. " deine Steine so, wie sie sind. Dann Suggest Reforges.\n"
         .. WeintCodex.ColorText("gold", "3.") .. " Das Ergebnis in die "
         .. "Companion einfügen — die Gewichtung landet auf "
         .. WeintCodex.ColorText("textNormal", "Priorisierung") .. ".")

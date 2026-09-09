@@ -2,6 +2,73 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.1.1.0] – 2026-09-09
+
+**Die Anzeige am Sockelfenster kam meistens gar nicht.**
+
+Sie erschien nur, wenn du die Sockel aus dem Charakterfenster heraus
+geöffnet hast. Der übliche Weg — Stein anklicken, dann auf das Teil —
+ließ sie stumm, und stumm sieht aus wie kaputt. WeintCodex findet das
+Teil jetzt selbst.
+
+Bleibt sie ausnahmsweise doch leer, sagt sie jetzt **warum**: das Teil
+ist nicht angelegt, oder du trägst es zweimal (zwei gleiche Ringe) und
+das Spiel verrät nicht, welches davon offen ist. Im zweiten Fall hilft
+es, die Sockel aus dem Charakterfenster heraus zu öffnen.
+
+Jede Zeile nennt außerdem die **Sockelfarbe**. Bei drei Sockeln
+nebeneinander musste man bisher abzählen, und genau dabei verzählt man
+sich.
+
+Beim Simmen steht jetzt dabei, was im Sim nötig ist, damit die
+Sockelsteine überhaupt mitgerechnet werden: das **Zahnrad** neben
+*Suggest Reforges*, dort **Include gems** anhaken. Ohne den Haken
+optimiert der Sim nur die Umschmiedungen und lässt deine Steine, wie sie
+sind — das Ergebnis sah danach vollständig aus und war es nicht.
+
+### Technisch
+
+**Der Haken fing nicht alle Wege** (`modules/socketing.lua`).
+`hooksecurefunc` auf `SocketInventoryItem`/`SocketContainerItem` fängt
+genau die zwei Einstiege, die durch Lua führen. Der häufigste Weg führt
+nicht durch Lua: Stein aufnehmen, auf das Teil klicken — der Client
+öffnet das Fenster selbst, `SocketInventoryItem` wird nie gerufen,
+`currentSlot` bleibt leer. 3.1.0.0 hat daraufhin gar nichts angezeigt.
+
+Neu ist deshalb ein **Rückfall über das Teil selbst**, und der ursprüngliche
+Einwand gegen ihn bleibt gültig — Ring 1 und Ring 2 können dasselbe Teil
+sein — also wird nicht geraten, sondern gezählt: genau ein angelegter
+Platz mit dem Namen aus `GetSocketItemInfo()` → der ist es; mehrere →
+über die Steine unterscheiden, die *jetzt* im Fenster stecken
+(`GetExistingSocketLink`), und nur wenn genau einer passt; sonst
+`mehrdeutig`. Der Haken behält Vorrang, wenn der gemerkte Platz die
+Gegenprobe besteht.
+
+Der Haken merkt sich dafür zusätzlich die **Herkunft**. Ohne sie würde
+ein Teil aus der Tasche die Empfehlung eines gleichnamigen angelegten
+Teils bekommen: `SocketContainerItem` löschte bisher nur den Platz, und
+der Rückfall hätte anschließend über den Namen wieder das angelegte
+gefunden.
+
+**Ein leeres Fenster begründet sich jetzt.** `Refresh()` blendet in den
+Fällen `tasche` und `mehrdeutig` keine Empfehlung ein, sondern einen
+Satz — dieselbe Linie wie `stars == 0`: eine Anzeige, die im Zweifel gar
+nicht erscheint, ist von einer kaputten nicht zu unterscheiden, und
+genau so kam 3.1.0.0 zurück. `/wc sockelfenster` nennt Haken und
+Ermittlung getrennt, damit sich die beiden Wege auseinanderhalten lassen.
+
+Dazu zwei Kleinigkeiten am selben Fenster: die Sockelfarbe je Zeile
+kommt aus `WeintCodex.Charakter.SocketColorLabel` (keine zweite
+Tabelle), und wenn `Blizzard_ItemSocketingUI` beim allerersten Sockeln
+noch nicht geladen ist, versucht es `Refresh()` einmal 0,2 s später
+erneut, statt ausgerechnet die erste Sockelung stumm zu lassen.
+
+`.github/tests/socketing_test.lua` pinnt die Platzsuche mit acht Fällen —
+darunter der gemeldete (kein Haken, ein eindeutiges angelegtes Teil), die
+Unterscheidung zweier gleicher Ringe über ihre Steine und die
+Gegenrichtung: zwei ununterscheidbare Ringe ergeben eine Begründung, keine
+Wahl.
+
 ## [3.1.0.0] – 2026-09-08
 
 **Neu: die Steinempfehlung steht jetzt dort, wo du sie brauchst.**

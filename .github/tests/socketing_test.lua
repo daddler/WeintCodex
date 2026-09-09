@@ -19,6 +19,14 @@
 --   2. AM SOCKELFENSTER ZAEHLT DIE POSITION.
 --      Ein verschobener Stein sieht aus wie eine Empfehlung und ist
 --      keine - dieselbe Regel wie im Ziel selbst.
+--   3. DER PLATZ MUSS AUCH OHNE DEN HAKEN GEFUNDEN WERDEN (seit
+--      3.1.1.0). Der haeufigste Weg ins Sockelfenster - Stein
+--      aufnehmen, auf das Teil klicken - laeuft nicht durch
+--      SocketInventoryItem. Bis 3.1.0.0 blieb die Anzeige dabei stumm,
+--      und stumm sieht aus wie kaputt. Ebenso fest steht hier die
+--      Gegenrichtung: geraten wird NICHT. Zwei gleiche angelegte Teile
+--      ohne unterscheidbare Steine ergeben eine Begruendung, keinen
+--      Platz.
 --
 --   lua5.1 .github/tests/socketing_test.lua .
 
@@ -99,6 +107,46 @@ function WeintCodex.Icon() return "" end
 function WeintCodex.ColorText(_, text) return text end
 
 function WeintCodex_GetGemName(id) return "Teststein " .. tostring(id) end
+
+--== Der Client, so weit die Platzsuche ihn braucht ========================
+-- Angelegte Teile, das offene Sockelfenster und die beiden Einstiege,
+-- die `socketing.lua` mithoert. Die Haken muessen VOR dem dofile stehen:
+-- die Datei prueft beim Laden, ob es sie gibt.
+
+local EQUIPPED = {}    -- slot -> { id, name, gems }
+local OPEN     = nil   -- { name, gems } oder nil
+
+-- DIE STEINE STEHEN IM LINK, und das ist hier nicht Beiwerk: zwei
+-- gleiche Ringe unterscheiden sich im Spiel genau daran. Ein Link, der
+-- nur die Gegenstandsnummer traegt, machte den Fall (d) unpruefbar.
+function GetInventoryItemLink(_, slot)
+    local e = EQUIPPED[slot]
+    if not e then return nil end
+    local g = e.gems or {}
+    return "|cffa335ee|Hitem:" .. e.id .. ":0:"
+        .. (g[1] or 0) .. ":" .. (g[2] or 0) .. ":" .. (g[3] or 0)
+        .. ":" .. (g[4] or 0) .. "|h[" .. e.name .. "]|h|r"
+end
+
+function GetSocketItemInfo()
+    if not OPEN then return nil end
+    return OPEN.name, "Interface\\Icons\\Test", 4
+end
+
+function GetNumSockets()
+    return (OPEN and OPEN.gems) and #OPEN.gems or 0
+end
+
+function GetExistingSocketLink(i)
+    local id = OPEN and OPEN.gems and OPEN.gems[i]
+    if not id or id == 0 then return nil end
+    return "|Hitem:" .. id .. ":0:0:0|h[Stein]|h"
+end
+
+local hooks = {}
+function hooksecurefunc(name, fn) hooks[name] = fn end
+function SocketInventoryItem() end
+function SocketContainerItem() end
 
 dofile(ROOT .. "/modules/shoppinglist.lua")
 dofile(ROOT .. "/modules/socketing.lua")
@@ -246,8 +294,7 @@ do
     Check("und eine Zeile, die es nicht gibt, ergibt nichts",
           SO.LineFor(nil) == nil)
 
-    -- Ohne bestaetigten Platz sagt das Fenster nichts. GetSocketItemInfo
-    -- gibt es in diesem Lauf nicht - also darf auch nichts herauskommen.
+    -- Ohne offenes Sockelfenster sagt die Anzeige nichts.
     Check("ohne Sockelfenster des Clients gibt es keinen bestaetigten Platz",
           SO.VerifiedSlot() == nil)
 
@@ -256,6 +303,109 @@ do
     Check("die Anzeige laesst sich abschalten", SO.GetOption("enabled") == false)
     SO.SetOption("enabled", true)
     Check("und wieder ein", SO.GetOption("enabled") == true)
+end
+
+--==========================================================================
+-- 3) WELCHER PLATZ LIEGT IM FENSTER?
+--==========================================================================
+-- Der Kern der Meldung "es kommt kein Fenster": bis 3.1.0.0 haing alles
+-- am Haken auf SocketInventoryItem, und der haeufigste Weg ins
+-- Sockelfenster geht nicht durch ihn. Was hier festgeschrieben wird, ist
+-- beides - dass der Platz auch ohne Haken gefunden wird, UND dass im
+-- Zweifel nichts behauptet wird.
+
+do
+    -- Die Steine kommen aus dem Link - dieselbe Quelle wie im Spiel,
+    -- statt einer Nebentabelle, die auseinanderlaufen koennte.
+    WeintCodex.Charakter = {
+        Scan = function() return ScanWith({}) end,
+        ParseItemLinkForDiagnostics = function(link)
+            local id, g1, g2, g3, g4 =
+                link:match("item:(%d+):%d+:(%d+):(%d+):(%d+):(%d+)")
+            return tonumber(id),
+                   { tonumber(g1) or 0, tonumber(g2) or 0,
+                     tonumber(g3) or 0, tonumber(g4) or 0 }
+        end,
+    }
+
+    local function Setze(equipped, open)
+        EQUIPPED = equipped or {}
+        OPEN = open
+        SO.Invalidate()
+    end
+
+    -- (a) Kein Fenster offen.
+    Setze({}, nil)
+    local slot, grund = SO.ResolveSlot()
+    Check("ohne offenes Fenster gibt es keinen Platz und den Grund 'zu'",
+          slot == nil and grund == "zu", tostring(slot) .. "/" .. tostring(grund))
+
+    -- (b) DER GEMELDETE FEHLER. Der Haken hat nichts gemerkt (Stein
+    --     aufnehmen, auf das Teil klicken), das Teil ist aber angelegt
+    --     und eindeutig. Bis 3.1.0.0 kam hier nichts heraus.
+    Setze({ [5] = { id = 100, name = "Brustplatte", gems = { 1, 2 } } },
+          { name = "Brustplatte", gems = { 1, 2 } })
+    slot, grund = SO.ResolveSlot()
+    Check("ohne Haken wird der eindeutige angelegte Platz gefunden",
+          slot == 5 and grund == nil, tostring(slot) .. "/" .. tostring(grund))
+
+    -- (c) Das Teil ist nicht angelegt: das ist eine Auskunft, kein
+    --     Schweigen.
+    Setze({ [5] = { id = 100, name = "Brustplatte", gems = { 1, 2 } } },
+          { name = "Anderer Helm", gems = { 0 } })
+    slot, grund = SO.ResolveSlot()
+    Check("ein nicht angelegtes Teil ergibt den Grund 'tasche'",
+          slot == nil and grund == "tasche", tostring(slot) .. "/" .. tostring(grund))
+
+    -- (d) Zwei gleiche Ringe, verschieden bestueckt: die Steine im
+    --     Fenster entscheiden.
+    Setze({
+        [11] = { id = 200, name = "Ring", gems = { 10, 0 } },
+        [12] = { id = 200, name = "Ring", gems = { 20, 0 } },
+    }, { name = "Ring", gems = { 20, 0 } })
+    slot, grund = SO.ResolveSlot()
+    Check("zwei gleiche Ringe werden ueber ihre Steine unterschieden",
+          slot == 12 and grund == nil, tostring(slot) .. "/" .. tostring(grund))
+
+    -- (e) Und wenn auch die Steine gleich sind, wird NICHT geraten.
+    --     Ein falscher Platz waere schlimmer als eine Begruendung.
+    Setze({
+        [11] = { id = 200, name = "Ring", gems = { 10, 0 } },
+        [12] = { id = 200, name = "Ring", gems = { 10, 0 } },
+    }, { name = "Ring", gems = { 10, 0 } })
+    slot, grund = SO.ResolveSlot()
+    Check("zwei ununterscheidbare Ringe ergeben 'mehrdeutig' statt einer Wahl",
+          slot == nil and grund == "mehrdeutig",
+          tostring(slot) .. "/" .. tostring(grund))
+
+    -- (f) Der Haken hat "Tasche" gemeldet: dann wird gar nicht gesucht.
+    --     Sonst bekaeme das Teil im Beutel die Empfehlung des
+    --     gleichnamigen angelegten.
+    Setze({ [11] = { id = 200, name = "Ring", gems = { 10, 0 } } },
+          { name = "Ring", gems = { 0, 0 } })
+    hooks["SocketContainerItem"](0, 1)
+    slot, grund = SO.ResolveSlot()
+    Check("nach einem Fenster aus der Tasche wird der Rueckfall nicht benutzt",
+          slot == nil and grund == "tasche", tostring(slot) .. "/" .. tostring(grund))
+
+    -- (g) Und der Haken hat Vorrang, wenn er stimmt - auch dann, wenn
+    --     der Rueckfall mehrdeutig waere.
+    Setze({
+        [11] = { id = 200, name = "Ring", gems = { 10, 0 } },
+        [12] = { id = 200, name = "Ring", gems = { 10, 0 } },
+    }, { name = "Ring", gems = { 10, 0 } })
+    hooks["SocketInventoryItem"](11)
+    slot, grund = SO.ResolveSlot()
+    Check("der Haken schlaegt den Rueckfall, auch bei zwei gleichen Ringen",
+          slot == 11 and grund == nil, tostring(slot) .. "/" .. tostring(grund))
+
+    -- (h) Ein gemerkter Platz von vorhin gilt nicht: dort steckt
+    --     inzwischen etwas anderes.
+    Setze({ [11] = { id = 300, name = "Anderer Ring", gems = { 0, 0 } } },
+          { name = "Ring", gems = { 0, 0 } })
+    slot, grund = SO.ResolveSlot()
+    Check("ein veralteter gemerkter Platz wird verworfen, nicht benutzt",
+          slot == nil and grund == "tasche", tostring(slot) .. "/" .. tostring(grund))
 end
 
 print("")
