@@ -7,6 +7,15 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.1.2.0",
+        date    = "09.09.2026",
+        notes   = {
+            "|cffD4A24AWeintCodex fragt jetzt nach, wenn du vom Simmen zurueckkommst.|r Nach |cffD4A24ABereitstellen und neu laden|r merkt es sich, dass ein Sim-Lauf offen ist, und bietet dir kurz darauf beides an: neu laden oder den String einfuegen.",
+            "|cffD4A24ABeide Zeilen aus WeintCompanion|r - Gewichtung und Zielausruestung - kannst du jetzt zusammen unter |cffD4A24AImport|r einfuegen. Bisher war das zweimal Einfuegen und zweimal Importieren, und der zweite blieb regelmaessig liegen.",
+            "Der Kasten kommt nicht mitten hinein: er steht am Rand, verschwindet von selbst, sobald etwas ankommt, und ein |cffD4A24ASpaeter|r beendet ihn endgueltig.",
+        },
+    },
+    {
         version = "3.1.1.0",
         date    = "09.09.2026",
         notes   = {

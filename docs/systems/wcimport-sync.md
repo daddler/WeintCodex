@@ -19,6 +19,55 @@ dispatches by type tag and writes results straight into
 `WeintCodex.SavedData`, then calls the owning module's
 `Refresh`/`ResolveNames`/`RefreshDay` to update the UI.
 
+## Mehrere Umschläge in einem Text (seit 3.1.2.0)
+
+Aus **einem** Sim-Lauf kommen **zwei** Auskünfte (`SW` und `TG`). Sie
+einzeln einfügen zu müssen hieß: zweimal einfügen, zweimal auf
+*Importieren* — und der zweite blieb regelmäßig liegen, was man einer
+Empfehlung nicht ansieht. `Sync.ProcessImportText()` sitzt deshalb jetzt
+vor `ProcessImport()` und ist der einzige Eingang für beide Aufrufer
+(EditBox-Knopf und `QuickImport`).
+
+Drei Dinge daran sind nicht Geschmack:
+
+- **Zerlegt wird an `WCIMPORT:`, nicht an Zeilenumbrüchen.** Eine
+  Nutzlast darf selbst welche enthalten (eine abgeschriebene Werteliste);
+  ein Umschlag beginnt dagegen nachweislich mit diesem Wort.
+- **Ein einzelner String verhält sich exakt wie vorher** — derselbe
+  Rückgabewert, dieselbe Meldung, derselbe Fehlertext. Alles andere wäre
+  eine zweite Fassung des Importwegs, die bei der ersten Änderung
+  auseinanderläuft.
+- **Teilerfolg gilt als Fehler** (`false`). Die Oberfläche lässt das
+  Eingabefeld dann stehen; `SW` und `TG` *ersetzen* beide, ein zweiter
+  Versuch richtet also keinen Schaden an — ein geleertes Feld hätte den
+  misslungenen Teil verloren.
+
+`.github/tests/sync_test.lua` pinnt beide Richtungen.
+
+## Der offene Sim-Lauf (`modules/simexport.lua`, seit 3.1.2.0)
+
+**Das Addon kann nicht nachsehen, ob etwas in der Warteschlange liegt** —
+prinzipiell nicht. WoW liest seine SavedVariables beim Laden *einmal*,
+und `data/companion_live.lua` ist eine Lua-Datei, die beim Laden
+ausgeführt wird; beides beantwortet „liegt da was?" erst *nach* einem
+Neuladen, und dann ist die Frage schon beantwortet. Dateizugriff und Netz
+hat ein Addon nicht.
+
+Die Nachfrage ist deshalb eine **Erwartung**, kein Befund, und sie hängt
+am einzigen Signal, das es dafür gibt: dem Klick auf *Bereitstellen*.
+`SE.NoteProvided()` schreibt `awaitingAt` **vor** dem Reload (danach sind
+die SavedVariables schon geschrieben), `ScheduleAwaitCheck()` sieht 150 s
+nach dem Anmelden einmal nach, `SE.AwaitingFor()` lässt den Zustand nach
+zwei Stunden verfallen. Beendet wird er von **beiden** Wegen
+(`INBOX_HANDLERS.stat_weights`/`.target_gear` und der Importweg über die
+Zwischenablage) über `SE.NoteArrival()` — welcher es war, ist für die
+Frage danach ohne Belang.
+
+**Kein modaler Dialog**: wer zurückkommt, steht vielleicht schon im
+Kampf. Ein Kasten am Rand ist eine Auskunft, ein Fenster im Weg eine
+Aufforderung — und *Später* beendet den Lauf endgültig, weil ein Kasten,
+der wiederkommt, ebenfalls eine Aufforderung wäre.
+
 The type tag may carry an optional community suffix —
 `WCIMPORT:RAIDWED@<id>:<payload>` — read by splitting the tag *after* the
 envelope match and *before* `:upper()`. Do not widen the envelope regex to

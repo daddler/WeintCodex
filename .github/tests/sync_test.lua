@@ -331,6 +331,79 @@ do
     TG.ShowConfirm = echtesShowConfirm
 end
 
+--==========================================================================
+-- MEHRERE UMSCHLAEGE IN EINEM TEXT (seit 3.1.2.0)
+--==========================================================================
+-- Aus einem Sim-Lauf kommen zwei Auskuenfte. Sie zusammen einfuegen zu
+-- koennen ist der ganze Zweck; was hier festgeschrieben wird, ist der
+-- Preis dafuer: ein EINZELNER String muss sich weiter exakt wie vorher
+-- verhalten - derselbe Rueckgabewert, dieselbe Meldung, derselbe
+-- Fehlertext. Sonst waere das eine zweite Fassung des Importwegs.
+
+do
+    local text = "WCIMPORT:TG:DRUID_FERAL:a1:1700000000:Njiah:wowsims_json:"
+        .. "5|86918|76692-76680|140|4420,"
+        .. "11|86946|76692|0|0"
+
+    -- 1) Das Zerlegen selbst.
+    Check("ein einzelner Umschlag ergibt genau einen Teil",
+          #Sync.SplitEnvelopes(text) == 1, #Sync.SplitEnvelopes(text))
+
+    local zwei = text .. "\n" .. text:gsub("DRUID_FERAL", "DRUID_BALANCE")
+    local parts = Sync.SplitEnvelopes(zwei)
+    Check("zwei Umschlaege ergeben zwei Teile", #parts == 2, #parts)
+    Check("und jeder Teil beginnt mit seinem eigenen Umschlag",
+          parts[1]:match("^WCIMPORT:TG:DRUID_FERAL:") ~= nil
+          and parts[2]:match("^WCIMPORT:TG:DRUID_BALANCE:") ~= nil)
+
+    -- ZERLEGT WIRD NICHT AN ZEILENUMBRUECHEN: eine Nutzlast darf welche
+    -- enthalten, ein Umschlag beginnt dagegen nachweislich mit dem Wort.
+    local umbruch = "WCIMPORT:TG:DRUID_FERAL:a1:1700000000:Njiah:wowsims_json:"
+        .. "5|86918|76692-76680|140|4420,\n11|86946|76692|0|0"
+    Check("ein Zeilenumbruch INNERHALB einer Nutzlast trennt nicht",
+          #Sync.SplitEnvelopes(umbruch) == 1, #Sync.SplitEnvelopes(umbruch))
+
+    Check("Text ohne Umschlag ergibt keine Teile",
+          #Sync.SplitEnvelopes("Hit 1.77\nCrit 0.89") == 0)
+
+    -- 2) Ein einzelner String verhaelt sich wie vorher - Meldung
+    --    woertlich gleich.
+    TG.ShowConfirm = nil
+    Reset()
+    TG.SetEnabled(true)
+
+    local okEinzeln, msgEinzeln = Sync.ProcessImportText(text)
+    Check("ein einzelner Umschlag wird uebernommen", okEinzeln == true,
+          tostring(msgEinzeln))
+    Check("und die Meldung traegt keine Sammelform",
+          msgEinzeln and msgEinzeln:find("\n", 1, true) == nil,
+          msgEinzeln)
+
+    -- 3) Und der Fehlertext bleibt der alte.
+    local okLeer, msgLeer = Sync.ProcessImportText("gar kein Umschlag")
+    Check("Text ohne Umschlag faellt auf die alte Fehlermeldung zurueck",
+          okLeer == false and msgLeer:find("WCIMPORT:", 1, true) ~= nil,
+          tostring(msgLeer))
+
+    -- 4) Zwei Umschlaege, beide angekommen.
+    Reset()
+    TG.SetEnabled(true)
+    local okZwei = Sync.ProcessImportText(zwei)
+    Check("zwei Umschlaege gehen zusammen hinein", okZwei == true)
+    Check("und beide Ziele stehen danach da",
+          TG.SetFor("DRUID_FERAL") ~= nil and TG.SetFor("DRUID_BALANCE") ~= nil)
+
+    -- 5) TEILERFOLG GILT ALS FEHLER. Sonst leert die Oberflaeche das
+    --    Eingabefeld, und der misslungene Teil ist weg.
+    Reset()
+    TG.SetEnabled(true)
+    local okTeil = Sync.ProcessImportText(text .. "\nWCIMPORT:QUATSCH:egal")
+    Check("ein misslungener Teil macht den ganzen Vorgang zum Fehler",
+          okTeil == false)
+    Check("der gelungene Teil ist trotzdem angekommen",
+          TG.SetFor("DRUID_FERAL") ~= nil)
+end
+
 print("")
 if fails == 0 then
     print("Alles ok.")

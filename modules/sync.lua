@@ -587,8 +587,90 @@ local function ProcessImport(rawStr)
         return true, WeintCodex.Icon("Interface\\RaidFrame\\ReadyCheck-Ready", 14) .. " " .. count .. " WeakAura(s) für Kategorie \"" .. data.category .. "\" importiert."
 
     else
-        return false, "Unbekannter Typ: " .. typeTag .. ". Erlaubt: BOSS, RAIDWED, RAIDTHU, MAT, WA, SW"
+        return false, "Unbekannter Typ: " .. typeTag
+            .. ". Erlaubt: BOSS, RAIDWED, RAIDTHU, MAT, WA, SW, TG"
     end
+end
+
+--------------------------------------------------
+-- MEHRERE UMSCHLAEGE IN EINEM TEXT (seit 3.1.2.0)
+--------------------------------------------------
+-- Aus EINEM Sim-Lauf kommen ZWEI Auskuenfte: die Wertegewichtung und der
+-- Zielzustand. Bis hierher waren das zwei Strings - zweimal einfuegen,
+-- zweimal auf Importieren, fuer einen Vorgang, den der Spieler als einen
+-- erlebt. Der zweite blieb dabei regelmaessig liegen, und was fehlt,
+-- sieht man an einer Empfehlung nicht an.
+--
+-- ZERLEGT WIRD AN "WCIMPORT:", NICHT AN ZEILENUMBRUECHEN. Eine Nutzlast
+-- darf selbst welche enthalten (eine abgeschriebene Werteliste zum
+-- Beispiel), ein Umschlag beginnt dagegen nachweislich mit diesem Wort.
+--
+-- EIN EINZELNER STRING VERHAELT SICH GENAU WIE VORHER, und das ist hier
+-- die eigentliche Anforderung: derselbe Rueckgabewert, dieselbe Meldung,
+-- derselbe Fehlertext. Alles andere waere eine zweite Fassung des
+-- Importwegs, die bei der ersten Aenderung auseinanderlaeuft.
+--
+-- TEILERFOLG GILT ALS FEHLER. Ging einer von zweien schief, kommt
+-- `false` zurueck: das Eingabefeld bleibt dann stehen, und ein zweiter
+-- Versuch wiederholt beide. Beide Nutzlasten ERSETZEN (Gewichtung wie
+-- Zielzustand), ein zweiter Durchlauf richtet also keinen Schaden an -
+-- ein geleertes Feld dagegen haette den misslungenen Teil verloren.
+
+local function SplitEnvelopes(text)
+    local starts = {}
+    local from = 1
+
+    while true do
+        local at = text:find("WCIMPORT:", from, true)
+        if not at then break end
+        starts[#starts + 1] = at
+        from = at + 9
+    end
+
+    local parts = {}
+
+    for i = 1, #starts do
+        local stop  = (starts[i + 1] or (#text + 1)) - 1
+        local piece = text:sub(starts[i], stop):match("^%s*(.-)%s*$")
+        if piece ~= "" then parts[#parts + 1] = piece end
+    end
+
+    return parts
+end
+
+WeintCodex.Sync.SplitEnvelopes = SplitEnvelopes
+
+function WeintCodex.Sync.ProcessImportText(text)
+    text = tostring(text or "")
+
+    local parts = SplitEnvelopes(text)
+
+    -- Kein Umschlag darin: die alte Fehlermeldung ist die richtige, und
+    -- sie soll woertlich dieselbe bleiben.
+    if #parts == 0 then
+        return ProcessImport(text)
+    end
+
+    local messages, failed = {}, 0
+
+    for _, part in ipairs(parts) do
+        local ok, msg = ProcessImport(part)
+        if not ok then failed = failed + 1 end
+        messages[#messages + 1] = ok and msg or ("Fehler: " .. tostring(msg))
+    end
+
+    -- Auch dieser Weg beantwortet einen offenen Sim-Lauf. Welcher der
+    -- beiden Wege es war, ist fuer die Frage danach ohne Belang.
+    if failed < #parts then
+        local SE = WeintCodex.SimExport
+        if SE and SE.NoteArrival then SE.NoteArrival() end
+    end
+
+    if #parts == 1 then
+        return failed == 0, messages[1]
+    end
+
+    return failed == 0, table.concat(messages, "\n")
 end
 
 --------------------------------------------------
@@ -630,6 +712,8 @@ function WeintCodex.Sync.ShowImportDialog()
             { label = "RAIDTHU", value = "Raid Donnerstag" },
             { label = "MAT",     value = "Materialien" },
             { label = "WA",      value = "WeakAuras" },
+            { label = "SW",      value = "Sim-Gewichtung" },
+            { label = "TG",      value = "Zielausrüstung" },
         }},
         { type = "divider" },
         { type = "card", lines = {
@@ -661,7 +745,10 @@ function WeintCodex.Sync.ShowImportDialog()
         "|cff8B95F5Raid Mi:|r       /export raidwed     ->  WCIMPORT:RAIDWED:...\n" ..
         "|cff8B95F5Raid Do:|r       /export raidthu     ->  WCIMPORT:RAIDTHU:...\n" ..
         "|cffD4A24AMaterialien:|r  /export mat          ->  WCIMPORT:MAT:...\n" ..
-        "|cff33D65EWeakAuras:|r    /export wa           ->  WCIMPORT:WA:..."
+        "|cff33D65EWeakAuras:|r    /export wa           ->  WCIMPORT:WA:...\n\n" ..
+        "Aus |cffD4A24AWeintCompanion|r kommen nach dem Simmen zwei Zeilen auf einmal " ..
+        "(Gewichtung und Zielausrüstung). Beide zusammen hier hinein — sie werden " ..
+        "nacheinander gelesen."
     )
 
     -- Format reference box
@@ -817,7 +904,7 @@ function WeintCodex.Sync.ShowImportDialog()
             return
         end
 
-        local ok, msg = ProcessImport(raw)
+        local ok, msg = WeintCodex.Sync.ProcessImportText(raw)
         if ok then
             f.StatusText:SetText("|cff33D65E" .. msg .. "|r")
             editBox:SetText("")
@@ -836,7 +923,7 @@ end
 --------------------------------------------------
 
 function WeintCodex.Sync.QuickImport(str)
-    local ok, msg = ProcessImport(str)
+    local ok, msg = WeintCodex.Sync.ProcessImportText(str)
     if ok then
         print("|cffD4A24A[WeintCodex Import]|r |cff33D65E" .. msg .. "|r")
     else

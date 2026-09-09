@@ -168,6 +168,67 @@ function SE.State()
 end
 
 --------------------------------------------------
+-- DER OFFENE SIM-LAUF (seit 3.1.2.0)
+--------------------------------------------------
+-- Was ein Spieler erwartet: bereitstellen, simmen, zurueckkommen — und
+-- das Addon fragt, ob es das Ergebnis holen soll.
+--
+-- WAS DAS ADDON DABEI NICHT KANN, UND ZWAR PRINZIPIELL: nachsehen, ob
+-- etwas in der Warteschlange liegt. WoW liest seine SavedVariables beim
+-- Laden EINMAL, und die Live-Datei der Companion ist eine Lua-Datei, die
+-- beim Laden ausgefuehrt wird. Beides beantwortet die Frage "liegt da
+-- was?" erst NACH einem Neuladen — und dann ist sie schon beantwortet.
+-- Ein Addon kann keine Datei lesen und kein Netz benutzen.
+--
+-- ALSO IST DIE FRAGE EINE ERWARTUNG, KEINE BEOBACHTUNG, und sie ist
+-- genau so formuliert. Der Spieler hat "Bereitstellen" gedrueckt; das
+-- ist die Ankuendigung, gleich zu simmen. Diese Ankuendigung wird
+-- gemerkt und ueberlebt das Neuladen, das direkt darauf folgt.
+--
+-- KEIN MODALER DIALOG. Wer zurueckkommt, steht vielleicht schon im
+-- Kampf. Ein Fenster, das sich in den Weg stellt fuer etwas, das man
+-- selbst angestossen hat, ist uebergriffig — ein Kasten am Rand ist eine
+-- Auskunft. Er kommt erst nach AWAIT_DELAY (vorher simmt man noch), er
+-- verschwindet von selbst, sobald etwas ankommt, und er verfaellt nach
+-- AWAIT_MAX: danach war es kein Sim-Lauf mehr, sondern ein Reload von
+-- vorgestern.
+--------------------------------------------------
+
+local AWAIT_DELAY = 150          -- 2,5 Minuten: vorher ist niemand fertig
+local AWAIT_MAX   = 2 * 60 * 60  -- danach war es kein Sim-Lauf mehr
+
+local function AwaitStore()
+    WeintCodex.SavedData = WeintCodex.SavedData or {}
+    local sd = WeintCodex.SavedData
+    sd.simexport = sd.simexport or {}
+    return sd.simexport
+end
+
+-- Wie lange der Lauf schon offen ist, oder nil, wenn keiner offen ist.
+function SE.AwaitingFor()
+    local at = tonumber(AwaitStore().awaitingAt)
+    if not at or at <= 0 then return nil end
+
+    local age = (time and time() or 0) - at
+    if age < 0 or age > AWAIT_MAX then return nil end
+
+    return age
+end
+
+function SE.NoteProvided()
+    AwaitStore().awaitingAt = time and time() or 0
+end
+
+-- Es ist etwas angekommen. Gerufen von modules/companion.lua, wenn eine
+-- Gewichtung oder ein Zielzustand zugestellt wurde, und vom Import-Weg
+-- ueber die Zwischenablage. Beide Wege beenden dasselbe Warten - welcher
+-- es war, ist fuer die Frage danach ohne Belang.
+function SE.NoteArrival()
+    AwaitStore().awaitingAt = nil
+    if SE.HideAwaitPanel then SE.HideAwaitPanel() end
+end
+
+--------------------------------------------------
 -- Bereitstellen
 --------------------------------------------------
 --
@@ -243,6 +304,10 @@ function SE.Provide()
     end
 
     SE.Nudge()
+
+    -- Vor dem Neuladen gemerkt: SavedVariables werden beim Reload
+    -- geschrieben, danach ist es zu spaet.
+    SE.NoteProvided()
 
     if SE.ShowPage and pageFrame and pageFrame:IsShown() then
         SE.ShowPage()
@@ -609,6 +674,12 @@ function SE.ShowPage()
     local ready = state.status == SE.READY
     local tone  = ready and C.green or C.gold
 
+    -- Ein offener Lauf faerbt den Kasten nicht um; er bekommt eine
+    -- eigene Zeile darunter. Der Kasten beantwortet "sieht die Companion
+    -- meine Ausruestung", der Lauf "kommt da noch was zurueck" - zwei
+    -- Fragen, und die zweite ist keine Stoerung der ersten.
+    local awaitingAge = SE.AwaitingFor()
+
     SetSolidBg(box, tone[1], tone[2], tone[3], 0.10)
     DrawBorder(box, tone[1], tone[2], tone[3], 0.45, 1)
 
@@ -654,6 +725,16 @@ function SE.ShowPage()
 
     y = y - 82
 
+    if awaitingAge then
+        y = Paragraph(pageFrame, y, 10, C.gold,
+            "Ein Sim-Lauf ist offen: du hast "
+            .. SE.Ago(tonumber(AwaitStore().awaitingAt))
+            .. " bereitgestellt. Was du in WeintCompanion uebernommen hast, "
+            .. "kommt beim naechsten Neuladen an — oder sofort, wenn du den "
+            .. "String dort kopierst und hier unter Import einfuegst.")
+        y = y - 6
+    end
+
     --------------------------------------------------
     -- Der Knopf
     --
@@ -688,6 +769,125 @@ function SE.ShowPage()
 end
 
 --------------------------------------------------
+-- Der Kasten, der nach dem Sim-Lauf fragt
+--------------------------------------------------
+-- Drei Ausgaenge, weil es drei Lagen gibt, und keine davon ist die
+-- Vorgabe fuer alle:
+--
+--   Neu laden       die Companion hat zugestellt, das Spiel muss es nur
+--                   noch lesen. Der bequeme Weg, wenn man nicht gerade
+--                   im Raid steht.
+--   String einfuegen  die Zwischenablage haelt das Ergebnis. Wirkt
+--                   sofort, ohne Ladebildschirm — der einzige Weg, der
+--                   mitten in einer Gruppe geht.
+--   Spaeter         nichts davon. Der Lauf gilt als erledigt und wird
+--                   nicht erneut angeboten; ein Kasten, der wiederkommt,
+--                   ist eine Aufforderung und keine Auskunft.
+
+local awaitPanel = nil
+
+local function BuildAwaitPanel()
+    local f = WeintCodex.CreateSurface(UIParent, {
+        width = 300, height = 168, tone = "plain", radius = 12,
+        backdrop = "bgDark",
+    })
+    f:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -24, 180)
+    f:SetFrameStrata("HIGH")
+    f:Hide()
+
+    local eyebrow = WeintCodex.Eyebrow(f, "WeintCodex")
+    eyebrow:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -14)
+
+    local title = f:CreateFontString(nil, "OVERLAY")
+    title:SetFont(F.sansBold, 15, "")
+    title:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -4)
+    title:SetTextColor(unpack(C.textBright))
+    title:SetText("Dein Sim-Ergebnis")
+
+    local sub = WeintCodex.Label(f, "", { color = "textMuted", size = 11 })
+    sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    sub:SetWidth(268)
+    sub:SetJustifyH("LEFT")
+    f._sub = sub
+
+    local reload = WeintCodex.CreateButton(f, {
+        text = "Jetzt neu laden", kind = "primary", width = 268, height = 28,
+        tooltip = "Liest, was WeintCompanion zugestellt hat. "
+            .. "Im Kampf geht das nicht.",
+        onClick = function()
+            if InCombatLockdown() then
+                Say("Im Kampf wird nicht neu geladen. Danach noch einmal.")
+                return
+            end
+            AwaitStore().awaitingAt = nil
+            f:Hide()
+            ReloadUI()
+        end,
+    })
+    reload:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -10)
+
+    local paste = WeintCodex.CreateButton(f, {
+        text = "Ich habe den String", kind = "secondary", width = 268, height = 26,
+        tooltip = "Oeffnet das Importfeld. Ein eingefuegter String wirkt "
+            .. "sofort, ohne Neuladen — auch mitten in einer Gruppe.",
+        onClick = function()
+            AwaitStore().awaitingAt = nil
+            f:Hide()
+            if WeintCodex.MainFrame then WeintCodex.MainFrame:Show() end
+            if WeintCodex.Sync and WeintCodex.Sync.ShowImportDialog then
+                WeintCodex.Sync.ShowImportDialog()
+            end
+        end,
+    })
+    paste:SetPoint("TOPLEFT", reload, "BOTTOMLEFT", 0, -6)
+
+    local later = WeintCodex.CreateButton(f, {
+        text = "Spaeter", kind = "ghost", width = 268, height = 22,
+        onClick = function()
+            AwaitStore().awaitingAt = nil
+            f:Hide()
+        end,
+    })
+    later:SetPoint("TOPLEFT", paste, "BOTTOMLEFT", 0, -6)
+
+    return f
+end
+
+function SE.HideAwaitPanel()
+    if awaitPanel then awaitPanel:Hide() end
+end
+
+function SE.ShowAwaitPanel()
+    if not SE.AwaitingFor() then return end
+    if not (WeintCodex.CreateSurface and WeintCodex.CreateButton) then return end
+
+    awaitPanel = awaitPanel or BuildAwaitPanel()
+    if not awaitPanel then return end
+
+    awaitPanel._sub:SetText(
+        "Du hast deine Ausrüstung "
+        .. SE.Ago(tonumber(AwaitStore().awaitingAt))
+        .. " für den Sim bereitgestellt.\n\n"
+        .. "Ist das Ergebnis in WeintCompanion übernommen, liegt es bereit — "
+        .. "das Spiel liest es beim nächsten Neuladen.")
+
+    awaitPanel:Show()
+end
+
+-- Nach dem Bereitstellen folgt sofort ein Neuladen; die Uhr laeuft
+-- deshalb ab dem Anmelden. Nachgesehen wird EINMAL, spaet genug, dass
+-- ProcessInbox laengst durch ist: kam etwas an, hat NoteArrival den
+-- Wartezustand da schon geloescht, und der Kasten bleibt weg.
+local function ScheduleAwaitCheck()
+    if not SE.AwaitingFor() then return end
+    if not (C_Timer and C_Timer.After) then return end
+
+    C_Timer.After(AWAIT_DELAY, function()
+        SE.ShowAwaitPanel()
+    end)
+end
+
+--------------------------------------------------
 -- Befehl und Anmeldung
 --------------------------------------------------
 
@@ -715,6 +915,21 @@ function SE.Command(rest)
             Say("  Zuletzt gemeldet: nichts")
         end
         Say("  Stand beim Anmelden: " .. tostring(diskStamp))
+        local age = SE.AwaitingFor()
+        Say("  Offener Sim-Lauf: " .. (age
+            and (SE.Ago(tonumber(AwaitStore().awaitingAt)) .. " bereitgestellt")
+            or "keiner"))
+        return
+    end
+
+    -- Den Kasten von Hand holen. Ohne diesen Weg liesse sich nur
+    -- nachweisen, DASS ein Lauf offen ist, nicht wie die Frage aussieht.
+    if rest == "warten" or rest == "frage" then
+        if not SE.AwaitingFor() then
+            Say("Gerade ist kein Sim-Lauf offen — der Kasten hat nichts zu fragen.")
+            return
+        end
+        SE.ShowAwaitPanel()
         return
     end
 
@@ -731,4 +946,6 @@ watcher:SetScript("OnEvent", function()
     -- der Vergleichspunkt fuer alles, was danach passiert.
     local entry = Newest()
     diskStamp = entry and entry.stamp or 0
+
+    ScheduleAwaitCheck()
 end)

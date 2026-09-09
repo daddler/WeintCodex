@@ -776,6 +776,11 @@ INBOX_HANDLERS.stat_weights = function(payload)
     end
 
     if fresh > 0 then
+        -- Ein offener Sim-Lauf ist damit beantwortet: der Kasten, der
+        -- sonst danach fragen wuerde, hat nichts mehr zu fragen.
+        local SE = WeintCodex.SimExport
+        if SE and SE.NoteArrival then SE.NoteArrival() end
+
         -- Gesagt wird es genau einmal und mit dem Weg dorthin: ein
         -- Vorschlag, den niemand findet, ist keiner. Der Text steht
         -- absichtlich nicht in statweights.lua - die Datei zerlegt und
@@ -821,6 +826,9 @@ INBOX_HANDLERS.target_gear = function(payload)
     local fresh = TG.ReplaceAll(payload.sets)
 
     if fresh > 0 then
+        local SE = WeintCodex.SimExport
+        if SE and SE.NoteArrival then SE.NoteArrival() end
+
         -- Einmal gesagt, mit dem Weg dorthin: eine Empfehlung, die sich
         -- geaendert hat, ohne dass jemand davon weiss, ist die Sorte
         -- Aenderung, die man fuer einen Fehler haelt.

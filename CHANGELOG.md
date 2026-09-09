@@ -2,6 +2,64 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.1.2.0] – 2026-09-09
+
+**WeintCodex fragt jetzt nach, wenn du vom Simmen zurückkommst.**
+
+Nach *Bereitstellen und neu laden* merkt es sich, dass ein Sim-Lauf offen
+ist. Kommt danach nichts an, steht kurz darauf ein kleiner Kasten am
+Bildschirmrand und bietet beides an: **neu laden** (dann liest das Spiel,
+was WeintCompanion zugestellt hat) oder **den String einfügen** (wirkt
+sofort, auch mitten in einer Gruppe). *Später* beendet ihn endgültig — er
+kommt nicht von allein wieder.
+
+Er stellt sich dabei nicht in den Weg: kein Fenster mitten im Bild, und
+sobald etwas ankommt, verschwindet er von selbst.
+
+**Beide Zeilen aus WeintCompanion gehen jetzt zusammen hinein.**
+Aus einem Sim-Lauf kommen zwei Auskünfte — die Gewichtung und die
+Zielausrüstung. Bisher hieß das: zweimal einfügen, zweimal auf
+*Importieren*. Der zweite blieb regelmäßig liegen, und dass er fehlt,
+sieht man einer Empfehlung nicht an. Jetzt darf beides zusammen ins
+Importfeld.
+
+### Technisch
+
+**Was das Addon prinzipiell nicht kann**, und warum die Frage eine
+*Erwartung* ist und keine Beobachtung: WoW liest seine SavedVariables
+beim Laden **einmal**, und die Live-Datei der Companion ist eine
+Lua-Datei, die beim Laden ausgeführt wird. Beides beantwortet „liegt da
+was?" erst *nach* einem Neuladen — dann ist die Frage schon beantwortet.
+Ein Addon kann keine Datei lesen und kein Netz benutzen. Der Auslöser ist
+deshalb der Klick auf *Bereitstellen*: `SE.NoteProvided()` schreibt
+`awaitingAt` **vor** dem Reload (danach wären SavedVariables schon
+geschrieben), `ScheduleAwaitCheck()` sieht `AWAIT_DELAY` (150 s) nach dem
+Anmelden einmal nach, und `SE.AwaitingFor()` lässt den Zustand nach
+`AWAIT_MAX` (2 h) verfallen — danach war es kein Sim-Lauf mehr.
+
+Beendet wird das Warten von **beiden** Wegen: `INBOX_HANDLERS.stat_weights`
+und `.target_gear` rufen `SE.NoteArrival()`, ebenso der Importweg über die
+Zwischenablage. Welcher Weg es war, ist für die Frage danach ohne Belang.
+
+**`Sync.ProcessImportText()`** (neu) zerlegt an `WCIMPORT:`, nicht an
+Zeilenumbrüchen — eine Nutzlast darf selbst welche enthalten, ein
+Umschlag beginnt dagegen nachweislich mit diesem Wort. Ein **einzelner**
+String läuft weiter durch `ProcessImport()` und liefert denselben
+Rückgabewert, dieselbe Meldung und denselben Fehlertext; alles andere
+wäre eine zweite Fassung des Importwegs. **Teilerfolg gilt als Fehler**
+(`false`), damit die Oberfläche das Eingabefeld stehen lässt: beide
+Nutzlasten *ersetzen*, ein zweiter Versuch richtet also keinen Schaden
+an — ein geleertes Feld hätte den misslungenen Teil verloren.
+
+Die Typenliste auf *Import* nennt jetzt auch `SW` und `TG`; der
+Fehlertext für einen unbekannten Typ ebenfalls (`TG` fehlte dort seit
+3.0.3.0).
+
+`.github/tests/sync_test.lua` pinnt beide Richtungen: dass zwei Umschläge
+zusammen hineingehen, und dass ein einzelner sich unverändert verhält —
+inklusive der alten Fehlermeldung und des Falls, dass ein Zeilenumbruch
+*innerhalb* einer Nutzlast nicht trennt.
+
 ## [3.1.1.0] – 2026-09-09
 
 **Die Anzeige am Sockelfenster kam meistens gar nicht.**
