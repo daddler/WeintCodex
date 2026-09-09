@@ -790,6 +790,86 @@ do
           entry and Name(entry.items[5].gems[1]))
 end
 
+--==========================================================================
+-- 12) DIE KENNUNG DES SIM-LAUFS (Abschnitt 7 und 8, Companion ab 3.3.0)
+--==========================================================================
+-- Aus EINEM Sim-Lauf kommen zwei Auskuenfte: die Gewichtung und dieser
+-- Zielzustand. Bis 3.1.2.0 hatten sie nichts gemeinsam, an dem sich
+-- feststellen liesse, ob sie zusammengehoeren - und eine Gewichtung aus
+-- dem Lauf von gestern neben einem Zielzustand von heute sieht im Spiel
+-- aus wie ein stimmiges Ergebnis.
+--
+-- ANGEHAENGT, NICHT EINGESCHOBEN, und das ist die ganze Vertraeglichkeit:
+-- die Felder 1 bis 6 stehen unveraendert an ihrem Platz. Ein aelterer
+-- String liefert hier "" und 0, und daraus wird nichts behauptet.
+
+do
+    local payload = "DRUID_FERAL:abc123:1700000000:Testchar:wowsims_json:"
+        .. "5|86918|" .. ROT .. "-0-" .. BLAU .. "|140|4420"
+        .. ":SIM-20260909-7F4A:1699999000"
+
+    local entry = TG.ParseTransfer(payload)
+
+    Check("die Kennung wird gelesen",
+          entry ~= nil and entry.run == "SIM-20260909-7F4A",
+          entry and tostring(entry.run) or "nil")
+
+    Check("der Bindestrich darin zerlegt nichts",
+          entry ~= nil and entry.spec == "DRUID_FERAL"
+          and entry.items[1].gems[1] == ROT and entry.items[1].gems[2] == 0
+          and entry.items[1].gems[3] == BLAU)
+
+    Check("die Startzeit reist mit",
+          entry ~= nil and entry.startedAt == 1699999000,
+          entry and tostring(entry.startedAt) or "nil")
+end
+
+do
+    -- DER ALTE STRING MUSS WEITER GEHEN. Er ist der Beleg dafuer, dass
+    -- Anhaengen hier gefahrlos ist - anders als zwei Umschlaege in einer
+    -- Zeile, wo dieselbe Nachsicht eine ganze Auskunft verschluckt haette.
+    local payload = "DRUID_FERAL:abc123:1700000000:Testchar:wowsims_json:"
+        .. "5|86918|" .. ROT .. "|140|4420"
+
+    local entry = TG.ParseTransfer(payload)
+
+    Check("ein String ohne Kennung bleibt gueltig", entry ~= nil)
+
+    Check("...und behauptet keine", entry ~= nil and entry.run == ""
+          and entry.startedAt == 0)
+
+    -- Und bis in die Ablage: ein leeres Feld ist kein Fehler.
+    local ok, why, clean = TG.Accept(entry)
+
+    Check("...und wird abgelegt wie bisher", ok == true, tostring(why))
+
+    Check("...ohne Kennung im Eintrag",
+          clean ~= nil and clean.run == "" and clean.startedAt == 0)
+end
+
+do
+    -- Was ankommt, steht danach im Eintrag - daran haengt die Frage
+    -- "aus welchem Lauf stammt diese Empfehlung", die `/wc ziel` stellt.
+    local entry = TG.ParseTransfer(
+        "DRUID_FERAL:abc:1700000000:Testchar:wowsims_json:"
+        .. "5|86918|" .. ROT .. "|140|0"
+        .. ":SIM-20260909-7F4A:1699999000")
+
+    local ok, _, clean = TG.Accept(entry)
+
+    Check("die Kennung ueberlebt die Ablage",
+          ok and clean.run == "SIM-20260909-7F4A"
+          and clean.startedAt == 1699999000,
+          clean and tostring(clean.run) or "nil")
+
+    local abgelegt = TG.SetFor("DRUID_FERAL")
+
+    Check("...und laesst sich wieder herausholen",
+          abgelegt ~= nil and abgelegt.run == "SIM-20260909-7F4A")
+
+    TG.Forget()
+end
+
 print("")
 if fails == 0 then
     print("Alles ok.")

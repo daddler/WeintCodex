@@ -254,6 +254,128 @@ do
     Check("Ohne LibStub wird nichts behauptet", SE.Nudge() == false)
 end
 
+--== Der Handshake: gehoert das hier zu MEINEM Lauf? ========================
+--
+-- Bis 3.1.2.0 war "es ist etwas angekommen" die ganze Antwort. Sie reicht
+-- fuer den Normalfall und ist in genau dem Fall falsch, auf den es ankommt:
+--
+--   bereitstellen -> simmen -> ein Teil wechseln -> nochmal bereitstellen
+--   -> und dann das Ergebnis des ERSTEN Laufs einfuegen.
+--
+-- Das kommt an, sieht vollstaendig aus und gehoert zu einer Ausruestung von
+-- vorhin. Von aussen ist es von einem richtigen Ergebnis nicht zu
+-- unterscheiden - es gibt keine Fehlermeldung, an der man es erkennen
+-- koennte. Dieselbe Fehlerklasse wie die laufende Nummer des Umschmieders
+-- und die Feldnummern in core/wowsims_link.py drueben.
+
+do
+    WeintCodex.SavedData = {}
+
+    Check("Ohne offenen Lauf wird nichts behauptet",
+        SE.MatchesOpenRun(NOW) == nil)
+
+    SE.NoteProvided()
+
+    -- NIL IST NICHT FALSE. Eine aeltere Companion schickt gar keinen
+    -- Zeitstempel; daraus "gehoert nicht dazu" zu machen waere eine
+    -- Warnung ueber etwas, das niemand geprueft hat.
+    Check("Ohne Zeitstempel wird nichts behauptet",
+        SE.MatchesOpenRun(0) == nil)
+
+    Check("Ein Export von jetzt gehoert zum offenen Lauf",
+        SE.MatchesOpenRun(NOW) == true)
+
+    -- Der Stups laeuft VOR NoteProvided; der Zeitstempel liegt also ein
+    -- bis zwei Sekunden davor. Ohne diesen Spielraum meldete der
+    -- Normalfall einen Irrtum.
+    Check("Ein Export von kurz davor auch",
+        SE.MatchesOpenRun(NOW - 60) == true)
+
+    Check("Ein Export von vorgestern nicht",
+        SE.MatchesOpenRun(NOW - 3 * 86400) == false)
+end
+
+do
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+
+    local passt = SE.NoteArrival({
+        run = "SIM-20260909-7F4A", startedAt = NOW, kind = "weights",
+    })
+
+    Check("Der erwartete Lauf beendet das Warten", passt == true)
+    Check("...und der Kasten hat nichts mehr zu fragen",
+        SE.AwaitingFor() == nil)
+
+    local last = SE.LastRun()
+    Check("Was ankam, wird festgehalten",
+        last ~= nil and last.id == "SIM-20260909-7F4A")
+    Check("...samt der Frage, welche Haelfte",
+        last.weights == true and last.target == nil)
+
+    -- Die zweite Haelfte desselben Laufs ergaenzt den Eintrag, statt
+    -- einen zweiten daneben zu legen.
+    SE.NoteArrival({
+        run = "SIM-20260909-7F4A", startedAt = NOW, kind = "target",
+    })
+
+    last = SE.LastRun()
+    Check("Beide Haelften stehen unter EINEM Lauf",
+        last.weights == true and last.target == true)
+    Check("...und es bleibt derselbe Lauf",
+        last.id == "SIM-20260909-7F4A")
+end
+
+do
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+
+    -- DER FALL, WEGEN DEM ES DAS GIBT.
+    local passt = SE.NoteArrival({
+        run = "SIM-20260901-AAAA", startedAt = NOW - 5 * 86400,
+        kind = "target",
+    })
+
+    Check("Ein Ergebnis aus einem aelteren Lauf wird erkannt",
+        passt == false)
+
+    -- ES BEENDET DAS WARTEN NICHT. Der Lauf, den der Spieler
+    -- bereitgestellt hat, ist weiter offen; den Kasten wegzuraeumen und
+    -- den Irrtum stehenzulassen waere das Schlechteste von beidem.
+    Check("...und beendet das Warten nicht", SE.AwaitingFor() ~= nil)
+
+    -- Festgehalten wird es trotzdem: `/wc ziel` und `/wc simmen pruefen`
+    -- beantworten damit die erste Frage jeder Rueckmeldung.
+    Check("...wird aber festgehalten",
+        SE.LastRun() ~= nil and SE.LastRun().id == "SIM-20260901-AAAA")
+
+    local satz = SE.ArrivalNote(passt, NOW - 5 * 86400)
+    Check("Der Grund wird gesagt, nicht verschwiegen",
+        satz:find("aelteren Ausruestung", 1, true) ~= nil)
+    Check("...samt dem, was noch offen ist",
+        satz:find("noch offen", 1, true) ~= nil)
+
+    -- KEIN SATZ IST DER NORMALFALL: wer bereitstellt, simmt und
+    -- einfuegt, braucht keine Bestaetigung dafuer, dass das Erwartete
+    -- eingetroffen ist.
+    Check("Der Normalfall bekommt keinen Satz", SE.ArrivalNote(true, NOW) == "")
+    Check("Und eine Nichtaussage auch nicht", SE.ArrivalNote(nil, 0) == "")
+end
+
+do
+    -- VERTRAEGLICHKEIT: genau wie vor 3.2.0.0, wenn nichts mitkommt.
+    -- Eine aeltere Companion schickt keine Kennung, und ein von Hand
+    -- getippter String hat auch keine.
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+
+    local passt = SE.NoteArrival()
+
+    Check("Eine Ankunft ohne Angaben beendet das Warten wie bisher",
+        passt == nil and SE.AwaitingFor() == nil)
+    Check("...und behauptet keinen Lauf", SE.LastRun() == nil)
+end
+
 --== Wie alt =================================================================
 
 do

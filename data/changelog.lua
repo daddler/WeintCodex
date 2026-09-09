@@ -7,6 +7,16 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.2.0.0",
+        date    = "09.09.2026",
+        notes   = {
+            "|cffD4A24ADein Sim-Ergebnis weiss jetzt, aus welchem Lauf es stammt.|r Gewichtung und Zielausruestung tragen dieselbe Kennung - und |cffD4A24A/wc ziel|r sagt es dir, wenn sie es einmal nicht tun.",
+            "|cffD4A24AUnd WeintCodex erkennt, ob das der Lauf ist, auf den es wartet.|r Kommt ein Ergebnis an, das mit einer aelteren Ausruestung gesimmt wurde - weil du zwischendurch ein Teil gewechselt und neu bereitgestellt hast -, steht das jetzt da, statt als das Erwartete durchzugehen.",
+            "Verworfen wird deswegen nichts: was noch passt, gilt weiter, Platz fuer Platz.",
+            "Die Seite |cffD4A24ASimmen|r zeigt jetzt, was zuletzt angekommen ist - und ob beide Haelften dabei waren.",
+        },
+    },
+    {
         version = "3.1.2.0",
         date    = "09.09.2026",
         notes   = {

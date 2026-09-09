@@ -644,6 +644,25 @@ function SW.CleanEntry(entry)
         character = tostring(entry.character or ""),
         source    = tostring(entry.source or "sim"),
         created   = tonumber(entry.created) or 0,
+
+        -- AUS WELCHEM SIM-LAUF SIE STAMMT (seit 3.2.0.0).
+        --
+        -- Sie aendert an dieser Datei nichts: zugeordnet wird weiter
+        -- ueber die Spezialisierung, und ein leeres Feld ist gueltig
+        -- (jede Gewichtung von einer Companion vor 3.3.0 hat keins,
+        -- und eine von Hand getippte auch nicht). Sie beantwortet die
+        -- eine Frage, die vorher niemand stellen konnte: gehoert diese
+        -- Gewichtung zum selben Lauf wie der Zielzustand daneben?
+        --
+        -- Siehe modules/simexport.lua (SE.NoteArrival) und
+        -- ../WeintCompanion/docs/stat-weights-bridge.md.
+        run       = tostring(entry.run or ""),
+
+        -- Der Zeitstempel der Ausruestung, MIT der gesimmt wurde - in
+        -- der Uhr DIESES Spiels, denn geschrieben hat ihn der
+        -- WowSimsExporter hier. Genau deshalb laesst er sich gegen das
+        -- eigene "Bereitstellen" halten.
+        startedAt = tonumber(entry.startedAt) or 0,
     }
 end
 
@@ -704,7 +723,7 @@ end
 --------------------------------------------------
 -- Der Uebertragungsstring
 --
---   WCIMPORT:SW:<Profilschluessel>:<Kennung>:<Zeitstempel>:<Charakter>:<Quelle>:<stat>|<wert>,...
+--   WCIMPORT:SW:<Profilschluessel>:<Kennung>:<Zeitstempel>:<Charakter>:<Quelle>:<stat>|<wert>,...:<Sim-Lauf>:<Startzeit>
 --
 -- Dieselbe Form wie die uebrigen Importe (Abschnitte mit ":",
 -- Datensaetze mit ",", Felder mit "|"), damit es keinen zweiten
@@ -757,5 +776,15 @@ function SW.ParseTransfer(payload)
         character = fields[4] or "",
         source    = (fields[5] ~= "" and fields[5]) or "sim",
         weights   = weights,
+
+        -- ABSCHNITT 7 UND 8 SIND ANGEHAENGT (Companion ab 3.3.0).
+        --
+        -- Die Felder 1 bis 6 stehen unveraendert an ihrem Platz; wer
+        -- einen aelteren String einfuegt, bekommt hier schlicht "" und
+        -- 0. Das ist der Grund, warum Anhaengen hier gefahrlos ist und
+        -- zwei Umschlaege in einer Zeile es nicht waren: dort fiel eine
+        -- ganze AUSKUNFT weg, hier nur ihre HERKUNFT.
+        run       = fields[7] or "",
+        startedAt = tonumber(fields[8]) or 0,
     }
 end

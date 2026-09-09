@@ -546,7 +546,8 @@ end
 --
 -- stat_weights    { version = 1,
 --                    sets = { { id, spec, weights = { crit = 58, ... },
---                               character, realm, source, created }, ... } }
+--                               character, realm, source, created,
+--                               run, startedAt }, ... } }
 --                  Wertegewichte aus einem Sim, vom Schreibtisch geschickt
 --                  (WeintCompanion 2.5.0). Es ist ein VORSCHLAG und keine
 --                  Einstellung: er fuellt die Felder auf *Priorisierung*
@@ -765,10 +766,23 @@ INBOX_HANDLERS.stat_weights = function(payload)
 
     local fresh = 0
 
+    -- Aus welchem Sim-Lauf das hier stammt. Genommen wird der Eintrag,
+    -- der tatsaechlich NEU ist: eine Liste enthaelt auch die
+    -- Gewichtungen anderer Spezialisierungen von vorletzter Woche, und
+    -- deren Startzeit gegen das eigene Bereitstellen zu halten haette
+    -- gar keine Aussage.
+    local runId, startedAt = "", 0
+
     for _, entry in ipairs(payload.sets) do
         local ok, _, clean = SW.Offer(entry)
         if clean then delivered[clean.spec] = true end
-        if ok then fresh = fresh + 1 end
+        if ok then
+            fresh = fresh + 1
+            if clean and (clean.startedAt or 0) > startedAt then
+                runId     = clean.run or ""
+                startedAt = clean.startedAt or 0
+            end
+        end
     end
 
     for spec in pairs(store.pending) do
@@ -778,8 +792,21 @@ INBOX_HANDLERS.stat_weights = function(payload)
     if fresh > 0 then
         -- Ein offener Sim-Lauf ist damit beantwortet: der Kasten, der
         -- sonst danach fragen wuerde, hat nichts mehr zu fragen.
+        --
+        -- ES SEI DENN, ES IST DER FALSCHE LAUF. Dann bleibt der Kasten
+        -- stehen, und der Grund wird gesagt - siehe SE.NoteArrival.
         local SE = WeintCodex.SimExport
-        if SE and SE.NoteArrival then SE.NoteArrival() end
+        local passt
+        if SE and SE.NoteArrival then
+            passt = SE.NoteArrival({
+                run = runId, startedAt = startedAt, kind = "weights",
+            })
+        end
+
+        if passt == false and SE.ArrivalNote then
+            print(WeintCodex.ColorText("gold", "[WeintCodex]")
+                .. " |cffE56B6B" .. SE.ArrivalNote(passt, startedAt) .. "|r")
+        end
 
         -- Gesagt wird es genau einmal und mit dem Weg dorthin: ein
         -- Vorschlag, den niemand findet, ist keiner. Der Text steht
@@ -825,9 +852,30 @@ INBOX_HANDLERS.target_gear = function(payload)
     -- WeakAura-Bibliothek.
     local fresh = TG.ReplaceAll(payload.sets)
 
+    -- Der jueengste zugestellte Zielzustand entscheidet, welcher Lauf
+    -- hier ankommt - dieselbe Ueberlegung wie bei den Gewichten oben.
+    local runId, startedAt = "", 0
+
+    for _, entry in ipairs(payload.sets) do
+        local at = tonumber(entry.startedAt) or 0
+        if at > startedAt then
+            runId, startedAt = tostring(entry.run or ""), at
+        end
+    end
+
     if fresh > 0 then
         local SE = WeintCodex.SimExport
-        if SE and SE.NoteArrival then SE.NoteArrival() end
+        local passt
+        if SE and SE.NoteArrival then
+            passt = SE.NoteArrival({
+                run = runId, startedAt = startedAt, kind = "target",
+            })
+        end
+
+        if passt == false and SE.ArrivalNote then
+            print(WeintCodex.ColorText("gold", "[WeintCodex]")
+                .. " |cffE56B6B" .. SE.ArrivalNote(passt, startedAt) .. "|r")
+        end
 
         -- Einmal gesagt, mit dem Weg dorthin: eine Empfehlung, die sich
         -- geaendert hat, ohne dass jemand davon weiss, ist die Sorte

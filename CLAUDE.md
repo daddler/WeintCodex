@@ -106,6 +106,7 @@ Companion-visible text).
 | "warum war das mal kaputt" bei Sockel/Umschmieden/Werteabgleich | `docs/history/gearing-lessons.md` |
 | UI-Struktur, Theme, `core/ui.lua`, Navigationsspalte, PageHead | `docs/architecture/overview.md` |
 | Companion-Sync allgemein (Inbox/Outbound-Nachrichten, `ProcessInbox`) | `docs/systems/companion-bridge.md` |
+| Sim-Lauf: Kennung, Handshake nach dem Bereitstellen (`modules/simexport.lua`) | `../WeintCompanion/docs/sim-run.md` |
 | Zugriffsprofile / `core/access.lua` | `docs/systems/access.md` + `../WeintCompanion/docs/access-profile-bridge.md` |
 | WeakAuras | `docs/systems/weakauras.md` + `../WeintCompanion/docs/weakaura-bridge.md` |
 | Gruppencheck oder Ausrüstungs-Alarm | `docs/systems/groupcheck-gearalert.md` |

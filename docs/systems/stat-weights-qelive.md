@@ -137,3 +137,16 @@ am `stand` der Datendatei.
 
 `WeintCodex_ValidateQELiveData()` ist der Drift-Wächter. `/wc qe prüfen`
 druckt jede Zwischenzahl aus.
+
+## Aus welchem Sim-Lauf (seit 3.2.0.0)
+
+Eine Gewichtung ist die eine Hälfte eines Sim-Laufs; die andere ist die
+Zielausrüstung (`gearing.md`, Abschnitt *Der Zielzustand aus dem Sim*).
+Beide tragen dieselbe Kennung, und `SE.MatchesOpenRun()` prüft anhand
+des mitgelieferten Zeitstempels, ob das Angekommene zu dem Lauf gehört,
+auf den nach *Bereitstellen* gewartet wird.
+
+`SW.ParseTransfer` liest die beiden Abschnitte hinter der Nutzlast
+(`run`, `startedAt`); ein älterer String liefert dort `""` und `0`, und
+daraus wird **nichts** behauptet. Voller Vertrag:
+`../../../WeintCompanion/docs/sim-run.md`.

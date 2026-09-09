@@ -113,6 +113,7 @@ dofile(ROOT .. "/data/gem_stats.lua")
 dofile(ROOT .. "/data/spec_profiles.lua")
 dofile(ROOT .. "/data/reforge.lua")
 dofile(ROOT .. "/modules/stat_match.lua")
+dofile(ROOT .. "/modules/statweights.lua")
 dofile(ROOT .. "/modules/targetgear.lua")
 dofile(ROOT .. "/modules/charakter.lua")
 dofile(ROOT .. "/modules/sync.lua")
@@ -402,6 +403,94 @@ do
           okTeil == false)
     Check("der gelungene Teil ist trotzdem angekommen",
           TG.SetFor("DRUID_FERAL") ~= nil)
+end
+
+--==========================================================================
+-- AUS WELCHEM SIM-LAUF STAMMT DER EINGEFUEGTE TEXT? (seit 3.2.0.0)
+--==========================================================================
+-- Der Import-Weg ist der eine Weg, der OHNE /reload wirkt - und damit der,
+-- den jemand mitten in einer Gruppe benutzt. Genau dort ist auch der
+-- Irrtum am wahrscheinlichsten, den der Handshake sichtbar macht: das
+-- Ergebnis eines aelteren Laufs einfuegen, nachdem man laengst neu
+-- bereitgestellt hat.
+--
+-- Diese Datei ZERLEGT nur; entschieden wird drueben in
+-- modules/simexport.lua (SE.NoteArrival). Was hier zu pruefen ist: dass
+-- die Angabe ueberhaupt und richtig dorthin kommt.
+
+do
+    local gesehen = nil
+
+    WeintCodex.SimExport = {
+        NoteArrival = function(info) gesehen = info; return nil end,
+        ArrivalNote = function() return "" end,
+    }
+
+    local SW_TEXT = "WCIMPORT:SW:DRUID_FERAL:sw1:1700000000:Njiah:sim:"
+        .. "agility|100,crit|60:SIM-20260909-AAAA:1699998000"
+
+    local TG_TEXT = "WCIMPORT:TG:DRUID_FERAL:tg1:1700000000:Njiah:wowsims_json:"
+        .. "5|86918|76692-76680|140|4420:SIM-20260909-BBBB:1699999000"
+
+    local function Lauf(text)
+        gesehen = nil
+        Reset()
+        TG.SetEnabled(true)
+        TG.ShowConfirm = nil
+        WeintCodex.SavedData = WeintCodex.SavedData or {}
+        WeintCodex.SavedData.statWeights = nil
+        Sync.ProcessImportText(text)
+        return gesehen
+    end
+
+    local nur_tg = Lauf(TG_TEXT)
+
+    Check("die Kennung erreicht den Handshake",
+          nur_tg ~= nil and nur_tg.run == "SIM-20260909-BBBB",
+          nur_tg and tostring(nur_tg.run) or "nil")
+
+    Check("samt Startzeit und Sorte",
+          nur_tg ~= nil and nur_tg.startedAt == 1699999000
+          and nur_tg.kind == "target")
+
+    -- DER ZIELZUSTAND SCHLAEGT DIE GEWICHTUNG, und zwar nach einer Regel
+    -- statt nach der Reihenfolge: die haengt daran, in welcher die
+    -- Companion die beiden Zeilen ausgegeben hat, und das ist keine
+    -- Eigenschaft, auf die sich etwas stuetzen sollte. Ein Zielzustand
+    -- gilt fuer GENAU die Ausruestung, mit der gesimmt wurde; eine
+    -- Gewichtung fuer jede.
+    local beide = Lauf(SW_TEXT .. "\n" .. TG_TEXT)
+
+    Check("bei zwei Umschlaegen entscheidet der Zielzustand",
+          beide ~= nil and beide.run == "SIM-20260909-BBBB"
+          and beide.kind == "target",
+          beide and tostring(beide.run) or "nil")
+
+    local umgekehrt = Lauf(TG_TEXT .. "\n" .. SW_TEXT)
+
+    Check("auch in umgekehrter Reihenfolge",
+          umgekehrt ~= nil and umgekehrt.run == "SIM-20260909-BBBB"
+          and umgekehrt.kind == "target",
+          umgekehrt and tostring(umgekehrt.run) or "nil")
+
+    -- EIN ALTER STRING VERHAELT SICH WIE VORHER. Ohne Angaben wird
+    -- nichts behauptet - dieselbe Zurueckhaltung wie bei `nil` statt
+    -- `false` in SE.MatchesOpenRun.
+    local ohne = Lauf(
+        "WCIMPORT:TG:DRUID_FERAL:tg1:1700000000:Njiah:wowsims_json:"
+        .. "5|86918|76692-76680|140|4420")
+
+    Check("ein String ohne Kennung behauptet keinen Lauf",
+          ohne ~= nil and (ohne.run or "") == "" and (ohne.startedAt or 0) == 0)
+
+    -- VORHER GELEERT, NICHT NACHHER: ein Rest aus dem vorigen Einfuegen
+    -- wuerde sonst dem naechsten Text als sein Lauf angerechnet - genau
+    -- die Verwechslung, gegen die der ganze Handshake gebaut ist.
+    Check("kein Rest aus dem vorigen Einfuegen",
+          Sync._lastImportRun == nil
+          or Sync._lastImportRun.run ~= "SIM-20260909-BBBB")
+
+    WeintCodex.SimExport = nil
 end
 
 print("")

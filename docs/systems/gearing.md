@@ -258,14 +258,25 @@ drüben, die Seite sagt „Achtung: das ist Stück für Stück dasselbe, was
 du gerade trägst"). Im Spiel gibt es diese Auskunft nicht: hier ist ein
 Zielzustand ein Zielzustand.
 
+**Aus welchem Lauf er stammt, weiss es seit 3.2.0.0 — und ob die
+Gewichtung daneben aus demselben stammt.** Beide Einträge tragen die
+Kennung des Sim-Laufs (`entry.run`), und `/wc ziel` sagt es, wenn sie
+auseinanderfallen: eine Gewichtung von gestern neben einem Zielzustand
+von heute sieht im Spiel aus wie ein stimmiges Ergebnis und ist eine
+Aussage über zwei verschiedene Ausrüstungen. Ein leeres Feld ist gültig
+(jede ältere Companion, jeder von Hand getippte String) und wird nicht
+zu einer Behauptung. Voller Vertrag:
+`../../../WeintCompanion/docs/sim-run.md`.
+
 `/wc ziel` ist der Befehl dazu, aus demselben Grund wie `/wc sockel`
 und `/wc vz zeilen`: ein veraltetes Ziel, ein Ziel für den falschen
-Charakter, eine verschobene Sockelfolge und ein Sim, der es wirklich so
-wollte, sehen von aussen identisch aus. Er druckt, was geliefert wurde,
-für wen es gilt, und Platz für Platz den Iststand gegen das Ziel.
+Charakter, eine verschobene Sockelfolge, eine Gewichtung aus einem
+anderen Lauf und ein Sim, der es wirklich so wollte, sehen von aussen
+identisch aus. Er druckt, was geliefert wurde, für wen es gilt, aus
+welchem Lauf, und Platz für Platz den Iststand gegen das Ziel.
 `.github/tests/targetgear_test.lua` hält die Sockelreihenfolge, den
-Meta-Sockel, die Lücke, das veraltete Ziel, Ring 1 gegen Ring 2 und die
-vier Umschmiede-Fälle fest.
+Meta-Sockel, die Lücke, das veraltete Ziel, Ring 1 gegen Ring 2, die
+vier Umschmiede-Fälle und die beiden angehängten Abschnitte fest.
 
 ## Sockel: der Client liefert die Fakten, eine Rechnung entscheidet
 

@@ -402,5 +402,73 @@ do
         SW.Offer({ id = "x", weights = { crit = 50 } }) == false)
 end
 
+--== Die Kennung des Sim-Laufs (Abschnitt 7 und 8) ==========================
+-- Aus EINEM Sim-Lauf kommen zwei Auskuenfte: diese Gewichtung und der
+-- Zielzustand. Bis 3.1.2.0 hatten sie nichts gemeinsam, an dem sich
+-- feststellen liesse, ob sie zusammengehoeren.
+--
+-- ANGEHAENGT, NICHT EINGESCHOBEN. Die Felder 1 bis 6 stehen unveraendert
+-- an ihrem Platz, ein aelterer String liefert hier "" und 0 - und daraus
+-- wird nichts behauptet. Genau diese Nachsicht nach hinten war es, die
+-- zwei Umschlaege in einer Zeile so gefaehrlich gemacht hat; hier faellt
+-- nur die HERKUNFT weg, dort waere eine ganze Auskunft verschwunden.
+do
+    local entry = SW.ParseTransfer(
+        "DEATHKNIGHT_BLOOD:84474e371e1f:1788186037::sim:hit|100,crit|48"
+        .. ":SIM-20260909-7F4A:1788185000")
+
+    Check("Die Kennung wird gelesen",
+        entry and entry.run == "SIM-20260909-7F4A", entry and entry.run)
+
+    Check("Die Startzeit reist mit",
+        entry and entry.startedAt == 1788185000,
+        entry and tostring(entry.startedAt))
+
+    Check("Und die Gewichte stehen unveraendert davor",
+        entry and entry.weights.hit == 100 and entry.weights.crit == 48,
+        Show(entry and entry.weights))
+end
+
+do
+    -- DER ALTE STRING MUSS WEITER GEHEN - ohne Kennung, ohne Warnung.
+    local entry = SW.ParseTransfer(
+        "DEATHKNIGHT_BLOOD:84474e371e1f:1788186037::sim:hit|100")
+
+    Check("Ein String ohne Kennung bleibt gueltig", entry ~= nil)
+
+    Check("… und behauptet keine",
+        entry and entry.run == "" and entry.startedAt == 0)
+
+    WeintCodex.SavedData = {}
+
+    local ok, why, clean = SW.Offer(entry)
+
+    Check("… und wird angeboten wie bisher", ok == true, why)
+
+    Check("… ohne Kennung im Eintrag",
+        clean and clean.run == "" and clean.startedAt == 0)
+end
+
+do
+    -- Was ankommt, steht danach im Vorschlag. Daran haengt die Frage,
+    -- die `/wc ziel` stellt: gehoeren Gewichtung und Zielzustand zu
+    -- EINEM Lauf?
+    WeintCodex.SavedData = {}
+
+    SW.Offer({
+        id = "abc", spec = "MAGE_FIRE", weights = { intellect = 100 },
+        run = "SIM-20260909-7F4A", startedAt = 1788185000,
+    })
+
+    local pending = SW.Pending("MAGE_FIRE")
+
+    Check("Die Kennung ueberlebt das Anbieten",
+        pending and pending.run == "SIM-20260909-7F4A",
+        pending and pending.run)
+
+    Check("… samt Startzeit",
+        pending and pending.startedAt == 1788185000)
+end
+
 print(fails == 0 and "\nAlles bestanden." or ("\n" .. fails .. " Abweichung(en)."))
 os.exit(fails == 0 and 0 or 1)

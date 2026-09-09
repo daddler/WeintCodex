@@ -198,6 +198,20 @@ function TG.CleanEntry(entry)
         realm     = tostring(entry.realm or ""),
         source    = tostring(entry.source or "wowsims"),
         created   = tonumber(entry.created) or 0,
+
+        -- AUS WELCHEM SIM-LAUF (seit 3.2.0.0). Ein leeres Feld ist
+        -- gueltig: jeder Zielzustand von einer Companion vor 3.3.0 hat
+        -- keins. Zugeordnet wird weiterhin ueber Spec und
+        -- Gegenstandsnummer - die Kennung beantwortet nur, ob dieser
+        -- Zielzustand und die Gewichtung daneben aus EINEM Lauf
+        -- stammen. Siehe modules/simexport.lua.
+        run       = tostring(entry.run or ""),
+
+        -- Der Zeitstempel der Ausruestung, MIT der gesimmt wurde, in
+        -- der Uhr dieses Spiels (geschrieben vom WowSimsExporter).
+        -- 0 heisst "nicht feststellbar", nicht "Sekunde 0".
+        startedAt = tonumber(entry.startedAt) or 0,
+
         items     = items,
         count     = count,
         gemCount  = gemCount,
@@ -435,6 +449,7 @@ end
 --
 --   WCIMPORT:TG:<Spec>:<Kennung>:<Zeit>:<Charakter>:<Quelle>:
 --       <slot>|<itemId>|<gem1>-<gem2>-<gem3>|<reforge>|<enchant>,...
+--       :<Sim-Lauf>:<Startzeit>
 --
 -- Dieselbe Form wie die uebrigen Importe (Abschnitte mit ":",
 -- Datensaetze mit ",", Felder mit "|"), damit es keinen zweiten Parser
@@ -508,6 +523,15 @@ function TG.ParseTransfer(payload)
         created   = tonumber(fields[3]) or 0,
         character = fields[4] or "",
         source    = (fields[5] ~= "" and fields[5]) or "wowsims",
+
+        -- ABSCHNITT 7 UND 8, ANGEHAENGT (Companion ab 3.3.0). Die
+        -- Felder 1 bis 6 stehen unveraendert an ihrem Platz; ein
+        -- aelterer String liefert hier "" und 0. Der Bindestrich in
+        -- der Kennung stoert nicht: er trennt nur INNERHALB eines
+        -- Datensatzes die Steine, und der steht in Feld 6.
+        run       = fields[7] or "",
+        startedAt = tonumber(fields[8]) or 0,
+
         items     = items,
     }
 end
@@ -731,6 +755,43 @@ function TG.Dump()
         if not BelongsToMe(entry) then
             Say("    |cffEF4444gilt nicht fuer diesen Charakter|r")
         end
+
+        -- AUS WELCHEM LAUF, UND PASST DIE GEWICHTUNG DAZU?
+        --
+        -- Das ist die erste Frage jeder Rueckmeldung zu einer
+        -- Steinempfehlung - und die eine, die von aussen gar nicht zu
+        -- beantworten war. Eine Gewichtung aus dem Lauf von gestern
+        -- neben einem Zielzustand von heute sieht im Spiel aus wie ein
+        -- stimmiges Ergebnis und ist eine Aussage ueber zwei
+        -- verschiedene Ausruestungen.
+        if (entry.run or "") ~= "" then
+            Say("    Sim-Lauf " .. entry.run
+                .. ((entry.startedAt or 0) > 0 and date
+                    and (" · Ausruestung vom "
+                         .. date("%d.%m.%Y %H:%M", entry.startedAt)) or ""))
+
+            local SW = WeintCodex.StatWeights
+            local weights = SW and SW.Pending and SW.Pending(spec)
+            if weights and (weights.run or "") ~= ""
+               and weights.run ~= entry.run then
+                Say("    |cffEF4444Die bereitliegende Gewichtung stammt aus"
+                    .. " einem anderen Lauf (" .. weights.run .. ").|r"
+                    .. " |cff9A9AA5Beide Ausgaben desselben Laufs einfuegen,"
+                    .. " dann passt es zusammen.|r")
+            end
+        else
+            Say("    |cff9A9AA5ohne Sim-Lauf-Kennung (aeltere Companion oder"
+                .. " von Hand eingefuegt)|r")
+        end
+    end
+
+    local SE = WeintCodex.SimExport
+    local last = SE and SE.LastRun and SE.LastRun()
+    if last then
+        Say(string.format(
+            "  Zuletzt angekommen: %s (%s%s)", last.id or "?",
+            last.weights and "Gewichtung" or "keine Gewichtung",
+            last.target and " + Zielausruestung" or ""))
     end
 
     if not specKey then return end
@@ -950,7 +1011,11 @@ function TG.ShowConfirm(entry, onConfirm)
     end
     f._herkunft:SetText(SpecLabel(entry.spec)
         .. (entry.character ~= "" and (" · " .. entry.character) or "")
-        .. " · " .. (entry.source or "wowsims") .. wann)
+        .. " · " .. (entry.source or "wowsims") .. wann
+        -- Die Kennung des Laufs steht dabei, damit eine Rueckfrage sie
+        -- nennen kann. Sie muss niemandem auffallen; sie muss dastehen.
+        .. (((entry.run or "") ~= "")
+            and (" · " .. WeintCodex.ColorText("textDim", entry.run)) or ""))
 
     local vergleich = TG.Compare(entry)
 

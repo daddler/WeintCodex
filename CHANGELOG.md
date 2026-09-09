@@ -2,6 +2,74 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.2.0.0] – 2026-09-09
+
+**Dein Sim-Ergebnis weiß jetzt, aus welchem Lauf es stammt.**
+
+Aus einem Sim-Lauf kommen zwei Auskünfte: die Gewichtung und die
+Zielausrüstung. Bisher hatten sie nichts gemeinsam, woran sich erkennen
+ließe, ob sie zusammengehören — und eine Gewichtung von gestern neben
+einer Zielausrüstung von heute sieht im Spiel aus wie ein stimmiges
+Ergebnis. Beide tragen jetzt dieselbe Kennung, und `/wc ziel` sagt es,
+wenn sie es nicht tun.
+
+**Und WeintCodex erkennt, ob das der Lauf ist, auf den es wartet.**
+
+Nach *Bereitstellen und neu laden* merkt es sich den Zeitpunkt. Kommt
+danach ein Ergebnis an, das mit einer **älteren** Ausrüstung gesimmt
+wurde — weil du zwischendurch ein Teil gewechselt und neu bereitgestellt
+hast —, sagt es das, und der offene Lauf bleibt offen. Bisher galt jede
+Ankunft als die erwartete.
+
+Was noch passt, gilt trotzdem weiter: Platz für Platz, wie bisher. Es
+wird nichts verworfen — es wird gesagt.
+
+**Die Seite *Simmen* zeigt jetzt, was zuletzt angekommen ist.**
+Bisher stand dort nur, dass ein Lauf offen ist — auch dann, wenn längst
+etwas eingetroffen war, das nur nicht dazugehörte.
+
+### Technisch
+
+**Zwei angehängte Abschnitte, keine geänderten.** `WCIMPORT:SW:` und
+`WCIMPORT:TG:` tragen hinter ihrer bisherigen Nutzlast zwei weitere
+Felder: die Kennung des Sim-Laufs und den Zeitstempel der Ausrüstung, mit
+der gesimmt wurde. Die Felder 1 bis 6 stehen unverändert an ihrem Platz;
+`SW.ParseTransfer`/`TG.ParseTransfer` lesen sie über feste Positionen,
+ein älterer String liefert `""` und `0`.
+
+Das ist der Unterschied zu zwei Umschlägen in einer Zeile (3.1.2.0), wo
+genau diese Nachsicht nach hinten eine ganze **Auskunft** verschluckt
+hätte: hier fällt nur ihre **Herkunft** weg.
+
+**Der Handshake braucht keinen zweiten Kanal.** Der Zeitstempel stammt
+aus der Uhr dieses Spiels — geschrieben hat ihn der WowSimsExporter —,
+und `SE.NoteProvided()` merkt sich dieselbe Uhr. `SE.MatchesOpenRun()`
+vergleicht beide, mit zwei Minuten Spielraum (der Stups an den Exporter
+läuft *vor* dem Merken). **`nil` ist dabei nicht `false`:** eine ältere
+Companion schickt gar keinen Zeitstempel, und daraus „gehört nicht dazu"
+zu machen wäre eine Warnung über etwas, das niemand geprüft hat.
+
+**Ein Ergebnis aus einem älteren Lauf beendet das Warten nicht.** Der
+Kasten wegzuräumen und den Irrtum stehenzulassen wäre das Schlechteste
+von beidem.
+
+**Nichts wird abgewiesen.** Zugeordnet wird weiterhin über
+Spezialisierung und Gegenstandsnummer; die Kennung beantwortet nur die
+Frage nach der Herkunft. Ein leeres Feld ist gültig — jeder Zielzustand
+und jede Gewichtung von einer Companion vor 3.3.0 hat keins, und eine
+von Hand getippte auch nicht.
+
+Geprüft in `.github/tests/simexport_test.lua` (der Handshake samt seiner
+drei Antworten `true`/`false`/`nil`), `statweights_test.lua` und
+`targetgear_test.lua` (die angehängten Abschnitte, hin und zurück, und
+dass ein alter String weiter geht) sowie `sync_test.lua` (dass die
+Angabe den Handshake überhaupt erreicht — und dass bei zwei Umschlägen
+der Zielzustand entscheidet, nach einer Regel statt nach der
+Reihenfolge).
+
+Vertrag: `../WeintCompanion/docs/target-gear-bridge.md` und
+`../WeintCompanion/docs/stat-weights-bridge.md`.
+
 ## [3.1.2.0] – 2026-09-09
 
 **WeintCodex fragt jetzt nach, wenn du vom Simmen zurückkommst.**

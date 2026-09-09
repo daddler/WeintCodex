@@ -34,7 +34,7 @@
 --   WCIMPORT:WA:Klassenauren:AuraName|MAGE|Autor|1.0|Beschreibung,...
 --
 -- SIM-GEWICHTE (von WeintCompanion, nicht vom Bot):
---   WCIMPORT:SW:PALADIN_RETRIBUTION:<Kennung>:<Zeitstempel>:<Charakter>:sim:strength|100,crit|58,...
+--   WCIMPORT:SW:PALADIN_RETRIBUTION:<Kennung>:<Zeitstempel>:<Charakter>:sim:strength|100,crit|58,...:<Sim-Lauf>:<Startzeit>
 --
 -- Der einzige Import, der nicht aus Discord kommt: die Companion baut
 -- ihn aus einem Sim-Ergebnis. Er ist der Weg OHNE /reload — dieselbe
@@ -332,6 +332,37 @@ end
 -- Import verarbeiten
 --------------------------------------------------
 
+--------------------------------------------------
+-- Aus welchem Sim-Lauf der eingefuegte Text stammt
+--------------------------------------------------
+-- Zwei Umschlaege in einem Text sind der Normalfall (siehe
+-- SplitEnvelopes weiter unten), und beide nennen ihren Lauf. Gemerkt
+-- wird der aussagekraeftigere, und zwar NACH EINER REGEL statt nach der
+-- Reihenfolge: die haengt daran, in welcher die Companion sie
+-- ausgegeben hat, und das ist keine Eigenschaft, auf die sich etwas
+-- stuetzen sollte.
+--
+--   1. Ein Umschlag ohne Startzeit sagt nichts - er zaehlt nur, wenn
+--      gar nichts anderes da ist.
+--   2. Der ZIELZUSTAND schlaegt die Gewichtung: er gilt fuer genau die
+--      Ausruestung, mit der gesimmt wurde, sie fuer jede.
+local function NoteImportRun(kind, entry)
+    local neu = {
+        run       = entry.run or "",
+        startedAt = tonumber(entry.startedAt) or 0,
+        kind      = kind,
+    }
+
+    local alt = WeintCodex.Sync._lastImportRun
+
+    if type(alt) == "table" then
+        if (alt.startedAt or 0) > 0 and neu.startedAt <= 0 then return end
+        if alt.kind == "target" and kind ~= "target" then return end
+    end
+
+    WeintCodex.Sync._lastImportRun = neu
+end
+
 local function ProcessImport(rawStr)
     rawStr = rawStr:match("^%s*(.-)%s*$")
     if rawStr == "" then
@@ -444,6 +475,11 @@ local function ProcessImport(rawStr)
             return false, problem or "Der String liess sich nicht lesen."
         end
 
+        -- Aus welchem Sim-Lauf dieser Umschlag stammt. Gemerkt hier und
+        -- nicht in ProcessImportText: dort steht nur die rohe Zeile, und
+        -- sie ein zweites Mal zu zerlegen waere ein zweiter Parser.
+        NoteImportRun("weights", entry)
+
         -- `force`: von Hand eingefuegt wird immer angeboten. Wer den
         -- String selbst einsetzt, hat ihn gerade angefasst — "kenne ich
         -- schon, passiert nichts" waere hier ein toter Knopf.
@@ -496,6 +532,8 @@ local function ProcessImport(rawStr)
         if not entry then
             return false, problem or "Der String liess sich nicht lesen."
         end
+
+        NoteImportRun("target", entry)
 
         -- GEPRUEFT WIRD VOR DEM FRAGEN, ABGELEGT WIRD ERST DANACH.
         -- CleanEntry sagt schon hier, ob der Eintrag ueberhaupt taugt -
@@ -643,6 +681,12 @@ WeintCodex.Sync.SplitEnvelopes = SplitEnvelopes
 function WeintCodex.Sync.ProcessImportText(text)
     text = tostring(text or "")
 
+    -- VORHER geleert, nicht nachher: ein Rest aus dem vorigen Einfuegen
+    -- wuerde sonst dem naechsten Text als sein Lauf angerechnet - und
+    -- das waere genau die Verwechslung, gegen die der ganze Handshake
+    -- gebaut ist.
+    WeintCodex.Sync._lastImportRun = nil
+
     local parts = SplitEnvelopes(text)
 
     -- Kein Umschlag darin: die alte Fehlermeldung ist die richtige, und
@@ -660,10 +704,22 @@ function WeintCodex.Sync.ProcessImportText(text)
     end
 
     -- Auch dieser Weg beantwortet einen offenen Sim-Lauf. Welcher der
-    -- beiden Wege es war, ist fuer die Frage danach ohne Belang.
+    -- beiden Wege es war, ist fuer die Frage danach ohne Belang - WELCHER
+    -- LAUF es war, sehr wohl. `lastImportRun` haelt fest, was die
+    -- Zerleger oben aus den Abschnitten 7 und 8 gelesen haben; ohne sie
+    -- (aeltere Companion, von Hand getippt) bleibt es leer, und dann
+    -- verhaelt sich der Aufruf wie vor 3.2.0.0.
     if failed < #parts then
         local SE = WeintCodex.SimExport
-        if SE and SE.NoteArrival then SE.NoteArrival() end
+        if SE and SE.NoteArrival then
+            local info = WeintCodex.Sync._lastImportRun or {}
+            local passt = SE.NoteArrival(info)
+
+            if passt == false and SE.ArrivalNote then
+                messages[#messages + 1] = "|cffE56B6B"
+                    .. SE.ArrivalNote(passt, info.startedAt) .. "|r"
+            end
+        end
     end
 
     if #parts == 1 then

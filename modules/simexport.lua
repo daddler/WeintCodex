@@ -219,13 +219,137 @@ function SE.NoteProvided()
     AwaitStore().awaitingAt = time and time() or 0
 end
 
+--------------------------------------------------
+-- DER HANDSHAKE (seit 3.2.0.0)
+--------------------------------------------------
+-- Bis 3.1.2.0 war "es ist etwas angekommen" die ganze Antwort. Sie
+-- reicht fuer den Normalfall und ist im einen Fall, auf den es ankommt,
+-- schlicht falsch:
+--
+--   Bereitstellen -> simmen -> ein Teil wechseln -> nochmal
+--   bereitstellen -> und dann das Ergebnis des ERSTEN Laufs einfuegen.
+--
+-- Das kommt an, sieht vollstaendig aus und gehoert zu einer Ausruestung
+-- von vorhin. Von aussen ist es von einem richtigen Ergebnis nicht zu
+-- unterscheiden - genau die Sorte Fehler, die keine Fehlermeldung
+-- erzeugt.
+--
+-- WORAN ES SICH ERKENNEN LAESST, OHNE EINEN ZWEITEN KANAL: der
+-- Zeitstempel der Ausruestung, MIT der gesimmt wurde. Ihn hat der
+-- WowSimsExporter in DIESEM Spiel geschrieben, er steht also in
+-- derselben Uhr wie `awaitingAt`. Die Companion reicht ihn als
+-- `startedAt` durch (Abschnitt 8 des Strings, Feld `startedAt` der
+-- Nachricht).
+--
+-- ES BLEIBT EINE ERWARTUNG UND KEINE BEOBACHTUNG. Ein Addon kann keine
+-- Datei lesen und kein Netz benutzen; es weiss nur, was es selbst
+-- gemerkt hat. Deshalb wird hier nichts abgewiesen - es wird gesagt.
+--------------------------------------------------
+
+-- Wieviel frueher der Export sein darf als das Bereitstellen.
+--
+-- SE.Provide() stupst den Exporter an und merkt sich ERST DANACH die
+-- Zeit; der Zeitstempel liegt also ein bis zwei Sekunden davor. Wer
+-- ohne den Knopf auskommt (der Exporter schreibt von selbst, sobald
+-- sich etwas aendert), liegt weiter davor. Zwei Minuten sind
+-- grosszuegig genug dafuer und immer noch weit von "ein Lauf von
+-- vorgestern" entfernt.
+local AWAIT_SLACK = 120
+
+-- Gehoert ein Ergebnis mit diesem Startzeitpunkt zu dem Lauf, auf den
+-- gewartet wird?
+--
+-- Rueckgabe:
+--   true   ja - es ist mindestens so neu wie das Bereitstellen
+--   false  nein - es wurde mit einer aelteren Ausruestung gesimmt
+--   nil    keine Aussage (kein offener Lauf, oder kein Zeitstempel
+--          dabei). NIL IST NICHT FALSE: eine aeltere Companion schickt
+--          gar keinen, und daraus "gehoert nicht dazu" zu machen waere
+--          eine Warnung ueber etwas, das niemand geprueft hat.
+function SE.MatchesOpenRun(startedAt)
+    local at = tonumber(AwaitStore().awaitingAt)
+    if not at or at <= 0 then return nil end
+
+    startedAt = tonumber(startedAt) or 0
+    if startedAt <= 0 then return nil end
+
+    return startedAt >= (at - AWAIT_SLACK)
+end
+
+-- Der zuletzt angekommene Lauf, fuer die Diagnose und fuer `/wc ziel`.
+function SE.LastRun()
+    local run = AwaitStore().lastRun
+    if type(run) ~= "table" then return nil end
+    return run
+end
+
 -- Es ist etwas angekommen. Gerufen von modules/companion.lua, wenn eine
 -- Gewichtung oder ein Zielzustand zugestellt wurde, und vom Import-Weg
--- ueber die Zwischenablage. Beide Wege beenden dasselbe Warten - welcher
--- es war, ist fuer die Frage danach ohne Belang.
-function SE.NoteArrival()
-    AwaitStore().awaitingAt = nil
+-- ueber die Zwischenablage.
+--
+-- `info` ist freiwillig: { run = "SIM-...", startedAt = n,
+-- kind = "weights"|"target" }. Ohne sie verhaelt sich der Aufruf genau
+-- wie vor 3.2.0.0 - das ist die Vertraeglichkeit mit jeder aelteren
+-- Companion und mit einem von Hand getippten String.
+--
+-- Rueckgabe: derselbe Wert wie SE.MatchesOpenRun (true/false/nil).
+function SE.NoteArrival(info)
+    local store = AwaitStore()
+
+    local run, startedAt, kind
+
+    if type(info) == "table" then
+        run       = tostring(info.run or "")
+        startedAt = tonumber(info.startedAt) or 0
+        kind      = tostring(info.kind or "")
+    end
+
+    local passt = SE.MatchesOpenRun(startedAt)
+
+    -- WAS ANKOMMT, WIRD FESTGEHALTEN - auch das, was nicht passt.
+    -- `/wc ziel` und `/wc simmen pruefen` beantworten damit die erste
+    -- Frage jeder Rueckmeldung: aus welchem Lauf stammt das hier?
+    if run and run ~= "" then
+        local last = store.lastRun
+        if type(last) ~= "table" or last.id ~= run then
+            last = { id = run, startedAt = startedAt }
+        end
+        last.at = time and time() or 0
+        if kind == "weights" then last.weights = true end
+        if kind == "target"  then last.target  = true end
+        store.lastRun = last
+    end
+
+    -- EIN ERGEBNIS AUS EINEM AELTEREN LAUF BEENDET DAS WARTEN NICHT.
+    -- Der Lauf, den der Spieler bereitgestellt hat, ist weiter offen -
+    -- und er soll erfahren, warum das hier nicht der war. Alles andere
+    -- hiesse, den Kasten wegzuraeumen und den Irrtum stehenzulassen.
+    if passt == false then
+        return false
+    end
+
+    store.awaitingAt = nil
     if SE.HideAwaitPanel then SE.HideAwaitPanel() end
+
+    return passt
+end
+
+-- Der Satz zu einer Ankunft - oder "", wenn es nichts zu sagen gibt.
+--
+-- KEIN SATZ IST DER NORMALFALL. Wer bereitstellt, simmt und einfuegt,
+-- hat nichts falsch gemacht und braucht keine Bestaetigung dafuer, dass
+-- das Erwartete eingetroffen ist. Gesagt wird nur der Fall, der sonst
+-- unbemerkt bliebe.
+function SE.ArrivalNote(passt, startedAt)
+    if passt ~= false then return "" end
+
+    local at = tonumber(AwaitStore().awaitingAt)
+
+    return "Achtung: dieses Ergebnis wurde mit einer aelteren Ausruestung"
+        .. " gesimmt (" .. SE.Ago(startedAt) .. " gemeldet)."
+        .. (at and (" Der Lauf, den du " .. SE.Ago(at)
+                    .. " bereitgestellt hast, ist noch offen.") or "")
+        .. " Was noch passt, gilt trotzdem - Platz fuer Platz."
 end
 
 --------------------------------------------------
@@ -735,6 +859,23 @@ function SE.ShowPage()
         y = y - 6
     end
 
+    -- WAS ZULETZT ANKAM. Ohne diese Zeile ist "der Sim-Lauf ist offen"
+    -- die einzige Auskunft der Seite ueber den Rueckweg - und sie steht
+    -- auch dann da, wenn laengst etwas eingetroffen ist, das nur nicht
+    -- zu diesem Lauf gehoerte.
+    local last = SE.LastRun()
+
+    if last and (last.id or "") ~= "" then
+        y = Paragraph(pageFrame, y, 9, C.textDim,
+            "Zuletzt angekommen: " .. last.id .. " · "
+            .. ((last.weights and last.target)
+                and "Gewichtung und Zielausruestung"
+                or (last.target and "nur die Zielausruestung"
+                    or "nur die Gewichtung"))
+            .. " · " .. SE.Ago(last.at))
+        y = y - 6
+    end
+
     --------------------------------------------------
     -- Der Knopf
     --
@@ -919,6 +1060,21 @@ function SE.Command(rest)
         Say("  Offener Sim-Lauf: " .. (age
             and (SE.Ago(tonumber(AwaitStore().awaitingAt)) .. " bereitgestellt")
             or "keiner"))
+
+        -- Was zuletzt ankam, und ob es der erwartete Lauf war. Von
+        -- aussen sehen "es kam nichts an", "es kam der falsche an" und
+        -- "es kam an, aber halb" voellig gleich aus.
+        local last = SE.LastRun()
+        if last then
+            Say(("  Zuletzt angekommen: %s (%s), %s"):format(
+                last.id or "?",
+                (last.weights and "Gewichtung" or "-")
+                    .. (last.target and " + Zielausruestung" or ""),
+                SE.Ago(last.at)))
+            Say("    Ausruestung dieses Laufs: " .. SE.Ago(last.startedAt))
+        else
+            Say("  Zuletzt angekommen: nichts mit Lauf-Kennung")
+        end
         return
     end
 

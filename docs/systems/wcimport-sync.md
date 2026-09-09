@@ -46,6 +46,10 @@ Drei Dinge daran sind nicht Geschmack:
 
 ## Der offene Sim-Lauf (`modules/simexport.lua`, seit 3.1.2.0)
 
+Voller Vertrag der Lauf-Kennung, des Zeitstempels und der drei Antworten
+von `SE.MatchesOpenRun()`: `../../../WeintCompanion/docs/sim-run.md`.
+Hier steht nur, was am Importweg hängt.
+
 **Das Addon kann nicht nachsehen, ob etwas in der Warteschlange liegt** —
 prinzipiell nicht. WoW liest seine SavedVariables beim Laden *einmal*,
 und `data/companion_live.lua` ist eine Lua-Datei, die beim Laden
@@ -62,6 +66,35 @@ zwei Stunden verfallen. Beendet wird er von **beiden** Wegen
 (`INBOX_HANDLERS.stat_weights`/`.target_gear` und der Importweg über die
 Zwischenablage) über `SE.NoteArrival()` — welcher es war, ist für die
 Frage danach ohne Belang.
+
+**Welcher Lauf es war, sehr wohl** (seit 3.2.0.0). Beide Umschläge
+tragen hinter ihrer Nutzlast zwei angehängte Abschnitte: die Kennung des
+Sim-Laufs und den Zeitstempel der Ausrüstung, mit der gesimmt wurde.
+Letzterer steht in der Uhr **dieses Spiels** — geschrieben hat ihn der
+WowSimsExporter —, und genau deshalb lässt er sich gegen `awaitingAt`
+halten.
+
+Drei Dinge daran sind nicht Geschmack:
+
+- **`nil` ist nicht `false`.** Eine ältere Companion schickt gar keinen
+  Zeitstempel; daraus „gehört nicht dazu" zu machen wäre eine Warnung
+  über etwas, das niemand geprüft hat.
+- **Ein Ergebnis aus einem älteren Lauf beendet das Warten nicht.** Der
+  Lauf, den der Spieler bereitgestellt hat, ist weiter offen — den
+  Kasten wegzuräumen und den Irrtum stehenzulassen wäre das
+  Schlechteste von beidem. Gesagt wird es einmal, im Chat.
+- **Bei zwei Umschlägen in einem Text entscheidet der Zielzustand, nach
+  einer Regel statt nach der Reihenfolge** (`NoteImportRun()` in
+  `modules/sync.lua`). Die Reihenfolge hängt daran, in welcher die
+  Companion die beiden Zeilen ausgegeben hat, und das ist keine
+  Eigenschaft, auf die sich etwas stützen sollte. Ein Zielzustand gilt
+  für *genau* die Ausrüstung, mit der gesimmt wurde; eine Gewichtung
+  für jede.
+
+`WeintCodex.Sync._lastImportRun` wird **vor** dem Verarbeiten geleert,
+nicht danach: ein Rest aus dem vorigen Einfügen würde sonst dem nächsten
+Text als sein Lauf angerechnet — genau die Verwechslung, gegen die der
+ganze Handshake gebaut ist.
 
 **Kein modaler Dialog**: wer zurückkommt, steht vielleicht schon im
 Kampf. Ein Kasten am Rand ist eine Auskunft, ein Fenster im Weg eine
@@ -107,3 +140,14 @@ eines Gegenstands hängen mit `-` aneinander, weil `:`, `,` und `|` schon
 vergeben sind. Sie sind Ziffern, ein Bindestrich kann darin nicht
 vorkommen. Voller Vertrag:
 `../../../WeintCompanion/docs/target-gear-bridge.md`.
+
+Beide tragen seit 3.2.0.0 **zwei angehängte Abschnitte** (Lauf-Kennung,
+Startzeit). Angehängt und nicht eingeschoben, und das ist die ganze
+Verträglichkeit: `SW.ParseTransfer` und `TG.ParseTransfer` lesen die
+Felder 1 bis 6 über feste Positionen und ignorieren alles dahinter. Der
+Bindestrich in der Kennung stört nicht — er trennt nur *innerhalb* eines
+Datensatzes, und der steht in Feld 6.
+
+Das ist der Unterschied zu zwei Umschlägen in einer Zeile, wo dieselbe
+Nachsicht nach hinten eine ganze **Auskunft** verschluckt hätte: hier
+fällt nur ihre **Herkunft** weg.
