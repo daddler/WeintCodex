@@ -101,6 +101,17 @@ Kampf. Ein Kasten am Rand ist eine Auskunft, ein Fenster im Weg eine
 Aufforderung — und *Später* beendet den Lauf endgültig, weil ein Kasten,
 der wiederkommt, ebenfalls eine Aufforderung wäre.
 
+**Nach *Jetzt neu laden* sah der Spieler bisher nur eine Chatzeile**
+(seit 3.2.0.1 nicht mehr). Der Knopf löst dasselbe Neuladen aus, das
+`INBOX_HANDLERS.stat_weights`/`.target_gear` einliest — und danach
+zeigt `TG.ShowArrival()` (`docs/systems/gearing.md`, Abschnitt *Der
+eingefügte String wird gezeigt, bevor er gilt*) ein Fenster mit dem,
+was übernommen wurde: Gewichtung und/oder Zielzustand, in **einem**
+Fenster statt zweien. `SE.BeginArrival()`/`SE.EndArrival()` in
+`modules/companion.lua` rahmen dafür die ganze Login-Warteschlange, und
+zwar nur dann, wenn zuvor tatsächlich ein Sim-Lauf offen war — sonst
+poppte es bei jedem Login mit wartenden Nachrichten auf.
+
 The type tag may carry an optional community suffix —
 `WCIMPORT:RAIDWED@<id>:<payload>` — read by splitting the tag *after* the
 envelope match and *before* `:upper()`. Do not widen the envelope regex to

@@ -7,6 +7,14 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.2.0.1",
+        date    = "09.09.2026",
+        notes   = {
+            "|cffD4A24ANach Jetzt neu laden siehst du jetzt, was uebernommen wurde.|r Bisher stand danach nur eine Chatzeile da - jetzt geht ein Fenster auf und zeigt Gewichtung und/oder Zielausruestung, genau wie beim manuellen Einfuegen.",
+            "Beide Auskuenfte eines Sim-Laufs stehen dabei in |cffD4A24Aeinem|r Fenster, nicht in zweien. Gezeigt wird es nur, wenn zuvor tatsaechlich ein Sim-Lauf offen war.",
+        },
+    },
+    {
         version = "3.2.0.0",
         date    = "09.09.2026",
         notes   = {

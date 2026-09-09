@@ -376,6 +376,113 @@ do
     Check("...und behauptet keinen Lauf", SE.LastRun() == nil)
 end
 
+--== Die Ankunfts-Zusammenfassung: EIN Fenster fuer beide Auskuenfte =========
+--
+-- "Jetzt neu laden" im Kasten loest ein Neuladen aus, und danach kamen
+-- bisher nur Chatzeilen - fuer den manuellen Import gibt es dafuer ein
+-- Fenster (TG.ShowConfirm), fuer den Weg ueber die Addon-Bruecke bisher
+-- keins. SE.BeginArrival/NoteArrivedWeights/NoteArrivedTarget/EndArrival
+-- sind die Klammer, die modules/companion.lua um die ganze
+-- Warteschlange eines Logins legt - geprueft wird hier nur die Klammer
+-- selbst, das Fenster braucht das Spiel (siehe TG.ShowArrival drueben).
+
+do
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+
+    local captured = nil
+    WeintCodex.TargetGear = { ShowArrival = function(arrival) captured = arrival end }
+
+    SE.BeginArrival()
+    SE.NoteArrivedWeights({ spec = "MAGE_FIRE", weights = { intellect = 100 } })
+    SE.NoteArrivedTarget({ spec = "MAGE_FIRE", count = 1 })
+    SE.EndArrival()
+
+    Check("bei offenem Lauf zeigt EndArrival GENAU EIN Fenster",
+          captured ~= nil)
+    Check("...mit BEIDEN Auskuenften darin, nicht zweien getrennt",
+          captured and captured.weights and captured.target
+          and captured.weights.spec == "MAGE_FIRE"
+          and captured.target.count == 1)
+
+    WeintCodex.TargetGear = nil
+end
+
+do
+    -- OHNE OFFENEN LAUF KEIN FENSTER. Sonst poeppte bei jedem Login mit
+    -- wartenden Nachrichten eins auf - auch fuer eine Gewichtung von
+    -- vor drei Tagen, die man laengst kennt.
+    WeintCodex.SavedData = {}
+    -- Kein SE.NoteProvided() - es ist kein Lauf offen.
+
+    local captured = nil
+    WeintCodex.TargetGear = { ShowArrival = function(arrival) captured = arrival end }
+
+    SE.BeginArrival()
+    SE.NoteArrivedWeights({ spec = "MAGE_FIRE", weights = { intellect = 100 } })
+    SE.EndArrival()
+
+    Check("ohne offenen Lauf bleibt das Fenster aus", captured == nil)
+
+    WeintCodex.TargetGear = nil
+end
+
+do
+    -- Ein offener Lauf, bei dem am Ende doch nichts Einschlaegiges kam
+    -- (z. B. nur ein Raid-Import in derselben Warteschlange) bekommt
+    -- kein leeres Fenster.
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+
+    local captured = nil
+    WeintCodex.TargetGear = { ShowArrival = function(arrival) captured = arrival end }
+
+    SE.BeginArrival()
+    SE.EndArrival()
+
+    Check("ohne Inhalt bleibt das Fenster auch bei offenem Lauf aus",
+          captured == nil)
+
+    WeintCodex.TargetGear = nil
+end
+
+do
+    -- Nur eine der beiden Auskuenfte ist angekommen (der Normalfall bei
+    -- einem Heiler-Lauf ueber QE Live, der keinen Zielzustand kennt).
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+
+    local captured = nil
+    WeintCodex.TargetGear = { ShowArrival = function(arrival) captured = arrival end }
+
+    SE.BeginArrival()
+    SE.NoteArrivedTarget({ spec = "DRUID_FERAL", count = 3 })
+    SE.EndArrival()
+
+    Check("eine einzelne Auskunft wird trotzdem gezeigt",
+          captured ~= nil and captured.target ~= nil and captured.weights == nil)
+
+    WeintCodex.TargetGear = nil
+end
+
+do
+    -- OHNE TargetGear-Modul (z. B. waehrend eines anderen Testlaufs,
+    -- oder falls das Modul aus irgendeinem Grund nicht geladen ist)
+    -- darf EndArrival nicht abstuerzen.
+    WeintCodex.SavedData = {}
+    SE.NoteProvided()
+    WeintCodex.TargetGear = nil
+
+    local ok = pcall(function()
+        SE.BeginArrival()
+        SE.NoteArrivedWeights({ spec = "MAGE_FIRE", weights = { intellect = 100 } })
+        SE.EndArrival()
+    end)
+
+    Check("ohne TargetGear-Modul bleibt EndArrival folgenlos statt abzustuerzen",
+          ok == true)
+end
+
 --== Wie alt =================================================================
 
 do

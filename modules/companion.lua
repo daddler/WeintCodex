@@ -766,21 +766,21 @@ INBOX_HANDLERS.stat_weights = function(payload)
 
     local fresh = 0
 
-    -- Aus welchem Sim-Lauf das hier stammt. Genommen wird der Eintrag,
-    -- der tatsaechlich NEU ist: eine Liste enthaelt auch die
-    -- Gewichtungen anderer Spezialisierungen von vorletzter Woche, und
-    -- deren Startzeit gegen das eigene Bereitstellen zu halten haette
-    -- gar keine Aussage.
-    local runId, startedAt = "", 0
+    -- Aus welchem Sim-Lauf das hier stammt, UND der Eintrag selbst
+    -- fuer die Ankunfts-Zusammenfassung (siehe SE.BeginArrival). Bei
+    -- gleicher Startzeit gewinnt der zuletzt gesehene - das ist der
+    -- Fall, in dem keiner der Eintraege eine Startzeit traegt (eine
+    -- Companion vor 3.3.0), und dort soll trotzdem IRGENDEINER als
+    -- Auskunft dienen statt gar keiner.
+    local best = nil
 
     for _, entry in ipairs(payload.sets) do
         local ok, _, clean = SW.Offer(entry)
         if clean then delivered[clean.spec] = true end
         if ok then
             fresh = fresh + 1
-            if clean and (clean.startedAt or 0) > startedAt then
-                runId     = clean.run or ""
-                startedAt = clean.startedAt or 0
+            if clean and (not best or (clean.startedAt or 0) >= (best.startedAt or 0)) then
+                best = clean
             end
         end
     end
@@ -799,13 +799,20 @@ INBOX_HANDLERS.stat_weights = function(payload)
         local passt
         if SE and SE.NoteArrival then
             passt = SE.NoteArrival({
-                run = runId, startedAt = startedAt, kind = "weights",
+                run = best and best.run or "",
+                startedAt = best and best.startedAt or 0,
+                kind = "weights",
             })
+        end
+
+        if SE and SE.NoteArrivedWeights then
+            SE.NoteArrivedWeights(best)
         end
 
         if passt == false and SE.ArrivalNote then
             print(WeintCodex.ColorText("gold", "[WeintCodex]")
-                .. " |cffE56B6B" .. SE.ArrivalNote(passt, startedAt) .. "|r")
+                .. " |cffE56B6B"
+                .. SE.ArrivalNote(passt, best and best.startedAt or 0) .. "|r")
         end
 
         -- Gesagt wird es genau einmal und mit dem Weg dorthin: ein
@@ -852,16 +859,30 @@ INBOX_HANDLERS.target_gear = function(payload)
     -- WeakAura-Bibliothek.
     local fresh = TG.ReplaceAll(payload.sets)
 
-    -- Der jueengste zugestellte Zielzustand entscheidet, welcher Lauf
-    -- hier ankommt - dieselbe Ueberlegung wie bei den Gewichten oben.
-    local runId, startedAt = "", 0
+    -- Der juengste zugestellte Zielzustand entscheidet, welcher Lauf
+    -- hier ankommt - dieselbe Ueberlegung wie bei den Gewichten oben,
+    -- und dieselbe Regel bei Gleichstand (der letzte gewinnt, damit
+    -- auch ohne Startzeit ueberhaupt einer als Auskunft dient).
+    --
+    -- ROH, NICHT BEREINIGT: `TG.ReplaceAll` hat die Eintraege schon
+    -- ueber `TG.Accept`/`TG.CleanEntry` in den Speicher gelegt, aber
+    -- gibt sie nicht einzeln zurueck. Fuer die Zusammenfassung wird
+    -- der rohe Sieger unten ein zweites Mal bereinigt - dieselbe
+    -- Rechnung, kein zweiter Speicherzugriff mit eigenen Regeln
+    -- (TG.Enabled/BelongsToMe), die fuer die reine Anzeige nicht
+    -- gelten sollen: angekommen ist angekommen, unabhaengig davon, ob
+    -- die Sockelempfehlung gerade abgeschaltet ist.
+    local bestRaw = nil
 
     for _, entry in ipairs(payload.sets) do
         local at = tonumber(entry.startedAt) or 0
-        if at > startedAt then
-            runId, startedAt = tostring(entry.run or ""), at
+        if not bestRaw or at >= (tonumber(bestRaw.startedAt) or 0) then
+            bestRaw = entry
         end
     end
+
+    local runId     = bestRaw and tostring(bestRaw.run or "") or ""
+    local startedAt = bestRaw and (tonumber(bestRaw.startedAt) or 0) or 0
 
     if fresh > 0 then
         local SE = WeintCodex.SimExport
@@ -870,6 +891,11 @@ INBOX_HANDLERS.target_gear = function(payload)
             passt = SE.NoteArrival({
                 run = runId, startedAt = startedAt, kind = "target",
             })
+        end
+
+        if SE and SE.NoteArrivedTarget then
+            local clean = bestRaw and TG.CleanEntry(bestRaw)
+            SE.NoteArrivedTarget(clean)
         end
 
         if passt == false and SE.ArrivalNote then
@@ -1122,7 +1148,20 @@ if #queue == 0 then
     return
 end
 
+-- DIE ANKUNFTS-ZUSAMMENFASSUNG RAHMT DIE GANZE WARTESCHLANGE, NICHT
+-- JEDE NACHRICHT EINZELN. Aus einem Sim-Lauf kommen zwei Nachrichten
+-- (stat_weights, target_gear) in DIESER EINEN Verarbeitung - ein Popup
+-- je Nachricht waere wieder die alte Trennung, die der Nutzer nicht
+-- mehr mitdenken soll. SE.BeginArrival() haelt VORHER fest, ob ein
+-- Lauf offen war (NoteArrival() innerhalb von ProcessQueue loescht das
+-- sofort); SE.EndArrival() zeigt danach hoechstens EIN Fenster mit
+-- beidem, falls etwas Einschlaegiges dabei war.
+local SE = WeintCodex.SimExport
+if SE and SE.BeginArrival then SE.BeginArrival() end
+
 ProcessQueue(queue)
+
+if SE and SE.EndArrival then SE.EndArrival() end
 
 end
 

@@ -113,6 +113,32 @@ SW.ORDER = { "strength", "agility", "intellect", "stamina", "spirit",
              "hit", "expertise", "crit", "haste", "mastery",
              "dodge", "parry" }
 
+-- Deutsche Anzeigenamen derselben zwoelf Werte - fuer jede Stelle, die
+-- eine Gewichtung in Textform nennt, ohne selbst auf `Priorisierung`
+-- zu sein (etwa modules/simexport.lua, das eine Ankunft zusammenfasst,
+-- nachdem der Spieler laengst nicht mehr auf der Sim-Seite ist).
+--
+-- EINE TABELLE, KEINE ZWEITE: modules/charakter.lua fuehrt dieselben
+-- Namen lokal fuer die eigene Anzeige (Priorisierung, Ausruestung).
+-- Zwei Uebersetzungstabellen fuer dieselben zwoelf Schluessel liefen
+-- ab der ersten Ergaenzung eines Wertes auseinander - genau die
+-- Doppelung, die diese Datei an anderer Stelle vermeidet
+-- ("ein Wert, eine Rechnung").
+SW.LABELS = {
+    strength  = "Stärke",
+    agility   = "Beweglichkeit",
+    intellect = "Intelligenz",
+    stamina   = "Ausdauer",
+    spirit    = "Willenskraft",
+    hit       = "Trefferwertung",
+    expertise = "Waffenkundewertung",
+    crit      = "Kritische Trefferwertung",
+    haste     = "Tempowertung",
+    mastery   = "Meisterschaft",
+    dodge     = "Ausweichen",
+    parry     = "Parierchance",
+}
+
 --------------------------------------------------
 -- Zerlegen
 --

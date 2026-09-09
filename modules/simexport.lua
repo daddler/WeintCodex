@@ -353,6 +353,66 @@ function SE.ArrivalNote(passt, startedAt)
 end
 
 --------------------------------------------------
+-- DIE ANKUNFTS-ZUSAMMENFASSUNG (seit 3.2.0.1)
+--------------------------------------------------
+-- "Jetzt neu laden" im Kasten unten loest das Neuladen aus - und
+-- DANACH sah der Spieler bisher nur eine Chatzeile. Fuer den manuellen
+-- Import gibt es dafuer ein Fenster (TG.ShowConfirm); fuer den Weg
+-- ueber die Addon-Bruecke, den genau dieser Knopf nimmt, bisher keins.
+--
+-- GEZEIGT WIRD NUR, WENN VOR DIESEM LOGIN EIN LAUF OFFEN WAR - sonst
+-- ploppte bei JEDEM Login mit wartenden Nachrichten ein Fenster auf,
+-- auch fuer eine Gewichtung von vor drei Tagen, die man laengst kennt.
+-- Genau deshalb wird das hier VOR modules/companion.lua's
+-- ProcessQueue() festgehalten: NoteArrival() loescht `awaitingAt`
+-- sofort, und danach liesse sich "war gerade ein Lauf offen" nicht
+-- mehr beantworten.
+--
+-- WAS GEZEIGT WIRD, IST DIE ROHE AUSKUNFT DER INBOX-HANDLER, NICHT
+-- DAS URTEIL DES HANDSHAKES. Auch ein Ergebnis aus einem aelteren Lauf
+-- (SE.MatchesOpenRun() == false) wird zusammengefasst - die
+-- Chatwarnung daneben sagt bereits, dass es nicht das erwartete war;
+-- diese Zusammenfassung sagt, WAS es stattdessen war. Verschweigen
+-- waere hier die falsche Zurueckhaltung.
+--------------------------------------------------
+
+local pendingArrival = nil
+
+-- Aufgerufen EINMAL von modules/companion.lua, bevor die Nachrichten
+-- dieses Logins verarbeitet werden.
+function SE.BeginArrival()
+    pendingArrival = (SE.AwaitingFor() ~= nil) and {} or nil
+end
+
+-- Von INBOX_HANDLERS.stat_weights aufgerufen, mit dem frischesten
+-- Eintrag dieser Zustellung (oder nil, wenn keiner frisch war). Ohne
+-- offenen Lauf (siehe BeginArrival) ein stilles Nichts.
+function SE.NoteArrivedWeights(entry)
+    if pendingArrival then pendingArrival.weights = entry end
+end
+
+function SE.NoteArrivedTarget(entry)
+    if pendingArrival then pendingArrival.target = entry end
+end
+
+-- Aufgerufen EINMAL, nachdem alle Nachrichten dieses Logins verarbeitet
+-- sind. Zeigt die Zusammenfassung nur, wenn tatsaechlich etwas dabei
+-- war - ein offener Lauf, bei dem am Ende doch nichts (oder nur ein
+-- Raid-Import) ankam, bekommt kein leeres Fenster.
+function SE.EndArrival()
+    local arrival = pendingArrival
+    pendingArrival = nil
+
+    if not arrival then return end
+    if not (arrival.weights or arrival.target) then return end
+
+    local TG = WeintCodex.TargetGear
+    if TG and TG.ShowArrival then
+        TG.ShowArrival(arrival)
+    end
+end
+
+--------------------------------------------------
 -- Bereitstellen
 --------------------------------------------------
 --
@@ -983,7 +1043,7 @@ local function BuildAwaitPanel()
     paste:SetPoint("TOPLEFT", reload, "BOTTOMLEFT", 0, -6)
 
     local later = WeintCodex.CreateButton(f, {
-        text = "Spaeter", kind = "ghost", width = 268, height = 22,
+        text = "Später", kind = "ghost", width = 268, height = 22,
         onClick = function()
             AwaitStore().awaitingAt = nil
             f:Hide()

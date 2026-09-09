@@ -870,6 +870,39 @@ do
     TG.Forget()
 end
 
+--==========================================================================
+-- 13) DIE ANKUNFTS-ZUSAMMENFASSUNG (TG.ShowArrival, seit 3.2.0.1)
+--==========================================================================
+-- Geprueft wird hier nur, was OHNE Spiel geht: die Randfaelle vor dem
+-- eigentlichen Fenster (das braucht WeintCodex.MainFrame/CreateSurface
+-- und damit den Client - dieselbe Grenze wie bei TG.ShowConfirm, das
+-- aus demselben Grund ebenfalls nicht Zeile fuer Zeile getestet wird).
+
+do
+    Check("ohne jede Auskunft wird nichts gezeigt",
+          TG.ShowArrival({}) == false)
+
+    Check("ein ungueltiger Aufruf wird nicht gezeigt",
+          TG.ShowArrival(nil) == false)
+
+    Check("ohne Oberflaeche (kein MainFrame) bleibt es beim Nein",
+          TG.ShowArrival({ target = { spec = "DRUID_FERAL", count = 1 } })
+          == false)
+
+    -- DIESELBE GRENZE GILT FUER DAS BESTAETIGUNGSFENSTER - und zwar
+    -- WEITERHIN, nach der Auslagerung von FillCompareArea/
+    -- HideCompareArea aus TG.ShowConfirm heraus. Ohne Oberflaeche
+    -- gilt ein Eintrag sofort (siehe der Kommentar in TG.ShowConfirm):
+    -- "lieber uebernehmen als verlieren".
+    local ran = false
+    local ok = TG.ShowConfirm(
+        { spec = "DRUID_FERAL", items = {}, count = 0 },
+        function() ran = true end)
+
+    Check("TG.ShowConfirm uebernimmt ohne Oberflaeche weiterhin sofort",
+          ok == true and ran == true)
+end
+
 print("")
 if fails == 0 then
     print("Alles ok.")

@@ -907,6 +907,7 @@ local function BuildConfirmFrame()
         radius = 10, backdrop = "cardTop",
     })
     listBg:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -152)
+    f._listBg = listBg
 
     local scroll, inner = WeintCodex.CreateScrollArea(listBg, 4, -6, 844, 338, true)
     f._inner = inner
@@ -920,6 +921,7 @@ local function BuildConfirmFrame()
     fuss:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 24, 26)
     fuss:SetWidth(430)
     fuss:SetJustifyH("LEFT")
+    f._fuss = fuss
 
     local ok = WeintCodex.CreateButton(f, {
         text = "Uebernehmen", kind = "primary", width = 160,
@@ -990,38 +992,25 @@ end
 
 -- Zeigt den Eintrag zur Bestaetigung. `onConfirm` laeuft NUR, wenn der
 -- Spieler "Uebernehmen" klickt.
-function TG.ShowConfirm(entry, onConfirm)
-    if type(entry) ~= "table" then return false end
-    if not (WeintCodex.MainFrame and WeintCodex.CreateSurface) then
-        -- Ohne Oberflaeche keine Rueckfrage: dann gilt der Eintrag wie
-        -- vor 3.0.3.0 sofort. Lieber uebernehmen als verlieren.
-        if onConfirm then onConfirm() end
-        return true
-    end
-
-    confirmFrame = confirmFrame or BuildConfirmFrame()
-    local f = confirmFrame
+-- Fuellt Zusammenfassung, Warnung und die Platz-fuer-Platz-Liste EINES
+-- Zielzustands in EIN beliebiges Fenster - geteilt zwischen dem
+-- Bestaetigungsfenster (TG.ShowConfirm, vor dem Uebernehmen) und der
+-- Ankunfts-Zusammenfassung (TG.ShowArrival, danach, informativ). Beide
+-- zeigen dieselbe Rechnung (TG.Compare); zwei Fassungen dieser
+-- Fuellschleife liefen sonst irgendwann auseinander - genau die Sorte
+-- Doppelung, die diese Datei an anderer Stelle vermeidet.
+--
+-- Erwartet ein Fenster mit `_summe`, `_warnung`, `_listBg`, `_inner`,
+-- `_scroll`, `_rows` - beide Frame-Bauer unten legen das identisch an.
+local function FillCompareArea(f, entry)
     local C = WeintCodex.Colors
-
-    f._onConfirm = onConfirm
-
-    local wann = ""
-    if (tonumber(entry.created) or 0) > 0 and date then
-        wann = " · " .. date("%d.%m.%Y", entry.created)
-    end
-    f._herkunft:SetText(SpecLabel(entry.spec)
-        .. (entry.character ~= "" and (" · " .. entry.character) or "")
-        .. " · " .. (entry.source or "wowsims") .. wann
-        -- Die Kennung des Laufs steht dabei, damit eine Rueckfrage sie
-        -- nennen kann. Sie muss niemandem auffallen; sie muss dastehen.
-        .. (((entry.run or "") ~= "")
-            and (" · " .. WeintCodex.ColorText("textDim", entry.run)) or ""))
 
     local vergleich = TG.Compare(entry)
 
     f._summe:SetText(string.format(
         "|cffD4A24A%d|r Plaetze · |cffD4A24A%d|r Sockelsteine · |cffD4A24A%d|r Umschmiedungen",
         entry.count or 0, entry.gemCount or 0, entry.reforgeCount or 0))
+    f._summe:Show()
 
     if vergleich.stale > 0 then
         f._warnung:SetText(string.format(
@@ -1088,6 +1077,244 @@ function TG.ShowConfirm(entry, onConfirm)
     for i = 1, used do gesamt = gesamt + f._rows[i]:GetHeight() + 2 end
     f._inner:SetHeight(math.max(338, gesamt))
     f._scroll:SetVerticalScroll(0)
+
+    f._listBg:Show()
+    if f._fuss then f._fuss:Show() end
+end
+
+-- Blendet Zusammenfassung, Warnung und Liste aus - der Gegenpart zu
+-- FillCompareArea, fuer den Fall, dass es keinen Zielzustand zu zeigen
+-- gibt (TG.ShowArrival mit nur einer Gewichtung).
+local function HideCompareArea(f)
+    f._summe:SetText("")
+    f._summe:Hide()
+    f._warnung:SetText("")
+    f._warnung:Hide()
+    f._listBg:Hide()
+    if f._fuss then f._fuss:Hide() end
+    for _, row in ipairs(f._rows) do row:Hide() end
+end
+
+function TG.ShowConfirm(entry, onConfirm)
+    if type(entry) ~= "table" then return false end
+    if not (WeintCodex.MainFrame and WeintCodex.CreateSurface) then
+        -- Ohne Oberflaeche keine Rueckfrage: dann gilt der Eintrag wie
+        -- vor 3.0.3.0 sofort. Lieber uebernehmen als verlieren.
+        if onConfirm then onConfirm() end
+        return true
+    end
+
+    confirmFrame = confirmFrame or BuildConfirmFrame()
+    local f = confirmFrame
+
+    f._onConfirm = onConfirm
+
+    local wann = ""
+    if (tonumber(entry.created) or 0) > 0 and date then
+        wann = " · " .. date("%d.%m.%Y", entry.created)
+    end
+    f._herkunft:SetText(SpecLabel(entry.spec)
+        .. (entry.character ~= "" and (" · " .. entry.character) or "")
+        .. " · " .. (entry.source or "wowsims") .. wann
+        -- Die Kennung des Laufs steht dabei, damit eine Rueckfrage sie
+        -- nennen kann. Sie muss niemandem auffallen; sie muss dastehen.
+        .. (((entry.run or "") ~= "")
+            and (" · " .. WeintCodex.ColorText("textDim", entry.run)) or ""))
+
+    FillCompareArea(f, entry)
+
+    f:Show()
+    return true
+end
+
+--------------------------------------------------
+-- DIE ANKUNFTS-ZUSAMMENFASSUNG (seit 3.2.0.1)
+--------------------------------------------------
+-- Ein zweites Fenster, INFORMATIV statt FRAGEND - siehe der lange
+-- Kommentar bei SE.BeginArrival in modules/simexport.lua fuer den
+-- Anlass. Es teilt sich die Platz-fuer-Platz-Liste mit dem
+-- Bestaetigungsfenster oben (FillCompareArea), aber nicht den Frame:
+-- dort steht "Uebernehmen/Abbrechen" vor einer Entscheidung, hier
+-- "Verstanden" nach einer bereits getroffenen. Ein gemeinsamer,
+-- wiederverwendeter Frame muesste diese beiden Zustaende bei jedem
+-- Aufruf sauber auseinanderhalten - zwei kleine, gleich aufgebaute
+-- Fenster sind hier das robustere Mittel als ein grosses mit Modus-
+-- Schalter.
+--------------------------------------------------
+
+local arrivalFrame = nil
+
+local function BuildArrivalFrame()
+    local F = WeintCodex.Fonts
+    local parent = WeintCodex.MainFrame
+
+    local f = WeintCodex.CreateSurface(parent, {
+        width = 900, height = 600, tone = "plain", radius = 14,
+        backdrop = "bgDark",
+    })
+    f:SetPoint("CENTER", parent, "CENTER", 0, 0)
+    f:SetFrameStrata("TOOLTIP")
+    f:EnableMouse(true)
+    f:Hide()
+
+    local eyebrow = WeintCodex.Eyebrow(f, "Sim-Ergebnis")
+    eyebrow:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -20)
+
+    local title = f:CreateFontString(nil, "OVERLAY")
+    title:SetFont(F.sansBold, 20, "")
+    title:SetPoint("TOPLEFT", eyebrow, "BOTTOMLEFT", 0, -6)
+    title:SetTextColor(unpack(WeintCodex.Colors.textBright))
+    title:SetText("Das ist bei dir angekommen")
+    f._title = title
+
+    local herkunft = WeintCodex.Label(f, "", { color = "textMuted", size = 13 })
+    herkunft:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    herkunft:SetWidth(840)
+    herkunft:SetJustifyH("LEFT")
+    f._herkunft = herkunft
+
+    -- Die Gewichtung steht ALS EIGENE ZEILE ueber der Zusammenfassung
+    -- des Zielzustands: beides kann unabhaengig voneinander da sein
+    -- oder fehlen (ein Heiler-Lauf ueber QE Live kennt nur die erste),
+    -- und keine der beiden darf die andere verdecken.
+    local gewichtung = WeintCodex.Label(f, "", { color = "textNormal", size = 13 })
+    gewichtung:SetPoint("TOPLEFT", herkunft, "BOTTOMLEFT", 0, -6)
+    gewichtung:SetWidth(840)
+    gewichtung:SetJustifyH("LEFT")
+    f._gewichtung = gewichtung
+
+    local summe = WeintCodex.Label(f, "", { color = "textNormal", size = 13 })
+    summe:SetPoint("TOPLEFT", gewichtung, "BOTTOMLEFT", 0, -6)
+    summe:SetWidth(840)
+    summe:SetJustifyH("LEFT")
+    f._summe = summe
+
+    local warnung = WeintCodex.Label(f, "", { color = "danger", size = 13 })
+    warnung:SetPoint("TOPLEFT", summe, "BOTTOMLEFT", 0, -4)
+    warnung:SetWidth(840)
+    warnung:SetJustifyH("LEFT")
+    f._warnung = warnung
+
+    -- Fester Abstand vom Fensteranfang, nicht von der Gewichtungszeile
+    -- abhaengig - dieselbe Toleranz wie im Bestaetigungsfenster: eine
+    -- leere Zeile darueber laesst etwas Luft, statt die Liste zu
+    -- verschieben. 34 px tiefer als dort, fuer die zusaetzliche Zeile.
+    local listBg = WeintCodex.CreateSurface(f, {
+        width = 852, height = 350, tone = "flat", surface = "surface1",
+        radius = 10, backdrop = "cardTop",
+    })
+    listBg:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -186)
+    f._listBg = listBg
+
+    local scroll, inner = WeintCodex.CreateScrollArea(listBg, 4, -6, 844, 338, true)
+    f._inner = inner
+    f._scroll = scroll
+    f._rows = {}
+
+    local fuss = WeintCodex.Label(f,
+        "Sockelsteine setzt du selbst ein - WeintCodex zeigt nur, welche."
+        .. " Umschmieden geht ueber |cffD4A24AAlles umschmieden|r beim Umschmieder.",
+        { color = "textDim", size = 12 })
+    fuss:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 24, 26)
+    fuss:SetWidth(430)
+    fuss:SetJustifyH("LEFT")
+    f._fuss = fuss
+
+    -- EIN KNOPF, KEIN "ABBRECHEN". Es gibt nichts abzubrechen - das
+    -- hier ist eine Auskunft ueber etwas, das laengst uebernommen ist.
+    local ok = WeintCodex.CreateButton(f, {
+        text = "Verstanden", kind = "primary", width = 160,
+        backdrop = "cardBottom",
+        onClick = function() f:Hide() end,
+    })
+    ok:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -24, 20)
+    f._ok = ok
+
+    return f
+end
+
+-- Die Gewichtung als eine Zeile - Spec und die Werte, wie sie im Spiel
+-- unter Priorisierung liegen. `entry` ist ein SW.CleanEntry-Ergebnis
+-- (id, spec, weights, character, source, created, run, startedAt).
+local function WeightsLine(entry)
+    if type(entry) ~= "table" or type(entry.weights) ~= "table" then
+        return ""
+    end
+
+    local SW = WeintCodex.StatWeights
+    local order  = (SW and SW.ORDER) or {}
+    local labels = (SW and SW.LABELS) or {}
+
+    local teile = {}
+    for _, key in ipairs(order) do
+        local value = tonumber(entry.weights[key])
+        if value and value > 0 then
+            teile[#teile + 1] = (labels[key] or key) .. " " .. value
+        end
+    end
+
+    if #teile == 0 then return "" end
+
+    return "|cffD4A24AGewichtung:|r " .. table.concat(teile, " · ")
+end
+
+-- Zeigt, was gerade angekommen ist - Gewichtung und/oder Zielzustand,
+-- BEREITS UEBERNOMMEN. Anders als TG.ShowConfirm fragt dieses Fenster
+-- nichts: entschieden hat der Spieler auf dem Desktop, hier geht es
+-- nur um Sichtbarkeit - dieselbe Auskunft, die ein manueller Import
+-- ueber TG.ShowConfirm sofort zeigt, hatte der Weg ueber die
+-- Addon-Bruecke bisher nicht.
+--
+-- `arrival = { weights = <SW.CleanEntry-Ergebnis oder nil>,
+--              target  = <TG.CleanEntry-Ergebnis oder nil> }`
+-- Mindestens eins von beiden muss da sein.
+function TG.ShowArrival(arrival)
+    if type(arrival) ~= "table" then return false end
+
+    local weights = arrival.weights
+    local target  = arrival.target
+
+    if not weights and not target then return false end
+
+    if not (WeintCodex.MainFrame and WeintCodex.CreateSurface) then
+        -- Ohne Oberflaeche keine Anzeige. Die Daten sind laengst
+        -- uebernommen - hier entfaellt nur das Zeigen, nicht die
+        -- Wirkung, dieselbe Zurueckhaltung wie in TG.ShowConfirm.
+        return false
+    end
+
+    arrivalFrame = arrivalFrame or BuildArrivalFrame()
+    local f = arrivalFrame
+
+    -- HERKUNFT: aus dem Zielzustand, wenn er da ist - er nennt Spec,
+    -- Charakter, Quelle und Datum genauer als die Gewichtung, die
+    -- fuer jede Ausruestung gilt und deshalb weniger ueber EINEN Lauf
+    -- aussagt. Ohne Zielzustand liefert die Gewichtung dieselben Felder.
+    local quelle = target or weights
+
+    local wann = ""
+    if quelle and (tonumber(quelle.created) or 0) > 0 and date then
+        wann = " · " .. date("%d.%m.%Y", quelle.created)
+    end
+
+    f._herkunft:SetText(SpecLabel(quelle and quelle.spec)
+        .. (quelle and quelle.character ~= "" and (" · " .. quelle.character) or "")
+        .. " · " .. (quelle and quelle.source or "wowsims") .. wann
+        .. (quelle and ((quelle.run or "") ~= "")
+            and (" · " .. WeintCodex.ColorText("textDim", quelle.run)) or ""))
+
+    local gewichtungText = WeightsLine(weights)
+    f._gewichtung:SetText(gewichtungText)
+    if gewichtungText ~= "" then f._gewichtung:Show() else f._gewichtung:Hide() end
+
+    if target then
+        FillCompareArea(f, target)
+    else
+        -- Nur eine Gewichtung ist angekommen (z. B. ein Heiler-Lauf
+        -- ueber QE Live, der keinen Zielzustand kennt) - keine
+        -- Platz-fuer-Platz-Liste zu zeigen.
+        HideCompareArea(f)
+    end
 
     f:Show()
     return true

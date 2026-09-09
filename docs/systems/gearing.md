@@ -239,6 +239,26 @@ bzw. `/reload`, `INBOX_HANDLERS.target_gear`). Dort hat der Spieler den
 Knopf gerade auf dem Desktop gedrückt, und ein Modal beim Einloggen
 wäre die falsche Stelle für eine Rückfrage.
 
+**Sie zeigt seit 3.2.0.1 aber, was angekommen ist** — ein zweites
+Fenster, `TG.ShowArrival()`, informativ statt fragend: keine
+*Übernehmen*/*Abbrechen*-Wahl, nur *Verstanden*, denn die Entscheidung
+ist längst gefallen. Es teilt sich die Platz-für-Platz-Liste mit dem
+Bestätigungsfenster (`FillCompareArea()`, aus `TG.ShowConfirm`
+herausgezogen — zwei Fassungen derselben Fuellschleife liefen sonst
+auseinander), zeigt zusätzlich die Gewichtung als eigene Zeile, wenn
+eine dabei war, und fasst **beide** Auskünfte eines Sim-Laufs in
+**einem** Fenster zusammen statt in zweien: `modules/simexport.lua`s
+`SE.BeginArrival()`/`SE.EndArrival()` rahmen die ganze Login-
+Warteschlange, nicht jede Inbox-Nachricht einzeln.
+
+**Gezeigt wird nur, wenn vorher ein Sim-Lauf offen war**
+(`SE.AwaitingFor()` vor dem ersten `NoteArrival()` dieses Logins) —
+sonst poppte bei jedem Login mit wartenden Nachrichten ein Fenster auf,
+auch für eine Gewichtung von vor drei Tagen, die man längst kennt.
+Genau der Knopf *Jetzt neu laden* im Kasten, der nach *Bereitstellen*
+erscheint (`docs/systems/wcimport-sync.md`, Abschnitt *Der offene
+Sim-Lauf*), ist der Weg, der diesen Zustand herstellt.
+
 Unabhängig vom Weg gilt weiter: **jede betroffene Zeile sagt es** — „so
 steht es in deinem Sim-Ergebnis" an der Sockelzeile wie an der
 Umschmiede-Zeile. `/wc sockel` nennt die Quelle je Sockel als eine von

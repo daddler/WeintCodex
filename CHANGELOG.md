@@ -2,6 +2,47 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.2.0.1] – 2026-09-09
+
+**Nach "Jetzt neu laden" siehst du jetzt, was übernommen wurde.**
+
+Der Kasten, der nach dem Bereitstellen erscheint, bietet unter anderem
+*Jetzt neu laden* an. Bisher stand danach nur eine Chatzeile im
+Bildschirm — jetzt geht ein Fenster auf, das zeigt, welche Gewichtung
+und/oder Zielausrüstung angekommen ist. Dieselbe Auskunft, die ein von
+Hand eingefügter Import schon länger zeigt, gibt es jetzt auch für den
+Weg über die Addon-Brücke.
+
+Beide Auskünfte eines Sim-Laufs stehen dabei in **einem** Fenster, nicht
+in zweien — passend zur restlichen Idee, dass ein Sim-Lauf ein Vorgang
+ist. Gezeigt wird das Fenster nur, wenn zuvor tatsächlich ein Sim-Lauf
+offen war: eine Gewichtung, die einfach nur beim Login ankommt, ohne
+dass gerade etwas erwartet wurde, poppt weiterhin nichts auf.
+
+**Kleinigkeit nebenbei:** Die Schaltfläche *Später* im selben Kasten
+hieß irrtümlich "Spaeter" ohne Umlaut.
+
+### Technisch
+
+`modules/simexport.lua`: `SE.BeginArrival()`/`SE.EndArrival()` rahmen
+die gesamte Login-Warteschlange in `modules/companion.lua`, nicht jede
+Inbox-Nachricht einzeln — `SE.NoteArrivedWeights()`/`.NoteArrivedTarget()`
+sammeln währenddessen, was ankam. `modules/targetgear.lua`:
+`TG.ShowArrival()` zeigt es, mit derselben Platz-für-Platz-Rechnung wie
+das bestehende Bestätigungsfenster (`FillCompareArea()`, aus
+`TG.ShowConfirm` herausgezogen, damit beide Fenster dieselbe Rechnung
+zeigen statt zweier Fassungen, die auseinanderlaufen könnten). Anders
+als beim manuellen Import fragt dieses Fenster nichts — die Entscheidung
+ist auf dem Desktop schon gefallen, hier geht es nur um Sichtbarkeit.
+
+Geprüft in `.github/tests/simexport_test.lua` (die Sammel-Klammer:
+beide Auskünfte in einem Fenster, kein Fenster ohne offenen Lauf, kein
+Fenster ohne Inhalt) und `.github/tests/targetgear_test.lua` (die
+Randfälle ohne Spielclient).
+
+Vertrag: `../WeintCompanion/docs/sim-run.md` (unverändert — kein neues
+Feld, keine neue Nachricht, reine Oberflächen-Auskunft im Addon).
+
 ## [3.2.0.0] – 2026-09-09
 
 **Dein Sim-Ergebnis weiß jetzt, aus welchem Lauf es stammt.**
