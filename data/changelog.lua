@@ -7,6 +7,13 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.2.0.2",
+        date    = "09.09.2026",
+        notes   = {
+            "Der Erinnerungskasten nach |cffD4A24ABereitstellen|r war manchmal zu klein fuer seinen eigenen Text - die Schaltflaechen |cffD4A24AIch habe den String|r und |cffD4A24ASpäter|r rutschten dann unter die sichtbare Kante. Sie waren weiterhin da und klickbar, sahen nur so aus, als fehlten sie.",
+        },
+    },
+    {
         version = "3.2.0.1",
         date    = "09.09.2026",
         notes   = {

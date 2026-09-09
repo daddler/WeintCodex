@@ -2,6 +2,29 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.2.0.2] – 2026-09-09
+
+**Der Erinnerungskasten war zu klein für seinen eigenen Text.**
+
+Der Kasten, der nach *Bereitstellen* erscheint, hatte eine feste Höhe.
+Der Absatz darin trägt zwei Sätze und bricht bei seiner Breite auf
+mehrere Zeilen um — reichte die feste Höhe dafür nicht, rutschten die
+Schaltflächen *Ich habe den String* und *Später* unter die sichtbare
+Kante der gezeichneten Fläche. Sie waren weiterhin da und klickbar,
+sahen aber aus, als hätten sie das Fenster verlassen.
+
+Die Höhe wird jetzt aus dem tatsächlich gerenderten Text berechnet,
+bevor der Kasten erscheint — dieselbe Rechnung, die das
+Bestätigungsfenster für seine Zeilen schon verwendet.
+
+### Technisch
+
+`modules/simexport.lua`: `SE.ShowAwaitPanel()` misst
+`awaitPanel._sub:GetStringHeight()` nach dem Setzen des Texts und ruft
+`awaitPanel:SetHeight()` mit `AWAIT_HEAD + Textgröße + AWAIT_TAIL` auf,
+statt sich auf die feste Höhe der Fläche zu verlassen. Reine
+UI-Korrektur, kein neues Verhalten.
+
 ## [3.2.0.1] – 2026-09-09
 
 **Nach "Jetzt neu laden" siehst du jetzt, was übernommen wurde.**

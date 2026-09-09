@@ -987,10 +987,32 @@ end
 
 local awaitPanel = nil
 
+-- DIE HOEHE STEHT ERST FEST, WENN DER TEXT DRIN IST (seit 3.2.0.2).
+--
+-- Der Kasten hatte eine FESTE Hoehe (168 px). Der einzige veraenderliche
+-- Teil ist der Absatz (`_sub`) - er traegt zwei Saetze und bricht bei
+-- 268 px Breite auf mehrere Zeilen um. Reichte die feste Hoehe nicht,
+-- rutschten die drei Knoepfe darunter (jeder am unteren Rand des
+-- vorigen verankert) unter die sichtbare Kante der gezeichneten
+-- Flaeche - sie waren weiterhin da und klickbar, sahen aber aus, als
+-- haetten sie das Fenster verlassen. Gemeldet als Screenshot: "Jetzt
+-- neu laden" stand noch im Kasten, "Ich habe den String" und "Später"
+-- schon ausserhalb.
+--
+-- Dieselbe Lehre wie bei den Zeilen im Bestaetigungsfenster
+-- (TG.ShowConfirm/ConfirmRow): eine Hoehe, die VOR dem Text feststeht,
+-- ist eine Vermutung. AWAIT_HEAD/AWAIT_TAIL sind der Platz vor bzw.
+-- nach diesem einen Absatz - fest, weil "WeintCodex" und "Dein
+-- Sim-Ergebnis" feste Zeichenketten sind und die drei Knopfhoehen
+-- (28/26/22) explizit gesetzt sind. Grosszuegig gerundet: lieber ein
+-- paar Pixel Luft am unteren Rand als abgeschnittene Knoepfe.
+local AWAIT_HEAD = 62   -- Rand, "WeintCodex", Abstand, Titel, Abstand bis zum Absatz
+local AWAIT_TAIL = 118  -- Abstand + drei Knoepfe (28+26+22) + ihre Abstaende + unterer Rand
+
 local function BuildAwaitPanel()
     local f = WeintCodex.CreateSurface(UIParent, {
-        width = 300, height = 168, tone = "plain", radius = 12,
-        backdrop = "bgDark",
+        width = 300, height = AWAIT_HEAD + AWAIT_TAIL, tone = "plain",
+        radius = 12, backdrop = "bgDark",
     })
     f:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -24, 180)
     f:SetFrameStrata("HIGH")
@@ -1071,6 +1093,13 @@ function SE.ShowAwaitPanel()
         .. " für den Sim bereitgestellt.\n\n"
         .. "Ist das Ergebnis in WeintCompanion übernommen, liegt es bereit — "
         .. "das Spiel liest es beim nächsten Neuladen.")
+
+    -- Gemessen NACH dem Text und VOR dem Zeigen - siehe AWAIT_HEAD/
+    -- AWAIT_TAIL oben. `GetStringHeight()` gibt die tatsaechlich
+    -- umgebrochene Hoehe zurueck, nicht die ungebrochene Zeile.
+    local textHeight = awaitPanel._sub.GetStringHeight
+        and awaitPanel._sub:GetStringHeight() or 0
+    awaitPanel:SetHeight(AWAIT_HEAD + textHeight + AWAIT_TAIL)
 
     awaitPanel:Show()
 end
