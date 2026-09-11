@@ -63,7 +63,7 @@ local CATEGORY_ORDER = {
 
 local CATEGORY_LABELS = {
     rotation  = "Rotation",
-    movement  = "Movement",
+    movement  = "Bewegung",
     cooldowns = "Cooldowns",
     mechanics = "Mechaniken",
     survival  = "Überleben",
@@ -72,7 +72,7 @@ local CATEGORY_LABELS = {
 
 local CATEGORY_HINTS = {
     rotation  = "Aktivzeit und Wirkungsdauern",
-    movement  = "Vermeidbare Treffer und Laufwege",
+    movement  = "Vermeidbare Treffer durch Position",
     cooldowns = "Genutzte Einsätze und ihr Zeitpunkt",
     mechanics = "Unterbrechungen und Bossmechaniken",
     survival  = "Erhaltener Schaden und Tode",

@@ -9,7 +9,7 @@
 -- nennt die Kopfzeile den Zeitpunkt und weist auf /reload hin.
 --
 -- Das Modul rechnet NICHTS. Alle Bewertungen (vermeidbar/unvermeidbar,
--- Laufwege in Metern, Cooldown-Effizienz) entstehen in der Companion;
+-- Cooldown-Effizienz) entstehen in der Companion;
 -- hier werden nur Zeilen gezeichnet. Damit koennen Desktop und Addon
 -- nicht auseinanderlaufen.
 --
@@ -70,7 +70,6 @@ local ROW_LISTS = {
     { "damageTaken", "actor" },
     { "uptimes",     "actor" },
     { "activity",    "actor" },
-    { "movement",    "actor" },
     { "cooldowns",   "actor" },
     { "support",     "actor" },
     { "mechanics",   "actor" },
@@ -454,14 +453,6 @@ local function MyMetrics(report)
         end
     end
 
-    for _, entry in ipairs(Rows(report.movement)) do
-        if WeintCodex.Names.Equal(entry.actor, me) then
-            rows[#rows + 1] = { label = "Laufweg",
-                value = Amount(entry.meters) .. " m"
-                    .. (entry.estimated and " (geschaetzt)" or "") }
-        end
-    end
-
     return rows
 end
 
@@ -650,19 +641,22 @@ function ShowUptimes()
 end
 
 function ShowActivity()
-    Page("Aktivzeit & Laufwege", "activity", function(frame, y, report)
+    Page("Aktivzeit", "activity", function(frame, y, report)
         local acts, filtered, fellBack = ApplyFilter(Rows(report and report.activity), report)
 
-        -- Laufwege nach Spieler nachschlagen; beide Bloecke koennen
-        -- unabhaengig voneinander fehlen.
-        local moveBy = {}
-        for _, m in ipairs(Rows(report and report.movement)) do
-            if m.actor then moveBy[m.actor] = m end
-        end
+        -- Die Spalte "Laufweg" ist seit WeintCompanion 3.6.0 weg, und
+        -- zwar ersatzlos: WarcraftLogs kennt keine Distanzmetrik. Die
+        -- Meterzahl entstand daraus, dass der Bot die Abstaende
+        -- zwischen den Positionsangaben aufeinanderfolgender
+        -- Ereignisse als Gerade aufsummiert - echtes Ausweichen wurde
+        -- dadurch systematisch unterschaetzt, und wer zwischendurch
+        -- keine Ereignisse erzeugt, fehlte ganz. Der Desktop schickt
+        -- das Feld deshalb nicht mehr mit; was von Bewegung bleibt,
+        -- steht unter "Unterbrechungen & Mechaniken" - ein
+        -- vermeidbarer Treffer ist ein Ereignis und keine Schaetzung.
 
         local table_ = {}
         for _, e in ipairs(acts) do
-            local m   = moveBy[e.actor]
             local gap = e.longestGap or 0
             table_[#table_ + 1] = {
                 level = (e.activePercent or 0) >= 95 and "green" or "gold",
@@ -674,8 +668,6 @@ function ShowActivity()
                     -- Schwelle wie in der Companion).
                     { gap >= 3 and string.format("%d s", gap + 0.5) or "—",
                       gap >= 3 and "warning" or "textDim" },
-                    { m and (Amount(m.meters) .. " m") or "—",
-                      m and "textNormal" or "textDim" },
                 },
             }
         end
@@ -688,7 +680,6 @@ function ShowActivity()
             { title = "Aktivzeit",      width = 90,  align = "RIGHT" },
             { title = "Aktionen/min",   width = 100, align = "RIGHT" },
             { title = "Laengste Pause", width = 110, align = "RIGHT" },
-            { title = "Laufweg",        width = 110, align = "RIGHT" },
         }, table_, "Keine Aktivzeitdaten in dieser Auswertung.")
     end)
 end
@@ -697,25 +688,48 @@ function ShowCooldowns()
     Page("Cooldown-Nutzung", "cooldowns", function(frame, y, report)
         local rows, filtered, fellBack = ApplyFilter(Rows(report and report.cooldowns), report)
 
+        -- Eine Quote gibt es nur, wo es eine Obergrenze gibt, und die
+        -- schickt der Desktop seit WeintCompanion 3.6.0 ausschliesslich
+        -- fuer Cooldowns, die auf Abklingzeit gehoeren (category
+        -- "personal"). Ein Schildwall, ein Gottesschild, eine Aura der
+        -- Hingabe warten auf ihren Moment: sie hier rot als "nicht
+        -- genutzt" zu zeigen, hiesse Umsicht als Fehler zu werten - und
+        -- es traefe Tanks am haertesten, die die meisten davon haben.
+        local CATEGORY_TEXT = {
+            personal  = "auf Abklingzeit",
+            defensive = "defensiv",
+            raid      = "Raid",
+            heal      = "Heilung",
+        }
+
         local table_ = {}
         for _, e in ipairs(rows) do
             local uses     = e.uses or 0
             local possible = e.possible or 0
-            local eff      = e.efficiency or (possible > 0 and uses / possible or 0)
+            local judged   = possible > 0
+            local eff      = judged and (e.efficiency or uses / possible) or 1
 
             local times = {}
             for _, t in ipairs(Rows(e.castTimes)) do times[#times + 1] = Clock(t) end
 
             table_[#table_ + 1] = {
-                sortKey = eff,
-                level   = uses == 0 and "danger" or (eff >= 0.85 and "green" or "gold"),
+                -- Bewertete Zeilen zuerst, schlechteste oben; die
+                -- uebrigen sind eine Auskunft und kein Befund.
+                sortKey = judged and eff or 2,
+                level   = (judged and uses == 0) and "danger"
+                    or (not judged and "gold" or (eff >= 0.85 and "green" or "gold")),
                 cells   = {
                     { e.ability or "—" },
                     { e.actor or "—" },
-                    { uses .. " / " .. possible, uses == 0 and "danger" or "textNormal" },
-                    { tostring(e.inBurst or 0), "textMuted" },
+                    { CATEGORY_TEXT[e.category or ""] or "—", "textMuted" },
+                    { judged and (uses .. " / " .. possible) or tostring(uses),
+                      (judged and uses == 0) and "danger" or "textNormal" },
+                    -- Ob ein Cooldown ins Heldentum gehoert, ist nur bei
+                    -- grossen ueberhaupt eine Frage. Ohne bewertete
+                    -- Zeile sagt eine Null dort gar nichts.
+                    { judged and tostring(e.inBurst or 0) or "—", "textMuted" },
                     { #times > 0 and table.concat(times, ", ") or "nicht genutzt",
-                      #times > 0 and "textMuted" or "danger" },
+                      (#times > 0 or not judged) and "textMuted" or "danger" },
                 },
             }
         end
@@ -726,11 +740,12 @@ function ShowCooldowns()
         if note then y = DrawNotice(frame, y, note) end
 
         DrawTable(frame, y, {
-            { title = "Faehigkeit",   width = 170 },
-            { title = "Spieler",      width = 120 },
+            { title = "Faehigkeit",   width = 150 },
+            { title = "Spieler",      width = 110 },
+            { title = "Art",          width = 110 },
             { title = "Einsaetze",    width = 90,  align = "RIGHT" },
             { title = "Im Heldentum", width = 100, align = "RIGHT" },
-            { title = "Zeitpunkte",   width = 220 },
+            { title = "Zeitpunkte",   width = 180 },
         }, table_, "Keine Cooldown-Daten in dieser Auswertung.")
     end)
 end

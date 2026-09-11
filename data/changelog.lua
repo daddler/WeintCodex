@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.3.0.0",
+        date    = "11.09.2026",
+        notes   = {
+            "|cffD4A24ADie Cooldown-Seite unterscheidet jetzt, was auf Abklingzeit gehoert und was auf seinen Moment wartet.|r Ein nicht gedrueckter Schildwall stand bisher rot als |cffD4A24Anicht genutzt|r da - dabei war der Kampf einfach ohne ihn zu ueberstehen. Solche Cooldowns bekommen keine Quote mehr, nur noch die Anzahl.",
+            "Eine neue Spalte |cffD4A24AArt|r sagt bei jeder Zeile, worum es sich handelt: auf Abklingzeit, defensiv, Raid oder Heilung.",
+            "|cffD4A24ADie Laufwege in Metern sind weg|r - auf der Aktivzeit-Seite und in |cffD4A24AWer bin ich|r. Die Zahl kam nicht aus dem Log, sondern war eine Schaetzung zwischen zwei Ereignissen, und sie hat echtes Ausweichen regelmaessig zu niedrig angesetzt.",
+            "Was von Bewegung bleibt, steht unter |cffD4A24AUnterbrechungen & Mechaniken|r: ein vermeidbarer Treffer ist wirklich passiert.",
+            "Der Bereich |cffD4A24AMovement|r der Academy heisst jetzt |cffD4A24ABewegung|r und bewertet genau das.",
+        },
+    },
+    {
         version = "3.2.0.2",
         date    = "09.09.2026",
         notes   = {

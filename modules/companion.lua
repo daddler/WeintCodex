@@ -540,7 +540,7 @@ end
 -- weinttv_report   { capturedAt, source, pull, duration, bossHealth, kill,
 --                    hasAnalysis, gap, me,
 --                    encounter   = { name, instance, difficulty, size },
---                    damageTaken, uptimes, activity, movement, cooldowns,
+--                    damageTaken, uptimes, activity, cooldowns,
 --                    support, mechanics, consumables, warnings }
 --                  (Zeilenschemata siehe modules/weinttv.lua)
 --
