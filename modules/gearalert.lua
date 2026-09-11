@@ -110,6 +110,11 @@
 --    Dann steht die Prüfung an, statt zu raten - GET_ITEM_INFO_RECEIVED
 --    gibt es hier nicht, also wird schlicht ein paar Sekunden später
 --    noch einmal nachgesehen (RETRY_DELAY, RETRY_MAX).
+--  * Unterhalb von Stufe 90 und unterhalb der eingestellten
+--    Gegenstandsstufe (core/optin.lua). Wer sich hochspielt, tauscht
+--    jede Stunde ein Teil und verzaubert keines davon - eine
+--    Erinnerung daran ist dort nur Laerm. "/wc alarm jetzt" fragt
+--    ausdruecklich und kommt weiterhin.
 --  * Unterhalb von Selten (blau). Wer ein Twinkset zusammensucht,
 --    wechselt im Zehnminutentakt Gegenstände, die niemand verzaubert.
 --    Ein grünes Teil zu melden wäre formal richtig und praktisch nur
@@ -1233,7 +1238,11 @@ local shownContext = nil
 local function RunCheck(reason, slotFilter, force, yields)
     if not Store().enabled and reason ~= "manual" then return end
     -- "Hier nicht von sich aus helfen" (siehe core/optin.lua) betrifft genau
-    -- diese Sorte Meldung: eine, die man nicht angefordert hat.
+    -- diese Sorte Meldung: eine, die man nicht angefordert hat. Darin
+    -- stecken seit 3.3.0.2 auch die beiden Schwellen — unter Stufe 90 und
+    -- unter der eingestellten Gegenstandsstufe kommt nichts. Wer sich
+    -- hochspielt, tauscht jede Stunde ein Teil und verzaubert keines davon;
+    -- die Meldung war dort nichts als Laerm.
     -- `/wc alarm jetzt` bleibt davon unberuehrt — was man selbst aufruft,
     -- kommt auch.
     if reason ~= "manual" and WeintCodex.OptIn and not WeintCodex.OptIn.Active() then
@@ -1599,6 +1608,15 @@ function GA.PrintStatus()
         .. "  ·  Erinnerungen: " .. (s.restReminder and "an" or "aus")
         .. "  ·  weggeklickt: " .. acked .. " Befund(e)"
         .. "  ·  in Instanz: " .. (InInstance() and "ja" or "nein"))
+
+    -- Von aussen sieht "es kommt nichts" auf einem Twink genauso aus wie
+    -- ein abgeschalteter Alarm. Also steht hier, was gerade gilt und
+    -- woran es liegt (core/optin.lua).
+    if WeintCodex.OptIn and WeintCodex.OptIn.ScopeText then
+        Say("Dieser Charakter: " .. WeintCodex.ColorText(
+            WeintCodex.OptIn.Active() and "green" or "textDim",
+            WeintCodex.OptIn.ScopeText()))
+    end
 
     -- Was der letzte Tonversuch ergeben hat. Ohne diese Zeile ist "ich höre
     -- nichts" von aussen nicht von "Lautstärke steht auf 0" zu unterscheiden -

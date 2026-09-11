@@ -235,26 +235,39 @@ local function ViewWindow(y)
             .. " Ausrüstungs-Alarm, Einkaufsliste am Auktionshaus, Plan beim"
             .. " Umschmieder, Rotationshelfer an der Puppe.")
 
+        -- GEZEIGT WIRD DIE ANTWORT, NICHT DIE LAGE. Der Schalter stand bis
+        -- 3.3.0.1 auf `Active()`, und seit die Schwellen darin stecken,
+        -- waere er auf einem Twink aus — obwohl niemand ihn ausgeschaltet
+        -- hat. Was gerade gilt, steht eine Zeile tiefer und sagt auch,
+        -- woran es liegt.
         y = Toggle(y, {
             label = "Von sich aus helfen",
             description = "Aus: WeintCodex sagt auf " .. who .. " nichts mehr"
                 .. " von sich aus. Es verschwindet dabei nicht – /wc öffnet es"
                 .. " wie immer, und alles, was du selbst aufrufst, funktioniert"
                 .. " unverändert. (/wc hier stellt die Frage erneut)",
-            get = function() return WeintCodex.OptIn.Active() end,
+            get = function() return WeintCodex.OptIn.Answer() end,
             set = function(on) WeintCodex.OptIn.SetActive(on) end,
         })
 
         y = Slider(y, {
-            label  = "Erst ab Gegenstandsstufe fragen",
-            -- Unter dieser Stufe wird die Frage gar nicht erst gestellt:
-            -- wer sich hochspielt, tauscht jede Stunde etwas und braucht
-            -- keine Auskunft ueber Sockelboni.
+            label  = "Erst ab Gegenstandsstufe helfen",
+            -- Unter dieser Stufe kommt nichts von selbst und die Frage
+            -- wird gar nicht erst gestellt: wer sich hochspielt, tauscht
+            -- jede Stunde etwas und braucht keine Auskunft ueber
+            -- Sockelboni.
             min    = 400, max = 600, step = 10,
             get    = function() return WeintCodex.OptIn.MinIlvl() end,
             set    = function(v) WeintCodex.OptIn.SetMinIlvl(v) end,
             format = function(v) return tostring(math.floor(v + 0.5)) end,
         })
+
+        y = Note(y, "Erinnerungen an Verzauberungen und Sockel kommen erst ab"
+            .. " Stufe " .. WeintCodex.OptIn.MinLevel() .. " und ab dieser"
+            .. " Gegenstandsstufe. Was du selbst aufrufst, kommt immer.")
+
+        y = Note(y, WeintCodex.OptIn.ScopeText(),
+            WeintCodex.OptIn.Active() and "success" or "textMuted")
 
         y = Spacer(y, 8)
     end

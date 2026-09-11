@@ -510,6 +510,13 @@ function SL.Dump()
         .. ((not WeintCodex.OptIn or WeintCodex.OptIn.Active())
             and "ja" or "nein (/wc hier)"))
 
+    -- "nein" hat zwei Ursachen, und sie fuehren zu verschiedenen Handgriffen:
+    -- abgewaehlt (dann hilft /wc hier) oder unter den Schwellen (dann hilft
+    -- gar nichts, und das soll auch so sein).
+    if WeintCodex.OptIn and WeintCodex.OptIn.ScopeText then
+        print("  " .. WeintCodex.OptIn.ScopeText())
+    end
+
     for _, name in ipairs(WINDOW_NAMES) do
         local f = _G[name]
         print("  " .. name .. ": " .. (f

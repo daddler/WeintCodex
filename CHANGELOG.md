@@ -2,6 +2,52 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.3.0.2] – 2026-09-11
+
+**Auf einem Twink verlangt WeintCodex keine Verzauberungen mehr.**
+
+Der Ausrüstungs-Alarm stand auch auf Charakteren im Bild, die noch
+hochgespielt werden, und erinnerte dort an fehlende Verzauberungen und
+leere Sockel — für Ausrüstung, die am selben Abend wieder abgelegt ist.
+
+Erinnerungen kommen jetzt erst **ab Stufe 90** und erst **ab der
+Gegenstandsstufe, die du eingestellt hast** (ab Werk 520, *Einstellungen →
+Fenster & Ansicht*). Bisher galt diese Schwelle nur für die Frage „soll
+WeintCodex dir hier helfen?" — und weil die auf einem niedrigen Charakter
+nie gestellt wurde, kam ausgerechnet dort alles.
+
+**Was du selbst aufrufst, kommt weiterhin.** `/wc alarm jetzt`, die
+Charakterseite, die Einkaufsliste über `/wc einkauf` — an all dem ändert
+sich nichts, auf keiner Stufe.
+
+**Und du siehst jetzt, was auf diesem Charakter gilt.** Unter dem Schalter
+*Von sich aus helfen* steht die Stufe, die Gegenstandsstufe und ob sich
+WeintCodex hier von selbst meldet. Dieselbe Zeile steht in `/wc alarm`.
+
+### Technisch
+
+`core/optin.lua`: `OI.Scope()` ist die **eine** Rechnung hinter beiden
+Schwellen und entscheidet seitdem auch `OI.Active()` — bis 3.3.0.1 hing
+nur der Zeitpunkt der Frage daran, während `OI.Active()` allein die
+gespeicherte Antwort las. Da eine fehlende Antwort „ja" bedeutet
+(dieselbe Zurückhaltung wie `Can()` in `core/access.lua`), war der
+Charakter unterhalb der Schwelle der einzige, der nie gefragt wurde —
+und damit der einzige, auf dem die volle ungefragte Hilfe lief.
+
+Unbekannt bleibt dabei unbekannt: eine Gegenstandsstufe von 0 ist der
+Ladezustand und heisst warten (`pending`), eine fehlende Client-Funktion
+lässt die betreffende Schwelle ganz entfallen, statt das Addon
+stillzulegen. `OI.Answer()` liefert die gespeicherte Antwort **ohne** die
+Schwellen; einziger zusätzlicher Leser ist der Schalter in
+`modules/settings.lua` — mit `Active()` stünde er auf jedem Twink auf aus,
+ohne dass jemand ihn ausgeschaltet hat.
+
+`OI.ScopeText()` formuliert die Lage einmal für Einstellungsseite,
+`/wc alarm` (`GA.PrintStatus`), die Diagnose der Einkaufsliste
+(`SL.Dump`) und die Frage selbst. Neu: `.github/tests/optin_test.lua`
+(23 Prüfungen über beide Schwellen, das nicht überstimmende „Ja" und die
+zwei Fälle, in denen der Client nichts sagt).
+
 ## [3.3.0.1] – 2026-09-11
 
 **Verschwimmen auf den Stiefeln gilt wieder als das, was es ist.**

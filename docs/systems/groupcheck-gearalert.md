@@ -132,13 +132,19 @@ Verzauberungs-Topfes, dieselbe Sockelerkennung. Gelesen wird daraus aber
 nur `enchId == nil` bzw. `socket.gemId == nil` und **nie** der bewertete
 `status`.
 
-Vier Sperren, jede für einen konkreten Fehlalarm: nichts vor
+Fünf Sperren, jede für einen konkreten Fehlalarm: nichts vor
 `PLAYER_ENTERING_WORLD` plus Vorlauf; nichts über einen Gegenstand ohne
 Basisdaten (`SlotVerdict` kennt drei Ausgänge, nicht zwei; `socketsKnown`
 an jeder Sockelzeile); nichts unterhalb von Selten (`MIN_QUALITY = 3`);
 nichts im Kampf (eine schon stehende Meldung weicht ihm, nach
 `PLAYER_REGEN_ENABLED` läuft `RunCheck` neu statt aus dem Gedächtnis zu
-zeichnen).
+zeichnen); und seit 3.3.0.2 **nichts unterhalb von Stufe 90 und unterhalb
+der eingestellten Gegenstandsstufe** (`OI.Active()` in `core/optin.lua`
+trägt beide Schwellen — bis dahin galten sie nur für die Frage nach der
+Hilfe, und weil eine unbeantwortete Frage „ja" heisst, stand der Alarm
+ausgerechnet auf jedem Twink im Bild). `/wc alarm jetzt` ist davon
+unberührt, und `/wc alarm` sagt in einer eigenen Zeile, was auf diesem
+Charakter gerade gilt.
 
 **Drei Sorten Befund, die nie zusammengezählt werden.** Fehlende
 Verzauberung, leerer Sockel, fehlender Sockelplatz (Gürtelschnalle,
