@@ -224,7 +224,16 @@ WeintCodex_Enchants = {
     -- bestehende Empfehlungslisten in spec_profiles.lua, die 4426 an
     -- mehreren Stellen bereits als Tempo-Alternative zu 74715 führten.
     [4426] = { name = "Großes Tempo",                  slot = "Füße", stats = { haste = 175 }, verify = true },
-    [4428] = { name = "Große Präzision",               slot = "Füße", stats = { hit = 175 }, verify = true },  -- exakten Namen per /wc vz prüfen
+    -- 4428 IST VERSCHWIMMEN, NICHT "GROSSE PRÄZISION" (User-Bericht per
+    -- "/wc vz", Wildheitsdruide, 09/2026): seine Stiefel tragen im
+    -- Item-Link die 4428 und im Tooltip "+140 Beweglichkeit und geringe
+    -- Bewegungstempoerhöhung" — also denselben Enchant wie 4425. Hier
+    -- stand Treffer, und deshalb bekam ein richtig verzauberter Stiefel
+    -- die Marke "Verschwimmen (ID 4428 abweichend – /wc vz)" zu lesen.
+    -- Zwei IDs für dieselbe Verzauberung sind in dieser Datei die Regel
+    -- (4422/4424 Umhang, 4432/4434 und 4430/4433 Hände) — in die
+    -- Empfehlungslisten kommt davon nur eine, hier die 4425.
+    [4428] = { name = "Verschwimmen",                  slot = "Füße", stats = { agility = 140 } },
     -- "Pandarenpfoten" (Meisterschaft + geringe Bewegungsgeschwindigkeit).
     -- WERT KORRIGIERT (2.3.0.2): stand hier bis dahin mit 175 Meisterschaft
     -- und damit auf demselben Niveau wie das Tempo-Enchant. Die Verzauberung
@@ -239,6 +248,20 @@ WeintCodex_Enchants = {
     -- Schlüssel = Item-ID (74715); Bewertung über Name-Abgleich
     -- ("Verzaubert: Großes Tempo").
     [74715] = { name = "Großes Tempo",                 slot = "Füße", stats = { haste = 175 }, verify = true },
+    -- "Große Präzision" (175 Treffer) — die vierte Stiefel-Verzauberung,
+    -- und die einzige, deren Verzauberungs-ID wir nicht kennen. Sie stand
+    -- bis 3.3.0.1 unter der 4428; die gehört, am Client belegt, dem
+    -- Verschwimmen (siehe oben). Statt die nächste Nummer zu raten steht
+    -- der Eintrag jetzt unter der Itemnummer der Formel — dieselbe Lösung
+    -- wie bei 74715, 74711 und 74719, und aus demselben Grund: ohne ihn
+    -- hätte jeder cap-getrieben verzauberte Stiefel gar keinen Eintrag
+    -- mehr und würde als Mangel gemeldet. ERKANNT WIRD ER ÜBER SLOT +
+    -- WERTE BZW. DEN NAMEN, NIE ÜBER DIE NUMMER: 74716 ist die Lücke in
+    -- der Formelreihe (74715 Tempo, 74717 Verschwimmen, 74718
+    -- Pandarenpfoten) und selbst nicht belegt. Wer diese Verzauberung
+    -- trägt, kann sie mit "/wc vz" ausdrucken — dann bekommt sie hier
+    -- ihre echte ID und den vom Client bestätigten Namen.
+    [74716] = { name = "Große Präzision",              slot = "Füße", stats = { hit = 175 }, verify = true },
     -- HINWEIS: 4430 stand hier bis 2.0.1.0 als zweite Hände-Tempo-ID und
     -- steht jetzt im HÄNDE-Block als "Überragende Meisterschaft" — der
     -- Nutzerbericht, der schon damals dagegen sprach (Handschuhe mit

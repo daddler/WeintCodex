@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.3.0.1",
+        date    = "11.09.2026",
+        notes   = {
+            "|cffD4A24AVerschwimmen auf den Stiefeln gilt jetzt als das, was es ist.|r Die Verzauberung hatte eine zweite Kennnummer, die WeintCodex nicht kannte - richtig verzauberte Stiefel bekamen deshalb die Marke |cffD4A24Aabweichend|r und den Hinweis auf |cffD4A24A/wc vz|r. Das ist weg.",
+            "Bei Kriegern, Paladinen und Todesrittern stand diese Nummer ausserdem in der Empfehlungsliste. |cffD4A24AVerschwimmen|r galt dort als optimal, obwohl Beweglichkeit ihnen nichts bringt.",
+            "|cffD4A24AWaechterdruide: der Umhang will Grossen Schutz|r, nicht Praezision. Wer richtig verzaubert hatte, las bisher einen Mangel.",
+            "|cffD4A24AMeuchelschurke: die Handschuhe wollen Ueberragende Meisterschaft.|r Waffenkunde und Tempo bleiben vertretbar - empfohlen wird die Meisterschaft.",
+            "|cffD4A24AWildheitsdruide:|r Tempohandschuhe zaehlen jetzt ebenfalls als vertretbar.",
+        },
+    },
+    {
         version = "3.3.0.0",
         date    = "11.09.2026",
         notes   = {

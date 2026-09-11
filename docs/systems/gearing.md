@@ -1186,13 +1186,25 @@ defect that did not exist.
 
 Wo die Verzauberungs-ID selbst nicht zu belegen ist, steht der Eintrag
 unter der **Itemnummer** der Verzauberungsformel (`74715` Stiefel-Tempo,
-`74711` Umhang-Ausdauer, seit 2.6.0.3 `74719` Handschuh-Tempo). Erkannt
+`74711` Umhang-Ausdauer, seit 2.6.0.3 `74719` Handschuh-Tempo, seit
+3.3.0.1 `74716` Stiefel-Treffer). Erkannt
 wird er dann über Slot + Werte bzw. den Namen, nie über die Nummer — und
 ohne ihn hätte die betroffene Spec gar keine Empfehlung mehr, was
 schlechter ist als eine unbelegte ID. Umgekehrt gilt: **zwei IDs für
 dieselbe Verzauberung sind dort die Regel, nicht die Ausnahme** (4422/4424
-Umhang, 4432/4434 und 4433/4430 Hände); in die Empfehlungslisten kommt nur
-eine davon, den Rest fängt der Werteabgleich als *werte-identisch* ab.
+Umhang, 4432/4434 und 4433/4430 Hände, seit 3.3.0.1 4425/4428 Füße); in
+die Empfehlungslisten kommt nur eine davon, den Rest fängt der
+Werteabgleich als *werte-identisch* ab.
+
+Die 4428 ist dabei der Beleg dafür, dass eine geratene Nummer teurer ist
+als eine fehlende: sie stand als *Große Präzision* in der Tabelle und in
+zwanzig Empfehlungslisten, gehört am Client aber dem *Verschwimmen*. Jeder
+richtig verzauberte Stiefel las deshalb „(ID 4428 abweichend – /wc vz)",
+und in den sieben Stärkeprofilen (Krieger, Paladin, Todesritter) galt
+*Verschwimmen* über diese ID als optimal, obwohl Beweglichkeit dort
+nichts bringt. Die *Große Präzision* hat seitdem gar keine belegte ID mehr —
+sie steht unter ihrer Formelnummer und wartet auf ein `/wc vz` von
+jemandem, der sie trägt.
 
 `WeintCodex.StatMatch` asks a third question that needs no table of ours:
 **which stats does the thing actually grant, and are they the same ones
