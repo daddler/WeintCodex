@@ -61,10 +61,21 @@ Trainer (`.toc`) und kennt keine Farben und keine Frames.
 Slimmed-down in-game versions of the two WeintCompanion desktop features,
 for players on a single monitor. Need **WeintCompanion 1.3.0 or newer**.
 Both are **pure renderers**: every judgement (avoidable vs. unavoidable
-damage, movement in metres, cooldown efficiency, the six star ratings, the
-training-plan order) is computed in the Companion and arrives finished
-over the inbox — nothing is recalculated here (voller Vertrag:
+damage, cooldown efficiency, the six star ratings, the training-plan
+order) is computed in the Companion and arrives finished over the inbox
+— nothing is recalculated here (voller Vertrag:
 `../../../WeintCompanion/docs/academy-and-practice-bridge.md`).
+
+Since Companion 3.6.0 / Codex 3.3.0.0 the report carries **no
+`movement` block**: WarcraftLogs has no distance metric, and the metre
+figure was a straight-line estimate between consecutive events. The
+*Laufweg* column and the "wer bin ich" row are gone with it; what
+remains of movement sits in `mechanics[]` (`movement`/`positioning`),
+where every row is an event that actually happened. From the same
+release `cooldowns[].possible` is `0` for anything that is not
+`category == "personal"` — `0` means **no quota**, never "no possible
+uses", so such a row shows the bare count and is not coloured red. An
+un-pressed Shield Wall is not a wasted use.
 
 - `modules/weinttv.lua` is its own nav tab. Six table pages plus a "Nur
   ich / Ganzer Raid" toggle in `TitleBarActions`.

@@ -424,7 +424,7 @@ local TOUR_STEPS = {
       body =
         "Die Tiefenanalyse eures letzten Pulls im Spiel: vermeidbarer "
         .. "Schaden mit der Gegenmaßnahme dazu, Wirkungsdauern deiner "
-        .. "Effekte, Aktivzeit, Laufwege in Metern, Cooldown-Nutzung und "
+        .. "Effekte, Aktivzeit, Cooldown-Nutzung und "
         .. "Mechanikfehler.\n\n"
         .. "Oben schaltest du zwischen " .. A("Nur ich") .. " und "
         .. A("Ganzer Raid") .. " um.\n\n"

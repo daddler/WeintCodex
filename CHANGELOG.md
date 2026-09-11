@@ -2,6 +2,44 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.3.0.0] – 2026-09-11
+
+**Die Cooldown-Seite unterscheidet jetzt, was auf Abklingzeit gehört
+und was auf seinen Moment wartet.**
+
+Bisher stand jeder nicht gedrückte Cooldown rot als *nicht genutzt* da
+und ging mit „0 / 4" in die Bewertung ein — auch ein Schildwall, ein
+Gottesschild oder eine Aura der Hingabe. Das ist kein Versäumnis,
+sondern ein Kampf, in dem sie nicht gebraucht wurden, und es traf
+ausgerechnet Tanks am härtesten, die die meisten davon haben.
+
+Solche Cooldowns bekommen jetzt keine Quote mehr, nur noch die Anzahl
+und ihre Zeitpunkte. Eine neue Spalte *Art* sagt bei jeder Zeile,
+worum es sich handelt: auf Abklingzeit, defensiv, Raid oder Heilung.
+
+**Die Laufwege in Metern sind weg.** Auf der Seite *Aktivzeit* (die
+vorher *Aktivzeit & Laufwege* hieß) und in *Wer bin ich*. Die Zahl kam
+nicht aus dem Log: sie war eine Schätzung aus dem Abstand zwischen zwei
+aufeinanderfolgenden Ereignissen, hat echtes Ausweichen regelmäßig zu
+niedrig angesetzt und wer zwischendurch keine Ereignisse erzeugt hat,
+tauchte gar nicht auf. Was von Bewegung bleibt, steht unter
+*Unterbrechungen & Mechaniken*: ein vermeidbarer Treffer ist wirklich
+passiert.
+
+Der Bereich *Movement* der Academy heißt entsprechend jetzt *Bewegung*
+und bewertet genau das.
+
+### Technisch
+
+Die eigentliche Änderung steckt in WeintCompanion 3.6.0 — hier wird
+nachgezogen, was von dort ankommt. `weinttv_report` trägt kein
+`movement`-Feld mehr (`modules/weinttv.lua`: aus `ROW_LISTS`, aus
+`IdentityRows()` und aus `ShowActivity()` entfernt; der Kopfkommentar
+von `modules/companion.lua` ist mitgezogen). `ShowCooldowns()` liest
+`category` und zeichnet eine Zeile ohne `possible` weder rot noch mit
+Quote; `modules/academy.lua` übernimmt die neue Beschriftung des
+Bereichs.
+
 ## [3.2.0.2] – 2026-09-09
 
 **Der Erinnerungskasten war zu klein für seinen eigenen Text.**
