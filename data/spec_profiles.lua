@@ -207,7 +207,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.580 / Tempo 7.350 — Lauftempo entscheidet (so auch die Guides)
+            ["Füße"]     = { 4429, 74715, 4426, 74716 },  -- Meist. 6.580 / Tempo 7.350 — Lauftempo entscheidet (so auch die Guides)
             Ring         = { 84578 },
         },
         -- Krit ist der beste Sekundärstat -> überall Glatter Goldberyll.
@@ -251,7 +251,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.440 / Tempo 7.700 — Lauftempo entscheidet (so auch die Guides)
+            ["Füße"]     = { 4429, 74715, 4426, 74716 },  -- Meist. 6.440 / Tempo 7.700 — Lauftempo entscheidet (so auch die Guides)
             Ring         = { 84578 },
         },
         -- Krit ist der beste Sekundärstat, aber NICHT wertvoller als Stärke:
@@ -429,7 +429,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432, 74719 },
             Beine        = { 4823 },
-            ["Füße"]     = { 74715, 4426, 4429, 4428 },  -- Meist. 11.200 / Tempo 15.750
+            ["Füße"]     = { 74715, 4426, 4429, 74716 },  -- Meist. 11.200 / Tempo 15.750
             Ring         = { 84578 },
         },
         -- Tempo bis 50% Gesamt-Tempo, danach Meisterschaft. Sockelboni
@@ -475,7 +475,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 8.400
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 8.400
             Ring         = { 84575 },
         },
         bestGems = {
@@ -521,7 +521,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.700
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 7.700
             Ring         = { 84575 },
         },
         bestGems = {
@@ -564,7 +564,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.000
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 7.000
             Ring         = { 84575 },
         },
         bestGems = {
@@ -604,9 +604,22 @@ WeintCodex_SpecProfiles = {
             Brust        = { 4419 },
             Umhang       = { 4421, 4422 },        -- Präzision (Treffer)
             Handgelenke  = { 4416 },
-            ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
+            -- HANDSCHUHE: Überragende Meisterschaft, nicht Waffenkunde —
+            -- dieselbe Korrektur, die der Wildheitsdruide in 2.9.3.0
+            -- bekommen hat, und aus demselben Grund: Waffenkunde ist über
+            -- dem 7,5-%-Kap wertlos und lässt sich jederzeit umschmieden,
+            -- eine Verzauberung nicht. Die Meisterschaft trägt beim
+            -- Meucheln die Gifte und ist die Empfehlung der Guides. Bis
+            -- 3.3.0.1 stand hier nur die Waffenkunde, und ein richtig
+            -- verzauberter Handschuh wurde als Mangel gemeldet (so
+            -- berichtet, 09/2026, Meuchelschurke). Waffenkunde und Tempo
+            -- bleiben in der Liste: unter dem Kap ist die eine vertretbar,
+            -- und das Tempo bringt diesem Profil 93 % der Meisterschaft.
+            -- Was mehr als die Hälfte bringt, ist kein Mangel — das sagt
+            -- die Datenprüfung am Ende dieser Datei selbst.
+            ["Hände"]    = { 4430, 4431, 74719 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 10.500
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 10.500
             Ring         = { 84575 },
         },
         bestGems = {
@@ -647,7 +660,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 9.100
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 9.100
             Ring         = { 84575 },
         },
         bestGems = {
@@ -681,7 +694,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 8.400
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 8.400
             Ring         = { 84575 },
         },
         bestGems = {
@@ -862,7 +875,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432, 74719 },
             Beine        = { 4823 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 11.900 / Tempo 7.875
+            ["Füße"]     = { 4429, 74715, 4426, 74716 },  -- Meist. 11.900 / Tempo 7.875
             Ring         = { 84578 },
         },
         bestGems = {
@@ -896,7 +909,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4432, 74719 },
             Beine        = { 4823 },
-            ["Füße"]     = { 74715, 4426, 4428 },  -- Meist. 5.600 / Tempo 11.375 — die andere ist wirklich falsch
+            ["Füße"]     = { 74715, 4426, 74716 },  -- Meist. 5.600 / Tempo 11.375 — die andere ist wirklich falsch
             Ring         = { 84578 },
         },
         -- Ab ~ilvl 540 lohnt sich Krit mehr als reine Stärke-Sockelung.
@@ -969,7 +982,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431 },              -- Überragende Waffenkunde
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 10.920
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 10.920
             Ring         = { 84575 },
         },
         bestGems = {
@@ -1251,7 +1264,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431, 74719 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4429, 4425, 74715, 4426, 4428 },  -- Bewegl. 11.900 / Meist. 12.600 / Tempo 7.000
+            ["Füße"]     = { 4429, 4425, 74715, 4426, 74716 },  -- Bewegl. 11.900 / Meist. 12.600 / Tempo 7.000
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1324,7 +1337,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 74719, 4430 },
             Beine        = { 4822 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 14.000 / Meist. 7.700
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 14.000 / Meist. 7.700
             Ring         = { 84575 },
         },
         bestGems = {
@@ -1415,15 +1428,20 @@ WeintCodex_SpecProfiles = {
             -- Mangel. Waffenkunde ist über dem 7,5-%-Kap wertlos und lässt
             -- sich, anders als eine Verzauberung, jederzeit umschmieden;
             -- die Meisterschaft ist die Empfehlung der Guides und in den
-            -- Raiddaten die mit Abstand häufigste. Beide bleiben in der
-            -- Liste: unter dem Kap ist die Waffenkunde vertretbar.
-            ["Hände"]    = { 4430, 4431 },
+            -- Raiddaten die mit Abstand häufigste. Waffenkunde und Tempo
+            -- bleiben in der Liste: unter dem Kap ist die eine vertretbar,
+            -- das Tempo bringt diesem Profil 80 % der Meisterschaft. Das
+            -- Tempo fehlte bis 3.3.0.1 — die Datenprüfung beim Login
+            -- meldete es seit 2.9.3.0 in jedem Spielstart, und jeder
+            -- Wildheitsdruide mit Tempohandschuhen bekam einen Mangel
+            -- gemeldet, den es nach den eigenen Gewichten nicht gibt.
+            ["Hände"]    = { 4430, 4431, 74719 },
             Beine        = { 4822 },
             -- Verschwimmen (140 Bewegl. + Lauftempo) vor Großer Präzision
             -- (175 Treffer, nur solange das Kap offen ist). Der Kommentar
             -- hier nannte bis 2.9.3.0 eine "Meisterschaft", die in keinem
             -- der beiden Einträge steht.
-            ["Füße"]     = { 4425, 4428 },
+            ["Füße"]     = { 4425, 74716 },
             Ring         = { 84575 },
         },
         bestGems = {
@@ -1458,11 +1476,20 @@ WeintCodex_SpecProfiles = {
             Waffe        = { 4444, 4443 },
             Schultern    = { 4805, 4804 },
             Brust        = { 4419, 4420 },
-            Umhang       = { 4421 },
+            -- UMHANG: Großer Schutz (+200 Ausdauer), nicht Präzision.
+            -- Bis 3.3.0.1 stand hier NUR die Präzision — damit meldete das
+            -- Addon einen richtig verzauberten Umhang als Mangel, und zwar
+            -- gegen die eigenen Gewichte dieses Profils: 200 Ausdauer sind
+            -- hier 20.000 wert, 180 Treffer 16.200. Die beiden anderen
+            -- defensiven Tankprofile (Krieger, Paladin) führen den Schutz
+            -- seit jeher allein, das OFFENSIVE Wächterprofil weiter unten
+            -- ebenfalls — nur das defensive nicht. So gemeldet (09/2026,
+            -- Wächterdruide).
+            Umhang       = { 74711 },             -- Großer Schutz (+200 Ausdauer)
             Handgelenke  = { 4416 },
             ["Hände"]    = { 4431, 74719 },
             Beine        = { 4824, 4822 },
-            ["Füße"]     = { 4425, 4429, 4428 },  -- Bewegl. 7.700 / Meist. 2.100
+            ["Füße"]     = { 4425, 4429, 74716 },  -- Bewegl. 7.700 / Meist. 2.100
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1535,7 +1562,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4432 },
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 4429, 74715, 4426, 4428 },  -- Meist. 6.720 / Tempo 7.000 — Lauftempo entscheidet
+            ["Füße"]     = { 4429, 74715, 4426, 74716 },  -- Meist. 6.720 / Tempo 7.000 — Lauftempo entscheidet
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Krit überall nach Hit/Waffenkunde-Cap. Sockelboni
@@ -1572,7 +1599,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4415 },
             ["Hände"]    = { 4431, 4432 },        -- Offensiv: Überragende Waffenkunde
             Beine        = { 4823, 4824 },
-            ["Füße"]     = { 74715, 4426, 4428 },  -- Meist. 6.300 / Tempo 15.750 — die andere ist wirklich falsch
+            ["Füße"]     = { 74715, 4426, 74716 },  -- Meist. 6.300 / Tempo 15.750 — die andere ist wirklich falsch
             Ring         = { 84578, 84577 },      -- Stärke, alternativ Ausdauer
         },
         -- Offensiv: Waffenkunde-Hardcap + Treffer, dann Tempo/Krit (Rache-DPS).
@@ -1645,7 +1672,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 74719, 4431 },
             Beine        = { 4822, 4824 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 12.600 / Meist. 4.900
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 12.600 / Meist. 4.900
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {
@@ -1679,7 +1706,7 @@ WeintCodex_SpecProfiles = {
             Handgelenke  = { 4416 },
             ["Hände"]    = { 74719, 4431 },
             Beine        = { 4822, 4824 },
-            ["Füße"]     = { 4425, 4428 },  -- Bewegl. 8.400 / Meist. 2.100
+            ["Füße"]     = { 4425, 74716 },  -- Bewegl. 8.400 / Meist. 2.100
             Ring         = { 84575, 84577 },      -- Beweglichkeit, alternativ Ausdauer
         },
         bestGems = {

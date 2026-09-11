@@ -2,6 +2,60 @@
 
 Alle nennenswerten Änderungen an WeintCodex werden hier festgehalten. Format lose an [Keep a Changelog](https://keepachangelog.com/) angelehnt; Versionsnummern folgen dem bisherigen 4-teiligen Schema (`MAJOR.MINOR.PATCH.BUILD`), nicht SemVer.
 
+## [3.3.0.1] – 2026-09-11
+
+**Verschwimmen auf den Stiefeln gilt wieder als das, was es ist.**
+
+Die Verzauberung trägt im Spiel zwei Kennnummern, und WeintCodex kannte
+nur eine. Die zweite stand in der Tabelle für eine ganz andere
+Verzauberung — für *Große Präzision*. Wer richtig verzaubert hatte, las
+an seinen Stiefeln deshalb *Verschwimmen (ID 4428 abweichend – /wc vz)*:
+der Name stimmte, die Warnung daneben nicht. Gemeldet wurde es am
+Wildheitsdruiden; betroffen war jeder, dessen Stiefel diese zweite
+Nummer tragen.
+
+Dieselbe Nummer stand bei sieben Stärke-Spielweisen — Krieger, Paladin,
+Todesritter — auch in der Empfehlungsliste, dort als Trefferverzauberung
+gemeint. Ein Krieger mit *Verschwimmen* bekam damit *optimal* zu lesen,
+obwohl Beweglichkeit ihm nichts bringt. Auch das ist weg.
+
+**Der Wächterdruide will Großen Schutz auf dem Umhang**, nicht Präzision.
+Die Empfehlung stand gegen die eigene Wertung des Profils: Ausdauer ist
+dort der stärkste Wert. Die beiden anderen defensiven Tankprofile führen
+den Schutz seit jeher, der Wächter jetzt auch — wer ihn angelegt hatte,
+las bisher einen Mangel.
+
+**Der Meuchelschurke will Überragende Meisterschaft auf den Handschuhen.**
+Empfohlen wurde Waffenkunde — ein Wert, der über seiner Grenze nichts mehr
+bringt und sich jederzeit umschmieden lässt, während eine Verzauberung
+bleibt. Waffenkunde und Tempo gelten weiter als vertretbar.
+
+**Und beim Wildheitsdruiden zählen Tempohandschuhe jetzt ebenfalls als
+vertretbar.** Sie bringen ihm gut vier Fünftel der empfohlenen
+Meisterschaft; das ist kein Mangel.
+
+### Technisch
+
+`data/enchants.lua`: `4428` ist **Verschwimmen** (140 Beweglichkeit), am
+Client belegt durch `/wc vz` — zweite ID neben `4425`, wie `4422/4424`
+beim Umhang. Der bisherige Inhalt (*Große Präzision*, 175 Treffer) trug
+seit jeher `verify = true` und ist damit ohne belegte ID: der Eintrag
+steht jetzt unter der Formelnummer `74716`, erkannt wird er über Slot +
+Werte bzw. den Namen, nie über die Nummer — dieselbe Lösung wie bei
+`74715`, `74711` und `74719`.
+
+`data/spec_profiles.lua`: `4428` in allen 20 Empfehlungslisten durch
+`74716` ersetzt (überall die letzte Stelle, also nie die erste
+Empfehlung). `DRUID_GUARDIAN.Umhang` `{4421}` → `{74711}`;
+`DRUID_GUARDIAN_OFFENSIVE` führte den Schutz bereits. `ROGUE_ASSASSINATION`
+und `DRUID_FERAL` bekommen `["Hände"] = { 4430, 4431, 74719 }` —
+`WeintCodex_ValidateEnchantWeights()` meldete das Tempo bei beiden als
+fehlend (93 % bzw. 80 % der ersten Empfehlung, Schwelle 50 %); beim
+Wildheitsdruiden lief diese Meldung seit 2.9.3.0 bei jedem Login mit.
+
+Die Datenprüfung der Verzauberungen ist damit wieder ohne Befund. Die
+fünf Befunde der Steinprüfung sind davon unberührt und bestehen weiter.
+
 ## [3.3.0.0] – 2026-09-11
 
 **Die Cooldown-Seite unterscheidet jetzt, was auf Abklingzeit gehört
