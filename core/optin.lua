@@ -28,13 +28,30 @@
 -- schaltet ausgerechnet dort ab, wo man mitreden lassen wollte. Also wird
 -- einmal gefragt und die Antwort behalten.
 --
--- GEFRAGT WIRD ERST AB EINER GEGENSTANDSSTUFE.
+-- GEHOLFEN WIRD ERST AB STUFE 90 UND AB EINER GEGENSTANDSSTUFE.
 --
--- Vorher hat die Frage keinen Anlass: wer sich gerade hochspielt, tauscht
--- jede Stunde etwas und braucht keine Auskunft ueber Sockelboni. Die
--- Schwelle steht in den Einstellungen und ist ab Werk 520 — die Stufe, ab
--- der ein Charakter im Schlachtzug mitgeht und die Auskunft anfaengt, sich
--- zu lohnen.
+-- Und zwar nicht nur gefragt, sondern geholfen: bis 3.3.0.1 waren die zwei
+-- Schwellen nur ein Vorbehalt gegen die FRAGE. Wer unter ihnen blieb, wurde
+-- nie gefragt — und weil eine unbeantwortete Frage hier "ja" heisst (siehe
+-- unten), bekam ausgerechnet der Charakter, um den es geht, die volle
+-- ungefragte Hilfe. Der Ausruestungs-Alarm stand damit auf jedem Twink im
+-- Bild und verlangte Verzauberungen fuer Ausruestung, die in zwei Stunden
+-- ohnehin weg ist. Dieselbe Schwelle entscheidet deshalb beides.
+--
+-- Stufe 90 ist in Mists die Hoechststufe: vorher tauscht man jede Stunde
+-- etwas, und niemand verzaubert einen Gegenstand, den er bis zum Abend
+-- wieder ablegt. Die Gegenstandsstufe steht in den Einstellungen und ist ab
+-- Werk 520 — die Stufe, ab der ein Charakter im Schlachtzug mitgeht und die
+-- Auskunft anfaengt, sich zu lohnen.
+--
+-- GEMESSEN WIRD, NICHT GERATEN.
+--
+-- Was der Client noch nicht beantwortet, ist unbekannt und keine 0: eine
+-- Gegenstandsstufe von 0 ist eine Aussage ueber den Ladezustand. Solange
+-- sie fehlt, kommt nichts von selbst — der Ausruestungs-Alarm sieht ueber
+-- seinen Zeitgeber ohnehin wieder nach. Kennt der Client die Auskunft
+-- ueberhaupt nicht (die Funktion fehlt), entfaellt die Schwelle ganz,
+-- statt das Addon stillzulegen.
 --
 -- WAS "NEIN" HEISST, STEHT IN DER FRAGE.
 --
@@ -51,6 +68,10 @@ WeintCodex.OptIn = {}
 local OI = WeintCodex.OptIn
 
 local DEFAULT_ILVL = 520
+
+-- Hoechststufe in Mists. Verglichen wird mit ">=", damit die Schwelle auch
+-- dann noch stimmt, wenn der Client eines Tages hoeher zaehlt.
+local MIN_LEVEL = 90
 
 --------------------------------------------------
 -- Speicher
@@ -84,15 +105,111 @@ local function Me()
 end
 
 --------------------------------------------------
+-- Was der Client ueber diesen Charakter hergibt
+--------------------------------------------------
+-- Beide Funktionen liefern ZWEI Auskuenfte, und die zweite ist die
+-- wichtigere: kennt der Client die Frage ueberhaupt? Ein fehlender Wert und
+-- eine fehlende Funktion sind zwei verschiedene Dinge — der eine heisst
+-- "noch nicht geladen" (warten), die andere "dieser Client beantwortet das
+-- nicht" (Schwelle entfaellt).
+--------------------------------------------------
+
+-- Rueckgabe: Stufe oder nil (noch nicht bekannt), plus ob der Client die
+-- Auskunft kennt.
+local function PlayerLevel()
+    if not UnitLevel then return nil, false end
+    local ok, level = pcall(UnitLevel, "player")
+    level = ok and tonumber(level) or nil
+    if not level or level <= 0 then return nil, true end
+    return level, true
+end
+
+-- Rueckgabe: angelegte Gegenstandsstufe oder nil (noch nicht bekannt), plus
+-- ob der Client die Auskunft kennt. Eine 0 ist hier kein Messwert, sondern
+-- der Ladezustand — siehe den Kopf dieser Datei.
+local function EquippedIlvl()
+    if not GetAverageItemLevel then return nil, false end
+    local ok, _, equipped = pcall(GetAverageItemLevel)
+    equipped = ok and tonumber(equipped) or nil
+    if not equipped or equipped <= 0 then return nil, true end
+    return math.floor(equipped), true
+end
+
+function OI.MinLevel()
+    return MIN_LEVEL
+end
+
+--------------------------------------------------
+-- Gehoert dieser Charakter ueberhaupt dazu?
+--------------------------------------------------
+-- EINE Rechnung, nicht zwei: sowohl die Frage nach dem Anmelden als auch
+-- jede ungefragte Meldung danach haengt an dieser Funktion. Stuenden die
+-- Schwellen ein zweites Mal woanders, gaebe es genau den Zustand wieder,
+-- wegen dem es sie gibt — gefragt wurde nicht, geholfen wurde trotzdem.
+--
+-- Rueckgabe: ok, Grund ("level" | "ilvl" | "pending"), Stufe, Gegenstandsstufe
+--------------------------------------------------
+
+function OI.Scope()
+    local level, levelKnown = PlayerLevel()
+    local ilvl,  ilvlKnown  = EquippedIlvl()
+
+    if levelKnown then
+        if not level then return false, "pending", level, ilvl end
+        if level < MIN_LEVEL then return false, "level", level, ilvl end
+    end
+
+    if ilvlKnown then
+        if not ilvl then return false, "pending", level, ilvl end
+        if ilvl < OI.MinIlvl() then return false, "ilvl", level, ilvl end
+    end
+
+    return true, nil, level, ilvl
+end
+
+-- Ein Satz fuer die Einstellungsseite, die Einblendung und die Diagnose —
+-- damit dieselbe Lage nicht an drei Stellen verschieden begruendet wird.
+function OI.ScopeText()
+    local ok, why, level, ilvl = OI.Scope()
+    if ok then
+        return "Stufe " .. (level or "?") .. " · Gegenstandsstufe "
+            .. (ilvl or "?") .. " — WeintCodex meldet sich hier von sich aus."
+    end
+    if why == "level" then
+        return "Stufe " .. (level or "?") .. ": unter Stufe " .. MIN_LEVEL
+            .. " meldet sich WeintCodex hier nicht von sich aus."
+    end
+    if why == "ilvl" then
+        return "Gegenstandsstufe " .. (ilvl or "?") .. ": unter "
+            .. OI.MinIlvl() .. " meldet sich WeintCodex hier nicht von sich aus."
+    end
+    return "Stufe und Gegenstandsstufe stehen noch nicht fest —"
+        .. " bis dahin meldet sich WeintCodex nicht von sich aus."
+end
+
+--------------------------------------------------
 -- Die eine Frage, die alle anderen Module stellen
 --
 -- IM ZWEIFEL JA. Ohne Antwort, ohne Namen, ohne alles verhaelt sich das
 -- Addon wie vor 2.7.2.0 — dieselbe Zurueckhaltung wie bei `Can()` in
 -- core/access.lua: ein Client, der nie gefragt wurde, wird nicht
 -- stillgelegt.
+--
+-- ABER ERST AB DEN SCHWELLEN. "Im Zweifel ja" galt bis 3.3.0.1 auch fuer
+-- den Charakter, den man gerade erst hochspielt — und das war der Zweifel
+-- gar nicht: gefragt wurde er nie, also stand seine Antwort auf "ja" und
+-- der Ausruestungs-Alarm verlangte Verzauberungen auf Stufe 42.
 --------------------------------------------------
 
 function OI.Active()
+    if not OI.Scope() then return false end
+    return OI.Answer()
+end
+
+-- Die gespeicherte Antwort ALLEIN, ohne die Schwellen. Dafuer gibt es genau
+-- zwei Leser: die Einstellungsseite (sie zeigt, was man gewaehlt hat, auch
+-- auf einem Charakter, auf dem gerade ohnehin nichts kommt) und OI.Active.
+function OI.Answer()
     local me = Me()
     if not me then return true end
     local answer = Store().chars[me]
@@ -231,11 +348,6 @@ function OI.Ask(manual)
     if not me then return end
 
     Build()
-    local ilvl = 0
-    if GetAverageItemLevel then
-        local ok, _, equipped = pcall(GetAverageItemLevel)
-        if ok and equipped then ilvl = math.floor(equipped) end
-    end
 
     frame.title:SetText(me .. " — soll WeintCodex dir hier helfen?")
 
@@ -246,7 +358,7 @@ function OI.Ask(manual)
     -- Rotationshelfer — keine Dateinamen, keine Schalternamen.
     --------------------------------------------------
     frame.body:SetText(
-        "Dieser Charakter trägt Gegenstandsstufe " .. ilvl .. "."
+        OI.ScopeText()
         .. "\n\n|cff7CC06EJa|r — WeintCodex hilft dir hier bei"
         .. " |cffDDDDFFVerzauberungen, Sockelsteinen und dem Umschmieden|r."
         .. " Es meldet sich, wenn an einem frisch angelegten Teil eine"
@@ -295,13 +407,11 @@ watcher:SetScript("OnEvent", function()
     if not (C_Timer and C_Timer.After) then return end
     C_Timer.After(ASK_DELAY, function()
         if OI.Answered() then return end
-        if not GetAverageItemLevel then return end
-        local ok, _, equipped = pcall(GetAverageItemLevel)
-        -- Ohne Antwort des Clients wird nicht gefragt: eine
-        -- Gegenstandsstufe von 0 ist eine Aussage ueber den Ladezustand,
-        -- keine ueber den Charakter.
-        if not (ok and equipped and equipped > 0) then return end
-        if equipped < OI.MinIlvl() then return end
+        -- Dieselbe Schwelle wie fuer die Hilfe selbst, und dieselbe
+        -- Rechnung: unter Stufe 90, unter der eingestellten
+        -- Gegenstandsstufe oder ohne Antwort des Clients wird nicht
+        -- gefragt — es kommt dort ohnehin nichts.
+        if not OI.Scope() then return end
         OI.Ask(false)
     end)
 end)

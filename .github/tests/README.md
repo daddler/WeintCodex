@@ -241,3 +241,27 @@ Empfehlung und ist keine.
 ```bash
 lua5.1 .github/tests/socketing_test.lua .
 ```
+
+## Wo das Addon von sich aus hilft
+
+`optin_test.lua` prüft die Schwellen aus `core/optin.lua` — „erst ab Stufe
+90" und „erst ab der eingestellten Gegenstandsstufe". Bis 3.3.0.1 galten
+sie nur für die **Frage** nach der Hilfe, nicht für die Hilfe selbst; weil
+eine unbeantwortete Frage dort „ja" heisst, kam dabei das Gegenteil
+heraus: auf einem Twink, der unter der Schwelle blieb und deshalb nie
+gefragt wurde, verlangte der Ausrüstungs-Alarm Verzauberungen für
+Ausrüstung, die am Abend wieder abgelegt ist.
+
+Im Spiel ist das nicht nachzuprüfen — **„es kommt keine Meldung" sieht bei
+einem abgewählten Charakter, einem zu niedrigen Charakter und einer
+Ausrüstung ohne Lücke völlig gleich aus.** Geprüft werden deshalb beide
+Schwellen einzeln und mit ihrem Grund, dass ein „Ja" sie nicht überstimmt,
+dass der Schalter auf der Einstellungsseite trotzdem die *Antwort* zeigt
+(sonst stünde er auf jedem Twink auf aus, ohne dass jemand ihn
+ausgeschaltet hat), und die beiden Fälle, in denen der Client nichts
+sagt: eine Gegenstandsstufe von 0 ist der **Ladezustand** und heisst
+warten, eine fehlende Funktion heisst, dass die Schwelle entfällt.
+
+```bash
+lua5.1 .github/tests/optin_test.lua .
+```

@@ -17,18 +17,49 @@ Fenster & Ansicht*.
 ist, kann das Addon nicht wissen; jede Rateregel läge irgendwann daneben.
 Einmal gefragt, Antwort behalten (`SavedData.optIn.chars[<Charakter>]`).
 
-**Gefragt wird erst ab einer Gegenstandsstufe**
-(`SavedData.optIn.minIlvl`, ab Werk 520), und nicht bei `PLAYER_LOGIN`
-(meldet die Gegenstandsstufe oft noch als 0).
+**Geholfen wird erst ab Stufe 90 und ab einer Gegenstandsstufe**
+(`OI.Scope()`, seit 3.3.0.2; `SavedData.optIn.minIlvl`, ab Werk 520). Bis
+3.3.0.1 waren die beiden Schwellen nur ein Vorbehalt gegen die **Frage**,
+und weil eine unbeantwortete Frage hier „ja" heisst, kam dabei das
+Gegenteil heraus: **auf jedem Charakter unterhalb der Schwelle wurde nie
+gefragt, also galt „ja", also kam die volle ungefragte Hilfe** — der
+Ausrüstungs-Alarm verlangte auf einem Twink der Stufe 42 Verzauberungen
+für Ausrüstung, die am selben Abend wieder abgelegt ist. Gemeldet wurde
+genau das. Dieselbe Rechnung entscheidet deshalb beides; eine zweite
+Fassung der Schwelle wäre der Rückfall in denselben Zustand.
+
+**Ein „Ja" überstimmt die Schwellen nicht.** Wer unter Stufe 90 spielt,
+bekommt nichts von selbst, auch wenn er die Frage bejaht hat — die
+Gegenstandsstufe ist dafür der Regler, die Höchststufe nicht. Sichtbar ist
+das: unter dem Schalter steht, was gerade gilt und warum
+(`OI.ScopeText()`, dieselbe Zeile in `/wc alarm`, in der Diagnose der
+Einkaufsliste und in der Frage selbst).
+
+**Unbekannt ist keine 0.** Eine Gegenstandsstufe von 0 ist eine Aussage
+über den Ladezustand — solange sie dasteht, kommt nichts von selbst (der
+Grund heisst `pending`; der Ausrüstungs-Alarm sieht über seinen Zeitgeber
+ohnehin wieder nach). Kennt der Client die Auskunft überhaupt nicht (die
+Funktion fehlt), entfällt die betreffende Schwelle ganz, statt das Addon
+stillzulegen. Gefragt wird ausserdem nicht bei `PLAYER_LOGIN` — dort
+meldet der Client die Gegenstandsstufe oft noch als 0.
 
 **Was „Nein" heisst, steht in der Frage.** Nicht „das Addon ist aus": `/wc`
 öffnet es weiterhin vollständig, `/wc alarm jetzt` eingeschlossen. Nein
 heisst: hier wird kein Gespräch angefangen.
 
-`OI.Active()` ist die eine Stelle, an der das beantwortet wird; vier
-Flächen lesen sie. **Im Zweifel ja** — ohne Antwort, ohne Namen verhält
-sich das Addon wie vor 2.7.2.0, dieselbe Zurückhaltung wie bei `Can()` in
-`core/access.lua`.
+`OI.Active()` ist die eine Stelle, an der das beantwortet wird
+(Schwellen **und** Antwort); vier Flächen lesen sie. **Im Zweifel ja** —
+ohne Antwort, ohne Namen verhält sich das Addon wie vor 2.7.2.0, dieselbe
+Zurückhaltung wie bei `Can()` in `core/access.lua`. Daneben steht
+`OI.Answer()`: die gespeicherte Antwort **ohne** die Schwellen, mit genau
+einem zusätzlichen Leser — dem Schalter auf der Einstellungsseite. Stünde
+dort `Active()`, wäre er auf jedem Twink aus, ohne dass jemand ihn
+ausgeschaltet hat, und das Anschalten bliebe folgenlos.
+
+Geprüft wird die Schwellenrechnung kopflos in
+`.github/tests/optin_test.lua` — im Spiel ist sie nicht nachzuprüfen: „es
+kommt keine Meldung" sieht bei einem abgewählten Charakter, einem zu
+niedrigen Charakter und einer Ausrüstung ohne Lücke gleich aus.
 
 ## Einkaufsliste (`modules/shoppinglist.lua`, seit 2.7.2.0)
 

@@ -7,6 +7,17 @@
 
 WeintCodex_ChangelogData = {
     {
+        version = "3.3.0.2",
+        date    = "11.09.2026",
+        notes   = {
+            "|cffD4A24AAuf einem Twink verlangt WeintCodex keine Verzauberungen mehr.|r Der Ausruestungs-Alarm stand auch auf Charakteren im Bild, die noch hochgespielt werden.",
+            "Erinnerungen an Verzauberungen und Sockel kommen jetzt erst |cffD4A24Aab Stufe 90|r und erst ab der Gegenstandsstufe, die du eingestellt hast.",
+            "Die Schwelle steht wie bisher unter |cffD4A24AEinstellungen -> Fenster & Ansicht|r; ab Werk sind es 520.",
+            "Was du selbst aufrufst, kommt weiterhin - |cffD4A24A/wc alarm jetzt|r und die Charakterseite aendern sich nicht.",
+            "Unter dem Schalter |cffD4A24AVon sich aus helfen|r steht jetzt, was auf diesem Charakter gerade gilt.",
+        },
+    },
+    {
         version = "3.3.0.1",
         date    = "11.09.2026",
         notes   = {
